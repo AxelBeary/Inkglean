@@ -199,6 +199,32 @@ export interface QueueRow {
   version: number
 }
 
+// ─── 波2 拖拽改期（写路径）契约：9/13 批新增 ───
+
+/** 带乐观锁版本号的写选项（照网页端 VersionedOptions 同名同形）。
+ *  后端 schema：version 为 integer、minimum 1、可省（省则“读当前版本再写”，会覆盖别人的改动，
+ *  故桌面写路径**一律带 version**，不走兼容路径）。 */
+export interface VersionedOptions {
+  version?: number
+}
+
+/** PUT …/deadline 与 …/start-date 的响应（后端返回 enrich 后的订单体）。
+ *  只声明桌面消费的字段：version 是下一步写的接力值，两个日期用于本地行回写。 */
+export interface OrderWriteResult {
+  id: number
+  version: number
+  deadline: string | null
+  start_date: string | null
+  /** 路由层驼峰副本（与 QueueRow 同源命名）；后端只给一个时调用方回退 snake_case */
+  startDate?: string | null
+}
+
+/** PUT /api/artist/queue/reorder 的响应：重取后的**正式区**队列裸数组
+ *  （`getArtistQueue` 口径，只含 `start_date`、不带 `startDate` 驼峰副本）。
+ *  桌面端刻意**不消费本响应**：reorder 会令参与行 version 全部 +1，且本端还要刷新缓冲区与名额，
+ *  故写成功后统一走 `load(true)` 重拉（单一真相，不让一份手改的本地数组与服务端形状打架）。 */
+export type ReorderQueueResult = QueueRow[]
+
 /** 画师本人资料（GET /api/artist/profile）。名额结构化字段供「能否接单」复刻——
  *  9/3 回流批网页端 F11 同源口径：用结构化字段算，**不匹配后端中文文案**（防后端改词即崩）。 */
 export interface ArtistProfile {

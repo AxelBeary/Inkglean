@@ -1,8 +1,11 @@
 // 桌面端云端数据 API（Bearer 桌面 token，v73 口径：下发 token 不下发 cookie）
 // 四板块 + 挂牌的云端数据源；本地模式（未登录脱网）一律不调本文件任何函数（双模式纪律）。
 // 响应类型与网页端同源：字段形状照 web/src/api/types.ts 对应接口抄入 ./types（桌面端自带一份，不跨包引用）。
-// 失败口径：网络/服务端错误向上抛，由板块壳统一降级（临时断网：留言整块隐藏，其余静默态，不留死按钮）。
+// 失败口径：网络/服务端错误一律抛 `ApiError`（带 status/code/detail，见 ./errors），
+// 由板块壳与排期 store 统一降级（临时断网：留言整块隐藏，其余静默态，不留死按钮）。
+// 波2 拖拽改期批：写路径要能判定 409 ORDER_CONFLICT，故不再抛丢信息的裸 Error。
 import { requireApiBase } from '../config'
+import { ApiError } from './errors'
 import { useAuthStore } from '../stores/auth'
 import type {
   ArtistOrderItem,
@@ -11,12 +14,28 @@ import type {
   DeadlineSoonResult,
   GuestbookMessage,
   IncomeOverview,
+  OrderWriteResult,
   QueueRow,
   RevenueResult,
   ScheduleBar,
   SimpleSuccessResult,
-  TodoItem
+  TodoItem,
+  VersionedOptions
 } from './types'
+
+/** 把失败响应读成 ApiError：status 与后端 code/detail 原样保留（不许吞）。
+ *  响应体不是 JSON（网关 HTML 错误页等）也不炸：退回带 status 的通用文案。 */
+async function toApiError(res: Response): Promise<ApiError> {
+  const data = await res.json().catch(() => null) as
+    | { error?: string; code?: string; detail?: unknown }
+    | null
+  return new ApiError(
+    res.status,
+    typeof data?.code === 'string' ? data.code : null,
+    data?.error ?? `请求失败（${res.status}）`,
+    data?.detail
+  )
+}
 
 async function getJson<T>(path: string): Promise<T> {
   const auth = useAuthStore()
@@ -24,10 +43,7 @@ async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(requireApiBase() + path, {
     headers: { Authorization: `Bearer ${auth.token}` }
   })
-  if (!res.ok) {
-    const data = await res.json().catch(() => null) as { error?: string } | null
-    throw new Error(data?.error ?? `请求失败（${res.status}）`)
-  }
+  if (!res.ok) throw await toApiError(res)
   return await res.json() as T
 }
 
@@ -39,10 +55,7 @@ async function putJson<T>(path: string, body: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.token}` },
     body: JSON.stringify(body)
   })
-  if (!res.ok) {
-    const data = await res.json().catch(() => null) as { error?: string } | null
-    throw new Error(data?.error ?? `请求失败（${res.status}）`)
-  }
+  if (!res.ok) throw await toApiError(res)
   return await res.json() as T
 }
 
@@ -114,6 +127,35 @@ export function fetchQueue(): Promise<QueueRow[]> {
 /** 缓冲区（候补）队列；月历带与列表分区都要它（六态里的缓冲态靠 zone 区分） */
 export function fetchBufferQueue(): Promise<QueueRow[]> {
   return getJson('/api/artist/queue?zone=buffer')
+}
+
+// ─── schedule 排期写路径（波2 拖拽改期：9/13 批）───
+// 三条口径：①**一律带 version**（不传＝后端走"读当前版本再写"兼容路径，会覆盖别人的改动）；
+//          ②两端同时变化时由调用方按 drag.planWrites 钉的顺序发（后端有 deadline ≥ startDate 交叉校验）；
+//          ③reorder 只认**整段正式区活跃单**（长度/重复/归属四条 400 码），故调用方必须把界面上
+//            全部正式区 id 按新序交上来，不许只交被拖的那一段。
+
+/** 改截稿日：响应带新 version，多步写时由调用方接力给下一步 */
+export function updateDeadline(
+  id: number,
+  deadline: string | null,
+  options: VersionedOptions = {}
+): Promise<OrderWriteResult> {
+  return putJson(`/api/artist/orders/${id}/deadline`, { deadline, ...options })
+}
+
+/** 改开工日（同上，字段名走驼峰 startDate，与后端 schema 一字不差） */
+export function updateStartDate(
+  id: number,
+  startDate: string | null,
+  options: VersionedOptions = {}
+): Promise<OrderWriteResult> {
+  return putJson(`/api/artist/orders/${id}/start-date`, { startDate, ...options })
+}
+
+/** 列表拖排：整段正式区新顺序。响应体刻意不消费（store 写成功后走 load(true) 重拉） */
+export function reorderQueue(orderedIds: number[]): Promise<unknown> {
+  return putJson('/api/artist/queue/reorder', { orderedIds })
 }
 
 // ─── plaque 状态挂牌（题签壳控件）───

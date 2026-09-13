@@ -1669,7 +1669,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   },
   artworks: {
     title: '作品管理', dragUpload: '拖拽图片到此处，或点击上传作品',
-    tip: '支持 JPG / PNG / WebP，建议尺寸 ≥ 800px', empty: '暂无作品',
+    tip: '支持 JPG / PNG / WebP / GIF，建议尺寸 ≥ 800px', empty: '暂无作品',
     emptyHint: '上传图片后，作品会展示在这里',
     uploaded: '上传成功', confirmDelete: '确定删除这张作品？', image: '作品图片', untitled: '未命名作品',
     // 820-K：工具条按行结构整理
@@ -1875,7 +1875,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     save: '保存设置', saved: '设置已保存',
     noChanges: '没有修改',
     // R48: 头像上传
-    avatarLabel: '头像', avatarHint: '点击上传或更换（JPG/PNG/WebP，≤10MB）',
+    avatarLabel: '头像', avatarHint: '点击上传或更换（JPG/PNG/WebP/GIF，≤10MB）',
     avatarUpdated: '头像已更新', avatarNotImage: '仅支持图片文件', avatarTooBig: '图片超过 10MB 限制',
     // R49: 强调色
     accentLabel: '强调色', accentHint: '客户主页的按钮/链接/高亮颜色，与访客自选主色独立',

@@ -19,7 +19,7 @@ export interface ToolBoxCategory {
   icon: Component
 }
 
-/** 19 个小工具按用途归入四类（cat 对应 TOOL_BOX_CATEGORIES.key；v128 下架改稿计数；oimimo 吸纳批五新增小票打印机） */
+/** 18 个小工具按用途归入四类（cat 对应 TOOL_BOX_CATEGORIES.key；v128 下架改稿计数；oimimo 吸纳批五新增小票打印机） */
 export const TOOLS_MENU_ITEMS: ToolMenuItem[] = [
   // 钱袋子：记账/导出/算价/报价单/价目卡/定金台账
   { index: '/tools/income', icon: Wallet, labelKey: 'menu.standaloneIncome', cat: 'money' },

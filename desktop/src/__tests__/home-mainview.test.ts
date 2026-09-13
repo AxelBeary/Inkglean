@@ -1,7 +1,8 @@
 // 首页长卷改造（9/4 波1 · 路B）自检测试。
 // 覆盖三块（施工图 §四）：
 //   ① moreDrawer.ts 纯函数：三段条目齐全 / 无模块降级 / 断言无「统计」「客户快查」死条目 / 模块四态文案 / 本地模式差异。
-//   ② 卷心页签与 prefs.mainView 联动口径（点「排期月历」→ prefs 落 cal + localStorage 持久化 + 页签 aria-selected 翻转）。
+//   ② 卷心页签与 prefs.mainView 联动口径（点「排期月历」→ prefs 落 cal + localStorage 持久化 + 页签 aria-selected 翻转），
+//     含两面 v-show 切换的无障碍硬断言：隐藏的 pane 必带 inert/aria-hidden、显示的 pane 必不带（防绑反）。
 //   ③ 摘要签显隐（云端 / 本地 / 失败态）：SchedStrip 组件 v-if 守卫 + 柱条 tone→class + store.stripDays 恒非空（照显不留死签）。
 // 挂载兜底：测试栈未装 @vue/test-utils，用 createApp + nextTick 直挂 happy-dom 节点（与 home-mode.test.ts 同款）。
 import { describe, it, expect, afterEach, vi } from 'vitest'
@@ -19,6 +20,21 @@ import { buildMoreDrawer, moduleStateLabel } from '../components/home/moreDrawer
 import type { DrawerItem } from '../components/home/moreDrawer'
 import type { StripDay } from '../schedule/strip'
 import type { ModuleState } from '../modules/types'
+
+// ─── 无障碍属性读取兜底（inert / aria-hidden）───
+// inert 既能被 Vue 当 DOM property 施加（真实浏览器下 HTMLElement.inert 反射到属性），
+// 也可能因测试环境未实现该 property 而走 setAttribute 分支（值 false 会写成字符串 "false"）。
+// 两种都认，否则「显示的 pane 不带 inert」这条断言在 happy-dom 里会测了等于没测。
+function isInert(el: Element | null): boolean {
+  if (!el) return false
+  const prop = (el as HTMLElement).inert
+  if (typeof prop === 'boolean') return prop
+  const attr = el.getAttribute('inert')
+  return attr !== null && attr !== 'false'
+}
+function isAriaHidden(el: Element | null): boolean {
+  return el?.getAttribute('aria-hidden') === 'true'
+}
 
 // ─── 挂载工具 ───
 function makeRouter(): Router {
@@ -187,6 +203,35 @@ describe('卷心页签与 prefs.mainView 联动', () => {
     const raw = localStorage.getItem('shihui-desktop-prefs-v1')
     expect(raw).toBeTruthy()
     expect(JSON.parse(raw!).mainView).toBe('cal')
+  })
+
+  it('两面切换无障碍（防绑反硬证据）：只给隐藏的 pane 上 inert/aria-hidden，显示面可交互', async () => {
+    const { root, pinia } = await mountHome(false)
+    const prefs = usePrefsStore(pinia)
+    const todo = root.querySelector('[data-mv="todo"]')
+    const cal = root.querySelector('[data-mv="cal"]')
+    expect(todo).not.toBeNull()
+    expect(cal).not.toBeNull()
+
+    // 默认 todo 面：todo 可见可交互，cal 隐藏且对键盘/读屏不可达
+    expect(prefs.prefs.mainView).toBe('todo')
+    expect(isInert(todo)).toBe(false)
+    expect(isAriaHidden(todo)).toBe(false)
+    expect(isInert(cal)).toBe(true)
+    expect(isAriaHidden(cal)).toBe(true)
+
+    // 切到 cal 面：两边状态必须**互换**（只单向断言等于没防住绑反）
+    const calTab = [...root.querySelectorAll('.mv-tab')]
+      .find(t => t.textContent?.trim() === '排期月历')
+    expect(calTab).toBeTruthy()
+    calTab!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await nextTick()
+    await nextTick()
+    expect(prefs.prefs.mainView).toBe('cal')
+    expect(isInert(cal)).toBe(false)
+    expect(isAriaHidden(cal)).toBe(false)
+    expect(isInert(todo)).toBe(true)
+    expect(isAriaHidden(todo)).toBe(true)
   })
 
   it('持久化回放：预置 mainView=cal 再挂载 → 排期月历页签默认选中', async () => {

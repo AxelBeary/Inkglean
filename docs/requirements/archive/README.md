@@ -24,4 +24,4 @@
 | REQ-042 | 合规与内容安全（隐私/举报/封禁留痕） | 1.0 |
 | REQ-043 | 1.0 体验与质量批（I1-I6） | 1.0 |
 
-> 历史背景与拍板脉络见 docs/comms/STATUS-archive-20260814.md 与 docs/comms/STATUS.md。
+> 历史背景与拍板脉络见 docs/comms/archive-20260819/STATUS-archive-20260814.md 与 docs/comms/STATUS.md。

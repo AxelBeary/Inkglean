@@ -80,10 +80,12 @@ export function rotateFeedToken(artistId: number): CalendarFeedInfo {
   return getFeedInfo(artistId)
 }
 
-/** 按公开路由口径取可订阅画师（未删除 + 未封禁 + 已启用 + 有令牌），否则 undefined */
+/** 按公开路由口径取可订阅画师（未删除 + 未封禁 + 未隐身/未下架 + 已启用 + 有令牌），否则 undefined */
 export function getFeedArtist(subdomain: string): (FeedArtistRow & { subdomain: string }) | undefined {
+  // 顺带修既存漏判：hidden 画师日历订阅此前未挡（SQL 只过 is_banned）；
+  // v76 一并挡下平台下架（home_takedown_at），与公开路由可见性口径对齐。
   const artist = db.prepare(
-    'SELECT id, name, subdomain, calendar_feed_enabled, calendar_feed_token FROM artists WHERE subdomain = ? AND deleted_at IS NULL AND is_banned = 0'
+    "SELECT id, name, subdomain, calendar_feed_enabled, calendar_feed_token FROM artists WHERE subdomain = ? AND deleted_at IS NULL AND is_banned = 0 AND status != 'hidden' AND home_takedown_at IS NULL"
   ).get(subdomain) as (FeedArtistRow & { subdomain: string }) | undefined
   if (!artist || !artist.calendar_feed_enabled || !artist.calendar_feed_token) return undefined
   return artist

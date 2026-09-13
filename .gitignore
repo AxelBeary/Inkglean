@@ -35,6 +35,9 @@ Thumbs.db
 workspace/
 .workbuddy/
 
+# 并行施工工作树（8 月旧代码，一律不碰不入库；F-38 补，替代仅存于本机 .git/info/exclude 的临时屏蔽）
+/worktrees/
+
 # Qoder 本地工具产物（better-harness 报告等，不入版本库）
 .qoder/
 

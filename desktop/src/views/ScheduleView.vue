@@ -6,12 +6,15 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useScheduleStore } from '../stores/schedule'
+import type { ScheduleUndoSnapshot } from '../stores/schedule'
 import { buildCalCells, monthCursor, shiftMonth } from '../schedule/cal'
+import type { DragEdge } from '../schedule/drag'
 import TitleBar from '../components/shell/TitleBar.vue'
 import SegTabs from '../components/schedule/SegTabs.vue'
 import CalGrid from '../components/schedule/CalGrid.vue'
 import ScheduleList from '../components/schedule/ScheduleList.vue'
 import ScheduleTimeline from '../components/schedule/ScheduleTimeline.vue'
+import UndoToast from '../components/schedule/UndoToast.vue'
 import type { TabItem } from '../components/schedule/tabs'
 
 const router = useRouter()
@@ -53,6 +56,96 @@ function nextMonth(): void { cursor.value = shiftMonth(cursor.value, 1) }
 // ─── 取数 ───
 onMounted(() => { void sched.load() })
 function reload(): void { void sched.load(true) }
+
+// ─── 波2 拖拽接线（写与回滚全在 store，本层只发意图 + 说人话）───
+// 口径：组件只递「拖到哪」，不碰接口；store 只回语义（ok/conflict/sessionExpired/clamped），
+// 文案全在本层拼（与「板块只呈现」同款纪律）。失败时 store 已重拉到服务端真相，
+// 本层绝不自己拆本地数据（那是“两套真相”的老坑）。
+
+/** 可撤销目标：一次性——新写、重拉、点了撤销都立即作废它，不给“撤到远古”的假按钮 */
+type UndoTarget =
+  | { kind: 'move'; snap: ScheduleUndoSnapshot }
+  | { kind: 'reorder'; ids: number[] }
+
+const undoTarget = ref<UndoTarget | null>(null)
+const toastText = ref('')
+const toastKind = ref<'ok' | 'err'>('ok')
+const toastVisible = ref(false)
+let toastTimer: ReturnType<typeof setTimeout> | null = null
+
+function say(text: string, kind: 'ok' | 'err' = 'ok', ms = 2600): void {
+  toastText.value = text
+  toastKind.value = kind
+  toastVisible.value = true
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => { toastVisible.value = false; toastTimer = null }, ms)
+}
+function onToastTimeout(): void { toastVisible.value = false }
+
+/** 把 store 的语义结果翻成一句人话（失败均已经重拉，措词里带“已刷新”以免误信屏上旧值） */
+function reportFailure(res: {
+  conflict?: boolean
+  sessionExpired?: boolean
+  skipped?: boolean
+  clamped?: boolean
+  refreshed?: boolean
+  serverMessage?: string
+}): void {
+  if (res.sessionExpired) { say('登录已失效，排期没改动——请在桌面端重新登录后再试。', 'err'); return }
+  if (res.conflict) { say('这几单的排期刚在别处改过，已刷新成最新的。', 'err'); return }
+  if (res.refreshed) { say('改动结果没确认，已刷新成最新的排期——请看一眼再定。', 'err'); return }
+  if (res.skipped) {
+    // 拖不动本身不是错，但“为什么不动”得说清；被更新的操作取代则静默不打扰
+    if (res.clamped) say('开工日不能早于今天，已经拖到最早的一天了。', 'err')
+    return
+  }
+  const detail = res.serverMessage ? `：${res.serverMessage}` : ''
+  say(`没改动${detail}。已刷新成最新的排期。`, 'err')
+}
+
+/** 整条平移还是一端改期，分两种说法（画师拖的是“什么时候画”，不是字段名） */
+function moveText(snap: ScheduleUndoSnapshot): string {
+  if (snap.edge === 'start') return `开工日改到 ${snap.newStartDate}`
+  if (snap.edge === 'end') return `截稿日改到 ${snap.newDeadline}`
+  return `已整体挪到 ${snap.newStartDate} → ${snap.newDeadline}`
+}
+
+async function onMove(payload: { orderId: number; edge: DragEdge; deltaDays: number }): Promise<void> {
+  const res = await sched.moveScheduleRange(payload.orderId, payload.edge, payload.deltaDays)
+  if (res.ok && res.undo) {
+    undoTarget.value = { kind: 'move', snap: res.undo }
+    const extra = res.clamped ? '（开工日不能早于今天，已停在最早一天）' : ''
+    say(`${moveText(res.undo)}${extra}`)
+    return
+  }
+  reportFailure(res)
+}
+
+async function onReorder(payload: { orderedIds: number[] }): Promise<void> {
+  const previous = [...sched.formalIds] // 写前取快照；写成功后 store 已重拉，本地旧序只剩这一个用处
+  const res = await sched.reorderFormal(payload.orderedIds)
+  if (res.ok) {
+    undoTarget.value = { kind: 'reorder', ids: previous }
+    say('顺序已保存。')
+    return
+  }
+  reportFailure(res)
+}
+
+async function onUndo(): Promise<void> {
+  const target = undoTarget.value
+  if (!target) return
+  undoTarget.value = null // 先取走再发请求：防连点两下撤两次
+  if (target.kind === 'move') {
+    const res = await sched.undoScheduleRange(target.snap)
+    if (res.ok) say('已撤销，排期回到拖之前。')
+    else reportFailure(res)
+    return
+  }
+  const res = await sched.reorderFormal(target.ids)
+  if (res.ok) say('已撤销，顺序回到拖之前。')
+  else reportFailure(res)
+}
 
 // ─── 导航 ───
 function goHome(): void { void router.push({ name: 'home' }) }
@@ -109,7 +202,12 @@ const emptyText = computed(() => {
           <template v-else>
             <!-- 列表 -->
             <div v-if="activeTab === 'list'" class="sched-pane active">
-              <ScheduleList :orders="sched.orders" :slot-text="sched.slotText" />
+              <ScheduleList
+                :orders="sched.orders"
+                :slot-text="sched.slotText"
+                :reorderable="sched.canWriteList"
+                @reorder="onReorder"
+              />
             </div>
 
             <!-- 月历 -->
@@ -132,12 +230,34 @@ const emptyText = computed(() => {
 
             <!-- 时间条（本地模式不渲染，页签已不显） -->
             <div v-if="activeTab === 'tl' && sched.timelineAvailable" class="sched-pane active">
-              <ScheduleTimeline :orders="sched.orders" />
+              <ScheduleTimeline
+                :orders="sched.orders"
+                :movable="sched.canWriteTimeline"
+                @move="onMove"
+              />
             </div>
           </template>
         </div>
       </div>
     </div>
+    <!-- 波2 写反馈：一句人话，成功时另给一次性的撤销条。两层互斥，同屏只留一条 -->
+    <transition name="toast">
+      <div
+        v-if="toastVisible && !undoTarget"
+        class="sched-toast"
+        :class="`sched-toast--${toastKind}`"
+        role="status"
+      >
+        {{ toastText }}
+      </div>
+    </transition>
+    <UndoToast
+      :visible="undoTarget !== null"
+      :message="toastText"
+      label="撤销"
+      @undo="onUndo"
+      @timeout="onToastTimeout"
+    />
   </div>
 </template>
 
@@ -223,6 +343,22 @@ const emptyText = computed(() => {
 .lg-over { background: var(--zs); }
 .lg-done { background: var(--sl); }
 .lg-free { background: var(--sl); border-radius: 50%; }
+
+/* ===== 写反馈（一句人话 + 撤销条同位互斥） ===== */
+/* 几何对齐工具箱既有 .toast（ExportTool 等），但取值落在 4px 栅上（bottom 32 / padding 8 16），
+   不新增离栅值；z-index 同 60，两层靠 v-if 互斥所以上下序不重要 */
+.sched-toast {
+  position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%);
+  z-index: 60;
+  font-size: 12.5px; color: var(--ink2); background: var(--card);
+  border: 1px solid var(--line2); border-radius: var(--r-s-hand);
+  padding: 8px 16px; white-space: nowrap;
+  box-shadow: 0 10px 24px -16px rgba(var(--ink-rgb), .45);
+}
+.sched-toast--err { color: var(--zs); border-color: var(--zs);
+  background: color-mix(in srgb, var(--zs) 8%, var(--card)); }
+.toast-enter-active, .toast-leave-active { transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
+.toast-enter-from, .toast-leave-to { opacity: 0; transform: translate(-50%, 6px); }
 
 /* ===== 矮窗自适应 ===== */
 @media (max-height: 700px) {

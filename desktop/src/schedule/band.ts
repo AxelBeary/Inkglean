@@ -9,10 +9,15 @@ import type { SchedOrder } from './types'
 /** 六态：与 CSS 类名一一对应（.band.formal / .buffer / .soon / .over / .done / .nodeadline） */
 export type BandTone = 'nodeadline' | 'done' | 'over' | 'soon' | 'buffer' | 'formal'
 
-/** 解析后端日期串为本地 Date（兼容 YYYY-MM-DD 与 ISO）；空/非法返 null */
+/** 解析后端日期串为本地 Date（兼容 YYYY-MM-DD 与 ISO）；空/非法返 null。
+ *  纯日期串必须按**本地零点**建：`new Date('2026-09-20')` 按规范走 UTC 零点，
+ *  负偏移时区（UTC-x）下本地分量掉回前一天，而本文件与 drag.ts 一律取本地分量比较
+ *  → daysLeft/色带/拖拽钳制整体漂一天。本机 UTC+8 与 CI UTC 都测不出来，
+ *  但桌面版是装在画师机器上的，不能赌时区。 */
 export function parseDate(s: string | null | undefined): Date | null {
   if (!s) return null
-  const d = new Date(s)
+  const ymd = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s)
+  const d = ymd ? new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3])) : new Date(s)
   return Number.isNaN(d.getTime()) ? null : d
 }
 

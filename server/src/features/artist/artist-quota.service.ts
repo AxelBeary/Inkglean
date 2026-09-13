@@ -1,5 +1,6 @@
 import db from '../../db/connection.js'
 import { localMonthStartSqlite } from '../../utils/date.js'
+import { isArtistHomeHidden } from './artist-visibility.service.js'
 import type { Artist } from '../../types/entities.js'
 
 // ============================================
@@ -47,7 +48,8 @@ export function computeSlotDisplay(artist: Artist): string | null {
   if (!hasBatchLimit && !hasQuota) return null
 
   if (artist.status === 'break') return '休息中'
-  if (artist.status === 'hidden') return null
+  // v76：隐身判定收敛到 helper，纳入平台下架（下架主页不展示名额/排队）
+  if (isArtistHomeHidden(artist)) return null
 
   if (artist.status === 'full') {
     const { formal } = getZoneCounts(artist.id)

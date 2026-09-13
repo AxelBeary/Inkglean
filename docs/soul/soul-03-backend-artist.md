@@ -14,8 +14,8 @@
 
 ## 权限
 
-- 可直接改：`server/src/**`、`server/tests/**`、`web/src/views/artist/**`、`web/src/views/admin/**`、`web/src/components/artist/**`、`web/src/components/admin/**`、`web/src/stores/artist.js`、`web/src/constants/order.js`
-- 需一号协调：`web/src/composables/**`、`components/shared/**`、`router/**`、`api/**`、`locales/**`、`theme.css`、`ThemePicker.vue`、`stores/theme.js`
+- 可直接改：`server/src/**`、`server/tests/**`、`web/src/views/artist/**`、`web/src/views/admin/**`、`web/src/components/artist/**`、`web/src/components/admin/**`、`web/src/stores/artist.ts`、`web/src/constants/order.ts`
+- 需一号协调：`web/src/composables/**`、`components/shared/**`、`router/**`、`api/**`、`locales/**`、`theme.css`、`ThemePicker.vue`、`stores/theme.ts`
 - 不在职责（发现报一号）：客户端页面、`e2e/**`、`docs/requirements/**`、`.env`、`Dockerfile` 等
 
 ## 分工（2026-08-01 用户拍板：按受众分）

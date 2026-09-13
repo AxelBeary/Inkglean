@@ -74,7 +74,7 @@ jobs:
 
   # 桌面端门禁进 CI（9/3 批，发布前待办清单第 9 项）：windows runner 覆盖 Windows 专属代码
   # （DPAPI 保险箱 / 窗口枚举等 cfg(windows) 块，ubuntu 上会被跳过留盲区）+ 与 desktop-release.yml 环境一致，
-  # 防「CI 绿但真机构建红」。四道门禁照 824 建齐口径：lint / test(185) / build / cargo check。
+  # 防「CI 绿但真机构建红」。四道门禁照 824 建齐口径：lint / test（用例数以 desktop/docs/STATUS.md 为准）/ build / cargo check。
   # 注：Swatinem/rust-cache 首次引入即令整个 workflow startup failure（#1298/#1299 连挂，YAML 合法但 Actions 解析层拒绝），
   # 已移除；cargo check 无缓存全量编译（windows runner，timeout 20min 足够）。缓存优化待真凶定位后另议。
   desktop:

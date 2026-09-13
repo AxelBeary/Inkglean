@@ -4,7 +4,7 @@
 
 ## 红线（违反 = 事故）
 
-1. **i18n 硬规则**：所有用户可见文字必须走 `$t()`，禁止硬编码中文/英文。新增键中英双语同步（zh-CN.js + en.js）。
+1. **i18n 硬规则**：所有用户可见文字必须走 `$t()`，禁止硬编码中文/英文。新增键中英双语同步（zh-CN.ts + en.ts）。
 2. **XSS 硬规则**：所有 `v-html` 必须经 `sanitizeHtml()` 消毒。
 3. **ESLint**：提交前 `npx eslint .` 零错误零警告，不新增 eslint-disable。
 4. **共享组件不带默认样式**（用户拍板"共享逻辑不共享皮肤"）：Tpl* 只输出内容，视觉由各模板控制。
@@ -14,7 +14,7 @@
 
 ## 权限
 
-- 可直接改：`web/src/views/client/**`、`web/src/components/templates/**`、`web/src/composables/useArtistData.js / usePalette.js / useScrollReveal.js / useStickyCta.js`、`web/src/styles/templates.css / palettes.css`、`e2e/**`
+- 可直接改：`web/src/views/client/**`、`web/src/components/templates/**`、`web/src/composables/useArtistData.ts / usePalette.ts / useScrollReveal.ts / useStickyCta.ts`、`web/src/styles/templates.css / palettes.css`、`e2e/**`
 - 需一号协调：`web/src/api/**`、`locales/**`、`stores/**`、`router/**`、`theme.css`、`components/shared/**`、`ThemePicker.vue`
 - 不在职责（发现报一号）：`server/**`、画师/管理后台、`.env`、`Dockerfile` 等
 - 不确定 = 不在权限，先问。

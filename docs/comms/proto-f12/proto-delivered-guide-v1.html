@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-artist-theme="paper" style="--font-scale:1">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>F12 完稿引导卡 · 可交互原型 v1（拾绘 · 纸墨）</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   本原型的纪律：卡片（.dg-card）只消费 shared/README.md 登记的 15 个注入 token
+   --paper2 --card --ink --ink2 --ink3 --line --line2 --hq --zs --white
+   --r-s --r-m --r-paper --font-scale --dur-fast
+   ⇒ 不用 --sh-*（投影）、不用 --sl（石绿）、不用 --ease-out。
+   若这样仍能做出层级清楚的卡，则 F12 落地零契约扩张；做不到就回来改契约。
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 主题真值取自 web/src/styles/artist-tokens.css（宣纸 818 W5 / 夜墨 F2 批4） */
+html[data-artist-theme="paper"] {
+  color-scheme: light;
+  --paper: #F0E6CF; --paper2: #F5EFDF; --card: #FFFDF7;
+  --ink: #262520; --ink2: #5A564B; --ink3: #6A6455;
+  --line: #DCD0B4; --line2: #CFC1A0;
+  --hq: #33526E; --hq-d: #28425B; --hq-t: #E9EFF4;
+  --zs: #BC3A2B; --zs-t: #F8EAE6;
+  --white: #FFFFFF;
+  --r-s: 4px; --r-m: 7px;
+  --r-paper: 3px 5px 3px 4px / 4px 3px 5px 3px;
+  --dur-fast: .15s; --dur-mid: .25s;
+}
+html[data-artist-theme="ink"] {
+  color-scheme: dark;
+  --paper: #171611; --paper2: #1D1C15; --card: #22201A;
+  --ink: #ECE8DC; --ink2: #B8B3A4; --ink3: #8F8977;
+  --line: #2F2D24; --line2: #3D3A2E;
+  --hq: #8FB2D1; --hq-d: #ABC8E2; --hq-t: rgba(143,178,209,.13);
+  --zs: #E07B6B; --zs-t: rgba(224,123,107,.14);
+  --white: #171611;             /* 暗色主题下实心按钮文字用深墨（照 artist-tokens.css 口径） */
+  --r-s: 4px; --r-m: 7px;
+  --r-paper: 3px 5px 3px 4px / 4px 3px 5px 3px;
+  --dur-fast: .15s; --dur-mid: .25s;
+}
+html[data-reduce-motion="1"] { --dur-fast: .01s; --dur-mid: .01s; }
+html[data-reduce-motion="1"] * { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: calc(var(--font-scale, 1) * 14px); line-height: 1.6;
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding: 18px 20px 120px; }
+
+/* ─── 顶条 ─── */
+.bar { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.bar h1 { margin: 0; font-family: 'LXGW WenKai', 'Kaiti SC', 'STKaiti', serif; font-size: calc(var(--font-scale, 1) * 19px); font-weight: 700; }
+.bar .tag { font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink3); }
+
+/* ─── 调试台（原型专属，不属于要落的组件） ─── */
+.console {
+  margin: 14px 0 18px; padding: 12px 14px; background: var(--paper2);
+  border: 1px dashed var(--line2); border-radius: var(--r-m);
+  display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center;
+}
+.console fieldset { border: 0; margin: 0; padding: 0; display: flex; gap: 6px; align-items: center; }
+.console legend { width: 100%; padding: 0; margin-bottom: 4px; font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink3); }
+button, select { font: inherit; color: inherit; }
+.ctl {
+  padding: 5px 11px; background: var(--card); border: 1px solid var(--line2);
+  border-radius: var(--r-s); cursor: pointer; transition: border-color var(--dur-fast), background var(--dur-fast);
+}
+.ctl:hover { border-color: var(--hq); }
+.ctl[aria-pressed="true"] { background: var(--hq-t); border-color: var(--hq); color: var(--hq-d); }
+.ctl-primary { border-color: var(--hq); color: var(--hq-d); font-weight: 700; }
+
+/* ─── 模拟的订单详情页 ─── */
+.stage { display: grid; grid-template-columns: minmax(0,1fr) 320px; gap: 18px; align-items: start; }
+@media (max-width: 900px) { .stage { grid-template-columns: minmax(0,1fr); } }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-paper); padding: 16px 18px; }
+.panel + .panel { margin-top: 14px; }
+.panel h2 { margin: 0 0 10px; font-size: calc(var(--font-scale, 1) * 15px); }
+.kv { display: flex; gap: 8px; color: var(--ink2); font-size: calc(var(--font-scale, 1) * 13px); }
+.kv + .kv { margin-top: 2px; }
+.kv b { color: var(--ink); font-weight: 600; }
+.chip { display: inline-block; padding: 0 7px; border-radius: var(--r-s); background: var(--hq-t); color: var(--hq-d); font-size: calc(var(--font-scale, 1) * 12px); }
+.files { margin: 10px 0 0; padding: 0; list-style: none; }
+.files li { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-top: 1px solid var(--line); font-size: calc(var(--font-scale, 1) * 13px); color: var(--ink2); }
+.files li span:last-child { color: var(--ink3); }
+
+/* ─── 状态检视器：把判定链走了哪条分支摊开给你看 ─── */
+.probe { font-size: calc(var(--font-scale, 1) * 12px); }
+.probe h2 { font-size: calc(var(--font-scale, 1) * 14px); }
+.probe ol { margin: 6px 0 0; padding-left: 20px; color: var(--ink2); }
+.probe li + li { margin-top: 3px; }
+.probe .hit { color: var(--hq-d); font-weight: 700; }
+.probe pre {
+  margin: 10px 0 0; padding: 9px 10px; background: var(--paper2); border: 1px solid var(--line);
+  border-radius: var(--r-s); white-space: pre-wrap; word-break: break-all; color: var(--ink2); font-size: calc(var(--font-scale, 1) * 11.5px);
+}
+
+/* ─── toast（模拟站内既有 ElMessage） ─── */
+.toasts { position: fixed; top: 14px; right: 16px; z-index: 60; display: flex; flex-direction: column; gap: 7px; max-width: min(360px, 84vw); }
+.toast {
+  padding: 8px 12px; background: var(--card); border: 1px solid var(--line2);
+  border-left: 3px solid var(--hq); border-radius: var(--r-s);
+  font-size: calc(var(--font-scale, 1) * 12.5px); color: var(--ink);
+}
+.toast.warn { border-left-color: var(--zs); }
+.toast.out { opacity: 0; transition: opacity var(--dur-mid); }
+
+/* ═══ 卡片本体（＝将来 shared/DeliveredGuideCard.vue 的样子）═══
+   本块只允许消费 15 个注入 token；投影（--sh-*）与着色（--hq-t/--zs-t）均不用，
+   层级靠「描边变深 + 纸色分层」表达（与「卡片是一叠纸不是悬浮盒子」同向）。 */
+.dg-card {
+  position: fixed; right: 18px; bottom: 18px; z-index: 50; width: 336px;
+  max-height: calc(100vh - 36px); overflow: auto;
+  background: var(--card); border: 1px solid var(--line2); border-radius: var(--r-paper);
+  padding: 14px 15px 12px;
+  animation: dg-in var(--dur-fast) ease-out;
+}
+@keyframes dg-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* 窄窗降级：单列铺开 + 次级动作横排换行（不用 grid 分列，否则按钮会被挤成一字一行） */
+@media (max-width: 820px) {
+  .dg-card { left: 10px; right: 10px; bottom: 10px; width: auto; max-height: calc(100vh - 20px); padding: 11px 12px; }
+  .dg-secondary { flex-direction: row; flex-wrap: wrap; }
+  .dg-secondary .dg-btn--link { flex: 1 1 auto; text-align: center; }
+}
+.dg-head { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
+.dg-seal { width: 15px; height: 15px; flex: none; border-radius: var(--r-paper); background: var(--zs); }
+.dg-kicker { font-size: calc(var(--font-scale, 1) * 11.5px); color: var(--ink3); }
+.dg-title { margin: 0 0 3px; font-family: 'LXGW WenKai', 'Kaiti SC', 'STKaiti', serif; font-size: calc(var(--font-scale, 1) * 16px); font-weight: 700; }
+.dg-desc { margin: 0; font-size: calc(var(--font-scale, 1) * 12.5px); color: var(--ink2); }
+.dg-thumbs { display: flex; gap: 6px; margin: 10px 0 2px; }
+.dg-thumb { flex: none; width: 56px; height: 56px; border: 1px solid var(--line2); border-radius: var(--r-s); background: var(--paper2); }  /* 描边走 line2：暗色下 line 与 card 几乎同色，占位框会看不见 */
+/* 主次分明：只留一个实心主按钮，另两个降为文字链（上一版三个大块竖排，字号放大后高度失控） */
+.dg-actions { margin-top: 11px; }
+.dg-btn { display: block; width: 100%; text-align: left; padding: 8px 11px; border-radius: var(--r-s); border: 1px solid var(--line2); background: var(--paper2); cursor: pointer; transition: background var(--dur-fast), border-color var(--dur-fast), filter var(--dur-fast); }
+.dg-btn small { display: block; font-size: calc(var(--font-scale, 1) * 11px); color: var(--ink3); }
+.dg-btn:hover { background: var(--card); border-color: var(--hq); color: var(--hq); }
+.dg-btn:hover small { color: var(--ink3); }
+.dg-btn:focus-visible { outline: 2px solid var(--hq); outline-offset: 2px; }
+.dg-btn--primary { background: var(--hq); border-color: var(--hq); color: var(--white); font-weight: 700; }
+.dg-btn--primary small { color: var(--white); opacity: .82; }
+/* hover 只“加深一档”，双主题方向一致（上一版暗色下 hover 会变浅、看着像禁用） */
+.dg-btn--primary:hover { background: var(--hq); border-color: var(--hq); color: var(--white); filter: brightness(.92); }
+.dg-btn--primary:hover small { color: var(--white); }
+.dg-secondary { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+.dg-btn--link { background: none; border: 0; border-radius: var(--r-s); padding: 5px 8px; color: var(--ink2); font-size: calc(var(--font-scale, 1) * 13px); }
+/* 名称与说明同行内联（上一版 small 换行居左，中点挂在行尾读起来像断句错误） */
+.dg-btn--link small { display: inline; color: var(--ink3); }
+.dg-btn--link:hover { background: var(--paper2); border: 0; color: var(--hq); }
+.dg-btn--link:hover small { color: var(--ink3); }
+.dg-foot { display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); font-size: calc(var(--font-scale, 1) * 11.5px); color: var(--ink3); }
+.dg-sep { color: var(--line2); }
+.dg-link { background: none; border: 0; padding: 0; color: var(--ink3); font-size: inherit; text-decoration: underline; cursor: pointer; }
+.dg-link:hover { color: var(--zs); }
+.hint { margin: 12px 0 0; font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <h1>F12 完稿引导卡 · 可交互原型 v1</h1>
+    <span class="tag">拾绘 · 纸墨 ｜ 供验收用，不是成品界面 ｜ 键组 deliveredGuide.*</span>
+  </div>
+
+  <div class="console">
+    <fieldset>
+      <legend>① 模拟交付（走判定链）</legend>
+      <button class="ctl ctl-primary" id="fire-image">交付：含 2 张图 + 1 个 zip</button>
+      <button class="ctl" id="fire-zip">交付：只有 zip</button>
+      <button class="ctl" id="fire-nofile">无文件交付</button>
+    </fieldset>
+    <fieldset>
+      <legend>② 静默与记账</legend>
+      <button class="ctl" id="reset-order">清「本单已弹过」</button>
+      <button class="ctl" id="reset-never">解除「不再提示」</button>
+    </fieldset>
+    <fieldset>
+      <legend>③ 主题 / 语言 / 字号 / 动效</legend>
+      <button class="ctl" id="t-theme" aria-pressed="false">夜墨</button>
+      <button class="ctl" id="t-lang" aria-pressed="false">EN</button>
+      <select class="ctl" id="t-font" aria-label="字号档位">
+        <option value="14">14px</option><option value="15" selected>15px（默认）</option>
+        <option value="16">16px</option><option value="18">18px</option><option value="20">20px</option>
+      </select>
+      <button class="ctl" id="t-motion" aria-pressed="false">减少动效</button>
+    </fieldset>
+    <fieldset>
+      <legend>④ 换单（验证「一单只弹一次」）</legend>
+      <select class="ctl" id="t-order" aria-label="当前订单">
+        <option value="42">#2026-0913-0042 · 阿江《兽设细化》</option>
+        <option value="43">#2026-0913-0043 · 小满《Q 版头像 ×3》</option>
+      </select>
+    </fieldset>
+  </div>
+
+  <div class="stage">
+    <!-- 左边：假装的订单详情页 -->
+    <div>
+      <section class="panel">
+        <h2 id="t-detail">订单详情</h2>
+        <div class="kv"><span id="l-no">订单号</span><b id="v-no">#2026-0913-0042</b></div>
+        <div class="kv"><span id="l-client">客户</span><b id="v-client">阿江</b></div>
+        <div class="kv"><span id="l-status">状态</span><b><span class="chip" id="v-status">已交付</span></b></div>
+        <div class="kv"><span id="l-price">尾款</span><b>¥380</b></div>
+      </section>
+      <section class="panel">
+        <h2 id="l-files">交付文件</h2>
+        <ul class="files" id="file-list"></ul>
+        <p class="hint" id="t-hint">点上方「模拟交付」按钮触发一次交付；卡片只会在交付成功且本次交付里有图片时出现。</p>
+      </section>
+    </div>
+
+    <!-- 右边：判定链探针 -->
+    <aside class="panel probe">
+      <h2 id="l-probe">判定链走了哪条（实时）</h2>
+      <ol id="probe-list"></ol>
+      <pre id="probe-store">{}</pre>
+      <p class="hint" id="l-probe-hint">这块是原型专属，落码时不存在——落码后由单元测试锁同一套分支。</p>
+    </aside>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+<div id="card-slot"></div>
+
+<script>
+/* 注：故意用经典脚本而非 type=module——本件要能在 file:// 双击直接打开跑起来。 */
+/* ── 文案字典：键名即最终 locales/deliveredGuide.* 提案 ──
+   铁律：措一律引用站内既有词条，括号里标事实源键；落码时照抄，不自造词。
+   站内对照源：orderDetail.publishArtwork / shareDialogTitle / deliverSuccess / publishHint /
+   publishNotImage · menu.watermark · orderForm.validation.confirm · onboarding.dismiss · status.delivered */
+const DICT = {
+  'zh-CN': {
+    'deliveredGuide.kicker': '已交付 · {no}',                          // status.delivered
+    'deliveredGuide.title': '完稿已交付，顺手展示一下？',
+    'deliveredGuide.desc': '本单有 {n} 张交付图，可发布为作品，或先去加水印。',  // 词取自 publishHint，去掉括号里的实现细节
+    'deliveredGuide.publish': '发布为作品',                            // = orderDetail.publishArtwork
+    'deliveredGuide.publishHint': '弹窗里已默认勾选这 {n} 张交付图',
+    'deliveredGuide.share': '分享完稿',                                // = orderDetail.shareDialogTitle（站内此动作是发社交平台，不是发取件链接）
+    'deliveredGuide.shareHint': '带出分享文案，打开发布页',                // shareTextLabel / shareOpenBtn
+    'deliveredGuide.watermark': '打开图片水印',                          // = menu.watermark
+    'deliveredGuide.watermarkHint': '并预选本单的完稿图',                  // 水印页既有来源名：完稿图
+    'deliveredGuide.notNow': '知道了',                                  // = orderForm.validation.confirm
+    'deliveredGuide.never': '不再提示',                                 // = onboarding.dismiss
+    'deliveredGuide.dismissed': '已跳过，本单不再弹引导卡',
+    'deliveredGuide.neverOn': '已关闭引导卡，以后交付不再提示',
+    'deliveredGuide.neverOff': '已恢复引导卡',
+    'deliveredGuide.done.publish': '已打开「发布为作品」（{n} 张交付图已勾选）',
+    'deliveredGuide.done.share': '已打开「分享完稿」',
+    'deliveredGuide.done.watermark': '跳转 /tools/watermark?source=deliverable&order={id}',
+    'deliveredGuide.delivered': '交付成功！',                            // = orderDetail.deliverSuccess
+    'detail': '订单详情', 'files': '交付文件', 'no': '订单号', 'client': '客户', 'status': '状态', 'delivered': '已交付',
+    'hint': '点上方「模拟交付」触发一次交付；卡片只在交付成功且本次交付里有交付图时出现。',
+    'probe': '判定链走了哪条（实时）', 'probeHint': '这块是原型专属，落码时不存在——落码后由单元测试锁同一套分支。',
+    'branch.deliver': '交付成功',
+    'branch.imageHit': '本次交付有可发布为作品的交付图 → 可弹',
+    'branch.noImage': '本次交付没有可发布的交付图（非图片，不可发布）→ 不弹',   // publishNotImage
+    'branch.noFile': '无文件交付，没有交付图 → 不弹',
+    'branch.never': '你已选「不再提示」→ 不弹',
+    'branch.once': '本单已弹过一次 → 不弹',
+    'branch.show': '弹卡：{n} 张交付图',
+  },
+  'en': {
+    'deliveredGuide.kicker': 'Delivered · {no}',
+    'deliveredGuide.title': 'Delivered — want to show it off?',
+    'deliveredGuide.desc': 'This order has {n} deliverable image(s) — publish them as artworks, or watermark them first.',
+    'deliveredGuide.publish': 'Publish as artwork',                    // = orderDetail.publishArtwork
+    'deliveredGuide.publishHint': '{n} deliverable image(s) pre-selected in the dialog',
+    'deliveredGuide.share': 'Share Artwork',                           // = orderDetail.shareDialogTitle
+    'deliveredGuide.shareHint': 'Fill in the share text and open the publish page',
+    'deliveredGuide.watermark': 'Open Watermark',                      // = menu.watermark
+    'deliveredGuide.watermarkHint': 'with the delivered images of this order pre-selected',
+    'deliveredGuide.notNow': 'Got it',
+    'deliveredGuide.never': 'Dismiss',                                 // = onboarding.dismiss
+    'deliveredGuide.dismissed': 'Skipped — this order will not ask again',
+    'deliveredGuide.neverOn': 'Guide card dismissed for good',
+    'deliveredGuide.neverOff': 'Guide card re-enabled',
+    'deliveredGuide.done.publish': 'Opened "Publish as artwork" ({n} image(s) selected)',
+    'deliveredGuide.done.share': 'Opened "Share Artwork"',
+    'deliveredGuide.done.watermark': 'goto /tools/watermark?source=deliverable&order={id}',
+    'deliveredGuide.delivered': 'Delivered!',                          // = orderDetail.deliverSuccess
+    'detail': 'Order detail', 'files': 'Delivered files', 'no': 'Order no.', 'client': 'Client', 'status': 'Status', 'delivered': 'Delivered',
+    'hint': 'Use "simulate delivery" above; the card appears only when delivery succeeded and includes deliverable images.',
+    'probe': 'Decision chain (live)', 'probeHint': 'Prototype-only probe; in the real build these branches are locked by unit tests.',
+    'branch.deliver': 'Delivered',
+    'branch.imageHit': 'Deliverable images can be published → eligible',
+    'branch.noImage': 'Nothing publishable ("Not an image, cannot publish") → silent',
+    'branch.noFile': 'Delivery without file → silent',
+    'branch.never': '"Dismiss" was chosen → silent',
+    'branch.once': 'Already shown for this order → silent',
+    'branch.show': 'Show card: {n} image(s)',
+  }
+};
+const ORDERS = {
+  42: { id: 42, no: '#2026-0913-0042', client: '阿江', title: '兽设细化' },
+  43: { id: 43, no: '#2026-0913-0043', client: '小满', title: 'Q 版头像 ×3' }
+};
+/* 与 web 端 PUBLISH_IMAGE_EXTS 同口径（.jpg/.jpeg/.png/.webp/.gif） */
+const IMG_EXT = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+const isImage = (name) => { const i = name.lastIndexOf('.'); return i >= 0 && IMG_EXT.includes(name.slice(i).toLowerCase()); };
+const BATCHES = {
+  image: [{ name: '阿江-完稿.png', size: '4.2 MB' }, { name: '阿江-局部.webp', size: '1.1 MB' }, { name: '阿江-源文件.zip', size: '38.7 MB' }],
+  zip: [{ name: '工程文件.zip', size: '120.4 MB' }],
+  nofile: []
+};
+
+const state = {
+  lang: 'zh-CN', theme: 'paper', motion: false, orderId: 42,
+  /* 与将来 localStorage 键 inkglean_delivered_guide_v1 同形状 */
+  store: { neverAsk: false, shownOrderIds: [] },
+  log: [], lastImages: []
+};
+const t = (key, params) => {
+  let s = (DICT[state.lang][key] ?? DICT['zh-CN'][key] ?? key);
+  if (params) for (const [k, v] of Object.entries(params)) s = s.replace(`{${k}}`, v);
+  return s;
+};
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function toast(text, kind) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (kind === 'warn' ? ' warn' : '');
+  el.textContent = text;
+  $('toasts').appendChild(el);
+  /* 同屏上限 3 条（贴站内 ElMessage 观感）：持续触发时不得叠成一竖列盖住页面 */
+  const all = [...$('toasts').children];
+  while (all.length > 3) { const old = all.shift(); old.remove(); }
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 600); }, 2600);
+}
+function renderStatic() {
+  document.documentElement.lang = state.lang === 'en' ? 'en' : 'zh-CN';
+  $('t-detail').textContent = t('detail');
+  $('l-files').textContent = t('files');
+  $('l-no').textContent = t('no'); $('l-client').textContent = t('client'); $('l-status').textContent = t('status');
+  $('l-probe').textContent = t('probe'); $('l-probe-hint').textContent = t('probeHint');
+  $('t-hint').textContent = t('hint');
+  const o = ORDERS[state.orderId];
+  $('v-no').textContent = o.no; $('v-client').textContent = o.client; $('v-status').textContent = t('delivered');
+}
+function renderProbe() {
+  /* 条目存「键 + 参数」而非译文，切语言时整条判定链跟着翻（方便你一次核两份文案） */
+  $('probe-list').innerHTML = state.log.map((l) =>
+    `<li class="${l.hit ? 'hit' : ''}"${l.key ? ` data-branch="${l.key}"` : ''}>${esc(l.raw ?? t(l.key, l.params))}</li>`).join('') || `<li>—</li>`;
+  $('probe-store').textContent = 'inkglean_delivered_guide_v1 =\n' + JSON.stringify(state.store, null, 2);
+}
+function renderFiles(list) {
+  $('file-list').innerHTML = list.length
+    ? list.map((f) => `<li><span>${esc(f.name)}</span><span>${isImage(f.name) ? '✓ ' : '— '}${esc(f.size)}</span></li>`).join('')
+    : `<li><span>—</span><span>${esc(t('branch.noFile'))}</span></li>`;
+}
+
+/* ── 卡片渲染（＝将来 shared 哑组件的形） ── */
+let cardOpen = false;
+function renderCard(images) {
+  const slot = $('card-slot');
+  if (!cardOpen) { slot.innerHTML = ''; return; }
+  const o = ORDERS[state.orderId];
+  slot.innerHTML = `
+  <section class="dg-card" role="region" aria-label="${esc(t('deliveredGuide.title'))}" data-testid="delivered-guide">
+    <div class="dg-head"><i class="dg-seal" aria-hidden="true"></i><span class="dg-kicker">${esc(t('deliveredGuide.kicker', { no: o.no }))}</span></div>
+    <h3 class="dg-title">${esc(t('deliveredGuide.title'))}</h3>
+    <p class="dg-desc">${esc(t('deliveredGuide.desc', { n: images.length }))}</p>
+    <div class="dg-thumbs">${images.map((f) => `<i class="dg-thumb" title="${esc(f.name)}" aria-label="${esc(f.name)}"></i>`).join('')}</div>
+    <div class="dg-actions">
+      <button class="dg-btn dg-btn--primary" data-act="publish">${esc(t('deliveredGuide.publish'))}<small>${esc(t('deliveredGuide.publishHint', { n: images.length }))}</small></button>
+      <div class="dg-secondary">
+        <button class="dg-btn dg-btn--link" data-act="share">${esc(t('deliveredGuide.share'))}<small> · ${esc(t('deliveredGuide.shareHint'))}</small></button>
+        <button class="dg-btn dg-btn--link" data-act="watermark">${esc(t('deliveredGuide.watermark'))}<small> · ${esc(t('deliveredGuide.watermarkHint'))}</small></button>
+      </div>
+    </div>
+    <div class="dg-foot">
+      <button class="dg-link" data-act="notNow">${esc(t('deliveredGuide.notNow'))}</button>
+      <span class="dg-sep">·</span>
+      <button class="dg-link" data-act="never">${esc(t('deliveredGuide.never'))}</button>
+    </div>
+  </section>`;
+}
+function closeCard() { cardOpen = false; renderCard([]); }
+
+/* ── 交付模拟：整条判定链走一遍并记录分支 ── */
+function simulateDelivery(kind) {
+  const files = kind === 'nofile' ? [] : BATCHES[kind];
+  state.log = [];
+  const push = (key, params, hit = false) => state.log.push({ key, params, hit });
+  renderFiles(files);
+  push('branch.deliver', null, true);
+  toast(t('deliveredGuide.delivered'));
+
+  if (kind === 'nofile') { push('branch.noFile'); closeCard(); renderProbe(); return; }
+  const images = files.filter((f) => isImage(f.name));
+  state.lastImages = images;
+  if (images.length === 0) { push('branch.noImage'); closeCard(); renderProbe(); return; }
+  push('branch.imageHit');
+
+  if (state.store.neverAsk) { push('branch.never'); closeCard(); renderProbe(); return; }
+  const id = Number(state.orderId);
+  if (state.store.shownOrderIds.includes(id)) { push('branch.once'); closeCard(); renderProbe(); return; }
+
+  push('branch.show', { n: images.length }, true);
+  cardOpen = true;
+  renderCard(images);
+  /* 弹过一次即记账（与落码口径一致：展示即记账，不等用户动作） */
+  state.store.shownOrderIds = [...state.store.shownOrderIds.filter((x) => x !== id), id].slice(-200);
+  renderProbe();
+}
+
+/* ── 卡片动作（事件出，宿主负责真实跳转） ── */
+$('card-slot').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-act]');
+  if (!btn) return;
+  const o = ORDERS[state.orderId];
+  const images = state.lastImages.length ? state.lastImages : BATCHES.image.filter((f) => isImage(f.name));
+  const act = btn.dataset.act;
+  if (act === 'publish') { toast(t('deliveredGuide.done.publish', { n: images.length })); closeCard(); }
+  if (act === 'share') { toast(t('deliveredGuide.done.share')); closeCard(); }
+  if (act === 'watermark') { toast(t('deliveredGuide.done.watermark', { id: o.id })); closeCard(); }
+  if (act === 'notNow') { toast(t('deliveredGuide.dismissed', { no: o.no })); closeCard(); }
+  if (act === 'never') {
+    state.store.neverAsk = true;
+    toast(t('deliveredGuide.neverOn'), 'warn');
+    closeCard();
+  }
+  state.log.push({ raw: `emit ${act}`, hit: true });
+  renderProbe();
+});
+/* Esc = 「知道了」（轻出口，键盘可达性） */
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && cardOpen) {
+    toast(t('deliveredGuide.dismissed', { no: ORDERS[state.orderId].no }));
+    closeCard();
+    state.log.push({ raw: 'emit dismiss { forever: false }', hit: true });
+    renderProbe();
+  }
+});
+
+/* ── 调试台接线 ── */
+$('fire-image').addEventListener('click', () => simulateDelivery('image'));
+$('fire-zip').addEventListener('click', () => simulateDelivery('zip'));
+$('fire-nofile').addEventListener('click', () => simulateDelivery('nofile'));
+$('reset-order').addEventListener('click', () => {
+  state.store.shownOrderIds = state.store.shownOrderIds.filter((x) => x !== Number(state.orderId));
+  renderProbe();
+});
+$('reset-never').addEventListener('click', () => {
+  state.store.neverAsk = false; toast(t('deliveredGuide.neverOff')); renderProbe();
+});
+$('t-theme').addEventListener('click', (e) => {
+  state.theme = state.theme === 'paper' ? 'ink' : 'paper';
+  document.documentElement.setAttribute('data-artist-theme', state.theme);
+  e.currentTarget.setAttribute('aria-pressed', String(state.theme === 'ink'));
+  e.currentTarget.textContent = state.theme === 'ink' ? '宣纸' : '夜墨';
+});
+$('t-lang').addEventListener('click', (e) => {
+  state.lang = state.lang === 'zh-CN' ? 'en' : 'zh-CN';
+  e.currentTarget.setAttribute('aria-pressed', String(state.lang === 'en'));
+  e.currentTarget.textContent = state.lang === 'en' ? '中文' : 'EN';
+  renderStatic(); if (cardOpen) renderCard(state.lastImages.length ? state.lastImages : BATCHES.image.filter((f) => isImage(f.name)));
+  renderProbe();
+});
+$('t-font').addEventListener('change', (e) => {
+  document.documentElement.style.setProperty('--font-scale', (Number(e.target.value) / 14).toFixed(4));
+});
+$('t-motion').addEventListener('click', (e) => {
+  state.motion = !state.motion;
+  document.documentElement.setAttribute('data-reduce-motion', state.motion ? '1' : '0');
+  e.currentTarget.setAttribute('aria-pressed', String(state.motion));
+});
+$('t-order').addEventListener('change', (e) => { state.orderId = e.target.value; renderStatic(); renderFiles(BATCHES.image); });
+
+renderStatic();
+renderFiles(BATCHES.image);
+renderProbe();
+</script>
+</body>
+</html>

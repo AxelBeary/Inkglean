@@ -172,4 +172,47 @@ describe('安全加固批 F1: TOTP 密钥 DTO 投影', () => {
     expect(body.qq_number).toBe('30001')
     expect(body.name).toBe('新画师')
   })
+
+  // ─── v76 内容下架批：下架原因的可见性边界 ───
+  // home_takedown_at（状态位）可平铺；home_takedown_reason（自由文本处置描述）**不得平铺**进任意响应体，
+  // 只走两条通道：① 画师本人——/api/artist/profile 的显式嵌套 home_takedown.reason；
+  // ② 管理员——/api/admin/artists* 照 last_login_ip 范式显式重附。
+  // 公开主页最小载荷本就只回四字段（由 tests/artist-visibility.test.ts 覆盖）。
+
+  /** 给画师置主页下架态（直接写库，不依赖 B 路端点） */
+  function setTakedown(artistId: number, reason = '主页含侵权内容'): void {
+    db.prepare('UPDATE artists SET home_takedown_at = ?, home_takedown_reason = ? WHERE id = ?')
+      .run('2026-09-13T00:00:00.000Z', reason, artistId)
+  }
+
+  it('TC-SEC-09: 画师端不平铺 home_takedown_reason，权利人经嵌套字段看自己的原因', async () => {
+    const { artistToken, artist } = setup()
+    setTakedown(artist.id)
+    for (const url of ['/api/auth/me', '/api/artist/profile']) {
+      const res = await app.inject({ method: 'GET', url, headers: { Authorization: BEARER + artistToken } })
+      expect(res.statusCode).toBe(200)
+      expect(JSON.stringify(res.json())).not.toContain('"home_takedown_reason"')
+    }
+    const profile = await app.inject({
+      method: 'GET', url: '/api/artist/profile', headers: { Authorization: BEARER + artistToken }
+    })
+    expect(profile.json().home_takedown).toEqual({ at: '2026-09-13T00:00:00.000Z', reason: '主页含侵权内容' })
+  })
+
+  it('TC-SEC-10: 管理端两点显式重附下架状态与原因（照 last_login_ip 范式）', async () => {
+    const { adminToken, artist } = setup()
+    setTakedown(artist.id, '侵权')
+    const list = await app.inject({
+      method: 'GET', url: '/api/admin/artists', headers: { Authorization: BEARER + adminToken }
+    })
+    expect(list.statusCode).toBe(200)
+    const row = list.json().find((a: { id: number }) => a.id === artist.id)
+    expect(row.home_takedown_at).toBe('2026-09-13T00:00:00.000Z')
+    expect(row.home_takedown_reason).toBe('侵权')
+    const detail = await app.inject({
+      method: 'GET', url: `/api/admin/artists/${artist.id}/profile`, headers: { Authorization: BEARER + adminToken }
+    })
+    expect(detail.statusCode).toBe(200)
+    expect(detail.json().home_takedown_reason).toBe('侵权')
+  })
 })

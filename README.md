@@ -1,6 +1,14 @@
 # 拾绘 Inkglean（原 Brushline-HuiYue）
 
-画师约稿管理平台。画师用它在网上开一家自己的"约稿小店"：客户看到主页、选档位下单、画师接单排期、完成后交付文件、收钱记账，都在一个后台里完成。
+> **把 QQ 接单、Excel 记账、备忘录排期，换成一个网站——客户自助下单查单，你只管画。**
+
+<!-- REQ-044 B 截图占位：桌面端首页待 design/r2 三版原型（A/B/C，黄灯 Y4）选定后补成品图；web 端可先放画师仪表盘成品图。当前不放真图以免破链。 -->
+
+- **客户自助**：主页挂出去，客户自己选画风尺寸、下单、看进度，不必来回打字
+- **一屏管账**：排期、报价、收款、交付一个后台全包，数据都在你自己电脑上
+- **快速开张**：一键安装（Windows 双击 / Linux 一行命令），见下方「快速开始」
+
+（完整的画师约稿管理平台：客户看主页、选档下单、接单排期、交付收款记账都在一个后台——功能细节见下方「它能做什么」。）
 
 作者：[AxelBeary（奚怡熊）](https://github.com/AxelBeary)。协议：AGPL-3.0-only（见 [LICENSE](LICENSE)，第三方资产见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)）。
 
@@ -20,21 +28,9 @@
 
 对客户：
 
-- **查单**：凭订单号看进度和排队位置
+- **查单**：凭下单时保存的追踪链接看进度和排队位置
 - **约稿须知**：下单前看到画师的规则
 - **留言板**：在画师主页留言，审核后展示
-
-## 技术栈
-
-| 层级 | 技术 |
-|------|------|
-| 前端 | Vue 3 + Element Plus + Pinia + Vite |
-| 后端 | Fastify 5 + better-sqlite3 |
-| 部署 | Docker Compose + Caddy（自动 HTTPS） |
-| 登录 | TOTP 动态口令（RFC 6238） |
-| 测试 | Vitest（后端 `cd server && npm test`、前端 `cd web && npm run test:web`）+ Playwright E2E（根目录 `npm run test:e2e`）；用例数随开发增长，以实测为准（2026-08-19 参考：后端 1589 · 前端 651 · E2E 13） |
-| 类型 | TypeScript（2026-08-19 起全仓 TS：后端/前端/测试/脚本/配置全部 strict 受检，零 any） |
-| 监控 | Sentry |
 
 ## 快速开始
 
@@ -59,7 +55,7 @@ cp .env.example .env
 # 默认 NODE_ENV=production、AUTH_DEV_MODE=false；开发本地调试按需改
 
 docker compose up -d
-# 访问：统一走 Caddy（80/443）；v0.42 起 compose 默认不把 3000 映射到宿主机，仅 expose（容器内自检：docker compose exec web curl localhost:3000/api/health）
+# 访问：统一走 Caddy（80/443）；v0.42 起 compose 默认不把 3000 映射到宿主机，仅 expose（容器内自检：docker compose exec -T web node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>r.text()).then(console.log).catch(()=>process.exit(1))"，镜像 node:22-slim 无 curl）
 ```
 
 ### 方式三：本地开发
@@ -75,7 +71,7 @@ npm run dev        # http://localhost:3000
 cd web && npm install
 npm run dev        # http://localhost:5173
 
-# 测试（用例数随开发增长，以实测为准；2026-08-19 参考：后端 1589 · 前端 651 · E2E 13）
+# 测试（用例数以 docs/comms/STATUS.md 最新条目的基线为准，不写死易变数字）
 cd server && npm test          # 后端 Vitest
 cd server && npm run lint
 cd web && npm run lint
@@ -111,6 +107,18 @@ web/                    # 前端（Vue 3）
 docs/                   # 文档（含 soul 角色定义）
 ```
 
+## 技术栈（维护者向）
+
+| 层级 | 技术 |
+|------|------|
+| 前端 | Vue 3 + Element Plus + Pinia + Vite |
+| 后端 | Fastify 5 + better-sqlite3 |
+| 部署 | Docker Compose + Caddy（自动 HTTPS） |
+| 登录 | TOTP 动态口令（RFC 6238）+ Passkey |
+| 测试 | Vitest（后端 `cd server && npm test`、前端 `cd web && npm run test:web`）+ Playwright E2E（根目录 `npm run test:e2e`）；**用例数以 `docs/comms/STATUS.md` 最新条目的基线为准，不在此写死易变数字** |
+| 类型 | TypeScript（2026-08-19 起全仓 TS：后端/前端/测试/脚本/配置全部 strict 受检，零 any） |
+| 监控 | Sentry |
+
 ## 文档
 
 - [赞助致谢](docs/赞助致谢.md) — 感谢每一位支持本项目的朋友 ❤️
@@ -129,7 +137,7 @@ docs/                   # 文档（含 soul 角色定义）
 - 会话用 HMAC-SHA256 签名 + httpOnly cookie，JS 读不到
 - 登录用 TOTP 动态口令（RFC 6238）+ IP 限速
 - 上传文件有扩展名 + MIME 双重白名单
-- 参考图走签名 URL（15 分钟有效）；交付文件凭查单令牌一次性下载（v1.0.0-beta.2 起）
+- 参考图走签名 URL（5 分钟有效）；交付文件凭查单令牌一次性下载（v1.0.0-beta.2 起）
 - 后端统一错误码，不把内部信息透给用户
 - 生产部署务必改 `SESSION_SECRET`、`COOKIE_SECRET`
 - 发现安全漏洞？请勿公开，见 [安全策略](SECURITY.md)

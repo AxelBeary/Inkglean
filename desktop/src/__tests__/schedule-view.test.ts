@@ -260,10 +260,14 @@ describe('timelineWindow（缩放窗口天数）', () => {
 // 从不 import 被测件——被测件改词/漏态/改分区时测试照绿（哨兵自我循环）。
 
 describe('ScheduleList（真挂载）', () => {
-  async function mountList(orders: SchedOrder[], slotText = ''): Promise<HTMLElement> {
+  async function mountList(
+    orders: SchedOrder[],
+    slotText = '',
+    reorderable = false
+  ): Promise<HTMLElement> {
     const host = document.createElement('div')
     document.body.appendChild(host)
-    createApp(ScheduleList, { orders, slotText }).mount(host)
+    createApp(ScheduleList, { orders, slotText, reorderable }).mount(host)
     await nextTick()
     return host
   }
@@ -297,11 +301,47 @@ describe('ScheduleList（真挂载）', () => {
     host.remove()
   })
 
-  it('波1 只读哨兵：不渲染拖柄、不接拖拽（拖排改期属波2）', async () => {
-    const host = await mountList([sched({ key: 'f1' })])
-    expect(host.querySelectorAll('.grip')).toHaveLength(0)
-    expect(host.innerHTML).not.toContain('draggable')
-    host.remove()
+  it('波2 拖排哨兵：拖拽可供性只在云端可拖态出现（本地/在途写/单行一律不给）', async () => {
+    // 口径翻面（9/13 波2 拖排）：原断言是「innerHTML 不含 draggable」＝整页永远只读；
+    // 现在要钉的是**开关**——reorderable=true 才许有拖拽属性，false 或不可拖的行一个都不许有。
+    // 「零新增 grip 节点」这条不变：⠿ 走 CSS 伪元素压在既有 14px 点色列上，版式一列不加。
+    const dragOf = (e: Element): string => {
+      const attr = e.getAttribute('draggable')
+      if (attr !== null) return attr
+      const prop = (e as HTMLElement).draggable // 有的内核只吃 IDL 值、不反射成属性，两种都认
+      return typeof prop === 'string' ? prop : String(prop)
+    }
+
+    // 可拖态：正式区两行拿到 draggable=true + tabindex + 读屏按键提示；缓冲区行永远不参与拖排
+    const onHost = await mountList([
+      sched({ key: 'f1', id: 1, version: 1 }),
+      sched({ key: 'f2', id: 2, version: 2 }),
+      sched({ key: 'b1', id: 3, version: 3, zone: 'buffer' })
+    ], '', true)
+    const zones = [...onHost.querySelectorAll('.list-zone')]
+    const formal = [...zones[0].querySelectorAll('.q-item')]
+    const buffer = [...zones[1].querySelectorAll('.q-item')]
+    expect(formal.map(dragOf)).toEqual(['true', 'true'])
+    expect(formal.every(e => e.getAttribute('tabindex') === '0')).toBe(true)
+    expect(formal.every(e => (e.getAttribute('aria-label') ?? '').includes('Alt'))).toBe(true)
+    expect(buffer.map(dragOf)).toEqual(['false'])
+    expect(buffer[0].hasAttribute('tabindex')).toBe(false)
+    expect(onHost.querySelectorAll('.grip')).toHaveLength(0)
+    expect(onHost.innerHTML).toContain('draggable')
+    onHost.remove()
+
+    // 不可拖态（宿主给 reorderable=false：本地模式 / 有写在途 / 正式区不足两行）：属性全关
+    const offHost = await mountList(
+      [sched({ key: 'f1', id: 1, version: 1 }), sched({ key: 'f2', id: 2, version: 2 })],
+      '',
+      false
+    )
+    const offRows = [...offHost.querySelectorAll('.q-item')]
+    expect(offRows).toHaveLength(2)
+    expect(offRows.every(e => dragOf(e) === 'false')).toBe(true)
+    expect(offRows.every(e => !e.hasAttribute('tabindex'))).toBe(true)
+    expect(offHost.innerHTML).not.toContain('draggable="true"')
+    offHost.remove()
   })
 })
 

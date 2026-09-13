@@ -66,6 +66,11 @@ export interface Artist {
   // oimimo 吸纳批一（v69）: 日历订阅（ICS）开关与私密令牌（令牌即凭证，可旋转）
   calendar_feed_enabled: number
   calendar_feed_token: string | null
+  // 内容级下架（v76）: 平台独占写入的主页下架态（非空 = 已下架）。
+  // 不复用 status='hidden'（那是画师自助态、可一键解除），不碰 token_version（不踢登录）；
+  // 公开端与 hidden 同表现（不公开宣判），reason 只对画师本人与管理端回传
+  home_takedown_at: string | null
+  home_takedown_reason: string | null
   created_at: string
 }
 

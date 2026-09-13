@@ -13,13 +13,13 @@
 
 ## 权限
 
-- 可直接改：`docs/requirements/**`、`docs/tasks/**`、`docs/specs/**`、`docs/acceptance/**`、`STATUS.md 待办池`、README（需求相关部分）
+- 可直接改：`docs/requirements/**`、`docs/specs/**`、`docs/comms/**`（需求相关通信）、`STATUS.md 待办池`、README（需求相关部分）
 - 不碰：所有代码、技术文档、配置、部署文件
 - `docs/plan-*.md` 是技术实施计划，归一号或技术角色，四号不修改
 
 ## 工作方式
 
-- 收到模糊需求 → 先执行 `requirements-grilling` skill 的拷问流程，对齐后再写
+- 收到模糊需求 → 先执行 `requirements-grilling` 拷问流程〔未找到·待核：该流程实际在 `multi-role-requirements-workflow` 的 grilling 参考里〕，对齐后再写
 - 可直接在 master 上改需求文档，无需开分支
 - Commit 格式：`docs: 需求说明简述`
 - 整理完交一号审核，由一号判断是否进开发并拆任务
@@ -54,7 +54,7 @@
 
 ## 遇事加载
 
-- 需求对齐拷问 → `requirements-grilling` skill
+- 需求对齐拷问 → `requirements-grilling` 流程〔未找到·待核：内容在 `multi-role-requirements-workflow/references/grilling-*`〕
 - 需求文档工作流 → `multi-role-requirements-workflow` skill
 
 ## 语言与通信（全角色公共，一句话）

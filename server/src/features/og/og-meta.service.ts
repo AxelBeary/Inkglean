@@ -1,4 +1,5 @@
 import { getArtistBySubdomain } from '../artist/artist.service.js'
+import { isArtistHomeHidden } from '../artist/artist-visibility.service.js'
 import type { Artist } from '../../types/entities.js'
 
 // ============================================
@@ -55,11 +56,12 @@ function cleanBio(bio: string): string {
   return truncate(plain, 100)
 }
 
-/** 公开页可见性判定（对齐公开 API：封禁/隐藏画师不注入个人 OG，回退默认） */
+/** 公开页可见性判定（对齐公开 API：封禁/隐藏/平台下架画师不注入个人 OG，回退默认） */
 function isOgVisible(artist: Artist): boolean {
   if (artist.is_banned) return false
-  if (artist.status === 'hidden') return false
-  return true
+  // v76：隐身判定收敛到 helper，纳入平台下架；封禁仍是独立守卫
+  // （OG 属「主页可见性」范畴，不下沉到 Invisible——deleted_at 已由 getArtistBySubdomain 过滤）
+  return !isArtistHomeHidden(artist)
 }
 
 /** HTTPS 绝对地址：DOMAIN env 是唯一来源；缺失时如实降级为 localhost（绝不反射 Host 头） */
