@@ -90,11 +90,12 @@ export function getPublicGallery(artistId: number): {
   }
 
   // 3. 作品列表（含标注——只保留可见尺寸内的标注）
+  // v76：公开端过滤平台下架（takedown_at IS NULL），下架作品不再出现在画廊
   const rows = db.prepare(`
     SELECT a.id, a.image_path, a.title, a.description, a.like_count, a.is_cover,
            a.width, a.height, a.sort_order, a.cover_order
     FROM artworks a
-    WHERE a.artist_id = ?
+    WHERE a.artist_id = ? AND a.takedown_at IS NULL
     ORDER BY a.is_cover DESC, a.cover_order ASC, a.sort_order ASC
   `).all(artistId) as Array<{
     id: number; image_path: string; title: string | null; description: string | null
@@ -141,6 +142,8 @@ export function getPublicGallery(artistId: number): {
 /**
  * 批量解析作品引用图路径（v0.37 F1：image_artwork_id → artworks.image_path 实时引用）
  * 815 P-1: 逐尺寸单查 → 一次 IN 预取，内存 Map 回查
+ * v76：加 `takedown_at IS NULL` —— 被平台下架的作品不再作为档位示例图挂在价格表上；
+ * 命中不到时下游 `?? null` 分支自动回退到尺寸自身的 image 列（已兜底，无 NPE 面）。
  */
 function resolveArtworkImagePaths(artworkIds: Array<number | null>): Map<number, string> {
   const ids = [...new Set(artworkIds.filter((id): id is number => id != null))]
@@ -148,7 +151,7 @@ function resolveArtworkImagePaths(artworkIds: Array<number | null>): Map<number,
   if (ids.length === 0) return map
   const placeholders = ids.map(() => '?').join(',')
   const rows = db.prepare(
-    `SELECT id, image_path FROM artworks WHERE id IN (${placeholders})`
+    `SELECT id, image_path FROM artworks WHERE id IN (${placeholders}) AND takedown_at IS NULL`
   ).all(...ids) as Array<{ id: number; image_path: string }>
   for (const row of rows) map.set(row.id, row.image_path)
   return map
@@ -323,7 +326,7 @@ export function getPublicStyles(artistId: number): PublicArtStyle[] {
         name: size.name,
         base_price: size.base_price,
         sort_order: size.sort_order,
-        // v0.37 F1: 尺寸图（image_artwork_id 有值时解析出作品图路径——实时引用，作品删了字段自动置空）
+        // v0.37 F1: 尺寸图（image_artwork_id 有值时解析出作品图路径——实时引用，作品删了/下架了字段自动置空回退 image 列）
         image: size.image,
         image_artwork_id: size.image_artwork_id,
         artwork_image_path: size.image_artwork_id != null ? (artworkPathMap.get(size.image_artwork_id) ?? null) : null,

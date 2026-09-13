@@ -2,6 +2,7 @@ import * as styleService from './style.service.js'
 import * as stylePricingService from './style-pricing.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
 import { getArtistBySubdomain, requireVisibleArtist } from '../artist/artist.service.js'
+import { isArtistHomeInvisible } from '../artist/artist-visibility.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { AppError, E } from '../../shared/errors.js'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
@@ -322,7 +323,8 @@ export default async function styleRoutes(fastify: FastifyInstance) {
     guardRateLimit(`styles:${request.ip}`, 30, 5 * 60_000)
 
     const artist = getArtistBySubdomain((request.params as { subdomain: string }).subdomain)
-    if (!artist || artist.status === 'hidden' || artist.is_banned) throw new AppError(E.ARTIST_NOT_FOUND, 404)
+    // v76：改用统一可见性判定（隐身 ∪ 平台下架 ∪ 封禁 ∪ 软删）→ 一律 404
+    if (!artist || isArtistHomeInvisible(artist)) throw new AppError(E.ARTIST_NOT_FOUND, 404)
 
     return styleService.getPublicStyles(artist.id)
   })
@@ -336,7 +338,8 @@ export default async function styleRoutes(fastify: FastifyInstance) {
     guardRateLimit(`gallery:${request.ip}`, 30, 5 * 60_000)
 
     const artist = getArtistBySubdomain((request.params as { subdomain: string }).subdomain)
-    if (!artist || artist.status === 'hidden' || artist.is_banned) throw new AppError(E.ARTIST_NOT_FOUND, 404)
+    // v76：改用统一可见性判定（隐身 ∪ 平台下架 ∪ 封禁 ∪ 软删）→ 一律 404
+    if (!artist || isArtistHomeInvisible(artist)) throw new AppError(E.ARTIST_NOT_FOUND, 404)
 
     return styleService.getPublicGallery(artist.id)
   })

@@ -7,6 +7,7 @@ import { clamp } from '../../shared/validate.js'
 import { AppError, E } from '../../shared/errors.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { publicArtistDTO } from '../../shared/dto.js'
+import { isArtistHomeHidden, isArtistHomeInvisible } from './artist-visibility.service.js'
 import { collectSensitiveHits } from '../../shared/sensitive-words.js'
 import { getPlatformAnnouncement } from '../announcement/announcement.service.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
@@ -34,14 +35,14 @@ export default async function artistRoutes(fastify: FastifyInstance) {
 
   /**
    * GET /api/artists
-   * 获取所有画师公开信息（首页列表；hidden/封禁画师排除）
+   * 获取所有画师公开信息（首页列表；hidden/下架/封禁画师排除）
    * 方案 A（2026-08-21 用户拍板）：开业就绪门槛——未备好作品与价格的空店不上首页目录，
    * 直接访问 /artist/:subdomain 不受此门槛影响（readyIds 只管目录展示）
    */
   fastify.get('/api/artists', async () => {
     const readyIds = artistService.getReadyArtistIds()
     return artistService.getAllArtists()
-      .filter(a => a.status !== 'hidden' && !a.is_banned && readyIds.has(a.id))
+      .filter(a => !isArtistHomeHidden(a) && !a.is_banned && readyIds.has(a.id))
       .map(a => ({
         id: a.id, name: a.name, subdomain: a.subdomain,
         avatar: a.avatar, bio: a.bio, status: a.status,
@@ -60,8 +61,11 @@ export default async function artistRoutes(fastify: FastifyInstance) {
     // REQ-042: 封禁画师与「不存在」同响应（目录/主页/工作流全链路隐身）
     if (!artist || artist.is_banned) return reply.code(404).send({ error: '画师不存在' })
 
-    // UI-8: hidden 状态 — 只返回最小信息，不暴露 bio/pricing/artworks/rules
-    if (artist.status === 'hidden') {
+    // UI-8: 主页对客户不可见（画师自助隐身 ∪ 平台内容级下架 v76）——只返回最小信息，
+    // 不暴露 bio/pricing/artworks/rules。刻意不区分隐身/下架、不回传 reason：
+    // 对小平台而言「因违规被下架」等同公开挂牌示众，会把纠纷引到社交平台（P4-2 §8.3）；
+    // 下架原因只经 /api/artist/profile 回给权利人本人。
+    if (isArtistHomeHidden(artist)) {
       return { id: artist.id, name: artist.name, subdomain: artist.subdomain, status: 'hidden' }
     }
     // SPEC-PRICE-2（v50）：旧档位表已清退；tiers 字段保留空数组仅为前端过渡兼容，价格数据走 /api/public/styles
@@ -118,14 +122,19 @@ export default async function artistRoutes(fastify: FastifyInstance) {
     return {
       ...publicArtistDTO(artist),
       tiers: [], // SPEC-PRICE-2（v50）：旧档位已清退，空数组过渡兼容
-      artworks: artistService.getArtworks(artist.id),
+      artworks: artistService.getArtistArtworks(artist.id),
       rules: artistService.getRules(artist.id),
       slotDisplay: artistService.computeSlotDisplay(artist),
       // 820-L（v68）: 留言开关（对齐 notify_enabled 口径）；统计功能管理员开关（默认关闭=隐藏导航）
       guestbookEnabled: !!artist.guestbook_enabled,
       statsEnabled: trackingService.getStatsEnabled(),
       // E2 补全（清扫批）：月度额度用量下发（与公开主页端点同口径），仪表盘满态牌据此覆盖额度耗尽轴
-      quotaInfo: artist.monthly_quota != null ? artistService.getMonthlyUsage(artist.id, artist.monthly_quota) : null
+      quotaInfo: artist.monthly_quota != null ? artistService.getMonthlyUsage(artist.id, artist.monthly_quota) : null,
+      // v76：画师是权利人，后台可见自己主页是否被平台下架及原因（供 P3 后台横幅）；
+      // 公开主页（同文件最小载荷分支）刻意不回传此字段——不公开宣判。
+      home_takedown: artist.home_takedown_at
+        ? { at: artist.home_takedown_at, reason: artist.home_takedown_reason }
+        : null
     }
   })
 
@@ -322,7 +331,8 @@ export default async function artistRoutes(fastify: FastifyInstance) {
 
   fastify.get('/api/artist/artworks', { preHandler: requireAuth }, async (request: FastifyRequest) => {
     // v0.37 (REQ-024 F6): 附带每作品的档位标注 id 列表（后台作品管理编辑回显）
-    const artworks = artistService.getArtworks(request.artist.id)
+    // v76：画师端用 getArtistArtworks（不过滤平台下架），否则被下架的图从后台消失、画师无从整改
+    const artworks = artistService.getArtistArtworks(request.artist.id)
     return artworks.map((art) => ({
       ...art,
       size_tag_ids: artistService.getArtworkSizeTagIds(art.id)
@@ -377,6 +387,7 @@ export default async function artistRoutes(fastify: FastifyInstance) {
     if (!artwork || artwork.artist_id !== request.artist.id) {
       return reply.code(404).send({ error: '作品不存在' })
     }
+    // C4：画师自删仍是物理删（用户意图就是删），保持不变；平台下架走 compliance.removeContent → takedownArtwork
     artistService.deleteArtwork(parseInt((request.params as { id: string }).id, 10))
     return { success: true }
   })
@@ -601,12 +612,13 @@ export default async function artistRoutes(fastify: FastifyInstance) {
     // audit-a P3-16: 公开工作流接口补 30次/分钟/IP 限流
     guardRateLimit(`artist-workflow:${request.ip}`, 30, 60_000)
     const artist = artistService.getArtistBySubdomain((request.params as { subdomain: string }).subdomain)
-    if (!artist || artist.status === 'hidden' || artist.is_banned) return reply.code(404).send({ error: '画师不存在' })
+    // v76：改用统一可见性判定（隐身 ∪ 平台下架 ∪ 封禁 ∪ 软删）→ 一律 404
+    if (!artist || isArtistHomeInvisible(artist)) return reply.code(404).send({ error: '画师不存在' })
     return { stages: workflowService.getWorkflow(artist.id) }
   })
 
   /** GET /api/public/artworks/:artistId?page&pageSize — 公开作品分页（默认 10，clamp 1-30；封面置顶）
-   * 客户端画师主页「加载更多」用；hidden/封禁/已删除画师 404，与公开 profile 一致不暴露
+   * 客户端画师主页「加载更多」用；hidden/下架/封禁/已删除画师 404，与公开 profile 一致不暴露
    * 限流：同 IP 每分钟 30 次（用户红线：公开接口必须防刷）
    */
   fastify.get('/api/public/artworks/:artistId', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -618,7 +630,8 @@ export default async function artistRoutes(fastify: FastifyInstance) {
       return reply.code(400).send({ code: 'INVALID_PARAM', error: '画师 ID 无效' })
     }
     const artist = artistService.getArtistById(artistId)
-    if (!artist || artist.deleted_at || artist.status === 'hidden' || artist.is_banned) {
+    // v76：改用统一可见性判定（隐身 ∪ 平台下架 ∪ 封禁 ∪ 软删）→ 一律 404
+    if (isArtistHomeInvisible(artist)) {
       return reply.code(404).send({ code: 'NOT_FOUND', error: '画师不存在' })
     }
     const q = request.query as { page?: string; pageSize?: string }

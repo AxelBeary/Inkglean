@@ -21,7 +21,10 @@ export const INK_PALETTE = {
   zs: '#BC3A2B',
   zsT: '#F8EAE6',
   sl: '#2F7D54',
-  slT: '#EAF3EC',
+  // F-30（P5 收口批）：石绿浅底原为 #EAF3EC，与两处 css 事实源
+  // （web/src/styles/artist-tokens.css `--sl-t`、desktop/src/styles/paper-ink.css `--sl-t`）
+  // 不一致 → 对齐为 #E5F1E9（色差肉眼不可辨，无测试钉死；本包是双端共用色值事实源）
+  slT: '#E5F1E9',
   white: '#FFFFFF',
   black: '#000000'
 }

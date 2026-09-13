@@ -4,6 +4,7 @@ import { sanitizeStoredText } from '../../shared/sanitize.js'
 import sharp from 'sharp'
 import { resolve, join } from 'path'
 import { isArtistVisibleById } from './artist-lookup.service.js'
+import { isArtworkVisible } from './artist-visibility.service.js'
 
 // ============================================
 // 画师服务 - 作品、档位标注、封面、点赞
@@ -24,6 +25,9 @@ interface Artwork {
   height: number | null
   // F7（v62）: 发布来源交付物 id——普通上传为 NULL，发布为作品时记录，唯一索引兜一图一作品
   source_deliverable_id: number | null
+  // v76: 平台内容级下架（非空 = 已下架，行保留可恢复）；画师端/管理端透出供打标，公开端读路径过滤
+  takedown_at: string | null
+  takedown_reason: string | null
 }
 
 // ============================================
@@ -38,10 +42,20 @@ interface Artwork {
 export function getArtworks(artistId: number): Artwork[] {
   // v0.25 #5: 封面排第一，其余按 sort_order 排序（无封面时行为不变）
   // v0.31: 封面内部按 cover_order 排序（多封面轮播顺序）
+  // v76：公开端过滤平台下架（takedown_at IS NULL）——下架作品不再出现在客户主页
+  return db.prepare('SELECT * FROM artworks WHERE artist_id = ? AND takedown_at IS NULL ORDER BY is_cover DESC, cover_order ASC, sort_order ASC').all(artistId) as Artwork[]
+}
+
+/**
+ * 画师/管理端作品列表（v76）：与 getArtworks 同排序，但**不过滤** takedown_at——
+ * 画师是权利人，须看到被平台下架的图才能整改；管理端列表与归属校验亦复用此函数。
+ * Artwork 已含 takedown_at / takedown_reason 字段，透出供打标。
+ */
+export function getArtistArtworks(artistId: number): Artwork[] {
   return db.prepare('SELECT * FROM artworks WHERE artist_id = ? ORDER BY is_cover DESC, cover_order ASC, sort_order ASC').all(artistId) as Artwork[]
 }
 
-/** 画师端作品分页（画师自己管理用，20/页；封面置顶不动）
+/** 画师端作品分页（画师自己管理用，20/页；封面置顶不动；v76 不过滤下架，字段透出）
  * 排序与 getArtworks 一致：is_cover DESC, cover_order ASC, sort_order ASC
  */
 export interface PagedArtworks {
@@ -61,11 +75,22 @@ export function getArtworksPaged(artistId: number, page: number, pageSize: numbe
   return { items, total, hasMore: offset + items.length < total }
 }
 
-/** 公开端作品分页（访客看画师主页用，10/页 + 加载更多）；hidden 画师由路由层拦截 */
+/** 公开端作品分页（访客看画师主页用，10/页 + 加载更多）；hidden 画师由路由层拦截
+ * v76：**不再委托 getArtworksPaged**——自带 takedown_at IS NULL，且 total 同口径过滤，
+ * 否则「加载更多」分页会因下架作品留下空洞、错位（total/hasMore 与 items 口径不一致）。
+ */
 export function getPublicArtworksPaged(artistId: number, page: number, pageSize: number): PagedArtworks {
-  return getArtworksPaged(artistId, page, pageSize)
+  const offset = (page - 1) * pageSize
+  const total = (db.prepare('SELECT COUNT(*) AS c FROM artworks WHERE artist_id = ? AND takedown_at IS NULL').get(artistId) as { c: number }).c
+  const items = db.prepare(`
+    SELECT * FROM artworks WHERE artist_id = ? AND takedown_at IS NULL
+    ORDER BY is_cover DESC, cover_order ASC, sort_order ASC
+    LIMIT ? OFFSET ?
+  `).all(artistId, pageSize, offset) as Artwork[]
+  return { items, total, hasMore: offset + items.length < total }
 }
 export function getArtworkById(artworkId: number): Artwork | undefined {
+  // 保持原样：不过滤 takedown_at——画师编辑/管理端/下架/恢复函数都要能拿到行；守卫加在调用侧
   return db.prepare('SELECT * FROM artworks WHERE id = ?').get(artworkId) as Artwork | undefined
 }
 
@@ -103,7 +128,38 @@ export async function createArtwork(artistId: number, { imagePath, title, descri
 }
 
 export function deleteArtwork(artworkId: number): void {
+  // ⚠ v76：本函数是**物理删**，只服务画师自己删作品（用户意图就是删）与遗留清理。
+  // 平台「下架」不得走这里——走 takedownArtwork()（置 takedown_at，行保留可恢复），
+  // 否则作品行连同标题/描述/点赞数/档位标注不可逆丢失（旧实现的真实数据事故面）。
   db.prepare('DELETE FROM artworks WHERE id = ?').run(artworkId)
+}
+
+// ============================================
+// v76 内容级下架：单作品下架/恢复（REQ-042 §三 C「内容级下架」）
+// ============================================
+
+/** 下架原因入库长度上限（与 admin_actions.reason 同口径） */
+const TAKEDOWN_REASON_MAX = 500
+
+/**
+ * 平台下架单作品（v76）：行保留、可恢复；公开端由读路径过滤（takedown_at IS NULL）。
+ * @returns 作品存在并已写入返回 true；不存在返回 false
+ */
+export function takedownArtwork(artworkId: number, reason: string | null): boolean {
+  const artwork = getArtworkById(artworkId)
+  if (!artwork) return false
+  const safeReason = reason ? sanitizeStoredText(String(reason)).trim().slice(0, TAKEDOWN_REASON_MAX) : ''
+  db.prepare('UPDATE artworks SET takedown_at = ?, takedown_reason = ? WHERE id = ?')
+    .run(new Date().toISOString(), safeReason || null, artworkId)
+  return true
+}
+
+/** 解除作品下架（v76）：清空两列，不动其他字段。@returns 作品存在并已写入返回 true */
+export function restoreArtwork(artworkId: number): boolean {
+  const artwork = getArtworkById(artworkId)
+  if (!artwork) return false
+  db.prepare('UPDATE artworks SET takedown_at = NULL, takedown_reason = NULL WHERE id = ?').run(artworkId)
+  return true
 }
 
 // ============================================
@@ -202,7 +258,9 @@ export function reorderCovers(artistId: number, orderedIds: number[]): Artwork[]
       db.prepare('UPDATE artworks SET cover_order = ? WHERE id = ?').run(index + 1, id)
     })
   })()
-  return getArtworks(artistId)
+  // 画师端封面排序回读：用 getArtistArtworks（不过滤下架），否则被下架的封面会从结果里消失、
+  // 画师后台无从看到也无从整改（v76 语义裁决）
+  return getArtistArtworks(artistId)
 }
 
 // ============================================
@@ -211,19 +269,19 @@ export function reorderCovers(artistId: number, orderedIds: number[]): Artwork[]
 
 const LIKE_MAX = 99999
 
-/** 点赞 +1（上限保护）。BUG-3 修复：hidden/封禁画师的作品拒绝点赞 */
+/** 点赞 +1（上限保护）。BUG-3 修复：hidden/封禁画师的作品拒绝点赞；v76：被下架作品亦不可点赞 */
 export function likeArtwork(artworkId: number): Artwork | null {
   const artwork = getArtworkById(artworkId)
-  if (!artwork || !isArtistVisibleById(artwork.artist_id)) return null
+  if (!artwork || !isArtistVisibleById(artwork.artist_id) || !isArtworkVisible(artwork)) return null
   const newCount = Math.min((artwork.like_count || 0) + 1, LIKE_MAX)
   db.prepare('UPDATE artworks SET like_count = ? WHERE id = ?').run(newCount, artworkId)
   return getArtworkById(artworkId) ?? null
 }
 
-/** 取消点赞 -1（不低于 0）。BUG-3 修复：hidden/封禁画师的作品拒绝取消点赞 */
+/** 取消点赞 -1（不低于 0）。BUG-3 修复：hidden/封禁画师的作品拒绝取消点赞；v76：被下架作品亦不可取消 */
 export function unlikeArtwork(artworkId: number): Artwork | null {
   const artwork = getArtworkById(artworkId)
-  if (!artwork || !isArtistVisibleById(artwork.artist_id)) return null
+  if (!artwork || !isArtistVisibleById(artwork.artist_id) || !isArtworkVisible(artwork)) return null
   const newCount = Math.max((artwork.like_count || 0) - 1, 0)
   db.prepare('UPDATE artworks SET like_count = ? WHERE id = ?').run(newCount, artworkId)
   return getArtworkById(artworkId) ?? null

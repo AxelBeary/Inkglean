@@ -1,6 +1,7 @@
 import { requireAdmin, getAdminQq } from '../../shared/middleware/auth.js'
 import * as artistService from '../artist/artist.service.js'
 import * as orderService from '../order/order.service.js'
+import * as complianceService from '../compliance/compliance.service.js'
 import { publicArtistDTO } from '../../shared/dto.js'
 import { clamp } from '../../shared/validate.js'
 import { RESERVED_SUBDOMAINS } from '../../shared/validate.js'
@@ -12,6 +13,8 @@ import { intId } from './admin-route-utils.js'
 // ============================================
 // 管理员路由 - 画师管理（在册清单 / 建号 / 移除与恢复 / 订单 / 主页状态）
 // （从 admin.routes.ts 拆出，F-09 巨型文件清偿；纯搬移，端点与行为零变更）
+// P4-2 §8.5（v75 同批）：本文件的「移除画师」「改主页状态」原本是零留痕管理动作，
+//   现统一补写 admin_actions（含 v75 取证 admin_ip）——管理员对画师账号的处置必须查得到账
 // ============================================
 
 export async function adminArtistRoutes(fastify: FastifyInstance) {
@@ -24,11 +27,15 @@ export async function adminArtistRoutes(fastify: FastifyInstance) {
     const adminQq = getAdminQq()
     // 安全加固批 F1: getAllArtists 已显式列（不含密钥），再经 DTO 双重防御；
     // 登录留痕批（v72）：last_login_at/last_login_ip 被 DTO 剔除，此处显式重新附带（仅管理端可见）
+    // 内容下架批（v76）：home_takedown_at 不被 DTO 剔除（状态位），但 reason 被剔除，
+    //   同 last_login_ip 范式在此显式重附，管理列表才能直接说出「为什么下架」
     return artistService.getAllArtists().map(a => ({
       ...publicArtistDTO(a),
       isAdmin: a.qq_number === adminQq,
       last_login_at: a.last_login_at,
-      last_login_ip: a.last_login_ip
+      last_login_ip: a.last_login_ip,
+      home_takedown_at: a.home_takedown_at,
+      home_takedown_reason: a.home_takedown_reason
     }))
   })
 
@@ -90,6 +97,8 @@ export async function adminArtistRoutes(fastify: FastifyInstance) {
     }
 
     artistService.deleteArtist(Number((request.params as { id: string }).id))
+    // P4-2 §8.5 留痕补全：软删是可逆动作，但「谁在什么时候移除了谁」必须查得到
+    complianceService.writeAdminAction(request.artist.id, 'artist_remove', 'artist', artist.id, `移除画师 ${artist.name}`, request.ip)
     return { success: true, message: `已移除画师 ${artist.name}` }
   })
 
@@ -182,7 +191,12 @@ export async function adminArtistRoutes(fastify: FastifyInstance) {
 
     const { status } = (request.body as { status?: string }) || {}
 
+    const updated = artistService.updateArtist(artist.id, { status: status! })
+    // P4-2 §8.5 留痕补全：管理员代改画师主页状态（含设 hidden）原本是零留痕动作。
+    // reason 记新状态（不是原因文本）——这条账要回答的是「把它改成了什么」；
+    // 与 v76 的主页下架区分记录：home_takedown 是平台强制，artist_status_set 是代客改自助态
+    complianceService.writeAdminAction(request.artist.id, 'artist_status_set', 'artist', artist.id, status ?? null, request.ip)
     // F1 补全：写路径回显同样走 DTO——updateArtist 内部返回完整行（含 totp_secret）
-    return publicArtistDTO(artistService.updateArtist(artist.id, { status: status! }))
+    return publicArtistDTO(updated)
   })
 }

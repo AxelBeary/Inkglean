@@ -35,8 +35,11 @@ docker compose exec -T web npm --prefix /app/server run backup
 # ② 上传文件归档（UPLOAD_DIR 由 compose 注入 /app/uploads）
 docker compose exec -T web npm --prefix /app/server run backup:uploads
 
-# 宿主机本地开发库
-cd 仓库根目录 && cd server && npm run backup && npm run backup:uploads
+# 宿主机本地开发库（在**仓库根**执行，勿 cd 进 server）
+# 原因：backup-uploads.ts 按 cwd 相对 ./uploads，cwd=server 时会备到陈旧的 server/uploads/ 且静默成功；
+#       backup-db.ts 走仓库根绝对路径不受影响——同一条命令里一半对一半错、错的还静默成功。
+node server/scripts/backup-db.ts        # DB
+node server/scripts/backup-uploads.ts   # uploads
 ```
 
 - 脚本：`server/scripts/backup-db.ts`（DB）+ `server/scripts/backup-uploads.ts`（uploads）
@@ -48,7 +51,7 @@ cd 仓库根目录 && cd server && npm run backup && npm run backup:uploads
 
 - 容器内：`/app/data/backups/`（宿主 `./data/backups/`）
 - 文件名：`commission.db.bak-<ISO时间戳>`（DB）+ `uploads-<ISO时间戳>.tar.gz`（文件），按文件名排序即时间序
-- 保留：**DB 最多 3 份 / uploads 最多 2 份**（2026-08-11 用户拍板），超出自动删最旧（脚本内置，防磁盘撑爆）
+- 保留（2026-08-15 用户拍板三档，依据 `server/scripts/backup-db.ts` 的 `KEEP_BY_TIER`）：**DB 分三档**——daily 每日档留 **7** 份 / deploy 部署前档留 **2** 份 / weekly 每周档留 **4** 份（约 13 份）；**uploads 最多 2 份**。超出自动删最旧（脚本内置，防磁盘撑爆；轮转严格只认本档正式产物，`bak.vN`/`bak-pre-*` 等异名档一律不纳入、绝不删除）
 - 建议：配合宿主机 cron 每日执行 + 定期把 data/backups 同步到异地（如网盘/对象存储）
 
 宿主机 cron 示例（每日 03:30，DB 与 uploads 都要备）：
@@ -134,19 +137,25 @@ Select-String -Path .\data\backups\daily-backup.log -Pattern 'daily-backup start
 双重校验 → 失败自动回滚（恢复原库）并退出码 1。
 
 ```bash
-# 1) 停服务，避免写库
-docker compose down
+# ⚠️ 不要用 `docker compose run --rm web npm --prefix /app/server run restore`：
+#    entrypoint.sh 无 "$@"/shift，run 传入的 npm 参数被整段丢弃，只会另起一个完整 web 服务，restore 从未执行。
+#    容器有输出、命令返回 0，都不代表恢复发生（计划性回滚必然纹丝不动；只有库已损坏时 entrypoint 自愈才会真调 restore，删库演练可能假通过）。
 
-# 2) 恢复最近一份备份（也可显式指定：npm run restore -- <备份文件绝对路径>）
-docker compose run --rm -e DB_PATH=/app/data/commission.db web npm --prefix /app/server run restore
+# 1) 路径①（推荐，宿主机 node 直跑，与已验证可用的 scripts/rollback.ps1 同一条路）
+docker compose stop web                 # 先停服务，避免写库
+node server/scripts/restore-db.ts       # 在仓库根执行；可显式指定：node server/scripts/restore-db.ts <备份文件绝对路径>
 
-# 3) 起服务并验证
+# 2) 路径②（必须在容器内时，覆盖 ENTRYPOINT 才能真正执行 restore）
+docker compose run --rm --entrypoint sh web -c "cd /app/server && npx tsx scripts/restore-db.ts"
+
+# 3) 起服务并验证（容器内自检用 node fetch，镜像 node:22-slim 无 curl/wget）
 docker compose up -d
-docker compose exec web curl -s localhost:3000/api/health   # 期望 {"status":"ok",...}
+docker compose exec -T web node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>r.text()).then(console.log).catch(()=>process.exit(1))"   # 期望 {"status":"ok",...}
 ```
 
-- 成功输出 `RESTORE_OK <备份路径>`；失败输出 `RESTORE_FAILED <原因>` 且原库已回滚（未丢失）。
+- **判据（铁律）**：只认 `RESTORE_OK <路径>` 这一行；没打印 `RESTORE_OK` ＝ 没有恢复，容器有输出、命令返回 0 都不算。失败输出 `RESTORE_FAILED <原因>` 且原库已回滚（未丢失）。
 - 文件属主：若容器以 node 用户跑，恢复后确认 `./data/commission.db` 属主可写（chown -R 1000:1000 视宿主机映射而定）。
+- Ⓜ **待实测（本批仅标注，不臆断结论）**：路径②的 `--entrypoint sh` 在 compose V2 且 `container_name` 已存在时的实际行为、以及容器以 uid 1000 写 bind-mount 后 `data/` 的属主表现（现有 `chown -R 1000:1000` 是否仍必要），须在可丢弃副本环境验证，**禁在生产库上试**。
 - 回滚窗口：恢复到的备份点 = 丢失该点之后的全部数据；无更优方案时以最近一份为佳。
 
 ### 3.2 uploads 恢复（tar 解压）
@@ -219,11 +228,13 @@ docker compose up -d --build
 docker compose restart caddy
 
 # 3) 三层验证
-docker compose exec web curl -s localhost:3000/api/health          # ① health：应返回 {"status":"ok",...}
-docker compose exec web curl -s -X POST localhost:3000/api/anon-token               # ② 匿名凭证：应返回 64 位 hex token（埋点防刷链路可用）
+docker compose exec -T web node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>r.text()).then(console.log).catch(()=>process.exit(1))"          # ① health：应返回 {"status":"ok",...}
+docker compose exec -T web node -e "fetch('http://127.0.0.1:3000/api/anon-token',{method:'POST'}).then(r=>r.text()).then(console.log).catch(()=>process.exit(1))"   # ② 匿名凭证：应返回 64 位 hex token（埋点防刷链路可用）
 docker compose exec web ls /app/web/dist/assets/ | tail            # ③ 前端产物：应看到本次版本新增的 chunk
 ```
 
+> 🔒 **容器内自检纪律（防再犯，F-13）**：容器镜像是 `node:22-slim`，**不带 curl/wget**——`docker compose exec web curl ...` 必报 `curl: not found`，易被误判「服务挂了」进而误重启生产。容器内自检一律用 `docker compose exec -T web node -e "fetch('http://127.0.0.1:3000/...').then(r=>r.text()).then(console.log).catch(()=>process.exit(1))"`（与仓库四处自有写法同源：compose healthcheck / update.sh / move-to-opt.sh / patrol.sh）。文档不得再写 `exec ... curl`。（宿主机 / 服务器本机的 curl 不受此限，如 §13.2 AOP 自检。）
+>
 > 注意：`docker compose up -d` 不会应用 compose 新增的 logging/mem_limit 等创建期选项，需 `--build`（或 `--force-recreate`）重建容器才生效。
 
 ## 8. AUTH_DEV_MODE（生产必须 false）
@@ -238,7 +249,7 @@ docker compose exec web ls /app/web/dist/assets/ | tail            # ③ 前端�
 
 ### 当前机制（单机小项目取舍）
 
-- 迁移均为 **up-only**：`MIGRATIONS` 共 68 条（version 1~68，最新 v68 artists 留言开关 + 统计开关默认值，2026-08-18 刷新），全部只写 `up()`，**没有 `down()`**（grep 零命中）。
+- 迁移均为 **up-only**：`MIGRATIONS` 当前 **74 条**（version 1~74；条数与最新版本一律以 `server/src/db/migrations/index.ts` 末尾为准），全部只写 `up()`，**没有 `down()`**（grep 零命中）。
 - 每次迁移执行前自动备份：`server/src/db/migrate.ts` 的 `backupDbBeforeMigration` 产出一致性快照 `commission.db.bak.v<N>`（事务外 VACUUM INTO / 事务内 checkpoint 后复制；仅文件数据库，`:memory:` 跳过；**备份失败即中止迁移**，815 审计加固）。
 - 采用该取舍的原因：单机小项目、单部署点，schema 变更频率低，写 `down()` 的维护成本高于收益；错误回滚用备份恢复兜底（见 §3）。
 
@@ -281,10 +292,10 @@ docker compose up -d
 > 本项为强制项，未完成不得上线。演练走 `server/scripts/backup-db.ts`（DB）+ `backup-uploads.ts`（uploads）
 > + `restore-db.ts` 的真实链路（§1/§3），不依赖「假设可用」的备份；**本批只落 checklist，不实际执行删库恢复**。
 
-- [ ] ① 备份：`cd server && npm run backup && npm run backup:uploads` → 确认 DB 输出 `BACKUP_OK <文件路径>`、uploads 输出 `BACKUP_OK <文件路径> (<大小> bytes, <N> files)`
+- [ ] ① 备份（在**仓库根**执行，勿 cd 进 server——见 §1 口径）：`node server/scripts/backup-db.ts` + `node server/scripts/backup-uploads.ts` → 确认 DB 输出 `BACKUP_OK <文件路径>`、uploads 输出 `BACKUP_OK <文件路径> (<大小> bytes, <N> files)`
 - [ ] ② 留档基准：记录备份文件路径与当前已应用迁移版本（`sqlite3 data/commission.db "SELECT MAX(version) FROM schema_migrations"`）
 - [ ] ③ 删库：停服后把 `data/commission.db*`（含 `-wal`/`-shm`）移到临时目录（演练建议用临时目录而非物理删除，双保险）
-- [ ] ④ 恢复：`npm run restore`（或显式 `npm run restore -- <备份绝对路径>`）→ 确认输出 `RESTORE_OK <备份路径>`
+- [ ] ④ 恢复（同 §3.1 路径①，在**仓库根**执行）：`node server/scripts/restore-db.ts`（或显式 `node server/scripts/restore-db.ts <备份绝对路径>`）→ 确认输出 `RESTORE_OK <备份路径>`
 - [ ] ⑤ 验证数据完整：
   - `sqlite3 data/commission.db "PRAGMA integrity_check"` 返回 `ok`
   - `PRAGMA foreign_key_check` 无悬空行
@@ -301,7 +312,9 @@ docker compose up -d
 
 ### 12.1 真实 IP 透传（必做）
 
-入口反代的 reverse_proxy 块加一行（宿主机 Caddy 与仓库内 docker 版 Caddyfile 均已含）：
+入口反代的 reverse_proxy 块加一行 `header_up`（下面两形态都要有此行）。⚠️ **上游地址两种形态不同，切勿互抄——抄错即全站 502**：
+
+**形态 A：宿主机 Caddy（外部反代机器，web 绑 127.0.0.1:3000 回环、容器 Caddy 已 `profiles: disabled`，见 §13.1）** → 上游写回环地址：
 
 ```
 reverse_proxy 127.0.0.1:3000 {
@@ -309,7 +322,19 @@ reverse_proxy 127.0.0.1:3000 {
 }
 ```
 
-原理：CF-Connecting-IP 是 Cloudflare 写入的用户真实 IP；后端 trustProxy 默认只信内网代理（172.16/10.0/192.168 三段），会自动采纳这个唯一值作为 request.ip。不经 CF 直连时该头为空被删，后端回退用连接地址。**改完需重载反代**（`systemctl reload caddy`）。
+判据：`docker-compose.override.yml` 里 web 开了 `127.0.0.1:3000:3000` 回环映射、caddy 服务被 `profiles: disabled`——即宿主机 Caddy 形态，上游是 `127.0.0.1:3000`。
+
+**形态 B：仓库内容器版 Caddy（docker-compose 全家桶，Caddy 与 web 同在 compose 网络）** → 上游写 compose 服务名：
+
+```
+reverse_proxy web:3000 {
+    header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+}
+```
+
+判据：仓库根 `Caddyfile:21` 实为 `reverse_proxy web:3000`（容器网络内用服务名 `web` 解析，不是回环）；用容器 Caddy 的机器照此，**不要**写成 `127.0.0.1:3000`（容器内的 127.0.0.1 不是 web 服务）。
+
+原理：CF-Connecting-IP 是 Cloudflare 写入的用户真实 IP；后端 trustProxy 默认只信内网代理（172.16/10.0/192.168 三段），会自动采纳这个唯一值作为 request.ip。不经 CF 直连时该头为空被删，后端回退用连接地址。**改完需重载反代**（形态 A 宿主机 `caddy validate && systemctl reload caddy`；形态 B 容器 `docker compose restart caddy`）。
 
 ### 12.2 Authenticated Origin Pulls（推荐加固，防绕 CF 伪造）
 

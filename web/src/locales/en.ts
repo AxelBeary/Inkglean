@@ -1670,7 +1670,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   },
   artworks: {
     title: 'Portfolio', dragUpload: 'Drag images here, or click to upload',
-    tip: 'JPG / PNG / WebP supported; ≥ 800px recommended', empty: 'No artworks yet',
+    tip: 'JPG / PNG / WebP / GIF supported; ≥ 800px recommended', empty: 'No artworks yet',
     emptyHint: 'Uploaded images will appear here',
     uploaded: 'Uploaded', confirmDelete: 'Delete this artwork?', image: 'Artwork image', untitled: 'Untitled artwork',
     // 820-K: toolbar row structure
@@ -1878,7 +1878,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     save: 'Save settings', saved: 'Settings saved',
     noChanges: 'No changes',
     // R48: avatar upload
-    avatarLabel: 'Avatar', avatarHint: 'Click to upload or change (JPG/PNG/WebP, ≤10MB)',
+    avatarLabel: 'Avatar', avatarHint: 'Click to upload or change (JPG/PNG/WebP/GIF, ≤10MB)',
     avatarUpdated: 'Avatar updated', avatarNotImage: 'Only image files are supported', avatarTooBig: 'Image exceeds the 10MB limit',
     // R49: accent color
     accentLabel: 'Accent color', accentHint: 'Button/link/highlight color on your public page, independent of visitor accent choice',

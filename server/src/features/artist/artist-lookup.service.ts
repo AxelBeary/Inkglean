@@ -1,6 +1,7 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import { revokeAllDesktopDevices } from '../auth/devices.service.js'
+import { isArtistHomeInvisible } from './artist-visibility.service.js'
 import type { Artist } from '../../types/entities.js'
 
 // ============================================
@@ -14,12 +15,14 @@ export function getArtistBySubdomain(subdomain: string): Artist | undefined {
 
 /**
  * BUG-3 修复：公开路由可见画师守卫
- * hidden/封禁画师 → 抛 ARTIST_NOT_FOUND 404（对照 artist.routes.ts 公开路由范式）
- * 供 /api/public/* 端点统一使用，防止 hidden 画师未完全隐身
+ * v76：改用统一可见性判定 isArtistHomeInvisible（隐身 ∪ 平台下架 ∪ 封禁 ∪ 软删）
+ * hidden/下架/封禁画师 → 抛 ARTIST_NOT_FOUND 404（对照 artist.routes.ts 公开路由范式）
+ * 供 /api/public/* 端点统一使用，防止 hidden/下架画师未完全隐身
+ * 注：`!artist ||` 只为 TS 窄化（isArtistHomeInvisible(undefined) 已返回 true），运行时等价
  */
 export function requireVisibleArtist(subdomain: string): Artist {
   const artist = getArtistBySubdomain(subdomain)
-  if (!artist || (artist as Artist).status === 'hidden' || artist.is_banned) {
+  if (!artist || isArtistHomeInvisible(artist)) {
     throw new AppError(E.ARTIST_NOT_FOUND, 404)
   }
   return artist
@@ -39,6 +42,9 @@ export function getAllArtists(): Artist[] {
   // token_version/deleted_at（内部）、weibo_url/bilibili_url/platform_urls（历史遗留零引用）。
   // 保留 totp_verified：管理后台画师列表据此显示「绑定/重绑」按钮（ArtistManage.vue）。
   // 保留 quick_actions：画师 profile 消费（Preferences.vue/QuickActions.vue）。
+  // v76：补 home_takedown_at / home_takedown_reason——目录 filter 经 isArtistHomeHidden 判定
+  // 平台下架必需该列（否则下架画师仍漏进首页目录）；reason 仅管理端经 DTO 可见，
+  // 公开目录端点（artist.routes GET /api/artists）在 .map 里只挑最小字段，二者都不外泄。
   return db.prepare(`
     SELECT id, qq_number, name, subdomain, avatar, bio, status, contact_qq, notify_enabled, guestbook_enabled,
            created_at, artist_code, template_id, custom_page_path, palette_id,
@@ -46,7 +52,8 @@ export function getAllArtists(): Artist[] {
            order_template_id, inspiration_tags, batch_limit, buffer_limit, auto_promote,
            hide_queue_position, hide_promote_notify, buffer_short_form, announcement,
            announcement_expires_at, monthly_quota, quick_actions, discount_enabled,
-           multi_style_enabled, totp_verified, is_banned, last_login_at, last_login_ip
+           multi_style_enabled, totp_verified, is_banned, last_login_at, last_login_ip,
+           home_takedown_at, home_takedown_reason
     FROM artists WHERE deleted_at IS NULL AND subdomain != 'system' ORDER BY created_at ASC
   `).all() as Artist[]
 }
@@ -112,13 +119,10 @@ export function bumpTokenVersion(artistId: number): void {
 
 /**
  * BUG-3 修复：按 artist_id 判断画师是否对公开端点可见
- * hidden/封禁/已删除 → 不可见（对照 requireVisibleArtist 语义）
+ * v76：收敛到统一判定 isArtistHomeInvisible（软删 ∪ 封禁 ∪ 隐身 ∪ 平台下架）
  * audit-a P2-7: 导出供订单公开路由（track）复用，避免复制隐藏逻辑
  */
 export function isArtistVisibleById(artistId: number): boolean {
   const artist = db.prepare('SELECT * FROM artists WHERE id = ?').get(artistId) as Artist | undefined
-  if (!artist || artist.deleted_at) return false
-  if (artist.status === 'hidden') return false
-  if (artist.is_banned) return false
-  return true
+  return !isArtistHomeInvisible(artist)
 }

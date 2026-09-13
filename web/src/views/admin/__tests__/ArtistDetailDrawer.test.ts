@@ -2,8 +2,13 @@
 // 覆盖：资料/须知加载失败 → 横幅 + 禁用保存 + 重试恢复；
 //       删除作品 → ElMessageBox.confirm（含作品名）、取消不删、行级 loading 防连点；
 //       抽屉根类 detail-drawer（≤600px 宽度覆盖钩子）
+// P3（9/13）：「设备」tab 补测——列表渲染（admin 全列含 last_login_ip）、三态（加载/空/有数据）、
+//       加载失败横幅与重试、popconfirm 踢出、踢出在途锁（同账号安全页口径）
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { h as vnode, provide, inject } from 'vue'
+import type { PropType, SetupContext } from 'vue'
+import type { AdminDesktopDevice } from '../../../api/types'
 import ArtistDetailDrawer from '../ArtistDetailDrawer.vue'
 
 const h = vi.hoisted(() => ({
@@ -14,6 +19,8 @@ const h = vi.hoisted(() => ({
   getArtistRules: vi.fn(),
   updateArtistProfile: vi.fn(),
   updateArtistRules: vi.fn(),
+  getArtistDevices: vi.fn(),
+  revokeArtistDevice: vi.fn(),
   msgSuccess: vi.fn(),
   msgError: vi.fn(),
   confirm: vi.fn()
@@ -27,7 +34,10 @@ vi.mock('../../../api/index.js', () => ({
     deleteArtistArtwork: h.deleteArtistArtwork,
     getArtistRules: h.getArtistRules,
     updateArtistProfile: h.updateArtistProfile,
-    updateArtistRules: h.updateArtistRules
+    updateArtistRules: h.updateArtistRules,
+    // 设备 tab（管理端全列 GET 裸数组 + 单台踢出）
+    getArtistDevices: h.getArtistDevices,
+    revokeArtistDevice: h.revokeArtistDevice
   }
 }))
 
@@ -53,6 +63,46 @@ vi.mock('../../../components/admin/GreetingTable.vue', () => ({
   default: { name: 'GreetingTable', template: '<div class="gt-stub" />' }
 }))
 
+/** 表格 stub：el-table 把 :data 下发给列，列逐行渲染 #default（设备 tab 为多行表，
+ *  与 ArtistManage.deleted 的 RowColStub 同源手法，扩成按真实 data 迭代） */
+const STUB_ROWS = Symbol('stub-table-rows')
+
+const ElTableStub = {
+  name: 'ElTable',
+  props: { data: { type: Array as PropType<unknown[]>, default: () => [] } },
+  setup(props: { data?: unknown[] }, { slots }: SetupContext) {
+    provide(STUB_ROWS, () => props.data ?? [])
+    return () => vnode('div', { class: 'table-stub' }, slots.default?.())
+  }
+}
+
+const ElTableColumnStub = {
+  name: 'ElTableColumn',
+  props: { label: { type: String, default: '' } },
+  setup(props: { label?: string }, { slots }: SetupContext) {
+    const getRows = inject<() => unknown[]>(STUB_ROWS, () => [] as unknown[])
+    return () => vnode('div', { class: 'col-stub' }, [
+      vnode('span', { class: 'col-label' }, props.label ?? ''),
+      ...getRows().map((row, i) => vnode('div', { class: 'cell-stub', key: i }, slots.default?.({ row })))
+    ])
+  }
+}
+
+/** popconfirm stub：渲染 reference 插槽 + 一个「确定」按钮触发 confirm 事件 */
+const ElPopconfirmStub = {
+  name: 'ElPopconfirm',
+  props: { title: { type: String, default: '' } },
+  emits: ['confirm'],
+  setup(props: { title?: string }, { slots, emit }: SetupContext) {
+    return () => vnode('div', { class: 'popconfirm-stub' }, [
+      vnode('span', { class: 'pc-title' }, props.title ?? ''),
+      // 触发器（reference 插槽内的踢出按钮）包一层 pc-ref 便于定位，span 不影响按钮结构
+      vnode('span', { class: 'pc-ref' }, slots.reference?.()),
+      vnode('button', { class: 'pc-ok', type: 'button', onClick: () => emit('confirm') })
+    ])
+  }
+}
+
 const EP_STUBS = {
   'el-drawer': {
     name: 'ElDrawer',
@@ -66,7 +116,7 @@ const EP_STUBS = {
     emits: ['update:modelValue'],
     template: '<div class="tabs-stub"><slot /></div>'
   },
-  'el-tab-pane': { name: 'ElTabPane', template: '<div class="tab-pane-stub"><slot /></div>' },
+  'el-tab-pane': { name: 'ElTabPane', props: ['name'], template: '<div class="tab-pane-stub" :data-pane="name"><slot /></div>' },
   'el-form': { template: '<div><slot /></div>' },
   'el-form-item': { template: '<div><slot /></div>' },
   'el-input': {
@@ -82,8 +132,11 @@ const EP_STUBS = {
     template: '<button type="button" :disabled="disabled || loading" @click="$emit(\'click\')"><slot /></button>'
   },
   'el-image': { template: '<img class="el-image-stub" />' },
-  'el-empty': { template: '<div class="empty-stub" />' },
-  'el-tag': { template: '<span><slot /></span>' }
+  'el-empty': { name: 'ElEmpty', props: ['description'], template: '<div class="empty-stub">{{ description }}</div>' },
+  'el-tag': { template: '<span><slot /></span>' },
+  'el-table': ElTableStub,
+  'el-table-column': ElTableColumnStub,
+  'el-popconfirm': ElPopconfirmStub
 }
 
 const mountedWrappers: ReturnType<typeof mount>[] = []
@@ -128,6 +181,8 @@ beforeEach(() => {
   h.getArtistRules.mockReset().mockResolvedValue({ content: '' })
   h.updateArtistProfile.mockReset().mockResolvedValue(profile())
   h.updateArtistRules.mockReset().mockResolvedValue({})
+  h.getArtistDevices.mockReset().mockResolvedValue([])
+  h.revokeArtistDevice.mockReset().mockResolvedValue({ success: true })
   h.msgSuccess.mockReset()
   h.msgError.mockReset()
   h.confirm.mockReset().mockResolvedValue('confirm')
@@ -261,5 +316,177 @@ describe('ArtistDetailDrawer 上次登录展示（登录留痕批 v72）', () =>
     const wrapper = mountDrawer()
     await flushPromises()
     expect(wrapper.text()).toContain('admin.lastLogin.detailNone')
+  })
+})
+
+// ─── 桌面登录设备 tab（管理端查看 + 单台踢出）────────────────────────
+// 9/3 回流批上线后前端零测试（后端已有 10 例）， P3（9/13）补齐渲染与交互防线。
+// 面板选择器统一走 [data-pane="devices"]：其余 pane 在 stub 下也全部渲染，
+// 价格/作品面板的空态 el-empty 会与之同构，不限定就会假绿。
+
+/** 设备行 fixture（管理端全列；IP 用文档保留段 198.51.100.x） */
+function deviceRow(overrides: Partial<AdminDesktopDevice> = {}): AdminDesktopDevice {
+  return {
+    id: 21, artist_id: 1, device_uuid: 'dev-uuid-21', device_name: 'Studio-PC',
+    created_at: '2026-08-01T00:00:00.000Z', expires_at: '2026-12-01T00:00:00.000Z',
+    last_active_at: '2026-09-10T08:00:00.000Z', last_login_ip: '198.51.100.23',
+    ...overrides
+  }
+}
+
+/** 设备面板子树 */
+function devicesPane(wrapper: ReturnType<typeof mount>) {
+  return wrapper.find('[data-pane="devices"]')
+}
+
+/** 设备表体单元格（列序：名称/最近活跃/到期/IP/操作，每列逐行一 cell） */
+function deviceCells(wrapper: ReturnType<typeof mount>) {
+  return devicesPane(wrapper).findAll('.cell-stub')
+}
+
+/** 各行的踢出确认按钮（popconfirm 内部「确定」） */
+function pcOkButtons(wrapper: ReturnType<typeof mount>) {
+  return devicesPane(wrapper).findAll('.pc-ok')
+}
+
+/** 各行的踢出触发按钮（受在途锁 disabled 控制的那一个） */
+function removeButtons(wrapper: ReturnType<typeof mount>) {
+  return devicesPane(wrapper).findAll('.pc-ref button')
+}
+
+describe('ArtistDetailDrawer 设备 tab 列表渲染与三态（P3 补测）', () => {
+  it('未切 tab 不预拉；切过去才调 getArtistDevices 并逐行渲染（含 last_login_ip，null 兜底「-」）', async () => {
+    h.getArtistDevices.mockResolvedValue([
+      deviceRow(),
+      deviceRow({ id: 22, device_name: null, last_login_ip: null })
+    ])
+    const wrapper = mountDrawer()
+    await flushPromises()
+    expect(h.getArtistDevices).not.toHaveBeenCalled()
+
+    await switchTab(wrapper, 'devices')
+    expect(h.getArtistDevices).toHaveBeenCalledWith(1)
+    expect(devicesPane(wrapper).find('.table-stub').exists()).toBe(true)
+    // 5 列 × 2 行
+    expect(deviceCells(wrapper)).toHaveLength(10)
+    const cells = deviceCells(wrapper)
+    expect(cells[0].text()).toBe('Studio-PC') // 名称列第一行
+    expect(cells[1].text()).toBe('-') // device_name 为 null 兜底
+    // IP 列：第一行有值（管理端字段是 last_login_ip，非画师端 login_ip），第二行 null 兜底
+    expect(cells[6].text()).toBe('198.51.100.23')
+    expect(cells[7].text()).toBe('-')
+    // 表头标签与踢出确认文案逐行渲染
+    expect(devicesPane(wrapper).text()).toContain('account.devicesIp')
+    expect(devicesPane(wrapper).findAll('.pc-title')).toHaveLength(2)
+    expect(devicesPane(wrapper).findAll('.pc-title')[0].text()).toBe('account.devicesRemoveConfirm')
+  })
+
+  it('加载中：不出表格也不出空态（防在途期间误显示「暂无设备」）', async () => {
+    let resolveList: ((rows: AdminDesktopDevice[]) => void) | undefined
+    h.getArtistDevices.mockReturnValue(new Promise<AdminDesktopDevice[]>((resolve) => { resolveList = resolve }))
+    const wrapper = mountDrawer()
+    await flushPromises()
+
+    await switchTab(wrapper, 'devices')
+    expect(devicesPane(wrapper).find('.table-stub').exists()).toBe(false)
+    expect(devicesPane(wrapper).find('.empty-stub').exists()).toBe(false)
+
+    resolveList!([deviceRow()])
+    await flushPromises()
+    expect(devicesPane(wrapper).find('.table-stub').exists()).toBe(true)
+    expect(devicesPane(wrapper).find('.empty-stub').exists()).toBe(false)
+  })
+
+  it('空清单 → 设备面板显示空态文案、无表格', async () => {
+    h.getArtistDevices.mockResolvedValue([])
+    const wrapper = mountDrawer()
+    await flushPromises()
+
+    await switchTab(wrapper, 'devices')
+    expect(devicesPane(wrapper).find('.table-stub').exists()).toBe(false)
+    expect(devicesPane(wrapper).find('.empty-stub').exists()).toBe(true)
+    expect(devicesPane(wrapper).find('.empty-stub').text()).toBe('account.devicesEmpty')
+  })
+
+  it('加载失败 → 错误横幅（非静默）+ 重试恢复列表', async () => {
+    h.getArtistDevices.mockRejectedValueOnce(new Error('devices boom')).mockResolvedValue([deviceRow()])
+    const wrapper = mountDrawer()
+    await flushPromises()
+
+    await switchTab(wrapper, 'devices')
+    const banner = devicesPane(wrapper).find('.load-error-banner')
+    expect(banner.exists()).toBe(true)
+    expect(banner.text()).toContain('account.devicesLoadFailed')
+    expect(devicesPane(wrapper).find('.table-stub').exists()).toBe(false)
+
+    await banner.find('button').trigger('click')
+    await flushPromises()
+    expect(h.getArtistDevices).toHaveBeenCalledTimes(2)
+    expect(devicesPane(wrapper).find('.load-error-banner').exists()).toBe(false)
+    expect(devicesPane(wrapper).find('.table-stub').exists()).toBe(true)
+  })
+})
+
+describe('ArtistDetailDrawer 设备 tab 踢出（P3 补测）', () => {
+  it('点确认才生效：revokeArtistDevice(artistId, deviceId) → 成功提示并刷新列表', async () => {
+    h.getArtistDevices.mockResolvedValue([deviceRow(), deviceRow({ id: 22, device_name: 'Laptop' })])
+    const wrapper = mountDrawer()
+    await flushPromises()
+    await switchTab(wrapper, 'devices')
+
+    // popconfirm 未确认前不发请求（确认卡是默认收起的）
+    expect(h.revokeArtistDevice).not.toHaveBeenCalled()
+
+    await pcOkButtons(wrapper)[0].trigger('click')
+    await flushPromises()
+
+    expect(h.revokeArtistDevice).toHaveBeenCalledTimes(1)
+    expect(h.revokeArtistDevice).toHaveBeenCalledWith(1, 21)
+    expect(h.msgSuccess).toHaveBeenCalledWith('common.deleted')
+    expect(h.getArtistDevices).toHaveBeenCalledTimes(2)
+  })
+
+  it('在途锁：请求挂起期间重复点确认不重发（含他行），按钮全程 disabled；完成后解锁', async () => {
+    h.getArtistDevices.mockResolvedValue([deviceRow(), deviceRow({ id: 22, device_name: 'Laptop' })])
+    let resolveRevoke: ((result: { success: boolean }) => void) | undefined
+    h.revokeArtistDevice.mockReturnValueOnce(new Promise<{ success: boolean }>((resolve) => { resolveRevoke = resolve }))
+    const wrapper = mountDrawer()
+    await flushPromises()
+    await switchTab(wrapper, 'devices')
+
+    await pcOkButtons(wrapper)[0].trigger('click')
+    await flushPromises()
+    expect(h.revokeArtistDevice).toHaveBeenCalledTimes(1)
+    // 挂起期间：两行的踢出按钮均禁用（:disabled="removingDeviceId != null"，他行也锁）
+    expect(removeButtons(wrapper)).toHaveLength(2)
+    for (const btn of removeButtons(wrapper)) {
+      expect((btn.element as HTMLButtonElement).disabled).toBe(true)
+    }
+    // 再点同一行确认 + 他行确认均被在途锁拦下
+    await pcOkButtons(wrapper)[0].trigger('click')
+    await pcOkButtons(wrapper)[1].trigger('click')
+    await flushPromises()
+    expect(h.revokeArtistDevice).toHaveBeenCalledTimes(1)
+
+    resolveRevoke!({ success: true })
+    await flushPromises()
+    expect(removeButtons(wrapper)[0].element.hasAttribute('disabled')).toBe(false)
+  })
+
+  it('踢出失败 → 错误提示且锁释放（可重试）', async () => {
+    h.getArtistDevices.mockResolvedValue([deviceRow()])
+    h.revokeArtistDevice.mockRejectedValueOnce(new Error('revoke boom'))
+    const wrapper = mountDrawer()
+    await flushPromises()
+    await switchTab(wrapper, 'devices')
+
+    await pcOkButtons(wrapper)[0].trigger('click')
+    await flushPromises()
+    expect(h.msgError).toHaveBeenCalledWith('account.devicesRemoveFailed')
+    expect(h.getArtistDevices).toHaveBeenCalledTimes(1) // 失败不刷新列表
+
+    await pcOkButtons(wrapper)[0].trigger('click')
+    await flushPromises()
+    expect(h.revokeArtistDevice).toHaveBeenCalledTimes(2) // 锁已释放，可重试
   })
 })

@@ -4,11 +4,15 @@ import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { findSensitiveWords } from '../../shared/sensitive-words.js'
 import * as guestbookService from './guestbook.service.js'
 import * as artistService from '../artist/artist.service.js'
+import { isArtistHomeInvisible } from '../artist/artist-visibility.service.js'
 import type { FastifyInstance } from 'fastify'
 import type { Artist } from '../../types/entities.js'
 
 // ============================================
 // 留言板路由（F4）
+// v75（P4 后端批）：提交留言时把 request.ip 透传进 service 落 guestbook_messages.ip
+//                  （仅管理端可读；画师端与公开端按构造取不到该列，见 guestbook.service 列清单）
+// v76（P4 后端批）：主页可见性判定不再内联，改接 artist-visibility.service 唯一事实源
 // ============================================
 
 export default async function guestbookRoutes(fastify: FastifyInstance) {
@@ -39,7 +43,9 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
       return reply.code(429).send({ code: 'RATE_LIMITED', error: '操作过于频繁，请稍后再试' })
     }
     const artist = artistService.getArtistBySubdomain((request.params as { subdomain: string }).subdomain) as Artist | undefined
-    if (!artist || artist.status === 'hidden' || artist.is_banned) {
+    // v76：判定收口到唯一事实源（原内联 status==='hidden' || is_banned 会漏掉平台下架态）；
+    // 保留 !artist 短路只为类型收窄，语义与 isArtistHomeInvisible(undefined)===true 一致
+    if (!artist || isArtistHomeInvisible(artist)) {
       return reply.code(404).send({ error: '画师不存在' })
     }
     // 820-L（v68）: 留言功能关闭 = 暂停接收，客户提交一律拒绝（历史留言不删）
@@ -47,7 +53,14 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
       return reply.code(403).send({ code: 'GUESTBOOK_DISABLED', error: '留言功能已关闭' })
     }
     const body = request.body as { nickname: string; content: string; language?: string }
-    const msg = guestbookService.createMessage(artist.id, body.nickname, body.content, body.language || 'zh-CN')
+    const msg = guestbookService.createMessage(
+      artist.id,
+      body.nickname,
+      body.content,
+      body.language || 'zh-CN',
+      // v75 取证 IP：同一个值刚用于限流，直接复用（辱骂/侵权/威胁留言要能查到来源）
+      request.ip
+    )
     // REQ-042: 留言命中敏感词 → warning 提示（不硬拦，先发后审）
     const sensitiveWords = findSensitiveWords(body.content)
     return reply.code(201).send(
@@ -62,7 +75,8 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
       return reply.code(429).send({ code: 'RATE_LIMITED', error: '操作过于频繁，请稍后再试' })
     }
     const artist = artistService.getArtistBySubdomain((request.params as { subdomain: string }).subdomain) as Artist | undefined
-    if (!artist || artist.status === 'hidden' || artist.is_banned) {
+    // v76：判定收口到唯一事实源——被平台下架的主页公开端读不到留言（与「不存在」同响应）
+    if (!artist || isArtistHomeInvisible(artist)) {
       return reply.code(404).send({ error: '画师不存在' })
     }
     // 820-L（v68）: 留言功能关闭 = 公开数据隐藏，读接口返回空（不暴露历史留言）
@@ -77,6 +91,7 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
     const pageSize = Math.min(Math.max(parseInt(query.pageSize as string, 10) || 20, 1), 50)
     const language = query.language && /^[a-zA-Z-]{2,10}$/.test(query.language) ? query.language : undefined
     const result = guestbookService.getPublicMessages(artist.id, page, pageSize, language)
+    // 出站字段逐个列举（不含 ip）：service 层 SQL 已按构造不选该列，这里是第二道口径护栏
     return {
       messages: result.messages.map(m => ({
         id: m.id,
@@ -160,7 +175,7 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
 
   // ─── 管理员接口 ───
 
-  /** GET /api/admin/messages — 管理员查看全部留言（跨画师，含 artist_name）；REQ-022 F5：可选 ?artistId=&status=&replied= 筛选 */
+  /** GET /api/admin/messages — 管理员查看全部留言（跨画师，含 artist_name 与 v75 取证 ip）；REQ-022 F5：可选 ?artistId=&status=&replied= 筛选 */
   fastify.get('/api/admin/messages', { preHandler: requireAdmin }, async (request) => {
     const query = request.query as { artistId?: string; status?: string; replied?: string }
     const filters: guestbookService.AdminMessageFilters = {}

@@ -429,8 +429,16 @@ onErrorCaptured((err, _instance, info) => {
               </template>
             </SegTabs>
 
-            <!-- todo pane＝现状一字不动（云端 TodayPanel / 本地 LedgerPanel，含 core 区位模块） -->
-            <div v-show="prefs.prefs.mainView === 'todo'" class="mv-pane" data-mv="todo">
+            <!-- todo pane＝现状一字不动（云端 TodayPanel / 本地 LedgerPanel，含 core 区位模块）。
+                 v-show 而非 v-if：隐藏面仍留在 DOM，故必须 inert + aria-hidden，否则 Tab 会走进看不见的
+                 区域、读屏念出隐藏内容（照 MoreDrawer 关闭态同口径，9/4 波1 已修那处）。 -->
+            <div
+              v-show="prefs.prefs.mainView === 'todo'"
+              class="mv-pane"
+              data-mv="todo"
+              :aria-hidden="prefs.prefs.mainView !== 'todo'"
+              :inert="prefs.prefs.mainView !== 'todo'"
+            >
               <section v-if="cloud" class="pane-in pane-in--today" aria-label="今日要办">
                 <TodayPanel
                   :mode="mode"
@@ -455,8 +463,15 @@ onErrorCaptured((err, _instance, info) => {
               </section>
             </div>
 
-            <!-- cal pane＝卷心月历（数据由本页下发，组件不自取数；防溢出链路 flex:1/min-height:0 到底） -->
-            <div v-show="prefs.prefs.mainView === 'cal'" class="mv-pane mv-pane--cal" data-mv="cal">
+            <!-- cal pane＝卷心月历（数据由本页下发，组件不自取数；防溢出链路 flex:1/min-height:0 到底）。
+                 隐藏态 inert 同上；两面互斥，当前显示的那一面解除 inert（绑反会让卷心整块点不动）。 -->
+            <div
+              v-show="prefs.prefs.mainView === 'cal'"
+              class="mv-pane mv-pane--cal"
+              data-mv="cal"
+              :aria-hidden="prefs.prefs.mainView !== 'cal'"
+              :inert="prefs.prefs.mainView !== 'cal'"
+            >
               <HomeCalendar :orders="sched.orders" :can-accept="sched.canAccept" />
             </div>
           </section>

@@ -49,7 +49,7 @@ export const BASE_MENU_ITEMS: ArtistMenuItem[] = [
   { index: '/artworks', icon: Picture, labelKey: 'menu.artworks', group: 'biz' },
   // #1: 留言管理（作品管理下方，待审核角标）
   { index: '/guestbook', icon: ChatLineSquare, labelKey: 'menu.guestbook', hasBadge: true, group: 'biz' },
-  // 工具箱收纳（纸墨提案 §5.5）：侧栏只留一个把手，13 个工具收进四分类抽屉（见 TOOL_BOX_CATEGORIES）
+  // 工具箱收纳（纸墨提案 §5.5）：侧栏只留一个把手，18 个工具收进四分类抽屉（见 TOOL_BOX_CATEGORIES）
   { index: '/tools', icon: Tools, labelKey: 'menu.toolbox', group: 'tools' },
   // R42b: 须知编辑合并进设置页，菜单项移除
   { index: '/stats', icon: TrendCharts, labelKey: 'menu.stats', group: 'front' },

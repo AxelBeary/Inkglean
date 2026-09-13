@@ -63,6 +63,10 @@ CREATE TABLE IF NOT EXISTS artists (
   -- oimimo 吸纳批一（v69）: 日历订阅（ICS）开关与私密令牌——令牌即凭证，可旋转
   calendar_feed_enabled INTEGER NOT NULL DEFAULT 0,
   calendar_feed_token TEXT DEFAULT NULL,
+  -- 内容级下架（v76）：平台独占写入的主页下架态（REQ-042 §三 B 阶梯中间格）；
+  -- 不复用 status='hidden'（画师自助态、可一键解除），不碰 token_version（不踢登录，画师要能进来整改）
+  home_takedown_at TEXT,
+  home_takedown_reason TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -118,6 +122,10 @@ CREATE TABLE IF NOT EXISTS artworks (
   description TEXT DEFAULT NULL,
   width INTEGER DEFAULT NULL,
   height INTEGER DEFAULT NULL,
+  -- 内容级下架（v76）：非空 = 被平台下架（行保留、可恢复）；
+  -- 此前「下架」走物理 DELETE，标题/描述/点赞数/档位标注永久丢失，与下架语义不符
+  takedown_at TEXT,
+  takedown_reason TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
 );
@@ -383,6 +391,9 @@ CREATE TABLE IF NOT EXISTS guestbook_messages (
   replied_at DATETIME DEFAULT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   deleted_by_admin INTEGER DEFAULT 0,
+  -- 留言来源 IP（v75）：公开发言的纠纷取证；仅管理端可读——
+  -- 画师端/公开端 SQL 按构造不选本列（见 guestbook.service.ts SAFE_MESSAGE_COLS），画师不是执法者
+  ip TEXT,
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE
 );
 
@@ -396,6 +407,8 @@ CREATE TABLE IF NOT EXISTS reports (
   status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'resolved')),
   resolved_by INTEGER NULL,
   resolved_at TEXT NULL,
+  -- 举报来源 IP（v75）：纠纷取证与防恶意举报；实测本表只有 /api/admin/reports* 读取路径，天然不外泄
+  report_ip TEXT NULL,
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -407,6 +420,8 @@ CREATE TABLE IF NOT EXISTS admin_actions (
   target_type TEXT,
   target_id INTEGER NULL,
   reason TEXT NULL,
+  -- 管理动作留痕补 IP（v75）：操作来源 IP，仅管理端可读（REQ-042 §七 验收 4 的欠账）
+  admin_ip TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
 

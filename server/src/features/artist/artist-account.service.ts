@@ -92,6 +92,9 @@ export async function createArtist({ qqNumber, name, subdomain, bio, artistCode 
 export function updateArtist(id: number, fields: Record<string, unknown>): Artist | undefined {
   // R15: 旧列 weibo_url/bilibili_url 冻结只读，新写入全走 custom_links
   // REQ-022 F2: platform_urls 写入分支已删除（列弃用，读路径全部移除）
+  // ⚠ v76 安全红线：home_takedown_at / home_takedown_reason **不得进白名单**——
+  // 画师自助口若能写主页下架态，平台下架就形同虚设（画师一键自解）；
+  // 只有 setHomeTakedown / clearHomeTakedown（供管理端路由调用）能写这两列
   const allowed = ['name', 'avatar', 'bio', 'status', 'custom_links', 'notify_enabled', 'guestbook_enabled', 'artist_code', 'contact_qq', 'template_id', 'palette_id', 'revision_note', 'dashboard_default_panel', 'accent_color', 'order_template_id', 'inspiration_tags', 'batch_limit', 'buffer_limit', 'auto_promote', 'hide_queue_position', 'hide_promote_notify', 'buffer_short_form', 'announcement', 'announcement_expires_at', 'monthly_quota', 'quick_actions', 'multi_style_enabled', 'dashboard_modules']
   const updates: string[] = []
   const values: unknown[] = []
@@ -314,4 +317,36 @@ export function restoreArtist(id: number): Artist | undefined {
   if (qqTaken) throw new AppError(E.QQ_TAKEN)
   db.prepare('UPDATE artists SET deleted_at = NULL WHERE id = ?').run(id)
   return getArtistById(id)
+}
+
+// ============================================
+// v76 内容级下架：主页平台下架（REQ-042 §三 B 阶梯中间格）
+// ============================================
+
+/** 主页下架原因入库长度上限（与 admin_actions.reason 同口径） */
+const HOME_TAKEDOWN_REASON_MAX = 500
+
+/**
+ * 平台将画师主页下架（v76）：只置两列，**不 bump token_version、不拒登录**——
+ * 与 is_banned 的分工线：下架只藏主页，画师必须能登进来看到原因并整改。
+ * @returns 画师存在并已执行写入返回 true；画师不存在返回 false
+ */
+export function setHomeTakedown(artistId: number, reason: string | null): boolean {
+  const artist = getArtistById(artistId)
+  if (!artist) return false
+  const safeReason = reason ? sanitizeStoredText(String(reason)).trim().slice(0, HOME_TAKEDOWN_REASON_MAX) : ''
+  db.prepare('UPDATE artists SET home_takedown_at = ?, home_takedown_reason = ? WHERE id = ?')
+    .run(new Date().toISOString(), safeReason || null, artistId)
+  return true
+}
+
+/**
+ * 解除主页下架（v76）：清空两列，不反向影响 status/is_banned（画师本就 hidden 的保持 hidden）。
+ * @returns 画师存在并已执行写入返回 true；画师不存在返回 false
+ */
+export function clearHomeTakedown(artistId: number): boolean {
+  const artist = getArtistById(artistId)
+  if (!artist) return false
+  db.prepare('UPDATE artists SET home_takedown_at = NULL, home_takedown_reason = NULL WHERE id = ?').run(artistId)
+  return true
 }

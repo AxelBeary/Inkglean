@@ -77,6 +77,8 @@ import { migration as v71 } from './v71-invite-codes-multi-use.js'
 import { migration as v72 } from './v72-artists-last-login-ip.js'
 import { migration as v73 } from './v73-desktop-devices.js'
 import { migration as v74 } from './v74-deliverables-download-nonce.js'
+import { migration as v75 } from './v75-forensic-ip.js'
+import { migration as v76 } from './v76-content-takedown.js'
 
 export const MIGRATIONS: Migration[] = [
   v01, v02, v03, v04, v05, v06, v07, v08, v09, v10,
@@ -104,6 +106,8 @@ export const MIGRATIONS: Migration[] = [
   v72,
   v73,
   v74,
+  v75,
+  v76,
 ]
 
 // 升序唯一性断言（构建期简单校验）：version 必须严格递增，重复/乱序直接抛错

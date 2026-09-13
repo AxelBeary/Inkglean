@@ -43,9 +43,9 @@
 
 ## 遇事加载
 
-- 结构化诊断 → `structured-bug-diagnosis` skill（6 阶段）
+- 结构化诊断 → `structured-bug-diagnosis` skill（6 阶段）〔未找到·待核：可能住在受保护位置；可枚举同类见 `multi-role-bugfix-batch-workflow`〕
 - Bug 批修复工作流 → `multi-role-bugfix-batch-workflow` skill
-- 浏览器实测/回归 → `playwright-ui-diagnosis` / `huiyue-browser-regression-testing` skill
+- 浏览器实测/回归 → `huiyue-browser-regression-testing` skill（`playwright-ui-diagnosis`〔未找到·待核：可能住在受保护位置〕）
 
 ## 语言与通信（全角色公共，一句话）
 
