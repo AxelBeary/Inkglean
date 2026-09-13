@@ -141,3 +141,16 @@ STATUS 看板刷新至第五次，正文超体例待 G8 归档批。
 - **④ 十七道：本会话亲跑取硬证据**：真跑 `pwsh scripts/accept.ps1`（输出留 `temp/p5-accept-attempt.out.txt`，gitignored），在 `:57` 前置检查 `Write-Error` 中止、退出非 0、**零门禁执行**——把 §1.1 的「读脚本推断死锁」升级为「实跑坐实」。工作区脏（未提交跟踪件）即被 038 防线拦死，与「不提交」令互斥。
 - **文件归属复核**：全仓 **109 项**（72 改 + 37 新，比首跑的 105 略增＝各批收尾又落了盘），用过滤器排除 P1~P5 五领地后查外来件返回 **0** → 无并行会话在途件混入，提交可按领地逐文件分捡（禁 `git add -A` 仍照守）。
 - **结论未变**：仍卡在同一处——须用户下**本地提交令**（不 push）才能解锁十七道。本会话同样**未 commit、未 push**。
+
+---
+
+## 9. 用户「都同意」后：提交 + 十七道门禁实跑（2026-09-13）
+
+- **用户授权**：对报告里两件拍板事项回「都同意」＝①下本地提交令（不 push）②追认 P2 波2 + P4 两项口头授权施工。P3 F12 仍🟡（原型待看观感，未纳入）。
+- **已提交 `096c0b77`**（本地 master，**未 push**）：按领地逐路径 `git add server shared desktop web docs scripts design .github README.md .gitignore`（**禁 -A**），暂存后核对＝109 文件全入（72 改+37 新）、零残留未暂存、零未跟踪遗漏、外来件 0；message 概括五批（`temp/p5-commit-msg.txt`，gitignored）。
+- **十七道门禁（提交后亲跑 `accept.ps1`，总耗时 372s）**：**15 道绿**——server typecheck 3s/lint 1s/test **1801 passed**（291s）、web lint 14s/test **876**/i18n/build 9s、desktop lint/test **447**/build、shared lint/test **23**/typecheck、**E2E 13 passed**（24s）、check-locators 全 ✅。
+- 🔴 **2 道假红＝accept.ps1 自身 npx bug**：`test-tamper` 与 `file-size` 用 `npm exec --no -- node <脚本>` 调用（`:105/:108`），当前 npm 把 `node` 当“缺失包 node@26.8.2”、`--no` 拒装 → `npx canceled`，两道**根本没执行**（非检测出违规）。这是 accept.ps1 **首次跑到底**才暴露（此前均被脏工作区前置拦在 `:57`；前会话是手动 node 绕过、从没让 accept 跑到这两道）。
+- **node 直接补跑验证两道实质绿**：`check-test-tamper --base master`→0 变更放行 exit 0；`check-file-size .`→465 文件豁免 0 项 exit 0。另 `--base d4984edf` 复核本次提交同改性质：业务 27 + 测试 9，全是 P4 新功能新增测试/加断言（migration-v75/v76、admin-actions-audit、artist-visibility、artwork-takedown、guestbook-ip 新增；compliance 15→31、security-dto 8→10 加断言）+ P3 设备补测（ArtistDetailDrawer 8→15），**非改软凑绿**，ack 理由成立。
+- **结论口径**：十七道**实质全绿**；但严格按 AGENTS.md「门禁全绿＝accept.ps1 十七道全过」，accept.ps1 报 2 道失败 → **不称「accept 十七道全绿」**，只称「实质全绿 + accept.ps1 工具 bug 待修」。
+- **用户已定（先不修，记账待办）**：accept.ps1 的 npx bug 本轮**不修**，归入单独门禁工具批（同 G2 性质）；十七道以「实质全绿」落档，两道假红已诊断清楚（node 直接补跑均 exit 0）。**未擅自改脚本**。
+- STATUS 看板已刷（HEAD `096c0b77` + 门禁实质全绿 + bug 归工具批）。**未 push**（等用户单独下令）。
