@@ -257,3 +257,33 @@ R4 收口：STATUS 看板第六次刷新 + 第二轮收口条；accept-baseline.
 ### 9.4 未做到的事（不隐）
 
 - **未做浏览器活体冒烟**：拆的是画师后台与管理端关键路径，但本地公网容器跑的是旧构建产物、且需 TOTP 登录；已做的最强证据是 886 例单测（含 3 条主页下架用例逐条断言 prompt/接口/刷新）+ E2E 14 例。**已列入用户侧清单 U6**（S-912 冒烟单含同类页面），请你在真机终验时顺带看一眼后台横幅与双键。
+
+---
+
+## 十、提交与推送实录（用户令「同意 提交 推」，2026-09-14）
+
+### 10.1 三件事各对应一条
+
+| 用户口谕 | 对应清单项 | 执行 |
+|---|---|---|
+| 「同意」 | U3 拆件追认 | 拆件保留，不再回退；§九 备案生效 |
+| 「提交」 | U1 本地提交令 | 逐领地 `git add`（未用 `-A`）→ 暂存 43 文件→ `git commit -F temp/r4-commit-msg.txt` |
+| 「推」 | U2 推送令 | `git push origin master` |
+
+### 10.2 提交与门禁硬数据
+
+- **提交** `797eae10`：43 files changed，**+3420 / −684**；暂存后核验：未暂存残留 0、外来件 0（`.qoder/` 与 `temp/` 均在 .gitignore，用户本轮对 canvas 与 ps1 的修改不入库）。
+- **`pwsh scripts/accept.ps1 -TestTamperAck "..."` 实跑**（工作区已净，前置通过）：总耗时 **604s**，结论「🔴 2 道失败」——即已知 npx 假红两道，其日志正文均为 `npm error npx canceled due to missing packages and no YES option: ["node@26.8.2"]`。
+  - 15 道 ✅：server typecheck 2s / lint 1s / **vitest 1801 passed**（455s）；web lint 35s / **886 passed** / i18n / build 22s；desktop lint 5s / **447 passed** / build 10s；shared lint 3s / **23 passed** / typecheck 3s；E2E **14 passed**（34s）+ check-locators。
+  - 报告：`workspace/temp/accept-master-20260914-020036.md`（裁决理由以 UTF-8 完整落入报告，已回读验证无乱码）。
+- **两道 node 补跑（提交后真值）**：`check-file-size .` → ✅ 468 文件豁免 0 项 exit 0；`check-test-tamper --base de923472` → 报**业务 17 + 测试 7 同改**，带 `--ack-reason` 后 ✅ exit 0。→ 本轮判读：**实质全绿（15 道 accept + 2 道 node 补跑）**，不称「accept 十七道全绿」。
+- **断言面审计（防「改软凑绿」）**：7 份测试共新增 364 行、删 10 行；被删 `expect` 仅 3 条——1 条是 `publishArtwork` 改为 `await expect(...)`（变强），2 条是 honestyCopy 的 `privacy.updated` 日期跟随隐私正文实改（09-12→09-13）。**无任何断言被放宽或移除**。
+
+### 10.3 推送与云端后果
+
+- `git push origin master` → `d4984edf..797eae10`，**一次推上三笔**（上一轮 `096c0b77`+`de923472` + 本轮）；本地 `origin/master` == HEAD，ahead 0。
+- 已触发：`CI` run **34773915228**、`E2E` run **34773915162**、`Push on master` 34773914975（推送时仍在 queued/in_progress，**下轮开工先回看是否绿**）。
+- 🔴 **R5 的「push 后 6 条警报自动清零」预期被实测推翻**：dependabot 重扫后 open **6 → 3**，已清的是 server 半区（#24 sharp、#22 vitest、#19 mocker）；**仍 open 3 条全在 R5 未升级的半区**：
+  - #23 `vitest` 与 #20 `@vitest/mocker` → `web/package-lock.json`（现 4.1.10，补丁版 4.1.11，升一级即可消）
+  - #25 `sharp` → **根 `package-lock.json` 的孤立条目**（node_modules/sharp@0.35.3，而根 package.json 并无此直依赖）——不是简单位移，需单独一批查依赖来源再清
+- 新登 **U20**（已写进用户侧清单与看板）：是否另批清掉这 3 条（web 一行升级 + 根 lock 调查）。本批**未自行动手**（需新一轮门禁与推送，且根 lock 属跨端治理）。

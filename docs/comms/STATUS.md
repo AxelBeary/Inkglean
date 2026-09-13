@@ -1,21 +1,22 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-09-14 第六次刷新：第二轮定时开工 R1~R5+W7 收口，改动待提交令）
+## 看板（2026-09-14 第七次刷新：第二轮定时开工已提交 `797eae10` 并推送 origin/master）
 
-- **HEAD** `de923472`（本地，🔴 未 push）；本轮 R1/R2/R3/R5/W7 成果 + R4 收口件全部挂在工作区**待你提交令**；上一推送 `d4984edf`（上一轮 `096c0b77`+`de923472` 同样未 push）
+- **HEAD** `797eae10`（✅ 已推送，一次推上三笔：上一轮 `096c0b77`+`de923472` 与本轮 `797eae10`；43 文件 +3420/−684）
 - **基线**：server **1801**（156 文件）/ web **886**（125）/ desktop **447**（30）/ shared **23**（4）/ E2E **14**；迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0
-- **门禁口径**：`accept.ps1` 本体被「工作区须干净」前置（`:57`，038 防线）拦死、实跑零道执行 → 改逐道等价命令亲跑：**17 道全绿**（server 1801 / web 886 / desktop 447 / shared 23 / E2E 14 + 各端 lint·build·i18n + test-tamper + 防阀）
-- ✅ **拆件已消红（待你追认）**：R1 曾把 `ArtistLayout.vue` 顶到 807、`ArtistManage.vue` 顶到 848 越 800 上限 → 按 9/12「长胖就拆」拆为 `layout/HomeTakedownBanner.vue` + `composables/useHomeTakedown.ts`，现 **775 / 781 行**、防阀 exit 0
-- 🔴 **全量 `accept.ps1` 十七道待补跑**：需你先下**本地提交令**使工作区干净（与上一轮 P5 同一处死锁）
-- **本轮改动归属**：R1 `web/src/**`（含 locale 单写者）/ W7 locale 两条 `artistHome.hidden` / R3 `e2e/tests/` / R5 `server/package*.json`+1 处假绿测试 / R2 施工图 md / R4 STATUS+baseline
-- 公网仍冻结中（停在 v74，本地已 v76）；默认窗 1200×820、最小窗 1200×600 不变（9/5、826 拍板）
+- **门禁（提交后实跑 accept.ps1，总耗时 604s）**：**实质全绿**——15 道 ✅，test-tamper 与 file-size 两道 ❌ 为已知 npx 假红（输出实为 `npx canceled ... ["node@26.8.2"]`），node 直调补跑**均 exit 0**（防阀 468 文件豁免 0 项）
+- **测试同改标红已取到真判据**：`--base de923472` 报业务 17 + 测试 7 同改 → 带 `--ack-reason` 裁决后放行；断言面审计：7 份测试共新增 364 行、删除 10 行，被删 expect 仅 3 条且全为「补 await」与「日期跟随正文实改」，**无任何改软凑绿**
+- ✅ **拆件已获用户追认（U3）**：ArtistLayout 775 / ArtistManage 781 行，防阀转绿；新件 `HomeTakedownBanner.vue` + `useHomeTakedown.ts`
+- 🔴 **警报未清零（R5 算漏半区）**：6 条 → 推送后自动清 3 条（server 侧 sharp/vitest/mocker）。
+- 🔴 **剩 3 条在 web 与根 lock**：#23 vitest 与 #20 @vitest/mocker（`web/package-lock.json`，现 4.1.10、补丁版 4.1.11）+ #25 sharp（根 lock 的**孤立条目**，根 package.json 无此直依赖）→ 待拍板 U20
+- 公网仍冻结中（停在 v74，本地与远端已到 v76）；默认窗 1200×820、最小窗 1200×600 不变（9/5、826 拍板）
 - 🔴 **上线前置硬警告仍有效**：管理员判定只认库值，公网部署前**必须先确认 `platform_config.admin_qq` 非空**
 
 **下一步（按优先级）**
 
-1. 🔴 **下次开工第一件事**：把 `docs/comms/待办-用户侧清单-20260914.md` 逐条端给用户提醒（U1~U19），不要闷头继续施工
-2. **等你一句本地提交令**：逐领地 `git add`（禁 `-A`）→ commit → 立即补跑 `pwsh scripts/accept.ps1` 十七道；`git push` 另需你单独下令（push 后 dependabot 重扫自动关掉剩余 6 条 sharp/vitest 警报）
-3. **待你追认一处越禁区施工**：用户 9/14 口头「按工程学最优去做」放行后，R4 进了 `web/src/**` 做拆件（零行为变更、886 例含 3 条主页下架用例全绿）；不认可可整块退回
+1. 🔴 **下次开工第一件事**：把 `docs/comms/待办-用户侧清单-20260914.md` 逐条端给用户提醒（U1~U20），不要闷头继续施工
+2. **新发现待拍板 U20**：web 与根 lock 的依赖半区（剩 3 条警报）——建议 web 升 vitest ^4.1.11（一行 + web 四道门禁），根 lock 那条孤立 sharp 条目单独一批清
+3. **云端结果待回看**：本次 push 已触发 CI（run 34773915228）与 E2E（34773915162）；下轮开工先查两者是否绿（本轮推送后尚未跑完）
 4. **等你终审两处对外文案**：W4 下架横幅措辞、W6 隐私三条 IP 披露（另含 U12 主页文案、U13 安装包署名）
 5. **黄红灯集中清**：Y2~Y7 与 N1~N4（含 G8 归档搬动、N2 门禁工具批：npx 假红 / check:i18n 路径失配 / **test-tamper 提交前结构性空转**）+ 上一轮 G1~G9·F-31/32/35/36 指针
 
@@ -41,7 +42,7 @@
 > - **R3（E2E W8）**：新建 `e11-compliance.spec.ts` 单条 test 走 API 主链（举报→下架→幂等→客户侧最小载荷→恢复→留痕可查→不重复记账反证）；**E2E 13→14 passed**；断言与 W7 文案解耦。
 > - **R5（依赖与 CI 健康，G9 解锁）**：flaky docker CI 重跑一次转绿（四 job 全 success）；sharp 0.35.4 + vitest 4.1.11 本地升级，**未走降级路径**、零 breaking 撞上。
 > - **R5 续**：修 `publish-artwork.test.ts` TC-PA-07 漏 await 假绿（只补 await、未删断言）；关 dependabot PR #7/#8、dismiss glib #10；**server 1801/156 不变**。
-> - **警报收尾链**：开工 7 条 open → 收工 6 条（glib 已消）→ **你 push 后 dependabot 重扫自动关到 0**；其余 6 条靠真升级自动关，刻意不手动 dismiss。
+> - **警报收尾链（推送后实测纠正）**：开工 7 条 open → 收工 6 条（glib 已消）→ **push 后只自动清 3 条（server 侧）**；另 3 条属 web 与根 lock 半区，R5 未升级故仍 open（已登 U20 待拍板，详见看板与 `ledger_R4.md` §十）。
 > - 🔴→✅ **本批曾撞出一道真红（已消）**：巨型文件防阀——R1 把 `ArtistLayout.vue` 767→807（W4 横幅）、`ArtistManage.vue` 748→848（W3 双键）顶过 800 上限，先按禁区纪律只上报未自行返工。
 > - **消红方式**：用户回「按照工程学最优去做好」口头放行 → R4 破例进 `web/src/**` 拆件（待追认项 U3）；横幅拆为 `components/layout/HomeTakedownBanner.vue`（57 行，标记与样式逐字搬）。
 > - **消红方式续**：主页下架/恢复的两步确认 + step-up 链拆为 `composables/useHomeTakedown.ts`（93 行，两条链收敛为同一 run），另把共用的原因输入框 `askOptionalReason` 一并收进同一件。
@@ -52,7 +53,7 @@
 > - **判读口径**：拆件后逐道等价命令 **17 道全绿**；但 accept.ps1 本体因 accept 前置（工作区脏）未跑成，**仍不得称「accept 十七道全绿」**，待本地提交令后补跑取硬结果。
 > - **流程矛盾登记（与上一轮 P5 §1.1 同一处）**：计划书 §三「先跑全量门禁」与 §六「绿后提交待令」互斥（accept.ps1 要工作区干净）；计划书原文未动（共同事实源）。
 > - 🔴 **未做归档搬动**（G8 红灯）：正文现 **8 条**、已超体例「只留最新 5 条」，本批一个字未搬，待单独一批 + 字符总量前后差校验。
-> - **未 commit / 未 push**：commit message 草稿已备（`ledger_R4.md` §六），叠在 `de923472` 之上，等你明确下令。
+> - **未 commit / 未 push** → ✅ **已提交并推送**：用户回「同意 提交 推」后，逐领地暂存 43 文件提交为 `797eae10`（+3420/−684），`git push origin master` 成功（`d4984edf..797eae10`，含上一轮两笔），详录见 `ledger_R4.md` §十。
 > - ⚑ **用户侧待办已单独立档**：`docs/comms/待办-用户侧清单-20260914.md`（U1~U19，全免代码口径）；已挂进起手必读与下一步第 1 条——下次开工先逐条端给用户，不要闷头继续施工。
 
 
