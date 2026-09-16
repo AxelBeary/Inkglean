@@ -141,16 +141,19 @@ export function drawGreeting(artistId: number, artistName: string, opts: DrawOpt
   const name = artistName || '画师'
 
   // 1) 特别日池：日期命中 + 日启用 + 文案启用（范围：全平台 OR 该画师专属）
+  // SRV-11 修复（2026-09-17）：补 t.artist_id 过滤——画师 A 的专属文案挂到全平台特别日时，
+  // 画师 B 抽取不应命中 A 的私有文案。条件：t.artist_id IS NULL（通用）OR t.artist_id = 当前画师。
   const special = db.prepare(`
     SELECT t.text, t.time_slot FROM greeting_templates t
     JOIN greeting_special_days d ON d.id = t.special_day_id
     WHERE t.is_enabled = 1
       AND d.is_enabled = 1
       AND (d.artist_id IS NULL OR d.artist_id = ?)
+      AND (t.artist_id IS NULL OR t.artist_id = ?)
       AND d.date_key = ?
     ORDER BY RANDOM()
     LIMIT 1
-  `).get(artistId, getTodayDateKey(now)) as TemplateDrawRow | undefined
+  `).get(artistId, artistId, getTodayDateKey(now)) as TemplateDrawRow | undefined
   if (special) {
     return { text: fillName(special.text, name), slot: 'special' }
   }

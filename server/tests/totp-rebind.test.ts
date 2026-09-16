@@ -250,12 +250,14 @@ describe('P2-F6 重绑链路安全加固', () => {
     return { tempKey: body.tempKey, newSecret }
   }
 
-  it('TC-F6-01: verify-current 超过 10 次/5 分钟 → 429 RATE_LIMITED', async () => {
+  it('TC-F6-01: verify-current 连错 5 次触发账号级锁定 → 429 TOTP_LOCKED（SRV-15）', async () => {
     const { artist } = bindArtist('88801', 'f6-vc-limit')
     const token = createSession(artist.id, artist.token_version)
     const headers = { Authorization: 'Bearer ' + token }
 
-    for (let i = 0; i < 10; i++) {
+    // SRV-15: verify-current 接入账号级防爆破（对齐登录路径），连错 5 次锁 15 分钟。
+    // 账号级锁定(5 次)先于 IP 限流(10 次/5 分钟)触发；IP 限流作为跨账号兜底仍在（见 TC-F6-02 rebind-init）。
+    for (let i = 0; i < 4; i++) {
       const res = await app.inject({
         method: 'POST',
         url: '/api/auth/totp/verify-current',
@@ -264,6 +266,7 @@ describe('P2-F6 重绑链路安全加固', () => {
       })
       expect(res.statusCode).toBe(401)
     }
+    // 第 5 次达 TOTP_MAX_ATTEMPTS → registerTotpFailure 抛 TOTP_LOCKED 429
     const blocked = await app.inject({
       method: 'POST',
       url: '/api/auth/totp/verify-current',
@@ -271,7 +274,7 @@ describe('P2-F6 重绑链路安全加固', () => {
       payload: { code: '000000' }
     })
     expect(blocked.statusCode).toBe(429)
-    expect(blocked.json().code).toBe('RATE_LIMITED')
+    expect(blocked.json().code).toBe('TOTP_LOCKED')
   })
 
   it('TC-F6-02: rebind-init 超过 10 次/5 分钟 → 429 RATE_LIMITED', async () => {

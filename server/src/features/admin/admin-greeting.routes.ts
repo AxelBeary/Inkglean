@@ -109,11 +109,21 @@ export async function adminGreetingRoutes(fastify: FastifyInstance) {
       }
     }
   }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const artistId = Number((request.params as { id: string }).id)
     const body = request.body as { text: string; timeSlot?: string; specialDayId?: number }
-    if (body.specialDayId !== undefined && !greetingService.getSpecialDay(body.specialDayId)) {
-      return reply.code(404).send({ error: '特别日不存在' })
+    if (body.specialDayId !== undefined) {
+      const day = greetingService.getSpecialDay(body.specialDayId)
+      if (!day) return reply.code(404).send({ error: '特别日不存在' })
+      // SRV-11 修复（2026-09-17）：画师专属文案不得挂全平台特别日（防跨租户泄漏写入口）
+      if (day.artist_id === null) {
+        return reply.code(400).send({ error: '画师专属文案不得挂到全平台特别日，请为该画师创建专属特别日' })
+      }
+      // 纵深：专属日的 artist_id 须与当前画师一致
+      if (day.artist_id !== artistId) {
+        return reply.code(400).send({ error: '该特别日不属于此画师' })
+      }
     }
-    return greetingService.createArtistGreeting(Number((request.params as { id: string }).id), body)
+    return greetingService.createArtistGreeting(artistId, body)
   })
 
   /** PUT /api/admin/artists/:id/greetings/:gid — 编辑专属模板 */
@@ -141,8 +151,16 @@ export async function adminGreetingRoutes(fastify: FastifyInstance) {
       return reply.code(404).send({ error: '模板不存在或不属于该画师' })
     }
     const body = request.body as { text?: string; timeSlot?: string; isEnabled?: boolean; specialDayId?: number | null }
-    if (typeof body.specialDayId === 'number' && !greetingService.getSpecialDay(body.specialDayId)) {
-      return reply.code(404).send({ error: '特别日不存在' })
+    if (typeof body.specialDayId === 'number') {
+      const day = greetingService.getSpecialDay(body.specialDayId)
+      if (!day) return reply.code(404).send({ error: '特别日不存在' })
+      // SRV-11 修复：画师专属文案不得挂全平台特别日
+      if (day.artist_id === null) {
+        return reply.code(400).send({ error: '画师专属文案不得挂到全平台特别日，请为该画师创建专属特别日' })
+      }
+      if (day.artist_id !== artistId) {
+        return reply.code(400).send({ error: '该特别日不属于此画师' })
+      }
     }
     const result = greetingService.updateGreeting(gid, body)
     if (!result) return reply.code(404).send({ error: '模板不存在' })

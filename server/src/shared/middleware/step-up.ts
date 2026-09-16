@@ -2,7 +2,7 @@
 // REQ-041 管理后台二次验证（会话升级）中间件
 // - requireAdminStepUp：管理后台读/写路由前置（在 requireAdmin 之后），
 //   auth_level=admin_verified 且 admin_verified_at 距今 ≤30 分钟，否则 401 STEP_UP_REQUIRED
-// - requireAdminReauth：仅「更换管理员」（/api/admin/transfer），强制最近 60 秒内验证过
+// - requireAdminReauth：仅「更换管理员」（/api/admin/transfer），强制最近 5 分钟内验证过
 // - registerAdminStepUpHooks：onRoute 批量挂载，确保追加在 requireAdmin 之后；
 //   后续新增 /api/admin 路由自动受保护，避免漏挂
 // 踢下线联动：bumpTokenVersion 使 token_version 失配后旧 token 整体失效，
@@ -19,8 +19,13 @@ export const STEP_UP_REQUIRED = 'STEP_UP_REQUIRED'
 /** 入口级免验窗口：验证通过后 30 分钟内进 /admin 免弹（用户拍板 2026-08-11） */
 export const STEP_UP_WINDOW_MS = 30 * 60 * 1000
 
-/** 动作级强制窗口：「更换管理员」无视 30 分钟窗口，必须刚刚验证过（60 秒内） */
-export const ACTION_REAUTH_WINDOW_MS = 60 * 1000
+/**
+ * 动作级强制窗口：「更换管理员」无视 30 分钟窗口，必须近期验证过。
+ * SRV-09 修复（2026-09-17）：60s→5min。原窗口过短——transfer 需要跨人协调 3 个码
+ * （step-up 1 码 + currentCode + newCode 需向新管理员实时索取），60 秒内完成几乎不可能。
+ * 5 分钟兼顾安全（刚验证过）与可操作性。
+ */
+export const ACTION_REAUTH_WINDOW_MS = 5 * 60 * 1000
 
 /**
  * 提取 token：httpOnly cookie 优先，Authorization: Bearer *** 兜底
@@ -67,7 +72,7 @@ export async function requireAdminStepUp(request: FastifyRequest, reply: Fastify
 
 /**
  * 动作级守卫：仅「更换管理员」（改 admin_qq）
- * 强制 admin_verified_at 距今 ≤60 秒（刚刚验证过，无视 30 分钟窗口），否则 401 STEP_UP_REQUIRED
+ * 强制 admin_verified_at 距今 ≤5 分钟（刚刚验证过，无视 30 分钟窗口），否则 401 STEP_UP_REQUIRED
  */
 export async function requireAdminReauth(request: FastifyRequest, reply: FastifyReply) {
   const { ageMs } = resolveStepUpState(request)

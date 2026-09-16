@@ -42,6 +42,8 @@ export function getUpcomingDeadlines(artistId: number): DeadlineRow[] {
 /**
  * 仪表盘统计数据
  * R52: 新增 todayNewOrderCents（今日新增订单金额）+ todayRevenueCents（今日收入）
+ * SRV-01 修复：收入口径从「合同额」改为「实收额」（paid_total_cents），
+ *   时间归集仍按 completed_at（最小侵入，不改前端字段语义）
  */
 export function getArtistStats(artistId: number): {
     pendingCount: number
@@ -61,14 +63,15 @@ export function getArtistStats(artistId: number): {
   const activeCount = (db.prepare(
     `SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND ${ACTIVE_ORDER_SQL}`
   ).get(artistId) as { c: number }).c
-  // 收入统计 — 使用 completed_at + final_price_cents（回退 total_price_cents，再回退 price_snapshot）
-  // 时区修正：在应用层计算本地时区的月初 UTC 时间戳，避免 UTC+8 用户月初订单被算入上月
+
+  // SRV-01 修复：收入统计改为按实收聚合（paid_total_cents）
+  // 原口径：合同额三级回退（final→total→snapshot）×已完成状态 → done 但尾款未收按全额计收入
+  // 新口径：实收金额（paid_total_cents）×已完成状态×完成时间归集 → 真正到手的钱
+  // 时间归集仍按 completed_at（不改前端字段语义：本月/今日收入 = 这段时间内完成的订单的已收金额）
   const now = new Date()
   const monthStartUTC = localMonthStartSqlite(now)
   const monthRevenue = (db.prepare(`
-    SELECT COALESCE(SUM(
-      ${PRICE_FALLBACK_SQL}
-    ), 0) as total_cents
+    SELECT COALESCE(SUM(o.paid_total_cents), 0) as total_cents
     FROM orders o
     WHERE o.artist_id = ? AND o.${COMPLETED_ORDER_SQL}
       AND o.completed_at >= ?
@@ -80,7 +83,7 @@ export function getArtistStats(artistId: number): {
   // R52: 今日统计 — 时区处理与月收入一致（本地零点 → UTC 时间戳）
   const dayStartUTC = localDayStartSqlite(now)
 
-  // 今日新增订单金额：created_at >= 今日零点，金额回退链与月收入一致
+  // 今日新增订单金额：created_at >= 今日零点，金额用合同额回退链（这不是收入，是新增订单的合同价值）
   const todayNewOrderRow = db.prepare(`
     SELECT COALESCE(SUM(
       ${PRICE_FALLBACK_SQL}
@@ -91,11 +94,9 @@ export function getArtistStats(artistId: number): {
   const todayNewOrderCents = todayNewOrderRow.total_cents
   const todayNewOrderCount = todayNewOrderRow.cnt
 
-  // 今日收入：completed_at >= 今日零点 且 status IN ('done','delivered')
+  // SRV-01 修复：今日收入改为实收（paid_total_cents）× 完成时间归集
   const todayRevenueRow = db.prepare(`
-    SELECT COALESCE(SUM(
-      ${PRICE_FALLBACK_SQL}
-    ), 0) as total_cents, COUNT(*) as cnt
+    SELECT COALESCE(SUM(o.paid_total_cents), 0) as total_cents, COUNT(*) as cnt
     FROM orders o
     WHERE o.artist_id = ? AND o.${COMPLETED_ORDER_SQL}
       AND o.completed_at >= ?
@@ -121,9 +122,9 @@ export function getArtistStats(artistId: number): {
     monthRevenue: monthRevenue / 100,   // 元（REAL），兼容现有 Dashboard.vue
     monthRevenueCents: monthRevenue,    // 分（INTEGER），R8 仪表盘重构时切换
     totalCompleted,
-    todayNewOrderCents,                 // R52: 今日新增订单金额（分）
+    todayNewOrderCents,                 // R52: 今日新增订单金额（分，合同额）
     todayNewOrderCount,                 // R52: 今日新增订单数
-    todayRevenueCents,                  // R52: 今日收入金额（分）
+    todayRevenueCents,                  // SRV-01: 今日实收金额（分）
     todayRevenueCount,                  // R52: 今日完成订单数
     todayTodoCount                      // R51: 今日待办数
   }

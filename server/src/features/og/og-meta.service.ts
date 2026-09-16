@@ -20,14 +20,27 @@ export interface OgData {
  * 缓存窗口：subdomain OG 数据内存缓存 5 分钟（Map + 时间戳），降低公开页 DB 压力。
  * 815 M-4：分享卡 URL 只以 DOMAIN 配置为来源，Host 头完全不参与；
  * 未配置 DOMAIN 时固定降级 localhost，且不启用缓存（防运行时改配置读到旧域）。
+ *
+ * SRV-05 修复：加条目上限 + LRU 淘汰——刷 /artist/随机串 不再无限撑内存。
+ * 上限 500 条（按单条 ~1KB 估算 ≈ 500KB，对 Node 堆无感）；
+ * 写入时超限则按插入序（Map 迭代序）删最旧条目直到降至上限。
  */
 const OG_CACHE_TTL_MS = 5 * 60 * 1000
+const OG_CACHE_MAX_ENTRIES = 500
 const ogCache = new Map<string, { fetchedAt: number; data: OgData }>()
 
 /** 测试/管理用：清空 OG 缓存（普通运行不需要） */
 export function clearOgCache(): void {
   ogCache.clear()
 }
+
+/** 测试用：返回当前缓存条目数（SRV-05 回归断言用） */
+export function getOgCacheSize(): number {
+  return ogCache.size
+}
+
+/** 测试用：返回缓存上限常量 */
+export const OG_CACHE_MAX = OG_CACHE_MAX_ENTRIES
 
 /** HTML 实体转义（防注入；OG 值是 meta content 属性值，双引号/尖括号/& 必须转义） */
 export function escapeHtml(value: string): string {
@@ -84,6 +97,19 @@ function defaultOg(subdomain: string): OgData {
 }
 
 /**
+ * SRV-05: LRU 淘汰——写入时超限则按 Map 迭代序（= 插入序）删最旧条目。
+ * Map.delete + Map.set 对已存在 key 不改变迭代位置，因此先 delete 再 set 可把
+ * 命中的热 key 移到尾部（最新位置），实现简易 LRU。
+ */
+function evictIfNeeded(): void {
+  while (ogCache.size >= OG_CACHE_MAX_ENTRIES) {
+    const oldest = ogCache.keys().next()
+    if (oldest.done) break
+    ogCache.delete(oldest.value)
+  }
+}
+
+/**
  * 构建画师主页 OG 数据（subdomain → 内存缓存 5 分钟）
  * 未找到/不可见画师 → 默认 OG（不抛错）
  */
@@ -92,7 +118,15 @@ export function buildOgMeta(subdomain: string): OgData {
   const useCache = !!process.env.DOMAIN
   const cached = useCache ? ogCache.get(subdomain) : undefined
   if (cached && Date.now() - cached.fetchedAt < OG_CACHE_TTL_MS) {
+    // SRV-05 LRU: 命中时刷新迭代位置（delete + set → 移到尾部 = 最近使用）
+    ogCache.delete(subdomain)
+    ogCache.set(subdomain, cached)
     return cached.data
+  }
+
+  // TTL 过期但键还在 → 先删旧键释放位（避免 evict 误删活跃条目）
+  if (useCache && cached) {
+    ogCache.delete(subdomain)
   }
 
   const artist = getArtistBySubdomain(subdomain)
@@ -101,6 +135,7 @@ export function buildOgMeta(subdomain: string): OgData {
     : buildArtistOg(artist)
 
   if (useCache) {
+    evictIfNeeded()
     ogCache.set(subdomain, { fetchedAt: Date.now(), data })
   }
   return data

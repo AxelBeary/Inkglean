@@ -383,9 +383,23 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
       if (!row) {
         return reply.code(403).send({ error: '文件链接无效或已过期' })
       }
-      if (verified.claims.nonce && (row.download_locked === 1 || row.download_nonce !== verified.claims.nonce)) {
-        return reply.code(403).send({ error: '文件链接无效或已过期' })
+      if (verified.claims.nonce) {
+        // 下载模式：锁定/nonce 不符 → 403
+        if (row.download_locked === 1 || row.download_nonce !== verified.claims.nonce) {
+          return reply.code(403).send({ error: '文件链接无效或已过期' })
+        }
+        // SRV-10: 原子消费 nonce——UPDATE WHERE 同时校验 nonce 值，
+        // changes=0 表示已被并发请求抢先消费（同一签名 URL 第二次重放）→ 403。
+        // 消费后 nonce 置 NULL，TTL 内同一 URL 不可再用；
+        // 画师预览模式（无 nonce）不走此路径，不受影响。
+        const consumed = db.prepare(
+          'UPDATE deliverables SET download_nonce = NULL WHERE id = ? AND download_nonce = ?'
+        ).run(verified.claims.deliverableId, verified.claims.nonce)
+        if (consumed.changes === 0) {
+          return reply.code(403).send({ error: '文件链接无效或已过期' })
+        }
       }
+      // 预览模式（仅 deliverableId 无 nonce）：只查行存在即放行，不消费 nonce
     }
   })
 

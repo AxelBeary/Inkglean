@@ -271,9 +271,11 @@ export function createOrder({ artistId, clientQq, clientName, description, prior
     // REQ-025 第二阶段：统一走引擎 allocateInitial（合并原画风/priceCalc 两处内联分支——
     // 两者分期来源同为 artist_workflow_stages takes_payment 节点；末节点吸收舍入尾差，BUG-4 语义）
     // 同时写 base 条目（R1：条目账本是总价真相源）
+    // SRV-16 修复：加 basis_points > 0 过滤，与 order-status.ts:generateInstallmentsForOrder 的
+    // JS 过滤（s.takes_payment && s.basis_points）对齐，消除两路径不对称
     if (queueZone === 'formal' && totalPriceCents != null && totalPriceCents > 0) {
       const stages = db.prepare(
-        'SELECT name, basis_points FROM artist_workflow_stages WHERE artist_id = ? AND takes_payment = 1 ORDER BY sort_order ASC'
+        'SELECT name, basis_points FROM artist_workflow_stages WHERE artist_id = ? AND takes_payment = 1 AND basis_points > 0 ORDER BY sort_order ASC'
       ).all(artistId) as Array<{ name: string; basis_points: number }>
       if (stages.length > 0) {
         const engineNodes = stages.map((s, i) => ({ sortOrder: i, basisPoints: s.basis_points, amountCents: 0 }))

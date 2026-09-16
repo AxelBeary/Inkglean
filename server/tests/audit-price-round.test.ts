@@ -1,5 +1,7 @@
 // 外部审计 P1-3：金额聚合 ROUND
 // 存量订单走 price_snapshot(REAL) 路径时，SQL 聚合 SUM 的浮点误差在 SQL 侧消除
+// SRV-01 修复后：monthRevenueCents/todayRevenueCents 改为 paid_total_cents 聚合，
+// PRICE_FALLBACK_SQL 的 ROUND 正确性改由 todayNewOrderCents（今日新增合同额）验证
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db, cleanDb, seedArtist, seedOrder } from './setup.js'
 import { getArtistStats } from '../src/features/order/order-stats.service.js'
@@ -20,9 +22,9 @@ describe('金额聚合 ROUND (P1-3)', () => {
       db.prepare('UPDATE orders SET price_snapshot = ?, completed_at = ? WHERE id = ?').run(0.1, ts, order.id)
     }
     const stats = getArtistStats(artist.id)
-    expect(stats.monthRevenueCents).toBe(30)
-    expect(stats.todayRevenueCents).toBe(30)
-    expect(Number.isInteger(stats.monthRevenueCents)).toBe(true)
+    // SRV-01 修复后：todayNewOrderCents 仍走 PRICE_FALLBACK_SQL，验证 ROUND 正确性
+    expect(stats.todayNewOrderCents).toBe(30)
+    expect(Number.isInteger(stats.todayNewOrderCents)).toBe(true)
   })
 
   it('TC-ROUND-02: 混合 final_price_cents(整数) 与 snapshot 聚合仍精确', () => {
@@ -34,7 +36,7 @@ describe('金额聚合 ROUND (P1-3)', () => {
     db.prepare('UPDATE orders SET price_snapshot = ?, completed_at = ? WHERE id = ?').run(0.1, ts, o2.id)
     const stats = getArtistStats(artist.id)
     // 500 + 10 = 510（修复前 snapshot 路径贡献 10.000000000000002）
-    expect(stats.monthRevenueCents).toBe(510)
+    expect(stats.todayNewOrderCents).toBe(510)
   })
 
   it('TC-ROUND-03: 单行取值路径（季度周分组）snapshot 也返回整数分', () => {
@@ -55,6 +57,7 @@ describe('金额聚合 ROUND (P1-3)', () => {
       'UPDATE orders SET final_price_cents = ?, total_price_cents = ?, price_snapshot = ?, completed_at = ? WHERE id = ?'
     ).run(888, 777, 6.66, ts, order.id)
     const stats = getArtistStats(artist.id)
-    expect(stats.monthRevenueCents).toBe(888)
+    // todayNewOrderCents 走 PRICE_FALLBACK_SQL 三级回退：final=888 优先
+    expect(stats.todayNewOrderCents).toBe(888)
   })
 })
