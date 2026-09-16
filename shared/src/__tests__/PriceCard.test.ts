@@ -172,3 +172,79 @@ describe('PriceCard 约稿条哑组件（shared）', () => {
     expect(text).toContain('QQ 123')
   })
 })
+
+// ─── SHR-01 回归：布局 A 多分组画布高度预算（组间距 24×(g−1) 不漏算） ───
+describe('SHR-01 drawLayoutA 画布高度预算回归', () => {
+  /** 纯公式断言：canvasH 必须 >= 实际绘制消耗（head + rows + gaps + finalGap + footer + seal） */
+  function expectedMinHeight(groupCount: number, tiersPerGroup: number): number {
+    const headEnd = 192 // 80 + 72 + 40
+    const rowsH = groupCount * (56 + tiersPerGroup * 92)
+    const interGroupGaps = Math.max(0, groupCount - 1) * 24
+    const finalGap = 24
+    const footerToSeal = 64
+    const sealHeight = 56
+    return headEnd + rowsH + interGroupGaps + finalGap + footerToSeal + sealHeight
+  }
+
+  it('g=3 每组2档：画布高度 >= 落款底部（印章不被裁）', async () => {
+    const w = mountCard()
+    const vm = w.vm as unknown as PriceCardExposed
+    vm.applyImportedTiers([
+      { name: 'A1', priceYuan: 100, group: '水彩' },
+      { name: 'A2', priceYuan: 200, group: '水彩' },
+      { name: 'B1', priceYuan: 150, group: '油画' },
+      { name: 'B2', priceYuan: 250, group: '油画' },
+      { name: 'C1', priceYuan: 180, group: '素描' },
+      { name: 'C2', priceYuan: 280, group: '素描' },
+    ])
+    await w.vm.$nextTick()
+    const canvas = await vm.buildCanvas()
+    expect(canvas).not.toBeNull()
+    expect(canvas!.height).toBeGreaterThanOrEqual(expectedMinHeight(3, 2))
+  })
+
+  it('g=5 每组2档：画布高度充足', async () => {
+    const w = mountCard()
+    const vm = w.vm as unknown as PriceCardExposed
+    const tiers = Array.from({ length: 5 }, (_, gi) =>
+      Array.from({ length: 2 }, (_, ti) => ({
+        name: `G${gi}T${ti}`, priceYuan: 100 + gi * 50 + ti * 10, group: `组${gi}`
+      }))
+    ).flat()
+    vm.applyImportedTiers(tiers)
+    await w.vm.$nextTick()
+    const canvas = await vm.buildCanvas()
+    expect(canvas).not.toBeNull()
+    expect(canvas!.height).toBeGreaterThanOrEqual(expectedMinHeight(5, 2))
+  })
+
+  it('g=12 每组1档（极端场景）：画布高度充足', async () => {
+    const w = mountCard()
+    const vm = w.vm as unknown as PriceCardExposed
+    const tiers = Array.from({ length: 12 }, (_, i) => ({
+      name: `档${i + 1}`, priceYuan: 50 + i * 30, group: `风格${i + 1}`
+    }))
+    vm.applyImportedTiers(tiers)
+    await w.vm.$nextTick()
+    const canvas = await vm.buildCanvas()
+    expect(canvas).not.toBeNull()
+    expect(canvas!.height).toBeGreaterThanOrEqual(expectedMinHeight(12, 1))
+  })
+
+  it('g=1 单组：画布高度不回归（无多余间距）', async () => {
+    const w = mountCard()
+    const vm = w.vm as unknown as PriceCardExposed
+    vm.applyImportedTiers([
+      { name: '头像', priceYuan: 100, group: '水彩' },
+      { name: '半身', priceYuan: 200, group: '水彩' },
+      { name: '全身', priceYuan: 350, group: '水彩' },
+    ])
+    await w.vm.$nextTick()
+    const canvas = await vm.buildCanvas()
+    expect(canvas).not.toBeNull()
+    expect(canvas!.height).toBeGreaterThanOrEqual(expectedMinHeight(1, 3))
+    // 单组无组间距：gapsH=0，精确断言公式
+    const expected = 192 + (56 + 3 * 92) + 0 + 24 + 64 + 88
+    expect(canvas!.height).toBe(expected)
+  })
+})

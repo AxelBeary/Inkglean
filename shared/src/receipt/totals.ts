@@ -56,6 +56,8 @@ export function computeReceiptTotals(
   let discountCents = 0
   if (discountType === 'percent') {
     const pct = Math.min(100, Math.max(0, Number.isFinite(discountValue) ? discountValue : 0))
+    // SRV-17：小票 percent 四舍五入。注意 server 折扣码 discount.service.ts 用 Math.floor，两者口径不同属有意
+    //（小票是画师手动对账单、折扣码是下单计价，独立子系统），差 ≤1 分无资金损坏，勿顺手统一。
     discountCents = Math.round(subtotalCents * (1 - pct / 100))
   } else if (discountType === 'amount') {
     discountCents = Math.min(subtotalCents, Math.max(0, yuanToCentsLocal(discountValue)))
