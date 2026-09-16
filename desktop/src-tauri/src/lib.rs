@@ -123,6 +123,7 @@ pub fn run() {
             bridge::files::desktop_shihui_home,
             bridge::files::desktop_cache_dir,
             bridge::files::desktop_copy_file,
+            bridge::files::desktop_delete_db_sidecar,
             bridge::monitor::desktop_foreground_title,
             bridge::monitor::desktop_input_idle_secs,
             bridge::modules::desktop_list_module_dirs,

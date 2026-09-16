@@ -10,7 +10,7 @@ import { useLocalFilesStore } from '../../stores/localFiles'
 import { useLocalProfileStore } from '../../stores/localProfile'
 import { useLocalTemplatesStore } from '../../stores/localTemplates'
 import { runExport } from '../../tools/exportData'
-import { parseBackup, pickBackupFile, readBackup, runImport } from '../../tools/importData'
+import { hasLocalData, parseBackup, pickBackupFile, readBackup, runImport } from '../../tools/importData'
 import { buildWorklogCsv } from '../../tools/worklogCsv'
 import type { WorklogDayRow, WorklogOrderRow } from '../../tools/worklogCsv'
 import { useToolToast } from '../../tools/host'
@@ -92,6 +92,18 @@ async function doExportCsv() {
   }
 }
 
+/** 工时累计天数（波2 DSK-08：本地数据判定纳入 time_log）；库不可用/无表静默返 0 */
+async function countTimeLogDays(): Promise<number> {
+  try {
+    const db = await openLocalDb()
+    const rows = await db.select<{ n: number }[]>('SELECT COUNT(*) AS n FROM local_time_log')
+    const n = rows[0]?.n
+    return typeof n === 'number' ? n : 0
+  } catch {
+    return 0
+  }
+}
+
 // ─── 导入（波10）：替换策略 + 冲突强提醒 + 替换前自动备份 ───
 async function doImport() {
   if (busy.value || !isDesktop()) return
@@ -105,13 +117,31 @@ async function doImport() {
       toast.show(preview.reason, 'err')
       return
     }
-    // 冲突强提醒（REQ 口径）：有本地数据时先说清替换后果，取消即罢手
-    if (ledger.orders.length > 0) {
-      const msg = `⚠️ 你本地已有 ${ledger.orders.length} 笔记账。导入将替换它们。\n替换前会把当前数据自动备份为备份包，万一后悔可恢复。\n\n确定替换？`
+    // 冲突强提醒（REQ 口径 + 波2 DSK-08）：有本地数据时先说清替换后果，取消即罢手。
+    // 判定不再只看 orders——档案/模板/工时/文件关联任一有数据都算「有」，
+    // 防「无账目但有档案/模板/工时」的用户被无备份、无二次确认地整库覆写清空。
+    const allFiles = Object.values(filesStore.files).flat()
+    const prof = profile.profile
+    const parts = {
+      orders: ledger.orders.length,
+      files: allFiles.length,
+      hasProfile: !!(prof.nickname || prof.avatar_b64 || prof.intro || prof.tags),
+      templates: Object.keys(templates.bindings).length,
+      timeLogDays: await countTimeLogDays()
+    }
+    const hasLocal = hasLocalData(parts)
+    if (hasLocal) {
+      const bits = [
+        `记账 ${parts.orders} 笔`,
+        `文件关联 ${parts.files} 个`,
+        `模板 ${parts.templates} 条`,
+        `工时 ${parts.timeLogDays} 天`
+      ]
+      if (parts.hasProfile) bits.push('档案已建')
+      const msg = `⚠️ 你本地已有数据（${bits.join(' · ')}）。导入将替换它们。\n替换前会把当前数据自动备份为备份包，万一后悔可恢复。\n\n确定替换？`
       if (!window.confirm(msg)) return
     }
-    const allFiles = Object.values(filesStore.files).flat()
-    const r = await runImport(allFiles, ledger.orders, preview)
+    const r = await runImport(allFiles, ledger.orders, preview, hasLocal)
     if (!r.ok) {
       toast.show(r.reason, 'err')
       return

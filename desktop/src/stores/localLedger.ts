@@ -2,6 +2,8 @@
 // 纯本地不联网；状态流转（草稿→进行中→已交付→已收款）由画师手动单向推进。
 // 数据持久化走 bridge/db（SQLite）；纯浏览器环境（vitest/降级）读写全静默为空。
 // 归一化纪律与 prefs/timer 同款：坏数据落默认，绝不把异常抛进渲染。
+// 时区口径（审计波2 DSK-07）：库里存 UTC ISO 串，**判定一律按本地日历月/日**
+// （同 components/home/localGlance.ts 的本地零点归一），不拿 UTC 串前缀比本地月份。
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { openLocalDb } from '../bridge/db'
@@ -66,6 +68,24 @@ function normalizeRow(raw: Record<string, unknown>): LocalOrder {
 
 function nowIso(): string {
   return new Date().toISOString()
+}
+
+/** 时间戳 → 本地月份键 YYYY-MM（纯函数可测，DSK-07）；空串/坏串返 null（不计入任何月，不炸渲染）。
+ *  updated_at 存的是 UTC ISO 串，直接用串前缀比本地月份会让东八区每月 1 号 00:00–08:00 的收款算进上月；
+ *  这里按本地时区解析后再取年月。纯日期串（无时间与时区，如导入的历史行）按本地日历日直取前缀，
+ *  免掉 `new Date('YYYY-MM-DD')` 被当 UTC 零点、负偏移时区整体差一天/差一月的坑。 */
+export function localMonthOf(ts: string): string | null {
+  if (!ts) return null
+  const dateOnly = /^(\d{4})-(\d{2})-\d{2}$/.exec(ts)
+  if (dateOnly) return `${dateOnly[1]}-${dateOnly[2]}`
+  const d = new Date(ts)
+  if (Number.isNaN(d.getTime())) return null
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+/** 本地当月键 YYYY-MM（判定基准与 localMonthOf 同一时区口径） */
+function thisMonthKey(now = new Date()): string {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
 export const useLocalLedgerStore = defineStore('desktop-local-ledger', () => {
@@ -134,12 +154,11 @@ export const useLocalLedgerStore = defineStore('desktop-local-ledger', () => {
     }
   }
 
-  /** 本月已收款合计（口径：已收款且收款时间在本月，展示用） */
+  /** 本月已收款合计（口径：已收款且收款时间在**本地**本月，展示用；DSK-07 按本地日历月判定） */
   const paidThisMonth = computed(() => {
-    const n = new Date()
-    const ym = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`
+    const ym = thisMonthKey()
     return orders.value
-      .filter(o => o.status === 'paid' && o.updated_at.startsWith(ym))
+      .filter(o => o.status === 'paid' && localMonthOf(o.updated_at) === ym)
       .reduce((sum, o) => sum + o.price, 0)
   })
 

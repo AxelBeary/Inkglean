@@ -1,7 +1,9 @@
 // 模块视图数据供给（档②波17 四件）：拍板一四视图的白名单字段组装。
 // 纪律：只给声明过的视图；字段白名单（联系方式类永不出现）；云端视图本地模式返 null（H5）。
+// P0-3 根本缓解：受限视图（ledger）仅第一方/签名模块可获取，第三方请求在壳层拦截不到达此函数。
 import type { LocalOrder } from '../stores/localLedger'
 import type { DayTime, DayTimeRow } from '../stores/autoTime'
+import { RESTRICTED_VIEWS } from './manifest'
 
 export interface ViewSources {
   /** 本地记账（local 视图） */
@@ -16,6 +18,15 @@ export interface ViewSources {
   messages?: Array<Record<string, unknown>> | null
 }
 
+/**
+ * P0-3 视图访问门禁（纯函数可测）：受限视图仅 official 来源模块可获取。
+ * 第三方模块请求受限视图 → 返回 false（壳层应拒发并记违规）。
+ */
+export function canAccessView(view: string, source: 'official' | 'external'): boolean {
+  if (RESTRICTED_VIEWS.has(view) && source !== 'official') return false
+  return true
+}
+
 /** 订单视图白名单字段（client_qq 等联系方式类永不出现） */
 const ORDER_FIELDS = ['order_no', 'client_name', 'tier_name', 'status', 'deadline', 'total_price_cents']
 const MESSAGE_FIELDS = ['nickname', 'content', 'created_at', 'status']
@@ -28,7 +39,7 @@ function pickFields(row: Record<string, unknown>, fields: string[]): Record<stri
   return out
 }
 
-/** 组视图数据（纯函数可测）：未声明/未知视图返 null（壳侧调用前已核声明，此处兜底） */
+/** 组视图数据（纯函数可测）：未声明/未知视图返 null（壳侧调用前已核声明+门禁，此处兜底） */
 export function buildViewData(view: string, sources: ViewSources): unknown {
   switch (view) {
     case 'ledger': {

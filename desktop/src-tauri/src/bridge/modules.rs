@@ -80,14 +80,15 @@ pub fn desktop_read_module_entry(app: AppHandle, dir_name: String) -> Result<Str
     fs::read_to_string(&entry).map_err(|e| e.to_string())
 }
 
-/// 模块私有存储路径（write.own：独立文件、不入 data.db；配额校验归前端注册表）
+/// DSK-13c：此命令为历史死代码（前端 moduleStoragePath 全文无调用）。
+/// 模块私有存储（write.own）实际使用壳的 localStorage，并非独立文件。
+/// 保留注册以避免 Tauri invoke handler 报错；待后续统一清理。
 #[tauri::command]
 pub fn desktop_module_storage_path(app: AppHandle, dir_name: String) -> Result<String, String> {
     if !is_safe_dir_name(&dir_name) {
         return Err("模块目录名非法".to_string());
     }
     let dir = modules_dir(&app)?.join(&dir_name);
-    // 只给路径不建文件；写由前端经桥申请并核配额（拍板二 5MB/模块）
     Ok(dir.join("storage.json").to_string_lossy().to_string())
 }
 

@@ -1,6 +1,7 @@
 // 本地核心环波9 测试：数据导出——manifest 组装/设置快照纯函数 + 桥逃生门。
+// 波2 DSK-03：替换前自动备份名带时分秒（防同日二次导入静默覆写）。
 import { describe, it, expect, beforeEach } from 'vitest'
-import { buildManifest, dumpLocalPrefs, runExport } from '../tools/exportData'
+import { buildManifest, dumpLocalPrefs, runExport, backupFileName, importBackupFileName } from '../tools/exportData'
 import { fileSizes, localDbPath } from '../bridge'
 import { BridgeUnavailableError } from '../bridge'
 import type { LocalFile } from '../stores/localFiles'
@@ -50,6 +51,26 @@ describe('dumpLocalPrefs（本地设置快照）', () => {
 
   it('空存储返空对象', () => {
     expect(dumpLocalPrefs(localStorage)).toEqual({})
+  })
+})
+
+describe('备份文件名（DSK-03：替换前自动备份带时分秒）', () => {
+  it('导出默认名仍按天（用户经对话框确认落点，可改名）', () => {
+    expect(backupFileName(new Date(2026, 7, 26))).toBe('拾绘备份-20260826.zip')
+  })
+
+  it('替换前自动备份名含日期 + 时分秒 + .zip', () => {
+    expect(importBackupFileName(new Date(2026, 8, 17, 9, 5, 3))).toBe('拾绘备份-替换前-20260917-090503.zip')
+  })
+
+  it('同一天不同时刻名字不同（防同日二次导入静默覆写第一次备份）', () => {
+    const morning = importBackupFileName(new Date(2026, 8, 17, 9, 0, 0))
+    const afternoon = importBackupFileName(new Date(2026, 8, 17, 14, 30, 0))
+    expect(morning).not.toBe(afternoon)
+  })
+
+  it('时分秒零填充两位', () => {
+    expect(importBackupFileName(new Date(2026, 0, 2, 1, 2, 3))).toContain('-010203.zip')
   })
 })
 

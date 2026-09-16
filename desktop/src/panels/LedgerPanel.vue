@@ -71,25 +71,32 @@ function toggleForm() {
   formOpen.value = !formOpen.value
 }
 
+// DSK-10：busy 必须真上锁——守卫后立刻置真、finally 复位，杜绝 await addOrder 期间
+// 连点「落账」把同一 form 重复落账（配了模板还会多复制一份工程文件）。
 async function submit() {
   if (busy.value) return
-  const price = form.price.trim() === '' ? 0 : Number(form.price)
-  const row = await ledger.addOrder({
-    client_name: form.client,
-    title: form.title,
-    price: Number.isFinite(price) ? price : 0,
-    deadline: form.deadline || null
-  })
-  if (row) {
-    form.client = ''
-    form.title = ''
-    form.price = ''
-    form.deadline = ''
-    formOpen.value = false
-    // F1a：有模板绑定即自动建副本并挂到本单文件区（失败静默不阻塞建单；
-    // 只创建不自动打开，§F1a 拍板口径）
-    const made = await templates.createOrderFiles(row)
-    if (made) await filesStore.addFiles(row.id, [made])
+  busy.value = true
+  try {
+    const price = form.price.trim() === '' ? 0 : Number(form.price)
+    const row = await ledger.addOrder({
+      client_name: form.client,
+      title: form.title,
+      price: Number.isFinite(price) ? price : 0,
+      deadline: form.deadline || null
+    })
+    if (row) {
+      form.client = ''
+      form.title = ''
+      form.price = ''
+      form.deadline = ''
+      formOpen.value = false
+      // F1a：有模板绑定即自动建副本并挂到本单文件区（失败静默不阻塞建单；
+      // 只创建不自动打开，§F1a 拍板口径）
+      const made = await templates.createOrderFiles(row)
+      if (made) await filesStore.addFiles(row.id, [made])
+    }
+  } finally {
+    busy.value = false
   }
 }
 
@@ -214,7 +221,8 @@ function unhook(f: LocalFile) {
       <input v-model.trim="form.title" class="f f-title" type="text" placeholder="委托内容（如：头像·半身）" maxlength="60" aria-label="委托内容" />
       <input v-model.trim="form.price" class="f f-price num" type="number" min="0" step="0.01" placeholder="金额" aria-label="金额" />
       <input v-model="form.deadline" class="f f-date num" type="date" aria-label="截稿日" />
-      <button type="button" class="ok" @click="submit">落账</button>
+      <!-- DSK-10：落账期间禁用按钮，配合 busy 守卫双保险防连点重复落账 -->
+      <button type="button" class="ok" :disabled="busy" @click="submit">落账</button>
       <button type="button" class="no" @click="toggleForm">收笔</button>
     </div>
     <div class="foot">
@@ -289,6 +297,7 @@ function unhook(f: LocalFile) {
   transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
 }
 .ok:hover { color: var(--hq); background: var(--hq-t2); border-color: var(--hq); }
+.ok:disabled { opacity: .5; cursor: not-allowed; }
 .no {
   font-size: 12px; color: var(--ink4); padding: 6px 10px; flex: none; border-radius: var(--r-s-hand);
   transition: color var(--dur-fast), background var(--dur-fast);

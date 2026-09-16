@@ -6,6 +6,7 @@ import { reactive, ref } from 'vue'
 import { listModuleDirs, readModuleManifest, readModuleEntry } from '../bridge/modules'
 import { isDesktop } from '../bridge'
 import { buildRegistry, recordViolation, clearViolations, violationCount } from './registry'
+import { VIOLATION_LIMIT } from './manifest'
 import type { ModuleEntry, ViolationRec } from './registry'
 import type { ModuleState } from './types'
 
@@ -59,7 +60,7 @@ export function composeState(
   if (entry.state === 'invalid') return 'invalid' // 失效不自动恢复（待更新/移除）
   const id = entry.manifest?.id ?? entry.dirName
   if (disabled.has(id)) return 'disabled'
-  if (violationCount(violations, id, now) >= 10) return 'disabled' // 违规达阈＝单独停用
+  if (violationCount(violations, id, now) >= VIOLATION_LIMIT) return 'disabled' // DSK-13e 修复：引用常量
   return 'ok'
 }
 

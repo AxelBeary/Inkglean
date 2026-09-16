@@ -2,7 +2,7 @@
 // 数据包（zip）＝SQLite 数据库 + 本地设置 + 文件清单 manifest.json；
 // 不包含：平台缓存图片（登录重新拉）、工程文件本体（画师自行搬运，只记路径）。
 // 触发纯手动，不主动提醒；导入（替换策略）下一波。
-import { localDbPath, readFileB64, saveFile, fileSizes } from '../bridge'
+import { localDbPath, readBackupB64, saveFile, fileSizes } from '../bridge'
 import { isDesktop } from '../bridge'
 import type { LocalFile } from '../stores/localFiles'
 import type { LocalOrder } from '../stores/localLedger'
@@ -55,10 +55,12 @@ export interface ExportResult {
   counts: { orders: number; files: number }
 }
 
-/** 打数据包（波10 抽出）：返回 zip Blob，供导出（对话框）与导入前自动备份（静默）共用 */
+/** 打数据包（波10 抽出）：返回 zip Blob，供导出（对话框）与导入前自动备份（静默）共用。
+ *  波2 DSK-02：库文件改走 readBackupB64（100MB 通道）——本地库含头像 base64 可超 5MB，
+ *  旧的 readFileB64（5MB 上限，本为头像单件设）撑大后导出/备份双双失效。 */
 export async function buildBackupBlob(files: LocalFile[], orders: LocalOrder[]): Promise<Blob> {
   const dbPath = await localDbPath()
-  const dbB64 = await readFileB64(dbPath)
+  const dbB64 = await readBackupB64(dbPath)
   const sizes = await fileSizes(files.map(f => f.file_path))
   const manifest = buildManifest(files, orders, sizes)
 
@@ -76,10 +78,19 @@ export async function buildBackupBlob(files: LocalFile[], orders: LocalOrder[]):
   return await zip.generateAsync({ type: 'blob' })
 }
 
-/** 备份包文件名：拾绘备份-YYYYMMDD.zip（导出与导入前自动备份同口径） */
+/** 备份包文件名：拾绘备份-YYYYMMDD.zip（导出对话框默认名；用户经系统对话框确认落点，可改名） */
 export function backupFileName(now = new Date()): string {
   const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
   return `拾绘备份-${stamp}.zip`
+}
+
+/** 导入前「替换前自动备份」文件名（波2 DSK-03）：拾绘备份-替换前-YYYYMMDD-HHMMSS.zip。
+ *  自动备份静默落「我的文档\拾绘\backups\」，无对话框确认；旧口径只按天命名，同一天导入两次
+ *  第二次会静默覆写第一次的备份。加时分秒后同日多次导入各留一份（人手操作不可能同秒两次）。 */
+export function importBackupFileName(now = new Date()): string {
+  const d = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
+  const t = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`
+  return `拾绘备份-替换前-${d}-${t}.zip`
 }
 
 /** 执行导出：打包 zip → 系统保存对话框 → 落盘。失败口径：抛由页面接住落 toast */

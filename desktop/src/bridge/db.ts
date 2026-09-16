@@ -108,3 +108,50 @@ export function openLocalDb(): Promise<LocalDatabase> {
   }
   return dbPromise
 }
+
+// ─── 波2 DSK-09：导入整库覆写时的跨窗口连接收口 ───
+// 根因：撕悬浮三件是独立 webview，各持自己的 SQLite 连接；主窗 closeLocalDb 只关自己，
+// 覆写 local.db 时悬浮窗连接仍持文件句柄（Windows 上可致覆写失败），且 WAL 边车 -wal/-shm
+// 若残留会被下次开库套到新库上致脏库。修法＝覆写前跨窗广播关连接 + 显式清边车。
+// ⚠️ 是否真造成脏库/文件锁需 WebView2 真机验证（见 ledger 未尽事项）。
+
+/** 跨窗口广播事件名：通知所有 webview（主窗 + 撕悬浮独立窗）关闭各自本地库连接 */
+export const DB_CLOSE_ALL_EVENT = 'desktop-db-close-all'
+
+/** 广播后等待其他窗口处理关连接的缓冲毫秒（best-effort，无逐窗 ack 回执） */
+const DB_CLOSE_BROADCAST_WAIT_MS = 400
+
+/** 跨窗口广播「关闭所有本地库连接」：导入覆写前调用，让悬浮窗等独立 webview 释放文件句柄。
+ *  best-effort：emit 后等固定缓冲再返回（无逐窗 ack，真机验证点）；纯浏览器环境静默无事。 */
+export async function broadcastCloseAllDb(): Promise<void> {
+  if (!isDesktop()) return
+  try {
+    const { emit } = await import('@tauri-apps/api/event')
+    await emit(DB_CLOSE_ALL_EVENT)
+  } catch {
+    // 无事件能力（理论不该发生）：不阻塞导入，靠调用方自身 closeLocalDb + 边车清理兜底
+  }
+  await new Promise((resolve) => setTimeout(resolve, DB_CLOSE_BROADCAST_WAIT_MS))
+}
+
+/** 删除本地库 -wal/-shm 边车（DSK-09 覆写前清场）：纯浏览器抛 BridgeUnavailableError。
+ *  调用方须容错——连接干净关闭时 SQLite 本会自删边车，本命令兜底崩溃/强杀残留。 */
+export async function deleteDbSidecar(): Promise<void> {
+  if (!isDesktop()) throw new BridgeUnavailableError('deleteDbSidecar')
+  await invoke('desktop_delete_db_sidecar')
+}
+
+// 模块级自注册监听：任何 import 本模块的 webview（主窗 + 撕悬浮三件，均经 localLedger 等
+// store 间接引入）在桌面壳下自动挂监听——收到广播即关本窗连接，释放 local.db 句柄，
+// 让导入窗能安全整库覆写。纯浏览器/无事件能力静默跳过；模块单例只挂一次。
+let closeListenerArmed = false
+function armCloseListener(): void {
+  if (closeListenerArmed || !isDesktop()) return
+  closeListenerArmed = true
+  void import('@tauri-apps/api/event')
+    .then(({ listen }) => {
+      void listen(DB_CLOSE_ALL_EVENT, () => { void closeLocalDb() })
+    })
+    .catch(() => { /* 无事件能力：静默，靠导入窗自身 closeLocalDb 兜底 */ })
+}
+armCloseListener()
