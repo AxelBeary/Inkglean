@@ -205,6 +205,10 @@ export default {
     // Workflow (supplement)
     STAGE_IN_USE: 'This stage has orders in progress. Complete or move them before deleting.',
 
+    // Style/size delete guard (wave1 SRV-12)
+    STYLE_IN_USE: 'There are {count} active order(s) using this art style. Complete or move them before deleting.',
+    STYLE_SIZE_IN_USE: 'There are {count} active order(s) using this size. Complete or move them before deleting.',
+
     // Artworks (supplement)
     ARTWORK_NOT_FOUND: 'Artwork not found',
     COVER_LIMIT_REACHED: 'Maximum 6 covers, please unset some first',
@@ -954,6 +958,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     linkInvalid: 'Invalid link — paste the full tracking link saved after ordering',
     linkExpired: 'This link is no longer valid — ask the artist to resend one',
     savedTitle: 'Saved tracking links', savedQuery: 'Check',
+    // WEB-13: clear-all entry for saved tracking links
+    clearAll: 'Clear all',
     orderNo: 'Order No.',
     artist: 'Artist', type: 'Type',
     positionText: '#{pos} of {total}', orderTime: 'Order time',

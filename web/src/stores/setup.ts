@@ -52,6 +52,8 @@ export const useSetupStore = defineStore('setup', () => {
 
   /**
    * 查询设置状态
+   * WEB-09 修复：补 catch 分支——网络异常时 fail-open（保持默认 false），
+   * 不让 fetch 拒绝传播到调用方导致 onMounted 后续逻辑被跳过
    */
   async function checkStatus(): Promise<SetupStatus> {
     checking.value = true
@@ -67,6 +69,11 @@ export const useSetupStore = defineStore('setup', () => {
       initialized.value = data.initialized
       tokenRequired.value = data.tokenRequired
       return data
+    } catch {
+      // WEB-09: 网络异常 fail-open——tokenRequired 保持 false，向导仍可使用（无口令部署正常走）
+      initialized.value = false
+      tokenRequired.value = false
+      return { initialized: false, tokenRequired: false }
     } finally {
       checking.value = false
     }

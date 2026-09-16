@@ -99,11 +99,14 @@
               <!-- 第三行：已配增项摘要（REQ-036 任务5，实时更新） -->
               <div class="size-summary">
                 <span class="sum-label">{{ $t('styleManage.sizeSummaryLabel') }}</span>
+                <!-- WEB-06（波2审计 W1#6）：chip 补 @dragend——早退（onDropToSize 判已启用/找不到 sa 等）后
+                     由父级清 dragPayload，避免污染后续排序拖拽（原缺 dragend，父级早退未清） -->
                 <span
                   v-for="chip in sizeSummary(style, size)" :key="chip.id"
                   class="sum-chip" :class="chip.kind"
                   draggable="true" :title="$t('styleManage.addonDragBackHint')"
                   @dragstart="emit('chip-drag-start', size, chip, $event)"
+                  @dragend="emit('chip-drag-end')"
                 >{{ chip.name }} {{ chip.priceText }}</span>
                 <span v-if="!sizeSummary(style, size).length" class="sum-empty">{{ $t('styleManage.sizeSummaryEmpty') }}</span>
               </div>
@@ -206,6 +209,8 @@ const emit = defineEmits<{
   (e: 'edit-size', size?: ManagerSizeRow): void
   (e: 'remove-size', size: ManagerSizeRow): void
   (e: 'chip-drag-start', size: ManagerSizeRow, chip: { id: number }, ev: DragEvent): void
+  /** WEB-06（波2审计 W1#6）：chip dragend 上报——父级复用 onCapDragEnd 清 dragPayload */
+  (e: 'chip-drag-end'): void
   (e: 'addon-create'): void
   (e: 'addon-import'): void
   (e: 'cap-drag-start', sa: ManagerSa, ev: DragEvent): void

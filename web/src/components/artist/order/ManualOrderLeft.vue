@@ -42,7 +42,7 @@
         drag multiple
         :auto-upload="true" :http-request="handleRefUpload"
         accept="image/*" list-type="picture-card" :limit="MAX_IMAGE_COUNT"
-        :file-list="refFileList" :on-exceed="() => ElMessage.warning($t('manualOrder.refExceed'))"
+        v-model:file-list="refFileList" :on-exceed="() => ElMessage.warning($t('manualOrder.refExceed'))"
         :on-remove="handleRefRemove" class="mo-ref-upload"
         @dragenter.capture="guardDragEnter"
         @dragover.capture="guardDragOver"
@@ -139,6 +139,7 @@ import { usePasteUpload } from '../../../composables/usePasteUpload'
 import { useDropGuard } from '../../../composables/useDropGuard'
 import { formatDateTimeShort } from '../../../utils/datetime'
 import { formatCents } from '../../../utils/money'
+import { generateId } from '../../../utils/id'
 import { statusType } from '../../../constants/order'
 import { uploadReferenceWithAnonToken, AnonTokenUnavailableError } from '../../../utils/anonUpload'
 import { MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../../../constants/upload'
@@ -249,14 +250,14 @@ const { guardDragEnter, guardDragOver, guardDrop } = useDropGuard()
 
 async function handlePasteRefFiles(files: File[]) {
   for (const file of files) {
-    if (refFileList.value.length >= MAX_IMAGE_COUNT) {
+    if (uploadedRefs.value.length >= MAX_IMAGE_COUNT) {
       ElMessage.warning(t('manualOrder.refExceed'))
       break // a1: 已达上限提示后跳过剩余，不再中断已上传列表
     }
     // a1: 逐张 catch——单张失败不中断后续，失败有明确提示；成功后才 push 列表
     try {
       const { uploaded } = await uploadReferenceWithAnonToken(file)
-      const uid = `paste-${crypto.randomUUID()}`
+      const uid = `paste-${generateId()}`
       uploadedRefs.value.push(uploaded.filePath)
       refUidMap.value.set(uid, uploaded.filePath)
       refFileList.value.push({ name: file.name || 'pasted-image.png', url: `/uploads/${uploaded.filePath}`, uid, status: 'success' })
@@ -284,7 +285,7 @@ function setReorderRefs(sourceRefs: ReorderSourceRef[] | null | undefined) {
   const refs = Array.isArray(sourceRefs) ? sourceRefs.slice(0, MAX_IMAGE_COUNT) : []
   refFileList.value = refs.map((r, idx) => {
     const filePath = String(r.file_path || '').trim()
-    const uid = `reorder-${crypto.randomUUID()}`
+    const uid = `reorder-${generateId()}`
     refUidMap.value.set(uid, filePath)
     return {
       uid,

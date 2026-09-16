@@ -3,6 +3,7 @@ import type { RouteRecordRaw } from 'vue-router'
 import i18n from '../i18n/index'
 import { useArtistStore } from '../stores/artist'
 import { useThemeStore } from '../stores/theme'
+import { useSetupStore } from '../stores/setup'
 import { safeGetItem, safeSetItem, safeRemoveItem } from '../utils/storage'
 
 // ============================================
@@ -193,6 +194,11 @@ router.beforeEach(async (to, _from, next) => {
         // res.ok 守卫：其余 404/5xx 的 JSON 不带 initialized，不得误触重定向
         if (res.ok) {
           const data = await res.json()
+          // WEB-09 修复：路由守卫将 tokenRequired 回写 setup store——
+          // 此前裸 fetch 读完就丢，SetupWizard 挂载时 tokenRequired 仍为默认 false，口令输入框永不渲染
+          const setupStore = useSetupStore()
+          setupStore.initialized = data.initialized ?? false
+          setupStore.tokenRequired = data.tokenRequired ?? false
           if (data.initialized === false) {
             return next({ name: 'SetupWizard' })
           }

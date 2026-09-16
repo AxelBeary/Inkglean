@@ -70,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { adminApi } from '../../api/index'
 import type { GreetingTemplate, GreetingInput } from '../../api/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -173,6 +173,8 @@ async function remove(row: GreetingTemplate) {
 }
 
 onMounted(load)
+// WEB-15: artistId prop 变化时重新加载（父组件切换画师时不再显示上一个画师的问候语）
+watch(() => props.artistId, load)
 </script>
 
 <style scoped>

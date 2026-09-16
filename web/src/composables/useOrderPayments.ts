@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { i18n } from '../i18n/index'
 import { artistApi } from '../api/index'
 import type { AddPaymentResult, PaymentRow } from '../api/types'
+import { generateId } from '../utils/id'
 
 /**
  * B7 额度池：订单收款记录 composable
@@ -16,7 +17,9 @@ export function useOrderPayments() {
   // D-2（R-9）: 收款/撤销幂等键——同一次提交意图（失败重试）复用同 key，
   // 成功后置空（下一次提交 = 新意图，换新 key）。后端按 payment:orderId + key 去重，
   // 防双标签页/脚本双击重复入账；服务端错误不缓存，修正后重试可成功。
-  let submitIdemKey: string | null = null
+  // WEB-10 修复：add 与 revoke 各自独立 key，避免响应丢失后另一操作被当重放静默吞掉。
+  let addIdemKey: string | null = null
+  let revokeIdemKey: string | null = null
   /** a3: 请求序号——切订单/快速刷新时旧响应晚到不得覆盖新流水 */
   let loadSeq = 0
 
@@ -44,15 +47,15 @@ export function useOrderPayments() {
     note?: string | null
     installmentId?: number | null
   }): Promise<AddPaymentResult> {
-    if (!submitIdemKey) submitIdemKey = crypto.randomUUID()
+    if (!addIdemKey) addIdemKey = generateId()
     submitting.value = true
     try {
       const res = await artistApi.addPayment(
         orderId,
         { amountCents, note, installmentId: installmentId || null },
-        { headers: { 'idempotency-key': submitIdemKey } }
+        { headers: { 'idempotency-key': addIdemKey } }
       )
-      submitIdemKey = null
+      addIdemKey = null
       // 后端返回 { payment, paidTotalCents, finalPriceCents, installments }
       return res
     } finally {
@@ -62,7 +65,7 @@ export function useOrderPayments() {
 
   /** 撤销一笔收款（以负数记录冲抵） */
   async function revokePayment(orderId: number, payment: PaymentRow): Promise<AddPaymentResult> {
-    if (!submitIdemKey) submitIdemKey = crypto.randomUUID()
+    if (!revokeIdemKey) revokeIdemKey = generateId()
     submitting.value = true
     try {
       const res = await artistApi.addPayment(
@@ -71,9 +74,9 @@ export function useOrderPayments() {
           amountCents: -Math.abs(payment.amount_cents),
           note: i18n.global.t('orderDetail.paymentRevertNote', { id: payment.id })
         },
-        { headers: { 'idempotency-key': submitIdemKey } }
+        { headers: { 'idempotency-key': revokeIdemKey } }
       )
-      submitIdemKey = null
+      revokeIdemKey = null
       return res
     } finally {
       submitting.value = false

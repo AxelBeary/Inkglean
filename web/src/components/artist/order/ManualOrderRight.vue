@@ -228,6 +228,7 @@ import { useStageStatus, type StageLike } from '../../../composables/useStageSta
 import { useManualOrderPricing } from '../../../composables/useManualOrderPricing'
 import { formatCents, formatYuanValue, yuanToCents } from '../../../utils/money'
 import { safeGetItem, safeSetItem } from '../../../utils/storage'
+import { generateId } from '../../../utils/id'
 // F-09 巨型文件拆分批·丁：价格明细 / 自定义增项 / 移动端价格条三块哑子组件（纯搬移零行为变化）
 import MoPricePreview from './detail/MoPricePreview.vue'
 import MoCustomAddonFields from './detail/MoCustomAddonFields.vue'
@@ -309,9 +310,11 @@ watch(showImages, (v) => {
 const workflowStagesRef = computed(() => props.workflowStages)
 const { initialStatus, options: initialStatusOptions, findTarget: findTargetStage } = useStageStatus(workflowStagesRef)
 
-/** 提交按钮上显示的价格：优先手动修改的最终价格，否则用计算价（含 R5 自定义增项合计） */
+/** 提交按钮上显示的价格（P0-2/WEB-01 修复）：
+ *  手输价仅在 priceTouched 时覆盖按钮显示；未手输时显示「计算价 + 自定义增项」合计，
+ *  使按钮显示与落库口径一致（落库序列：addExtraItem 先写 → updatePrice 最后绝对覆盖）。 */
 const displayPrice = computed(() => {
-  if (finalPriceYuan.value != null && finalPriceYuan.value > 0) return formatCents(yuanToCents(finalPriceYuan.value))
+  if (priceTouched.value && finalPriceYuan.value != null && finalPriceYuan.value > 0) return formatCents(yuanToCents(finalPriceYuan.value))
   if (stylePricePreview.value) return formatCents((stylePricePreview.value.totalCents ?? 0) + yuanToCents(customAddonsTotal.value))
   if (customAddonsTotal.value !== 0) return formatCents(yuanToCents(customAddonsTotal.value))
   return ''
@@ -346,9 +349,9 @@ async function submit() {
   // G-4（R-17）: 幂等键契约核对——批 D（D-2）给客户下单 /api/orders 与收款接幂等键，
   // 手动录单端点（POST /api/artist/orders/manual，I6-d）已消费同一 header：
   // scope = manual-order:{artistId}，同 key 重放原样返回首单结果、不重复建单（shared/idempotency.ts）。
-  // 此处按提交意图生成 crypto.randomUUID() 随 header 携带（提交成功后置空 = 新意图换新 key）；
+  // 此处按提交意图生成 generateId()（封装 crypto.randomUUID，非安全上下文自动降级）随 header 携带（提交成功后置空 = 新意图换新 key）；
   // 双标签页重复提交的界面层防线 = 草稿清除广播（ManualOrder.vue storage 事件）+ 提交按钮 loading。
-  if (!submitIdemKey) submitIdemKey = crypto.randomUUID()
+  if (!submitIdemKey) submitIdemKey = generateId()
   try {
     // SPEC-PRICE-2：传 styleSizeId + styleAddons（含用途/加急单选），后端唯一引擎自动算价；
     // 未选尺寸 = 自定义单（手输价路径）
@@ -371,25 +374,14 @@ async function submit() {
       { headers: { 'idempotency-key': submitIdemKey } }
     )
 
-    // G2: 仅当画师手动改过价格才调 R2 接口写入（后端录单已按计算价自动入账）。
-    // 无脏标记时绝不 updatePrice——修复 005 事故：字段停在旧计算价被误判为画师改价，
-    // updatePrice 连带抹掉增项。手输价 ≠ 计算价（含无尺寸无计算价）时写入。
+    // P0-2 修复（审计波1）：提交序列改为「createManualOrder → 先写完全部自定义增项 addExtraItem → 最后 updatePrice(手输价)」，
+    // 让手输价成为最终绝对覆盖值。原序列 updatePrice 在前、addExtraItem 在后，
+    // 增项被叠加在手输价之上导致落库偏高（¥100 尺寸 + ¥50 增项 + 手输 ¥200 → 落库 ¥250 而非 ¥200）。
     let postCreateFailed: string | null = null
-    if (order.id && priceTouched.value && finalPriceYuan.value != null) {
-      const calcCents = stylePricePreview.value?.totalCents ?? null
-      const manualCents = yuanToCents(finalPriceYuan.value)
-      if (manualCents > 0 && manualCents !== calcCents) {
-        try {
-          await artistApi.updatePrice(order.id, {
-            finalPriceCents: manualCents,
-            quoteSnapshot: order.quote_snapshot || null
-          })
-        } catch (e) { postCreateFailed = t('manualOrder.postCreateFailed.price', { message: (e as Error).message }) }
-      }
-    }
 
     // R5 (REQ-029): 自定义增项补写——createOrder 无自定义条目字段，创建后逐条调
     // extra-items 接口（对齐截稿日/开稿日的 postCreate 补写模式；价格允许负数=减项/让利、0=留痕）
+    // P0-2：必须在 updatePrice 之前执行，使手输价成为最终覆盖值
     if (order.id && customAddons.value.length > 0) {
       for (const item of customAddons.value) {
         try {
@@ -400,6 +392,23 @@ async function submit() {
         } catch (e) {
           postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.extraItem', { name: item.name, message: (e as Error).message })
         }
+      }
+    }
+
+    // G2: 仅当画师手动改过价格才调 R2 接口写入（后端录单已按计算价自动入账）。
+    // 无脏标记时绝不 updatePrice——修复 005 事故：字段停在旧计算价被误判为画师改价，
+    // updatePrice 连带抹掉增项。
+    // P0-2：updatePrice 必须在 addExtraItem 之后执行（绝对覆盖），且不再比较 calcCents——
+    // 因为 addExtraItem 已改变 final_price，手输价必须无条件写入才能成为最终值。
+    if (order.id && priceTouched.value && finalPriceYuan.value != null) {
+      const manualCents = yuanToCents(finalPriceYuan.value)
+      if (manualCents > 0) {
+        try {
+          await artistApi.updatePrice(order.id, {
+            finalPriceCents: manualCents,
+            quoteSnapshot: order.quote_snapshot || null
+          })
+        } catch (e) { postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.price', { message: (e as Error).message }) }
       }
     }
 
@@ -525,7 +534,7 @@ function setDraftState(state: DraftStateLite | null | undefined) {
   // 自定义增项（uid 重发，避免草稿残留 uid 冲突）
   customAddons.value = Array.isArray(ss.customAddons)
     ? ss.customAddons.map(a => ({
-        uid: `ca-${crypto.randomUUID()}`,
+        uid: `ca-${generateId()}`,
         name: String(a.name || ''),
         priceYuan: Number(a.priceYuan) || 0
       }))

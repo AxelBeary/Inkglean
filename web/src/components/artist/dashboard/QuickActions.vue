@@ -37,7 +37,8 @@ export type QuickActionDef = QuickActionRoute | QuickActionLink | QuickActionAct
 /** 候选池：type=route 跳转 / action 执行动作 / link 新窗口；命名与侧边栏 menu.* 对齐 */
 export const QUICK_ACTION_POOL: QuickActionDef[] = [
   { key: 'queue', type: 'route', icon: markRaw(Tickets), labelKey: 'menu.queue', route: '/queue' },
-  { key: 'manual', type: 'route', icon: markRaw(EditPen), labelKey: 'menu.manualOrder', route: '/orders?action=manual' },
+  // WEB-08 修复：原 /orders?action=manual 停在列表页（OrderList 不处理 action），改指 /orders/new 录单页
+  { key: 'manual', type: 'route', icon: markRaw(EditPen), labelKey: 'menu.manualOrder', route: '/orders/new' },
   { key: 'orders', type: 'route', icon: markRaw(Box), labelKey: 'menu.orders', route: '/orders' },
   { key: 'guestbook', type: 'route', icon: markRaw(ChatDotRound), labelKey: 'menu.guestbook', route: '/guestbook' },
   { key: 'tiers', type: 'route', icon: markRaw(Money), labelKey: 'menu.tiers', route: '/tiers' },
@@ -112,7 +113,7 @@ export function readQuickActionsConfig() {
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../../stores/artist'
 import { artistApi, uploadApi } from '../../../api/index'
@@ -159,11 +160,14 @@ async function shareLink() {
 // ─── F3 快速发作品：拖图/粘贴直接发布（2026-08-07 用户反馈批：能力并入快捷卡片） ───
 const publishActive = ref(false)
 const publishUploading = ref(false)
+// WEB-03 修复：enabled 改条件判断——仅当「快速发作品」卡片在当前激活列表中时才响应粘贴，
+// 避免首页任何位置粘贴图片都被偷偷上传发布（document 级监听 + enabled 恒开 = 无感知发布）
+const publishInActions = computed(() => activeActions.value.some(a => a.key === 'publish'))
 const { pasteError } = usePasteUpload({
   onFiles: async (files) => { await doPublish(files) },
   maxCount: MAX_IMAGE_COUNT,
   maxSizeMB: MAX_IMAGE_MB,
-  enabled: true
+  enabled: publishInActions
 })
 watch(pasteError, (msg) => { if (msg) ElMessage.warning(msg) })
 
@@ -184,6 +188,17 @@ async function onCardDrop(action: QuickActionDef, e: DragEvent) {
 }
 async function doPublish(files: File[]) {
   if (publishUploading.value) return // a1: busy 入口守卫——粘贴与拖拽并发时忽略后续批次
+  // WEB-03 修复：发布前弹确认，杜绝「偷偷发布」——用户必须明确确认才会创建作品
+  try {
+    await ElMessageBox.confirm(
+      t('quickAction.publish'),
+      t('common.confirm'),
+      { confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'info' }
+    )
+  } catch {
+    // 用户取消 → 不发布，静默退出
+    return
+  }
   publishUploading.value = true
   try {
     for (const file of files) {

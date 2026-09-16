@@ -7,6 +7,10 @@
 
   T5（用户拍板）：0 赞不显示数字，只显示空心 ♥；有赞才显示计数。
   localStorage key：huiyue_liked_${subdomain}（JSON 数组，按画师隔离）。
+
+  WEB-07（波2审计）：toggle 成功后同步 emit `update:liked` + `update:count`，
+  父级（TplGallery 等）据此维护响应式的 likedIds/likeCounts 覆盖，
+  避免翻页/开关灯箱后按 setup 一次性快照回显（红心变空心、再点多加一次）。
 -->
 <template>
   <button
@@ -40,7 +44,12 @@ const props = defineProps({
   subdomain: { type: String, default: '' }
 })
 
-const emit = defineEmits(['update:count'])
+// WEB-07：新增 `update:liked` — toggle 成功后广播新状态，父级据此同步 likedIds 集合，
+// 避免翻页/关灯箱后重建按钮读到陈旧的父级快照（红心变空心、再点多加一次）
+const emit = defineEmits<{
+  (e: 'update:count', count: number): void
+  (e: 'update:liked', liked: boolean): void
+}>()
 
 const isLiked = ref(props.liked)
 const count = ref(props.initialCount)
@@ -80,6 +89,8 @@ async function toggle() {
       : await artistPublicApi.likeArtwork(props.artworkId)
     isLiked.value = !isLiked.value
     count.value = res.likeCount ?? count.value
+    // WEB-07：先广播 liked 再广播 count，父级两个覆盖表都要更新
+    emit('update:liked', isLiked.value)
     emit('update:count', count.value)
     persist()
     // 弹跳微动画：加 class 触发 CSS animation，结束后移除

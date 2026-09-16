@@ -205,6 +205,10 @@ export default {
     // 流程（补充）
     STAGE_IN_USE: '该节点下有进行中的订单，请先完成或转移后再删除',
 
+    // 画风/尺寸删除守卫（波1 SRV-12）
+    STYLE_IN_USE: '有 {count} 个进行中的订单正在使用该画风，请先完成或转移后再删除',
+    STYLE_SIZE_IN_USE: '有 {count} 个进行中的订单正在使用该尺寸，请先完成或转移后再删除',
+
     // 作品（补充）
     ARTWORK_NOT_FOUND: '作品不存在',
     COVER_LIMIT_REACHED: '封面最多 6 张，请先取消部分封面',
@@ -953,6 +957,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     linkInvalid: '链接格式不正确，请粘贴下单时保存的完整追踪链接',
     linkExpired: '链接已失效，请联系画师补发',
     savedTitle: '已保存的追踪链接', savedQuery: '点击查询',
+    // WEB-13: 清空全部已保存链接入口
+    clearAll: '清空全部',
     orderNo: '订单号',
     artist: '画师', type: '类型',
     positionText: '第 {pos} 位 / 共 {total} 位', orderTime: '下单时间',
