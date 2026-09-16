@@ -654,7 +654,9 @@ function drawLayoutA(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, i
   const thumbCell = images.length ? Math.min(200, Math.floor((CARD_W - 176 - (images.length - 1) * 16) / images.length)) : 0
   const thumbH = images.length ? thumbCell + 48 : 0
   const rowsH = groups.reduce((acc, g) => acc + 56 + g.tiers.length * 92, 0)
-  const canvasH = 80 + 72 + 40 + thumbH + rowsH + 24 + 64 + 88
+  // SHR-01: 组间距 24×(g−1) 计入高度预算，防 g≥3 时落款/印章被裁出画布
+  const gapsH = Math.max(0, groups.length - 1) * 24
+  const canvasH = 80 + 72 + 40 + thumbH + rowsH + gapsH + 24 + 64 + 88
   canvas.width = CARD_W
   canvas.height = canvasH
   let y = drawHead(ctx, canvasH)
