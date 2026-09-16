@@ -22,7 +22,13 @@ export async function readModuleEntry(dirName: string): Promise<string> {
   return await invoke<string>('desktop_read_module_entry', { dirName })
 }
 
-/** 模块私有存储路径（write.own 独立文件；配额核校验归注册表） */
+/**
+ * @deprecated DSK-13c：此函数为历史死代码，全文无调用。
+ * 模块私有存储（write.own）实际使用壳的 localStorage（键 `shihui-module-storage:<id>`），
+ * 并非独立文件。Rust 侧 `desktop_module_storage_path` 命令同为死代码。
+ * 保留此导出仅为避免 bridge/index.ts 的 re-export 编译报错；
+ * 待后续统一清理（需同步移除 bridge/index.ts 的 re-export 与 Rust 侧命令注册）。
+ */
 export async function moduleStoragePath(dirName: string): Promise<string> {
   if (!isDesktop()) throw new BridgeUnavailableError('moduleStoragePath')
   return await invoke<string>('desktop_module_storage_path', { dirName })

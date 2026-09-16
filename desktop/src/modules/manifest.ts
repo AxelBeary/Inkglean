@@ -23,6 +23,16 @@ export const KNOWN_VIEWS: Record<string, 'cloud' | 'local'> = {
   messages: 'cloud'
 }
 
+// ─── P0-3 根本缓解：受限视图门禁（从数据源头断外泄） ───
+/** 受限视图：仅第一方/签名模块可获取；第三方模块请求时拒发并记违规 */
+export const RESTRICTED_VIEWS: ReadonlySet<string> = new Set(['ledger'])
+/** 第一方模块 ID（壳内嵌/官方签发）——可获取受限视图；未来改签名验证机制 */
+export const FIRST_PARTY_IDS: ReadonlySet<string> = new Set(['mood-weather'])
+
+// ─── DSK-01：未接线视图标记（壳侧尚无数据源，模块请求时返回明确 unavailable） ───
+/** 已在 KNOWN_VIEWS 声明但壳侧尚未接线数据源的视图 */
+export const UNWIRED_VIEWS: ReadonlySet<string> = new Set(['orders', 'messages'])
+
 /** 字符串限长（审计 M9：不可信输入转义前置——先限长，渲染时再转义） */
 const LEN_ID = 64
 const LEN_NAME = 40
@@ -158,11 +168,14 @@ export function parseManifest(raw: string): ParseResult {
         }))
     : []
 
+  // P0-3 来源判定：第一方 ID 集合内的模块标 official，其余一律 external（模块自报忽略）
+  const source: 'official' | 'external' = FIRST_PARTY_IDS.has(id) ? 'official' : 'external'
+
   const manifest: ModuleManifest = {
     spec, api, minHost, id, name,
     description: pickStr(o.description, LEN_DESC),
     version,
-    source: 'external', // 壳判定（§3.1）：首发无官方通道，一律外部；模块自报忽略
+    source,
     entry,
     ui: {
       zone: pickEnum<ModuleZone>(ui.zone, ['core', 'aside', 'tail'], 'aside'),

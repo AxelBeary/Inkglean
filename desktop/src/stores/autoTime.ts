@@ -4,6 +4,9 @@
 // 键鼠空闲 ≥ 5 分钟=离开（AFK），不计工时。采样周期 30s，每票归入对应桶。
 // 铁律：数据仅存本地 SQLite，永不上传（双模式分离纪律）。
 // 本批不做：日/月对比图（墨环侧栏占比条已出）。
+// 时区/跨天口径（审计波2 DSK-06/12）：归属日一律按**本地日历日**算（同 components/home/localGlance.ts）——
+//   ① 跨午夜即滚日：内存 today 换到新的一天再计票，一直停在首页也不会把昨天累计当今日在画；
+//   ② 每票只计「上次采样以来真实流逝」的秒数：切页/关机/休眠期间根本没在采样，不猜、不白送一票。
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { openLocalDb } from '../bridge/db'
@@ -12,7 +15,7 @@ import { isDesktop } from '../bridge'
 import { useLocalLedgerStore } from './localLedger'
 import type { LocalOrder } from './localLedger'
 
-/** 采样周期（秒）：每票时长即归属时长 */
+/** 采样周期（秒）：每票时长上限即归属时长 */
 export const POLL_SECS = 30
 /** AFK 阈值（秒）：键鼠空闲超过即判离开（REQ-014 默认 5 分钟） */
 export const AFK_SECS = 300
@@ -76,6 +79,17 @@ function todayKey(now = new Date()): string {
   return `${y}-${m}-${d}`
 }
 
+/** 本票计入秒数（纯函数可测，DSK-12）：只认「上次采样以来真实流逝」的时间，且至多一个采样周期。
+ *  无基线（每次 start 的首票）/ 断档超两个周期（切页、关机、休眠期间根本没在采样）/ 时钟回拨 → 一律 0，
+ *  不再「进一次首页白送一票 30 秒」（虚增今日在画，连带污染经营占比、托盘 tooltip 与工时导出）。 */
+export function tickSeconds(lastSampleAt: number | null, now: number, pollSecs: number = POLL_SECS): number {
+  if (lastSampleAt === null) return 0
+  const gap = (now - lastSampleAt) / 1000
+  if (!Number.isFinite(gap) || gap <= 0) return 0
+  if (gap > pollSecs * 2) return 0 // 断档：这段时间没在采样，不猜
+  return Math.min(pollSecs, Math.round(gap))
+}
+
 export interface DayTime {
   paint: number
   idle: number
@@ -99,6 +113,8 @@ export interface MonthTimeRow {
 
 export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
   const today = ref<DayTime>({ paint: 0, idle: 0, other: 0 })
+  /** 内存 today 归属的本地日历日（DSK-06：跨午夜靠它判要不要滚日，昨天累计不带进今天） */
+  const todayDate = ref<string>(todayKey())
   /** 归单工时（波11）：order_id → 累计秒 */
   const orderSeconds = ref<Record<number, number>>({})
   /** 近 7 日时长行（波14 周条图；缺日补 0，升序时间序） */
@@ -108,17 +124,20 @@ export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
   const loaded = ref(false)
   const unavailable = ref(false)
   let timer: ReturnType<typeof setInterval> | null = null
+  /** 上次采样时刻（毫秒，DSK-12）：start/stop 一律清空——没在采样的时间段不计票 */
+  let lastSampleAt: number | null = null
 
   const hasData = computed(() => today.value.paint + today.value.idle + today.value.other > 0)
 
   /** 读今日累计（跨天自然换行：表按 date 分行） */
   async function loadToday(): Promise<void> {
+    const key = todayKey()
     if (!isDesktop()) { unavailable.value = true; loaded.value = true; return }
     try {
       const db = await openLocalDb()
       const rows = await db.select<{ paint_secs: number; idle_secs: number; other_secs: number }[]>(
         'SELECT paint_secs, idle_secs, other_secs FROM local_time_log WHERE date = $1',
-        [todayKey()]
+        [key]
       )
       const r = rows[0]
       today.value = {
@@ -126,11 +145,22 @@ export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
         idle: typeof r?.idle_secs === 'number' ? r.idle_secs : 0,
         other: typeof r?.other_secs === 'number' ? r.other_secs : 0
       }
+      todayDate.value = key // 内存与归属日同行（DSK-06）
     } catch {
       unavailable.value = true
     } finally {
       loaded.value = true
     }
+  }
+
+  /** 跨午夜滚日（DSK-06）：内存 today 换成新的一天（以库为准重读），周/月窗口随之平移。
+   *  写库本来就按 date 分行，坏的只是内存——一直停在首页会把昨天累计整天显示成今日在画。 */
+  async function rollToDay(key: string): Promise<void> {
+    today.value = { paint: 0, idle: 0, other: 0 }
+    todayDate.value = key // 先占位：即使重读失败也不每票重试滚日
+    await loadToday()
+    void loadWeek()
+    void loadMonths()
   }
 
   /** 读归单工时累计（波11；记账行「已画 X」展示源） */
@@ -207,16 +237,28 @@ export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
     }
   }
 
-  /** 采样一票：读前台+空闲 → 归属 → 内存与库同步累加；在画票再归单（失败静默，下一票自愈） */
+  /** 采样一票：跨午夜先滚日（DSK-06）→ 按真实流逝秒数计票（DSK-12）→ 读前台+空闲 → 归属 →
+   *  内存与库同步累加；在画票再归单（失败静默，下一票自愈） */
   async function tick(): Promise<void> {
     if (unavailable.value) return
+    const n = Date.now()
+    const key = todayKey(new Date(n))
+    let rolled = false
+    if (key !== todayDate.value) {
+      await rollToDay(key)
+      rolled = true
+    }
+    const secs = tickSeconds(lastSampleAt, n)
+    lastSampleAt = n
+    // 没观察到时间（首票无基线 / 切页·关机·休眠断档）：只立基线，不写库不白送工时
+    if (secs <= 0) return
     try {
       const [title, idle] = await Promise.all([foregroundTitle(), inputIdleSecs()])
       const bucket = attributeTick(idle, title, AFK_SECS)
       const add: DayTime = {
-        paint: bucket === 'paint' ? POLL_SECS : 0,
-        idle: bucket === 'idle' ? POLL_SECS : 0,
-        other: bucket === 'fish' || bucket === 'neutral' ? POLL_SECS : 0
+        paint: bucket === 'paint' ? secs : 0,
+        idle: bucket === 'idle' ? secs : 0,
+        other: bucket === 'fish' || bucket === 'neutral' ? secs : 0
       }
       today.value = {
         paint: today.value.paint + add.paint,
@@ -230,7 +272,7 @@ export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
          ON CONFLICT(date) DO UPDATE SET
            paint_secs = paint_secs + $2, idle_secs = idle_secs + $3,
            other_secs = other_secs + $4, updated_at = $5`,
-        [todayKey(), add.paint, add.idle, add.other, new Date().toISOString()]
+        [key, add.paint, add.idle, add.other, new Date(n).toISOString()]
       )
       // 归单（波11）：在画票匹配到本地委托即累计到该单（跨软件不断档，匹配规则见 matchOrderForTitle）
       if (bucket === 'paint') {
@@ -241,37 +283,45 @@ export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
             `INSERT INTO local_order_time (order_id, total_secs, updated_at)
              VALUES ($1, $2, $3)
              ON CONFLICT(order_id) DO UPDATE SET total_secs = total_secs + $2, updated_at = $3`,
-            [matched.id, POLL_SECS, new Date().toISOString()]
+            [matched.id, secs, new Date(n).toISOString()]
           )
           orderSeconds.value = {
             ...orderSeconds.value,
-            [matched.id]: (orderSeconds.value[matched.id] ?? 0) + POLL_SECS
+            [matched.id]: (orderSeconds.value[matched.id] ?? 0) + secs
           }
         }
+      }
+      // 滚日当票：本票写库后再刷一次周/月窗口（滚日里那次读在本票之前，会让新一天的条形先显示 0）
+      if (rolled) {
+        void loadWeek()
+        void loadMonths()
       }
     } catch {
       // 采样失败（壳层异常/桥不可用）：静默跳过本票，不吵画师
     }
   }
 
-  /** 启动轮询（Home 挂载时；幂等） */
+  /** 启动轮询（Home 挂载时；幂等）。DSK-12：采样基线清空——首票只立基线不计秒，
+   *  免掉「每次进首页无条件多采一票 30 秒」（切页期间没在采样，不猜） */
   function start(): void {
     if (!isDesktop() || timer) return
+    lastSampleAt = null
     void loadToday()
     void loadOrderTimes()
     void loadWeek()
     void loadMonths()
-    void tick() // 首票即采，不等第一个周期
+    void tick() // 首票即采（只立采样基线，秒数见 tickSeconds）
     timer = setInterval(() => { void tick() }, POLL_SECS * 1000)
   }
 
-  /** 停止轮询（Home 卸载时） */
+  /** 停止轮询（Home 卸载时）：基线一并清掉，再进首页从 0 起算（DSK-12） */
   function stop(): void {
     if (timer) {
       clearInterval(timer)
       timer = null
     }
+    lastSampleAt = null
   }
 
-  return { today, orderSeconds, week, months, loaded, unavailable, hasData, loadToday, loadOrderTimes, loadWeek, loadMonths, start, stop }
+  return { today, todayDate, orderSeconds, week, months, loaded, unavailable, hasData, loadToday, loadOrderTimes, loadWeek, loadMonths, start, stop }
 })

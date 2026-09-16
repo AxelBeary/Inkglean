@@ -4,13 +4,14 @@
 // → 帧内无 localStorage/cookie、与壳零同源身份）；帧级 CSP 物理断网（frame.ts MODULE_CSP）。
 // 保险丝（§六-5 + 拍板二/三数字）：加载 5 秒未 ready → 灰牌；心跳 5 秒一拍失联 3 次 → 杀帧置灰，
 // 灰牌可重试一次，再崩转停用态展示。坏模块永不拖垮首页。
-// 桥（§六-4）：握手口令 + 信封 {id, type, payload, token}，origin/source 双重校验，
+// 桥（§六-4）：握手口令 + 信封 {id, type, payload, token}，source/origin 双重校验（DSK-13a/d 修正），
 // 白名单外类型丢弃并记违规（10 次/24h 达阈单独停用）。
+// P0-3 根本缓解：受限视图（ledger）仅第一方模块可获取；第三方模块请求时拒发并记违规。
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import type { ModuleEntry } from '../../modules/registry'
 import { buildFrameSrc, collectThemeCss, verifyEnvelope, isBridgeType, newToken } from '../../modules/frame'
-import { LOAD_TIMEOUT_MS, HEARTBEAT_INTERVAL_MS, HEARTBEAT_MISS_LIMIT, MODULE_STORAGE_QUOTA_BYTES } from '../../modules/manifest'
-import { buildViewData } from '../../modules/viewData'
+import { LOAD_TIMEOUT_MS, HEARTBEAT_INTERVAL_MS, HEARTBEAT_MISS_LIMIT, MODULE_STORAGE_QUOTA_BYTES, UNWIRED_VIEWS } from '../../modules/manifest'
+import { buildViewData, canAccessView } from '../../modules/viewData'
 import type { ViewSources } from '../../modules/viewData'
 import { useModulesStore } from '../../modules/store'
 import { useLocalLedgerStore } from '../../stores/localLedger'
@@ -83,12 +84,15 @@ function startHeartbeatWatch() {
   }, HEARTBEAT_INTERVAL_MS)
 }
 
-// ─── 帧回复 ───
+// ─── 帧回复（targetOrigin 收紧为 '*'：data: URL iframe 的 origin 为 "null"，无法指定具体 origin） ───
 function reply(reqId: string, type: string, payload: unknown) {
   iframeRef.value?.contentWindow?.postMessage({ id: reqId, type, payload, token: token.value }, '*')
 }
 
-// ─── 私有存储（write.own）：壳侧命名空间代管，配额 5MB（拍板二） ───
+// ─── 私有存储（write.own）：壳侧 localStorage 命名空间代管，配额 5MB（拍板二） ───
+// DSK-13c 说明：实际使用壳的 localStorage（键 shihui-module-storage:<id>），非独立文件。
+// Rust 侧 desktop_module_storage_path 命令与 bridge/modules.ts moduleStoragePath 为历史死代码，
+// 当前未调用（保留兼容但标记 @deprecated）。模块数据随壳 localStorage 存储，清站点数据会一并丢失。
 const STORAGE_NS = computed(() => `shihui-module-storage:${moduleId.value}`)
 
 function storageRead(): unknown {
@@ -127,13 +131,16 @@ function declaredViews(): string[] {
   return props.entry.manifest?.data.views ?? []
 }
 
-// ─── 桥消息分派 ───
+// ─── 桥消息分派（DSK-13a/d 修正：source + origin 双重校验） ───
 function onMessage(e: MessageEvent) {
-  if (iframeRef.value && e.source !== iframeRef.value.contentWindow) return
+  // DSK-13a 修复：灰牌态 iframeRef 为 null 时必须 return（原逻辑 null && ... 为 false 导致跳过校验）
+  if (!iframeRef.value || e.source !== iframeRef.value.contentWindow) return
+  // DSK-13d 修复：data: URL iframe 的 origin 恒为 "null"；校验排除壳自身窗口或其他来源消息
+  if (e.origin !== 'null') return
   const env = verifyEnvelope(e.data, token.value)
   if (!env) {
-    // 形状非法/口令不符：不是本帧消息则忽略；本帧发来的口令不符记违规
-    if (iframeRef.value && e.source === iframeRef.value.contentWindow && e.data && typeof e.data === 'object') {
+    // 形状非法/口令不符：source 已确认是本帧发来的，记违规
+    if (e.data && typeof e.data === 'object') {
       modulesStore.reportViolation(moduleId.value)
     }
     return
@@ -157,6 +164,18 @@ function onMessage(e: MessageEvent) {
       if (!declaredViews().includes(view)) {
         modulesStore.reportViolation(moduleId.value) // 未声明视图：拒发记违规
         reply(env.id, `shihui/view-data:${env.id}`, null)
+        break
+      }
+      // P0-3 根本缓解：受限视图（ledger）仅第一方模块可获取
+      const source = props.entry.manifest?.source ?? 'external'
+      if (!canAccessView(view, source)) {
+        modulesStore.reportViolation(moduleId.value) // 第三方请求受限视图：拒发记违规
+        reply(env.id, `shihui/view-data:${env.id}`, null)
+        break
+      }
+      // DSK-01：未接线视图返回明确 unavailable 标记（不再静默返 null）
+      if (UNWIRED_VIEWS.has(view)) {
+        reply(env.id, `shihui/view-data:${env.id}`, { _unavailable: true, view, reason: '壳侧尚未接线此视图数据源' })
         break
       }
       reply(env.id, `shihui/view-data:${env.id}`, buildViewData(view, viewSources()))

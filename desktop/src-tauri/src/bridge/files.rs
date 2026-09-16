@@ -52,6 +52,8 @@ pub fn desktop_read_file_b64(path: String) -> Result<String, String> {
 }
 
 /// 读备份包转 base64（波10 导入用）：数据包口径几 MB，放宽到 100MB 仍防失控。
+/// 波2 DSK-02：导出/导入前自动备份打包 local.db 也走本命令（库含头像 base64 可超 5MB），
+/// 不再走 5MB 的 desktop_read_file_b64——后者本为头像单件设，撑大库后导出/备份双双失效。
 const BACKUP_READ_LIMIT: u64 = 100 * 1024 * 1024;
 
 #[tauri::command]
@@ -83,6 +85,24 @@ pub fn desktop_delete_cache_file(app: AppHandle, path: String) -> Result<(), Str
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(e) => Err(e.to_string()),
     }
+}
+
+/// 删除本地库的 -wal/-shm 边车文件（波2 DSK-09 导入整库覆写前清场）：
+/// WAL 模式下覆写 local.db 而残留旧 -wal/-shm，下次开库会把旧边车套到新库上致脏库/损坏。
+/// 自卫口径＝路径全部由 app_data_dir 内部推导（不收前端入参，杜绝路径穿越）；
+/// 文件名固定 local.db-wal / local.db-shm（须与 bridge/db.rs desktop_local_db_path 的 local.db 同源）；
+/// 文件不在视为成功（幂等：连接干净关闭时 SQLite 本会自删边车，此处兜底崩溃残留）。
+#[tauri::command]
+pub fn desktop_delete_db_sidecar(app: AppHandle) -> Result<(), String> {
+    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    for name in ["local.db-wal", "local.db-shm"] {
+        match fs::remove_file(dir.join(name)) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e.to_string()),
+        }
+    }
+    Ok(())
 }
 
 /// 拾绘数据根目录（我的文档\拾绘）：F1a 模板母版存 templates/，委托文件夹根 orders/。

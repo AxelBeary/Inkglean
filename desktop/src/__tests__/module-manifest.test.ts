@@ -43,12 +43,13 @@ describe('semverCompare', () => {
 })
 
 describe('parseManifest（加载强制点）', () => {
-  it('合法包过校验；tearable 壳压 false；source 壳判 external', () => {
+  it('合法包过校验；tearable 壳压 false；source 壳判第一方为 official（P0-3）', () => {
     const r = parseManifest(VALID)
     expect(r.ok).toBe(true)
     expect(r.manifest?.id).toBe('mood-weather')
     expect(r.manifest?.ui.tearable).toBe(false) // 模块自报 true 被壳压掉
-    expect(r.manifest?.source).toBe('external')
+    // P0-3 修复：mood-weather 在 FIRST_PARTY_IDS 中 → source 为 official
+    expect(r.manifest?.source).toBe('official')
   })
 
   it('未知视图剔除并记原因，已知视图保留', () => {
