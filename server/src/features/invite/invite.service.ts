@@ -287,10 +287,12 @@ export function registerWithInvite(params: InviteRegisterParams): InviteRegister
     }
 
     // 3. QQ 唯一性 + 空壳账号判定：该 QQ 名下若为「从未完成 TOTP 绑定」的空壳账号
-    //    （totp_verified=0 且未删除未封禁），允许用新邀请码推倒重来（就地更新既有行）；
+    //    （totp_verified=0 且 totp_secret IS NULL 且未删除未封禁），允许用新邀请码推倒重来；
+    //    P0-1 修复（2026-09-17）：加 totp_secret IS NULL 条件——已生成过密钥的号不再是空壳，
+    //    防止攻击者持他人 QQ + 新邀请码覆盖已注册但未确认的账号。
     //    其余情况（已验证/已删除/已封禁）维持 QQ_TAKEN。
     const existingQq = db.prepare('SELECT * FROM artists WHERE qq_number = ?').get(qqNumber) as Artist | undefined
-    const shell = existingQq && !existingQq.totp_verified && !existingQq.deleted_at && !existingQq.is_banned
+    const shell = existingQq && !existingQq.totp_verified && !existingQq.totp_secret && !existingQq.deleted_at && !existingQq.is_banned
       ? existingQq
       : undefined
     if (existingQq && !shell) {
@@ -370,7 +372,7 @@ export interface InviteTotpConfirmResult {
 /**
  * TOTP 首绑确认（对齐 REQ-038 confirmTotpAndComplete 同款模式）：
  * 校验 6 位码 + 重放防护 → totp_verified=1 → 签发会话 token。
- * 仅允许已生成密钥但未验证的画师（invite 注册 / 管理员预绑未确认均可完成首绑）。
+ * 仅允许经由邀请码注册流程入库且已生成密钥但未验证的画师（P0-1 纵深：非邀请流程产物拒绝）。
  */
 export function confirmInviteTotp(params: InviteTotpConfirmParams): InviteTotpConfirmResult {
   const { qqNumber, code } = params
@@ -378,6 +380,14 @@ export function confirmInviteTotp(params: InviteTotpConfirmParams): InviteTotpCo
   if (!artist) throw new AppError(E.ARTIST_NOT_FOUND, 404)
   if (!artist.totp_secret || artist.totp_verified) {
     throw new AppError(E.TOTP_NOT_BOUND, 400)
+  }
+
+  // P0-1 纵深修复（2026-09-17）：确认该画师确实经由邀请码注册流程入库——
+  // invite_code_uses 有记录 = registerWithInvite 事务成功提交了该画师；
+  // 无记录说明该账号非邀请流程产物（如管理员预绑），拒绝通过此公开端点确认。
+  const inviteUse = db.prepare('SELECT id FROM invite_code_uses WHERE artist_id = ?').get(artist.id)
+  if (!inviteUse) {
+    throw new AppError(E.INVITE_INVALID, 400)
   }
 
   // 815 审计 P1-5：防爆破对齐登录路径——锁定期内任何尝试都拒绝；失败计数达阈值锁定

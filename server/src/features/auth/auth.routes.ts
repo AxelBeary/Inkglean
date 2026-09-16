@@ -1,4 +1,4 @@
-import { verifyTotpLogin, createSession } from './auth.service.js'
+import { verifyTotpLogin, createSession, checkTotpLocked, registerTotpFailure } from './auth.service.js'
 import type { CreateSessionOptions } from './auth.service.js'
 import { registerDesktopDevice } from './devices.service.js'
 import { requireAuth, getAdminQq } from '../../shared/middleware/auth.js'
@@ -527,11 +527,15 @@ export default async function authRoutes(fastify: FastifyInstance) {
     if (!artist.totp_secret || !artist.totp_verified) {
       throw new AppError(E.TOTP_NOT_BOUND, 400)
     }
+    // SRV-15 修复（2026-09-17）：复用账号级锁定（对齐登录路径 checkTotpLocked/registerTotpFailure 口径）——
+    // 此前仅有按 IP 粗限流，持会话者可换 IP 持续爆破当前 6 位码。
+    checkTotpLocked(artist)
     const body = request.body as { code?: string }
     const code = body.code
     if (!code || !/^\d{6}$/.test(code)) throw new AppError(E.VALIDATION, 400, { field: 'code' })
     const { verifyTotp } = await import('./totp.js')
     if (!verifyTotp(artist.totp_secret, code, Date.now())) {
+      registerTotpFailure(artist.id)
       throw new AppError(E.TOTP_INVALID, 401)
     }
     return { ok: true }
@@ -586,6 +590,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
     } else {
       // 旧码路径：验证当前 6 位码
       if (!artist.totp_secret) throw new AppError(E.TOTP_NOT_BOUND, 400)
+      // SRV-15 修复（2026-09-17）：复用账号级锁定（对齐登录路径口径）
+      checkTotpLocked(artist)
       const code = body.code as string | undefined
       if (!code || !/^\d{6}$/.test(code)) throw new AppError(E.VALIDATION, 400, { field: 'code' })
 
@@ -593,6 +599,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
       // 唯一约束冲突 = 该码已被用过 = 拒绝（不再允许同一旧码反复重放重绑）
       const hitCounter = verifyTotpWithCounter(artist.totp_secret, code, Date.now())
       if (hitCounter === null) {
+        // SRV-15 修复：验证失败计数 + 达阈值锁定
+        registerTotpFailure(artist.id)
         throw new AppError(E.TOTP_INVALID, 401)
       }
       const codeHash = hashTotpCode(artist.id, code, hitCounter)

@@ -360,10 +360,17 @@ export async function verifyLogin(
     throw new AppError(E.WEBAUTHN_AUTHENTICATION_FAILED, 401)
   }
 
-  // 更新 counter 和 last_used_at
-  db.prepare(`
-    UPDATE webauthn_credentials SET counter = ?, last_used_at = datetime('now') WHERE id = ?
-  `).run(authenticationInfo.newCounter, credentialRow.id)
+  // SRV-14 修复（2026-09-17）：乐观守卫——UPDATE 加 AND counter = 旧值，
+  // 并发克隆器双发时第二个请求 changes=0 → 按认证失败拒绝（防 counter 被稀释覆写）。
+  // 平台验证器（双侧 counter=0）不受影响：0=0 条件恒成立。
+  const updateResult = db.prepare(`
+    UPDATE webauthn_credentials SET counter = ?, last_used_at = datetime('now')
+    WHERE id = ? AND counter = ?
+  `).run(authenticationInfo.newCounter, credentialRow.id, credentialRow.counter)
+  if (updateResult.changes === 0) {
+    // 并发冲突：另一个请求已先一步更新了 counter → 视为克隆/重放，拒绝
+    throw new AppError(E.WEBAUTHN_AUTHENTICATION_FAILED, 401)
+  }
 
   return { artist, credentialRow }
 }

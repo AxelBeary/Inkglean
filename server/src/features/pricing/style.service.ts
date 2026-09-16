@@ -154,9 +154,23 @@ export function updateArtStyle(artistId: number, styleId: number, fields: Update
   })()
 }
 
-/** 删除画风（级联删 sizes + style_addons + overrides） */
+/**
+ * 删除画风（级联删 sizes + style_addons + overrides）
+ * SRV-12 修复：删除前校验在途订单引用，有则拒绝（防 FK ON DELETE SET NULL 导致订单丢尺寸关联）
+ */
 export function deleteArtStyle(artistId: number, styleId: number): { deleted: boolean } {
   getArtStyle(artistId, styleId) // 归属校验
+
+  // SRV-12: 在途订单守卫 — 查引用该画风下任意尺寸的在途订单数
+  const inTransitCount = (db.prepare(`
+    SELECT COUNT(*) as c FROM orders
+    WHERE artist_id = ? AND style_size_id IN (SELECT id FROM style_sizes WHERE art_style_id = ?)
+      AND status NOT IN ('delivered', 'cancelled')
+  `).get(artistId, styleId) as { c: number }).c
+  if (inTransitCount > 0) {
+    throw new AppError('STYLE_IN_USE', 409, { count: inTransitCount })
+  }
+
   // 所有子表有 ON DELETE CASCADE
   db.prepare('DELETE FROM art_styles WHERE id = ?').run(styleId)
   return { deleted: true }
@@ -307,9 +321,23 @@ export function updateStyleSize(artistId: number, styleId: number, sizeId: numbe
   })()
 }
 
-/** 删除尺寸（级联删 size_addon_overrides） */
+/**
+ * 删除尺寸（级联删 size_addon_overrides）
+ * SRV-12 修复：删除前校验在途订单引用，有则拒绝（防 FK ON DELETE SET NULL 导致订单丢尺寸关联）
+ */
 export function deleteStyleSize(artistId: number, styleId: number, sizeId: number): { deleted: boolean } {
   getStyleSize(artistId, styleId, sizeId) // 归属校验
+
+  // SRV-12: 在途订单守卫 — 查引用该尺寸的在途订单数
+  const inTransitCount = (db.prepare(`
+    SELECT COUNT(*) as c FROM orders
+    WHERE artist_id = ? AND style_size_id = ?
+      AND status NOT IN ('delivered', 'cancelled')
+  `).get(artistId, sizeId) as { c: number }).c
+  if (inTransitCount > 0) {
+    throw new AppError('STYLE_SIZE_IN_USE', 409, { count: inTransitCount })
+  }
+
   db.prepare('DELETE FROM style_sizes WHERE id = ?').run(sizeId)
   return { deleted: true }
 }

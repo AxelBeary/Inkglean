@@ -14,6 +14,7 @@ import {
 } from '../src/features/invite/invite.service.js'
 import { createSession } from '../src/features/auth/auth.service.js'
 import { computeTotp } from '../src/features/auth/totp.js'
+import { seedArtistStages } from '../src/features/artist/workflow.service.js'
 import { resetRateLimitBuckets } from '../src/shared/middleware/rate-limit.js'
 
 /** invite_codes 表回读行（测试内局部定义） */
@@ -183,35 +184,28 @@ describe('REQ-039 邀请码注册（invite）', () => {
     expect(row.used_by_artist_id).toBeNull()
   })
 
-  // ─── 空壳账号覆盖（会话门禁批）：从未完成 TOTP 绑定的空壳可被新邀请码推倒重来 ───
+  // ─── 空壳账号覆盖（P0-1 收紧：totp_secret=NULL 才算空壳）：从未生成过密钥的空壳可被新码推倒重来 ───
 
-  it('TC-INV-07b: 空壳账号（未绑定/未删除/未封禁）可被新码覆盖重来，原码不回退', async () => {
+  it('TC-INV-07b: 真空壳（totp_secret=NULL/未绑定/未删除/未封禁）可被新码覆盖重来', async () => {
     setAdmin()
-    // 第一次注册：造出空壳（verified=0）
-    const [invite1] = generateInviteCodes(1, 3, 1)
-    const first = await app.inject({
-      method: 'POST',
-      url: '/api/invite/register',
-      payload: { code: invite1.code, qqNumber: '21001', name: '首次', subdomain: 'shell1' }
-    })
-    expect(first.statusCode).toBe(201)
-    const shellRow = db.prepare("SELECT * FROM artists WHERE qq_number = '21001'").get() as ArtistRow
-    expect(shellRow.totp_verified).toBe(0)
+    // P0-1 修复后空壳语义收紧：totp_secret 必须为 NULL 才算空壳（已生成过密钥的号不可覆盖）
+    const shellRow = seedArtist({ qq_number: '21001', subdomain: 'shell1', name: '首次', totp_secret: null, totp_verified: 0 })
+    seedArtistStages(shellRow.id)
     // 模拟壳上已有简介（覆盖后应置空）
     db.prepare("UPDATE artists SET bio = '旧简介' WHERE id = ?").run(shellRow.id)
     const stagesBefore = (db.prepare('SELECT COUNT(*) AS c FROM artist_workflow_stages WHERE artist_id = ?').get(shellRow.id) as { c: number }).c
 
-    // 第二次：新码推倒重来（改写 name/子域名）
-    const [invite2] = generateInviteCodes(1, 3, 1)
-    const second = await app.inject({
+    // 新码推倒重来（改写 name/子域名）
+    const [invite] = generateInviteCodes(1, 3, 1)
+    const res = await app.inject({
       method: 'POST',
       url: '/api/invite/register',
-      payload: { code: invite2.code, qqNumber: '21001', name: '重来', subdomain: 'shell1x' }
+      payload: { code: invite.code, qqNumber: '21001', name: '重来', subdomain: 'shell1x' }
     })
-    expect(second.statusCode).toBe(201)
-    const body2 = second.json()
-    expect(body2.qqNumber).toBe('21001')
-    expect(body2.otpauthUri).toContain('secret=')
+    expect(res.statusCode).toBe(201)
+    const body = res.json()
+    expect(body.qqNumber).toBe('21001')
+    expect(body.otpauthUri).toContain('secret=')
 
     // 就地更新既有行：id 保留，新入参生效，bio 置空，状态回 hidden
     const updated = db.prepare("SELECT * FROM artists WHERE qq_number = '21001'").get() as ArtistRow
@@ -223,8 +217,6 @@ describe('REQ-039 邀请码注册（invite）', () => {
     expect(updated.status).toBe('hidden')
     expect(updated.totp_verified).toBe(0)
     expect(updated.totp_secret).toBeTruthy()
-    // 新密钥确实不同（重生成，旧壳密钥作废）
-    expect(secretFromUri(body2.otpauthUri)).not.toBe(secretFromUri(first.json().otpauthUri))
 
     // 不重复初始化：须知仍 1 条、工作流不重复（与覆盖前同数）
     const rules = db.prepare('SELECT COUNT(*) AS c FROM commission_rules WHERE artist_id = ?').get(updated.id) as { c: number }
@@ -232,62 +224,78 @@ describe('REQ-039 邀请码注册（invite）', () => {
     const stagesAfter = (db.prepare('SELECT COUNT(*) AS c FROM artist_workflow_stages WHERE artist_id = ?').get(updated.id) as { c: number }).c
     expect(stagesAfter).toBe(stagesBefore)
 
-    // 新码被消费且归属壳 id；原邀请码不回退（仍 used）
-    const used2 = db.prepare('SELECT * FROM invite_codes WHERE id = ?').get(invite2.id) as InviteCodeRowLite
-    expect(used2.status).toBe('used')
-    expect(used2.used_by_artist_id).toBe(shellRow.id)
-    const used1 = db.prepare('SELECT * FROM invite_codes WHERE id = ?').get(invite1.id) as InviteCodeRowLite
-    expect(used1.status).toBe('used')
+    // 码被消费且归属壳 id
+    const usedRow = db.prepare('SELECT * FROM invite_codes WHERE id = ?').get(invite.id) as InviteCodeRowLite
+    expect(usedRow.status).toBe('used')
+    expect(usedRow.used_by_artist_id).toBe(shellRow.id)
 
     // 未删行重建：该 QQ 名下仍只有一行，且 id 未变
     const count = db.prepare("SELECT COUNT(*) AS c FROM artists WHERE qq_number = '21001'").get() as { c: number }
     expect(count.c).toBe(1)
   })
 
-  it('TC-INV-07c: 覆盖时空壳自身 subdomain/artist_code 复用合法（不报 TAKEN）', async () => {
+  it('TC-INV-07b2: P0-1 收紧——已生成密钥的未确认账号（totp_secret 非空）不可被覆盖 → QQ_TAKEN', async () => {
     setAdmin()
+    // 第一次注册：生成 TOTP 密钥（totp_secret 非空，totp_verified=0）
     const [invite1] = generateInviteCodes(1, 3, 1)
     const first = await app.inject({
       method: 'POST',
       url: '/api/invite/register',
-      payload: { code: invite1.code, qqNumber: '21002', name: '首次', subdomain: 'shell2' }
+      payload: { code: invite1.code, qqNumber: '21010', name: '受害者', subdomain: 'victim1' }
     })
     expect(first.statusCode).toBe(201)
 
+    // 攻击者尝试用新码覆盖同一 QQ → QQ_TAKEN（P0-1 核心防线）
     const [invite2] = generateInviteCodes(1, 3, 1)
-    const second = await app.inject({
+    const attack = await app.inject({
       method: 'POST',
       url: '/api/invite/register',
-      payload: { code: invite2.code, qqNumber: '21002', name: '同名重来', subdomain: 'shell2' }
+      payload: { code: invite2.code, qqNumber: '21010', name: '攻击者', subdomain: 'hacker1' }
     })
-    expect(second.statusCode).toBe(201)
-    const updated = db.prepare("SELECT * FROM artists WHERE qq_number = '21002'").get() as ArtistRow
-    expect(updated.name).toBe('同名重来')
-    expect(updated.subdomain).toBe('shell2')
+    expect(attack.statusCode).toBe(400)
+    expect(attack.json().code).toBe('QQ_TAKEN')
+    // 攻击码未消费
+    const row = db.prepare('SELECT * FROM invite_codes WHERE id = ?').get(invite2.id) as InviteCodeRowLite
+    expect(row.status).toBe('unused')
+    // 原账号未被篡改
+    const original = db.prepare("SELECT name, subdomain FROM artists WHERE qq_number = '21010'").get() as { name: string; subdomain: string }
+    expect(original.name).toBe('受害者')
+  })
+
+  it('TC-INV-07c: 覆盖时空壳自身 subdomain/artist_code 复用合法（不报 TAKEN）', async () => {
+    setAdmin()
+    // P0-1 后用 seedArtist 建真空壳（totp_secret=NULL）
+    seedArtist({ qq_number: '21002', subdomain: 'shell2', name: '首次', totp_secret: null, totp_verified: 0 })
+
+    const [invite] = generateInviteCodes(1, 3, 1)
+    const res2 = await app.inject({
+      method: 'POST',
+      url: '/api/invite/register',
+      payload: { code: invite.code, qqNumber: '21002', name: '同名重来', subdomain: 'shell2' }
+    })
+    expect(res2.statusCode).toBe(201)
+    const updated2 = db.prepare("SELECT * FROM artists WHERE qq_number = '21002'").get() as ArtistRow
+    expect(updated2.name).toBe('同名重来')
+    expect(updated2.subdomain).toBe('shell2')
   })
 
   it('TC-INV-07d: 覆盖时 subdomain 与其他账号冲突 → SUBDOMAIN_TAKEN，码不消费', async () => {
     setAdmin()
-    // 冲突账号：artist_code 故意与 subdomain 解耦，确保只触发 subdomain 碰撞分支（否则 artist_code 派生同撞会先报 CODE_TAKEN）
+    // 冲突账号：artist_code 故意与 subdomain 解耦，确保只触发 subdomain 碰撞分支
     seedArtist({ qq_number: '29001', subdomain: 'occupied', artist_code: 'OTHERCODE' })
-    const [invite1] = generateInviteCodes(1, 3, 1)
-    const first = await app.inject({
-      method: 'POST',
-      url: '/api/invite/register',
-      payload: { code: invite1.code, qqNumber: '21003', name: '首次', subdomain: 'shell3' }
-    })
-    expect(first.statusCode).toBe(201)
+    // P0-1 后用 seedArtist 建真空壳
+    seedArtist({ qq_number: '21003', subdomain: 'shell3', name: '首次', totp_secret: null, totp_verified: 0 })
 
-    const [invite2] = generateInviteCodes(1, 3, 1)
-    const second = await app.inject({
+    const [invite3] = generateInviteCodes(1, 3, 1)
+    const res3 = await app.inject({
       method: 'POST',
       url: '/api/invite/register',
-      payload: { code: invite2.code, qqNumber: '21003', name: '冲突', subdomain: 'occupied' }
+      payload: { code: invite3.code, qqNumber: '21003', name: '冲突', subdomain: 'occupied' }
     })
-    expect(second.statusCode).toBe(400)
-    expect(second.json().code).toBe('SUBDOMAIN_TAKEN')
-    const row = db.prepare('SELECT * FROM invite_codes WHERE id = ?').get(invite2.id) as InviteCodeRowLite
-    expect(row.status).toBe('unused')
+    expect(res3.statusCode).toBe(400)
+    expect(res3.json().code).toBe('SUBDOMAIN_TAKEN')
+    const row3 = db.prepare('SELECT * FROM invite_codes WHERE id = ?').get(invite3.id) as InviteCodeRowLite
+    expect(row3.status).toBe('unused')
   })
 
   it('TC-INV-07e: 已验证/已删除/已封禁账号仍报 QQ_TAKEN（不可覆盖）', async () => {

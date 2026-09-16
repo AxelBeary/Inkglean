@@ -320,15 +320,15 @@ describe('REQ-041 管理后台二次验证（会话升级）', () => {
     expect(ok.statusCode).toBe(200)
   })
 
-  it('TC-SU-07: 动作级 60 秒强制 — 更换管理员无视 30 分钟窗口', async () => {
+  it('TC-SU-07: 动作级 5 分钟强制 — 更换管理员无视 30 分钟窗口', async () => {
     const admin = setAdmin()
     const target = seedArtist({ qq_number: '20002', subdomain: 'new-admin' })
     bindArtistTotp(target)
 
-    // 2 分钟前验证（仍在 30 分钟入口窗口内，但动作级已过期）
+    // 6 分钟前验证（仍在 30 分钟入口窗口内，但动作级 5 分钟窗口已过期；SRV-09 窗口 60s→5min 适配）
     const staleToken = createSession(admin.id, admin.token_version, {
       authLevel: 'admin_verified',
-      adminVerifiedAt: new Date(Date.now() - 2 * 60 * 1000).toISOString()
+      adminVerifiedAt: new Date(Date.now() - 6 * 60 * 1000).toISOString()
     })
     const staleRes = await app.inject({
       method: 'POST',

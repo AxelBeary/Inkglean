@@ -36,6 +36,11 @@ export interface IdempotencyExecResult {
  * 幂等执行器：key 为空 → 直接执行（向后兼容）；命中缓存 → 原样返回 {statusCode, body}；
  * 未命中 → 执行 exec 并写缓存；exec 抛错（AppError/其他）→ 不写缓存（错误不幂等，允许重试）。
  * 单进程 better-sqlite3 同步驱动：检查-执行-写缓存之间无 await，天然原子，无并发窗口。
+ *
+ * SRV-13 修复：写入侧改 ON CONFLICT DO UPDATE，消除「读不中过期行但写撞主键」缝隙。
+ * 此前行龄超 24h 后读侧带时效不命中、但行仍物理存在，窗口内同 key 重放先 exec()
+ * 重复执行业务、随后裸 INSERT 撞 PRIMARY KEY 500 → 双重伤害。
+ * 现在 upsert 语义：无论旧行是否物理残留，写入一律成功覆盖。
  */
 export function withIdempotency(
   scope: string,
@@ -62,8 +67,11 @@ export function withIdempotency(
   }
 
   const result = exec()
+  // SRV-13: ON CONFLICT DO UPDATE 替代裸 INSERT——过期残留行不再导致主键冲突 500，
+  // 同时刷新 created_at 使新缓存行重新获得 24h 时效窗口。
   db.prepare(
-    'INSERT INTO idempotency_keys (scope, key, status_code, response_json) VALUES (?, ?, ?, ?)'
+    `INSERT INTO idempotency_keys (scope, key, status_code, response_json) VALUES (?, ?, ?, ?)
+     ON CONFLICT(scope, key) DO UPDATE SET status_code = excluded.status_code, response_json = excluded.response_json, created_at = CURRENT_TIMESTAMP`
   ).run(scope, key, result.statusCode, JSON.stringify(result.body))
   return result
 }

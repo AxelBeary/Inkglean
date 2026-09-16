@@ -228,6 +228,10 @@ export const E = {
     // 流程变更守卫（批4 B10）
     WORKFLOW_PAYMENT_IN_USE: 'WORKFLOW_PAYMENT_IN_USE',
 
+    // 画风/尺寸删除守卫（波1 SRV-12）
+    STYLE_IN_USE: 'STYLE_IN_USE',
+    STYLE_SIZE_IN_USE: 'STYLE_SIZE_IN_USE',
+
   // 作品
   ARTWORK_NOT_FOUND: 'ARTWORK_NOT_FOUND',
   // 封面上限（Beta 冲刺 T8，用户 2026-08-06 拍板）
@@ -466,6 +470,10 @@ export const ERROR_MESSAGES: Record<string, string> = {
 
     // 流程变更守卫（批4 B10）
     WORKFLOW_PAYMENT_IN_USE: '有 {count} 个进行中的订单已引用收款节点，调整收款结构会影响这些订单的节点锁定与收款计划；请先完成订单或稍后再试',
+
+    // 画风/尺寸删除守卫（波1 SRV-12）
+    STYLE_IN_USE: '有 {count} 个进行中的订单正在使用该画风，请先完成或转移后再删除',
+    STYLE_SIZE_IN_USE: '有 {count} 个进行中的订单正在使用该尺寸，请先完成或转移后再删除',
 
   // 作品（v0.25 #5）
   ARTWORK_NOT_FOUND: '作品不存在',

@@ -166,6 +166,8 @@ function assertValidExpiresAt(expiresAt: string | null | undefined): void {
  */
 export function computeDiscountCents(code: DiscountCode, totalPriceCents: number): number {
   if (code.discount_type === 'percent') {
+    // SRV-17：折扣码 percent 向下取整（保守，绝不多减）。注意 shared/receipt/totals.ts 的小票折扣用 Math.round，
+    // 两者口径不同属有意——折扣码用于下单计价、小票是画师手动出具的对账单，属独立子系统，差 ≤1 分无资金损坏，勿顺手统一。
     return Math.floor(totalPriceCents * code.discount_value / 100)
   }
   // fixed: 元 → 分

@@ -39,6 +39,33 @@ function extractToken(request: FastifyRequest): string | null {
 }
 
 /**
+ * 桌面端会话账本校验（SRV-03/SRV-04 修复 2026-09-17：抽公共函数，requireAuth 与 requireAdmin 复用）。
+ * 账本是桌面会话存活与否的唯一权威——撕账（管理员踢出/全端踢人）或账目过期（停止活跃超 90 天）
+ * 都在这一步拒绝；活账放行后记活跃并按周自动顺延。
+ *
+ * @returns null = 通过；非 null = 应返回的 401 响应体（调用方负责 reply.code(401).send(...)）
+ */
+function validateDesktopSession(
+  session: { client?: string; device_id?: number | null; id: number },
+): { code: string; error: string } | null {
+  if (session.client !== 'desktop') return null // 非桌面端不管
+
+  if (session.device_id == null) {
+    return { code: 'SESSION_EXPIRED', error: '登录已过期，请重新登录' }
+  }
+  const device = getDesktopDevice(session.id, session.device_id)
+  if (!device) {
+    return { code: E.DEVICE_REVOKED, error: ERROR_MESSAGES[E.DEVICE_REVOKED] }
+  }
+  const expiresMs = new Date(device.expires_at).getTime()
+  if (!Number.isFinite(expiresMs) || expiresMs <= Date.now()) {
+    return { code: 'SESSION_EXPIRED', error: '登录已过期，请重新登录' }
+  }
+  touchDesktopDevice(session.id, session.device_id)
+  return null
+}
+
+/**
  * requireAuth - 画师登录校验
  */
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply) {
@@ -81,19 +108,9 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply) 
   // 撕账（管理员踢出/全端踢人）或账目过期（停止活跃超 90 天）都在这一步拒绝；
   // 活账放行后记活跃并按周自动顺延（登录一次管三个月，网页 7 天病灶不复制）。
   // 过期时间解析失败（账目脏数据）也拒——安全方向一律从严。
-  if (session.client === 'desktop') {
-    if (session.device_id == null) {
-      return reply.code(401).send({ code: 'SESSION_EXPIRED', error: '登录已过期，请重新登录' })
-    }
-    const device = getDesktopDevice(session.id, session.device_id)
-    if (!device) {
-      return reply.code(401).send({ code: E.DEVICE_REVOKED, error: ERROR_MESSAGES[E.DEVICE_REVOKED] })
-    }
-    const expiresMs = new Date(device.expires_at).getTime()
-    if (!Number.isFinite(expiresMs) || expiresMs <= Date.now()) {
-      return reply.code(401).send({ code: 'SESSION_EXPIRED', error: '登录已过期，请重新登录' })
-    }
-    touchDesktopDevice(session.id, session.device_id)
+  const desktopReject = validateDesktopSession(session)
+  if (desktopReject) {
+    return reply.code(401).send(desktopReject)
   }
 
   request.artist = artist
@@ -101,6 +118,8 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply) 
 
 /**
  * requireAdmin - 管理员权限校验
+ * SRV-03/SRV-04 修复（2026-09-17）：补桌面账本存在性 + expires_at 校验，
+ * 与 requireAuth 同款逻辑复用 validateDesktopSession——被踢设备的 token 不再能打管理接口。
  */
 export async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
   const token = extractToken(request)
@@ -135,6 +154,12 @@ export async function requireAdmin(request: FastifyRequest, reply: FastifyReply)
 
   if (artist.token_version && session.v !== artist.token_version) {
     return reply.code(401).send({ code: 'TOKEN_REVOKED', error: '登录状态已失效，请重新登录' })
+  }
+
+  // SRV-03/SRV-04 修复：桌面端会话账本校验（撕账/过期 → 拒绝管理接口访问）
+  const desktopReject = validateDesktopSession(session)
+  if (desktopReject) {
+    return reply.code(401).send(desktopReject)
   }
 
   if (artist.qq_number !== getAdminQq()) {

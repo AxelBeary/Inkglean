@@ -376,8 +376,8 @@ describe('订单服务 (Order Service)', () => {
     expect((afterDelete as FocusOrderDetail).focus_image_mode).toBe('large')
   })
 
-  // TC-O-22: 收入统计使用 final_price_cents
-  it('TC-O-22: getArtistStats 收入优先使用 final_price_cents', () => {
+  // TC-O-22: 收入统计使用 paid_total_cents（SRV-01 修复后口径）
+  it('TC-O-22: getArtistStats 收入使用实收额 paid_total_cents（SRV-01）', () => {
     const size = seedStyleSize(artist.id, '测试', 300)
 
     const order = orderService.createOrder({ artistId: artist.id, styleSizeId: size.id, clientQq: '111' })
@@ -388,6 +388,9 @@ describe('订单服务 (Order Service)', () => {
     orderService.updateOrderStatus(order.id, 'confirmed')
     orderService.updateOrderStatus(order.id, 'wip')
     orderService.updateOrderStatus(order.id, 'done')
+
+    // SRV-01: 收入口径 = paid_total_cents，模拟全额收款
+    db.prepare('UPDATE orders SET paid_total_cents = ? WHERE id = ?').run(80000, order.id)
 
     const stats = orderStatsService.getArtistStats(artist.id)
     expect(stats.monthRevenueCents).toBe(80000)
@@ -778,8 +781,8 @@ describe('订单服务 (Order Service)', () => {
     expect(stats.todayNewOrderCents).toBe(20000)
   })
 
-  // TC-O-48: 今日收入（completed_at 在今天）
-  it('TC-O-48: getArtistStats 返回 todayRevenueCents', () => {
+  // TC-O-48: 今日收入按实收聚合（SRV-01）
+  it('TC-O-48: getArtistStats todayRevenueCents 按 paid_total_cents 聚合（SRV-01）', () => {
     const size = seedStyleSize(artist.id, '全身', 500)
     const order = orderService.createOrder({ artistId: artist.id, styleSizeId: size.id, clientQq: '111' })
 
@@ -787,6 +790,9 @@ describe('订单服务 (Order Service)', () => {
     orderService.updateOrderStatus(order.id, 'confirmed')
     orderService.updateOrderStatus(order.id, 'wip')
     orderService.updateOrderStatus(order.id, 'done')
+
+    // SRV-01: 收入口径 = paid_total_cents，模拟全额收款
+    db.prepare('UPDATE orders SET paid_total_cents = ? WHERE id = ?').run(50000, order.id)
 
     const stats = orderStatsService.getArtistStats(artist.id)
     expect(stats.todayRevenueCents).toBe(50000)

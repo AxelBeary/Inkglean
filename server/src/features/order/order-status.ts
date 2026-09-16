@@ -136,6 +136,8 @@ export function generateInstallmentsForOrder(orderId: number): void {
   const stages = db.prepare(
     'SELECT * FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC'
   ).all(order.artist_id) as WorkflowStage[]
+  // SRV-16 对齐：JS truthy 过滤等价于 SQL takes_payment=1 AND basis_points>0，
+  // 与 order-create.ts 的 SQL 过滤口径统一（消除两路径不对称）
   const paymentStages = stages.filter(s => s.takes_payment && s.basis_points)
   if (paymentStages.length === 0) return
 

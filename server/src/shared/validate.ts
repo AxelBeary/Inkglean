@@ -6,7 +6,7 @@ const LIMITS: Record<string, number> = {
   qq: 15,
   name: 50,
   subdomain: 20,
-  artistCode: 10,
+  artistCode: 20,
   description: 2000,
   note: 1000,
   bio: 500,

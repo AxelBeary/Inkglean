@@ -43,7 +43,11 @@ describe('P1-5 确认类 TOTP 防爆破', () => {
   })
 
   it('TC-GUARD-02: 邀请码入驻确认——同款计数与锁定口径', () => {
-    makeUnverifiedArtist('77702', 'guard-invite')
+    const artist = makeUnverifiedArtist('77702', 'guard-invite')
+    // P0-1 纵深校验后 confirmInviteTotp 要求账号经邀请流程入库（有 invite_code_uses 记录）；
+    // 补邀请码 + 使用明细模拟合法邀请注册产物，才能测到防爆破计数逻辑（非改软，是跟随 P0-1 新前置校验）
+    const codeRow = db.prepare("INSERT INTO invite_codes (code, expires_at) VALUES (?, ?)").run('GUARD-INVITE-02', new Date(Date.now() + 86400000).toISOString())
+    db.prepare('INSERT INTO invite_code_uses (invite_code_id, artist_id, used_at) VALUES (?, ?, ?)').run(codeRow.lastInsertRowid, artist.id, new Date().toISOString())
 
     for (let i = 0; i < 4; i++) {
       expect(() => confirmInviteTotp({ qqNumber: '77702', code: '000000' })).toThrow('TOTP_BIND_INVALID')
