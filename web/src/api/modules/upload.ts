@@ -14,30 +14,32 @@ interface UploadOptions {
   headers?: Record<string, string>
 }
 
+// WEB-11 修复：删除手动设的 'Content-Type':'multipart/form-data'（无 boundary 是危险反模式），
+// 让 axios/浏览器自动根据 FormData 带正确 boundary。
 export const uploadApi = {
   image: (file: Blob): Promise<UploadImageResult> => {
     const fd = new FormData()
     fd.append('file', file)
-    return postJson('/upload/image', fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: UPLOAD_TIMEOUT_MS })
+    return postJson('/upload/image', fd, { timeout: UPLOAD_TIMEOUT_MS })
   },
   // G-7（P2-13 前端侧）: 参考图上传需 x-anon-token（后端 F-10 契约），options 合并调用方 header
   reference: (file: Blob, options: UploadOptions = {}): Promise<UploadImageResult> => {
     const fd = new FormData()
     fd.append('file', file)
     return postJson('/upload/reference', fd, {
-      headers: { 'Content-Type': 'multipart/form-data', ...(options.headers || {}) },
+      headers: { ...(options.headers || {}) },
       timeout: UPLOAD_TIMEOUT_MS
     })
   },
   deliverable: (file: Blob): Promise<UploadFileResult> => {
     const fd = new FormData()
     fd.append('file', file)
-    return postJson('/upload/deliverable', fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: UPLOAD_TIMEOUT_MS })
+    return postJson('/upload/deliverable', fd, { timeout: UPLOAD_TIMEOUT_MS })
   },
   // R19: 备注附图（需登录，notes/{artistId}/ 目录，签名 URL 返回）
   noteImage: (file: Blob): Promise<UploadFileResult> => {
     const fd = new FormData()
     fd.append('file', file)
-    return postJson('/upload/note-image', fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: UPLOAD_TIMEOUT_MS })
+    return postJson('/upload/note-image', fd, { timeout: UPLOAD_TIMEOUT_MS })
   }
 }

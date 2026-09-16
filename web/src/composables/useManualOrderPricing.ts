@@ -13,6 +13,7 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { artistPublicApi } from '../api/index'
 import { formatAddonPrice, formatYuan } from '../utils/money'
+import { generateId } from '../utils/id'
 import type { PublicArtStyle, PublicStyleAddon, PublicStyleSize, StyleAddonSelection, StylePriceResult } from '../api/types'
 
 /** 普通增项勾选状态（switch → toggled；quantity → quantity>0） */
@@ -114,7 +115,7 @@ export function useManualOrderPricing({ styles, getSubdomain }: {
       ElMessage.warning(t('manualOrder.customAddonPriceRequired'))
       return
     }
-    customAddons.value.push({ uid: `ca-${crypto.randomUUID()}`, name, priceYuan: price })
+    customAddons.value.push({ uid: `ca-${generateId()}`, name, priceYuan: price })
     customAddonName.value = ''
     customAddonPrice.value = null
     customAddonOpen.value = false

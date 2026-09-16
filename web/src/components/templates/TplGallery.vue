@@ -97,9 +97,11 @@
                 <ArtworkLikeButton
                   class="tpl-gallery-like"
                   :artwork-id="currentArt.id"
-                  :initial-count="currentArt.like_count || 0"
+                  :initial-count="displayLikeCount(currentArt)"
                   :liked="isLiked(currentArt.id)"
                   :subdomain="subdomain"
+                  @update:liked="(v: boolean) => onLikeToggle(currentArt.id, v)"
+                  @update:count="(v: number) => onLikeCount(currentArt.id, v)"
                 />
               </figcaption>
             </figure>
@@ -185,9 +187,11 @@
             <ArtworkLikeButton
               class="tpl-gallery-like"
               :artwork-id="art.id"
-              :initial-count="art.like_count || 0"
+              :initial-count="displayLikeCount(art)"
               :liked="isLiked(art.id)"
               :subdomain="subdomain"
+              @update:liked="(v: boolean) => onLikeToggle(art.id, v)"
+              @update:count="(v: number) => onLikeCount(art.id, v)"
             />
           </div>
         </div>
@@ -200,10 +204,12 @@
     </p>
 
     <!-- v0.35 F6: 大图 lightbox（F-09 拆分至 TplLightbox.vue；显隐/翻页 v-model 双向，imgUrl/isLiked/tagsOf/orderByTag 由本页注入） -->
+    <!-- WEB-07：传 enrichedArtworks（like_count 覆盖后）而非 filteredArtworks，
+         灯箱内 ArtworkLikeButton 重建时读到的是最新计数，不再回退到 props 原值 -->
     <TplLightbox
       v-model:visible="lightboxVisible"
       v-model:index="lightboxIndex"
-      :filtered-artworks="filteredArtworks"
+      :filtered-artworks="enrichedArtworks"
       :subdomain="subdomain"
       :img-url="imgUrl"
       :is-liked="isLiked"
@@ -379,17 +385,61 @@ function orderByTag(tag: GalleryFilter) {
 }
 
 // F1: 初始已赞集合（localStorage，按画师隔离）
-function readLikedIds(): Set<number> {
+function readLikedIds(): number[] {
   // G-5: 裸读换 safeGetItem（存储禁用/损坏 JSON 均按未点赞降级）
   const raw = safeGetItem(`huiyue_liked_${props.subdomain}`)
-  if (!raw) return new Set()
+  if (!raw) return []
   try {
     const ids: unknown = JSON.parse(raw)
-    return Array.isArray(ids) ? new Set(ids as number[]) : new Set()
-  } catch { return new Set() }
+    return Array.isArray(ids) ? (ids as number[]) : []
+  } catch { return [] }
 }
-const likedIds = readLikedIds()
-function isLiked(id: number) { return likedIds.has(id) }
+/**
+ * WEB-07（波2审计 W2#1）：likedIds 改响应式——原为 setup 时一次性普通 Set，
+ * 用户点赞后按钮内部状态更新，但父级快照不变；album 翻页/灯箱关闭再开时按钮重建，
+ * 按陈旧快照回显导致「红心变空心、再点多加一次」。
+ * 现改 ref<number[]>，按钮 toggle 成功后 emit `update:liked` 触发父级同步。
+ * 用数组（非 Set）以确保整体替换必触发响应式，无需依赖 collection handlers 的 track 精度。
+ */
+const likedIds = ref<number[]>(readLikedIds())
+function isLiked(id: number) { return likedIds.value.includes(id) }
+
+/**
+ * WEB-07：like_count 本地覆盖表——按钮 toggle 后 emit `update:count` 触发写入，
+ * 派生 enrichedArtworks 时把覆盖值填回作品行，供灯箱与 album/masonry 重建按钮时读取。
+ * 不用 Map 是为了保持浅响应式简单可预测（Record + 整体替换）。
+ */
+const likeCountOverrides = ref<Record<number, number>>({})
+function displayLikeCount(art: GalleryArtwork): number {
+  const override = likeCountOverrides.value[art.id]
+  if (typeof override === 'number') return override
+  return art.like_count || 0
+}
+
+/** 按钮 toggle 回调：liked 变化 → 更新 likedIds 数组（整体替换触发响应式） */
+function onLikeToggle(artworkId: number, liked: boolean) {
+  const cur = likedIds.value
+  if (liked) {
+    if (!cur.includes(artworkId)) likedIds.value = [...cur, artworkId]
+  } else {
+    if (cur.includes(artworkId)) likedIds.value = cur.filter(id => id !== artworkId)
+  }
+}
+/** 按钮 toggle 回调：like_count 变化 → 更新覆盖表（整体替换触发响应式） */
+function onLikeCount(artworkId: number, count: number) {
+  likeCountOverrides.value = { ...likeCountOverrides.value, [artworkId]: count }
+}
+
+/**
+ * 灯箱消费的作品列表：把 likeCountOverrides 覆盖到 like_count，
+ * 让灯箱内 ArtworkLikeButton 重建时（destroy-on-close）读到父级最新计数。
+ */
+const enrichedArtworks = computed<GalleryArtwork[]>(() =>
+  filteredArtworks.value.map(a => {
+    const override = likeCountOverrides.value[a.id]
+    return typeof override === 'number' ? { ...a, like_count: override } : a
+  })
+)
 
 // ─── 瀑布流布局辅助（v0.36 恢复 v0.35 行为） ───
 /** hover 浮层只在有档位标签或描述时渲染（无元数据的卡片保持干净） */

@@ -335,8 +335,12 @@ function goStep(step: number) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   themeStore.enterArtistScope()
+  // WEB-09 修复：挂载时主动查询 setup 状态，回写 tokenRequired 到 store——
+  // 此前 checkStatus 无人调、tokenRequired 默认 false、路由守卫裸 fetch 不回写 store，
+  // 导致安装口令输入框永不渲染，设了口令的部署装不起来
+  await setupStore.checkStatus()
   // 815 拍板 #3（方案 C）：直达链接 /setup?token=xxx——自动填充安装口令免手输；
   // 口令已在第一步则直接进步骤（真实校验仍在创建管理员一步由后端做，错口令会被拒）
   const qToken = route.query.token

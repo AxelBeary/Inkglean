@@ -51,6 +51,7 @@
           @edit-size="(size?: ManagerSizeRow) => openSizeDialog(style, size)"
           @remove-size="(size: ManagerSizeRow) => confirmDeleteSize(style, size)"
           @chip-drag-start="(size: ManagerSizeRow, chip: { id: number }, ev: DragEvent) => onChipDragStart(style, size, chip, ev)"
+          @chip-drag-end="onCapDragEnd"
           @addon-create="openCreateAddon(style)"
           @addon-import="openImportDialog(style)"
           @cap-drag-start="(sa: ManagerSa, ev: DragEvent) => onCapDragStart(style, sa, ev)"
@@ -135,9 +136,18 @@ const switchSaving = ref(false)
 /** 默认画风 = 排序最前的启用画风（动态顺延，与后端公开接口规则一致） */
 const defaultStyleId = computed(() => styles.value.find(s => s.is_active)?.id ?? null)
 
-/** 开关关闭时，非默认画风灰色不可编辑（F2 验收 2） */
+/**
+ * 开关关闭时，非默认画风灰色不可编辑（F2 验收 2）
+ * WEB-05（波2审计 W1#5）：用户主动停用的画风（is_active=0）不锁——
+ * 多画风关闭时若关掉当前默认画风的启用开关，defaultStyleId 会漂移到下一个启用画风，
+ * 原判定会让本卡 isLocked 恒真、switch 被禁用无法重开（清单根因）。
+ * 豁免规则：非默认画风且 is_active=0 → 视为「用户主动停用」，保持可编辑（switch 可重开）。
+ */
 function isLocked(style: ManagerStyleRow) {
-  return !multiStyleEnabled.value && style.id !== defaultStyleId.value
+  if (multiStyleEnabled.value) return false
+  if (style.id === defaultStyleId.value) return false
+  if (!style.is_active) return false // WEB-05: 主动停用的画风必须能重开
+  return true
 }
 
 /**
@@ -465,19 +475,33 @@ function onPoolDragOver(e: DragEvent) {
 }
 function onPoolDragLeave() { poolDragOver.value = false }
 
-/** 拖到尺寸行 = 启用该尺寸（仅决定启用，不动价格；已启用 → 提示不重复） */
+/**
+ * 拖到尺寸行 = 启用该尺寸（仅决定启用，不动价格；已启用 → 提示不重复）
+ * WEB-06（波2审计 W1#6）三项修复：
+ * ①「已启用」判定与 StyleCard.sizeSummary 同口径（画风级 is_enabled && 尺寸级 !is_hidden），
+ *    避免画风级已停用时命中「已启用」误提示但实际未启用（清单根因①③）。
+ * ②所有早退分支主动清 dragPayload/poolDragOver——摘要 chip 补了 dragend 上报（StyleCard 侧），
+ *    但早退若不主动清仍会污染后续排序拖拽（清单根因②）。
+ * ③画风级已停用 + 尺寸级未 hidden 时走启用路径：
+ *    add 类（非互斥）单独 setStyleAddons 启用自身；usage/rush 类由 mutex 载荷带上自身启用。
+ */
 async function onDropToSize(style: ManagerStyleRow, size: ManagerSizeRow, _e: DragEvent) {
   const payload = dragPayload.value
-  if (!payload || payload.styleId !== style.id) return
-  if (payload.fromSizeId === size.id) return // 从本尺寸拖回 → 无操作
+  const clearDrag = () => { dragPayload.value = null; poolDragOver.value = false }
+  if (!payload || payload.styleId !== style.id) { clearDrag(); return }
+  if (payload.fromSizeId === size.id) { clearDrag(); return } // 从本尺寸拖回 → 无操作
   const sa = style.addons.find(s => s.id === payload.saId)
-  if (!sa) return
+  if (!sa) { clearDrag(); return }
   const ov = size._overrides || {}
-  if (!ov[sa.id]?.is_hidden) {
+  // WEB-06 ①：与 StyleCard.sizeSummary 同口径（画风级启用 && 尺寸级未隐藏）
+  if (!!sa.is_enabled && !ov[sa.id]?.is_hidden) {
     ElMessage.info(t('styleManage.addonAlreadyEnabled', { name: sa.template_name, size: size.name }))
+    clearDrag()
     return
   }
   let mutexRestore: Array<{ addon_template_id: number; is_enabled: boolean }> | null = null
+  // WEB-06 ③：add 类无互斥 → 记录自身启用的反向恢复载荷，尺寸级失败时回滚画风级
+  let selfEnableRestore: { addon_template_id: number } | null = null
   try {
     // 单选约束：用途/加急类拖入尺寸启用 → 同画风其他同类画风级停用（顾客每单各选一个，后端兜底互斥）
     const mutex = mutexAddonItems(style, sa)
@@ -491,6 +515,12 @@ async function onDropToSize(style: ManagerStyleRow, size: ManagerSizeRow, _e: Dr
         const other = style.addons.find(x => x.addon_template_id === m.addon_template_id)
         if (other) other.is_enabled = !!m.is_enabled
       }
+    } else if (!sa.is_enabled) {
+      // WEB-06 ③：add 类画风级已停用 → 先启用自身（画风级），再走下方尺寸级覆盖
+      const items = [{ addon_template_id: sa.addon_template_id, is_enabled: true }]
+      await artistApi.setStyleAddons(style.id, items)
+      selfEnableRestore = { addon_template_id: sa.addon_template_id }
+      sa.is_enabled = true
     }
     await artistApi.setSizeOverrides(style.id, size.id, [{ style_addon_id: sa.id, price_override: ov[sa.id]?.price_override ?? null, is_hidden: false }])
     if (!size._overrides) size._overrides = {}
@@ -504,12 +534,18 @@ async function onDropToSize(style: ManagerStyleRow, size: ManagerSizeRow, _e: Dr
       } catch {
         // 反向恢复失败：交给重载兜底，仍提示原始错误
       }
+    } else if (selfEnableRestore) {
+      // WEB-06 ③：画风级刚被本函数启用而尺寸级失败 → 恢复停用，避免留下孤儿启用
+      try {
+        await artistApi.setStyleAddons(style.id, [{ addon_template_id: selfEnableRestore.addon_template_id, is_enabled: false }])
+      } catch {
+        // 反向恢复失败：交给重载兜底
+      }
     }
     await load()
     ElMessage.error((err as Error).message)
   } finally {
-    dragPayload.value = null
-    poolDragOver.value = false
+    clearDrag()
   }
 }
 

@@ -170,8 +170,10 @@ interface StageRow {
 const props = defineProps({ stages: { type: Array as PropType<StageRow[]>, default: () => [] }, readonly: { type: Boolean, default: false } })
 const emit = defineEmits(['reorder', 'add', 'rename', 'updateDesc', 'togglePay', 'delete', 'updateSpeech'])
 
-const localStages = ref<StageRow[]>([...props.stages])
-watch(() => props.stages, (v) => { localStages.value = [...v] }, { deep: true })
+// WEB-02: 深拷贝隔离——浅拷贝元素同引用，v-model 直改会穿透到父级 stages，
+// 导致 WorkflowPaymentEditor.onTogglePay 守卫 s.takesPayment===val 恒真早退、PATCH 永不发出
+const localStages = ref<StageRow[]>(props.stages.map(s => ({ ...s })))
+watch(() => props.stages, (v) => { localStages.value = v.map(s => ({ ...s })) }, { deep: true })
 
 // ─── plan-node-speech：话术编辑 ───
 /** 变量按钮列表：labelKey 为显示名（b4-11 键化），token 为后端契约中文原文（插入时不变） */

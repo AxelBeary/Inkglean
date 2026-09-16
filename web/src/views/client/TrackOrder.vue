@@ -32,20 +32,37 @@
       </div>
 
       <!-- F1 围剿：已保存的追踪链接清单（多单可存多条，每行一键查询） -->
+      <!-- WEB-13: 补删除入口（单条删除 + 全部清空），防止明文令牌永久驻留 -->
       <Transition name="my-orders-fade">
         <el-card v-if="savedLinks.length" class="my-orders-card" style="margin-top: 16px">
-          <template #header><span>{{ $t('track.savedTitle') }}</span></template>
+          <template #header>
+            <div class="saved-header">
+              <span>{{ $t('track.savedTitle') }}</span>
+              <el-button text size="small" type="danger" @click="clearAllSavedLinks">
+                {{ $t('track.clearAll') }}
+              </el-button>
+            </div>
+          </template>
           <div>
-            <button
-              v-for="item in savedLinks" :key="item.orderNo"
-              type="button" class="my-order-item"
-              :disabled="searching"
-              @click="querySaved(item)"
-            >
-              <div class="my-order-no">{{ item.orderNo }}</div>
-              <span v-if="item.invalid" class="link-expired">{{ $t('track.linkExpired') }}</span>
-              <span v-else class="my-order-meta">{{ $t('track.savedQuery') }}</span>
-            </button>
+            <div v-for="item in savedLinks" :key="item.orderNo" class="my-order-row">
+              <button
+                type="button" class="my-order-item"
+                :disabled="searching"
+                @click="querySaved(item)"
+              >
+                <div class="my-order-no">{{ item.orderNo }}</div>
+                <span v-if="item.invalid" class="link-expired">{{ $t('track.linkExpired') }}</span>
+                <span v-else class="my-order-meta">{{ $t('track.savedQuery') }}</span>
+              </button>
+              <button
+                type="button" class="link-delete-btn"
+                :aria-label="$t('common.delete')"
+                :title="$t('common.delete')"
+                @click="removeSavedLink(item.orderNo)"
+              >
+                ✕
+              </button>
+            </div>
           </div>
         </el-card>
       </Transition>
@@ -260,10 +277,14 @@ const searchError = ref(false)
 
 // F1 围剿：已保存的追踪链接清单（localStorage 多单可存多条，上限 20 条自动去重）
 const SAVED_LINKS_KEY = 'huiyue_track_links'
+// WEB-13: 30 天未使用自动清除（TTL），防止明文令牌永久驻留 localStorage
+const TRACK_LINK_TTL_MS = 30 * 24 * 60 * 60 * 1000
 interface SavedLink {
   orderNo: string
   token: string
   savedAt: number
+  /** WEB-13: 最后使用时间（TTL 判定基准；兼容旧数据回退到 savedAt） */
+  lastUsedAt?: number
   invalid: boolean
 }
 const savedLinks = ref<SavedLink[]>([])
@@ -388,7 +409,13 @@ function parseLink(text: string) {
 function loadSavedLinks() {
   try {
     const raw = localStorage.getItem(SAVED_LINKS_KEY)
-    savedLinks.value = raw ? JSON.parse(raw) : []
+    const all: SavedLink[] = raw ? JSON.parse(raw) : []
+    // WEB-13: TTL 过滤——30 天未使用的条目自动清除（lastUsedAt 兼容旧数据回退到 savedAt）
+    const now = Date.now()
+    const fresh = all.filter(item => now - (item.lastUsedAt ?? item.savedAt) < TRACK_LINK_TTL_MS)
+    savedLinks.value = fresh
+    // 有过期条目被清除时同步持久化（避免下次加载重复过滤）
+    if (fresh.length !== all.length) persistSavedLinks()
   } catch {
     savedLinks.value = []
   }
@@ -404,7 +431,9 @@ function persistSavedLinks() {
 
 function saveLink(orderNoToSave: string, tokenToSave: string) {
   savedLinks.value = savedLinks.value.filter((i) => i.orderNo !== orderNoToSave)
-  savedLinks.value.unshift({ orderNo: orderNoToSave, token: tokenToSave, savedAt: Date.now(), invalid: false })
+  const now = Date.now()
+  // WEB-13: savedAt 与 lastUsedAt 同时记录（TTL 以 lastUsedAt 为准）
+  savedLinks.value.unshift({ orderNo: orderNoToSave, token: tokenToSave, savedAt: now, lastUsedAt: now, invalid: false })
   persistSavedLinks()
 }
 
@@ -450,11 +479,31 @@ function searchFromInput() {
   search(parsed.orderNo, parsed.token)
 }
 
-/** 已保存清单行：一键查询；令牌失效（404）时明示「链接已失效，请联系画师补发」 */
+/** 已保存清单行：一键查询；令牌失效（404）时移除条目（WEB-13: 不再仅标 invalid 留存明文令牌） */
 async function querySaved(item: SavedLink) {
   const ok = await search(item.orderNo, item.token)
-  // null = 已被更新的查询取代（竞态晚到），不据此标记失效
-  if (typeof ok === 'boolean') item.invalid = !ok
+  // null = 已被更新的查询取代（竞态晚到），不据此处理
+  if (ok === null) return
+  if (ok) {
+    // WEB-13: 查询成功，刷新 lastUsedAt（TTL 续期）
+    item.lastUsedAt = Date.now()
+    item.invalid = false
+  } else {
+    // WEB-13: 令牌失效（服务端轮换/过期），移除条目而非仅标记——明文 token 不得继续驻留
+    savedLinks.value = savedLinks.value.filter(i => i.orderNo !== item.orderNo)
+  }
+  persistSavedLinks()
+}
+
+/** WEB-13: 手动删除单条已保存链接 */
+function removeSavedLink(orderNoToRemove: string) {
+  savedLinks.value = savedLinks.value.filter(i => i.orderNo !== orderNoToRemove)
+  persistSavedLinks()
+}
+
+/** WEB-13: 清空全部已保存链接 */
+function clearAllSavedLinks() {
+  savedLinks.value = []
   persistSavedLinks()
 }
 
@@ -557,6 +606,17 @@ html:not(.dark) .track-page { --el-input-placeholder-color: #6c6e72; }
 .my-order-item:hover { background: var(--el-fill-color-light); }
 .my-order-no { font-weight: 600; color: var(--text-primary); }
 .my-order-meta { font-size: 12px; color: var(--text-secondary); }
+/* WEB-13: 已保存链接行（查询按钮 + 删除按钮并排） */
+.saved-header { display: flex; justify-content: space-between; align-items: center; }
+.my-order-row { display: flex; align-items: center; gap: 4px; }
+.my-order-row .my-order-item { flex: 1; min-width: 0; }
+.link-delete-btn {
+  flex-shrink: 0; width: 28px; height: 28px; padding: 0;
+  border: none; border-radius: var(--el-border-radius-small);
+  background: none; color: var(--text-secondary); font-size: 13px; line-height: 1;
+  cursor: pointer; transition: color var(--dur-fast), background var(--dur-fast);
+}
+.link-delete-btn:hover { color: var(--el-color-danger); background: var(--el-fill-color-light); }
 
 /* ─── U1: 需求回顾 ─── */
 .brief-block {

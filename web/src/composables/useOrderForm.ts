@@ -38,6 +38,7 @@ import { sanitizeHtml } from '../utils/sanitize'
 import { usePasteUpload } from './usePasteUpload'
 import { formatAddonPrice, yuanToCents } from '../utils/money'
 import { getAnonToken } from '../utils/track'
+import { generateId } from '../utils/id'
 import { uploadReferenceWithAnonToken, AnonTokenUnavailableError } from '../utils/anonUpload'
 import { MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../constants/upload'
 import type {
@@ -590,7 +591,7 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
         const { uploaded, token } = await uploadReferenceWithAnonToken(file)
         refUploadToken = token
         uploadedRefs.value.push(uploaded.filePath)
-        const uid = `paste-${crypto.randomUUID()}`
+        const uid = `paste-${generateId()}`
         refUidMap.value.set(uid, uploaded.filePath)
         refFileList.value.push({ name: file.name || 'pasted-image.png', url: uploaded.url, uid, status: 'success' })
       } catch (err) {
@@ -622,7 +623,7 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
       return
     }
 
-    if (!submitIdemKey) submitIdemKey = crypto.randomUUID()
+    if (!submitIdemKey) submitIdemKey = generateId()
     // G-7: 有参考图时必须携带与上传同源的 x-anon-token（无参考图下单不带 token 照常）
     let anonToken: string | null = null
     if (uploadedRefs.value.length > 0) {
