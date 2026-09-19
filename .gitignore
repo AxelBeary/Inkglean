@@ -39,7 +39,9 @@ workspace/
 /worktrees/
 
 # Qoder 本地工具产物（better-harness 报告等，不入版本库）
-.qoder/
+# 岗位书（agents/）例外入库，受版本管理（F-35）
+.qoder/*
+!.qoder/agents/
 
 # Logs
 *.log
