@@ -354,7 +354,7 @@ Orders carry three price representations with a clear precedence:
 | `total_price_cents` | Order creation (full calculation) | cents (INTEGER) | No |
 | `final_price_cents` | Artist manually adjusts price | cents (INTEGER) | Yes (via PUT) |
 
-**Revenue stats fallback chain**: `final_price_cents` → `total_price_cents` → `price_snapshot × 100`. SQL computes in cents internally (`total_cents`). **Canonical implementation (v0.16+)**: `server/src/utils/price.js` exports `PRICE_FALLBACK_SQL` (SQL CASE expression, alias prefix `o`) and `resolvePriceCents(order)` (JS ?? chain). All order queries must import from there — never inline the CASE/?? chain.
+**Revenue stats fallback chain**: `final_price_cents` → `total_price_cents` → `price_snapshot × 100`. SQL computes in cents internally (`total_cents`). **Canonical implementation (v0.16+)**: `server/src/utils/price.ts` exports `PRICE_FALLBACK_SQL` (SQL CASE expression, alias prefix `o`) and `resolvePriceCents(order)` (JS ?? chain). All order queries must import from there — never inline the CASE/?? chain.
 
 **Dual-field return pattern (proven)**: Always return BOTH `monthRevenue` (yuan, REAL — backward compat with existing frontend) and `monthRevenueCents` (cents, INTEGER — future-proof). Never rename an existing API field; add the new one alongside:
 ```js
@@ -385,7 +385,7 @@ return {
 
 **Zero-style shared component + native form elements for multi-skin features (F4 guestbook pattern)**: When a feature must appear on all 4 templates with DISTINCT visuals (the "共享逻辑不共享皮肤" hard rule) and includes a FORM, use NATIVE `<input>`/`<textarea>`/`<button>` in the shared component — NOT Element Plus controls. EP controls render deep internal structure (`.el-input__wrapper`, `.el-textarea__inner`) that templates' `:deep()` skinning must fight through; native elements expose clean semantic classes the template styles directly. The shared component: zero `<style>` block, only semantic `gb-*` classes (`gb-form`/`gb-input`/`gb-textarea`/`gb-submit`/`gb-item`/`gb-nickname`/`gb-content`/`gb-reply`/`gb-empty`/`gb-load-more`), props for data (`subdomain`), and all logic (pagination, submit, 429 handling, empty state). Each template skins via `.classic-guestbook :deep(.gb-input) { ... }` — 4 genuinely different treatments (classic rounded card / gallery 展签 underline-only inputs + uppercase tracking / folio editorial borderless / atelier serif paper-note with `rotate(±0.4deg)`). Pagination: `PAGE_SIZE = 20` + `hasMore = messages.length < total` + load-more button; submit shows a `justSubmitted` pending hint; 429 → `ElMessage.warning(rateLimited)`.
 
-**Missing backend endpoint: build UI + silent fallback + flag (F4 admin pattern)**: A dispatch contract may list an endpoint the backend never implemented (admin guestbook had public/artist/DELETE routes but no `GET /api/admin/messages`). Correct response: build the UI per contract (table columns, delete action), wrap the initial load in `try/catch` with a silent empty-state fallback (no error toast — the endpoint arrives soon), add the API method to `api/index.js` so it's ready, and flag prominently in comms (⚠️ "后端缺 X 端点，前端已按契约构建，加载失败静默降级，三号补端点即激活"). Not a submission blocker — the frontend is correct; the gap belongs to the backend role. Distinct from contract-first parallel work (branch exists but unmerged): here the endpoint was never written at all.
+**Missing backend endpoint: build UI + silent fallback + flag (F4 admin pattern)**: A dispatch contract may list an endpoint the backend never implemented (admin guestbook had public/artist/DELETE routes but no `GET /api/admin/messages`). Correct response: build the UI per contract (table columns, delete action), wrap the initial load in `try/catch` with a silent empty-state fallback (no error toast — the endpoint arrives soon), add the API method to `api/index.ts` so it's ready, and flag prominently in comms (⚠️ "后端缺 X 端点，前端已按契约构建，加载失败静默降级，三号补端点即激活"). Not a submission blocker — the frontend is correct; the gap belongs to the backend role. Distinct from contract-first parallel work (branch exists but unmerged): here the endpoint was never written at all.
 
 **Admin system health-check page (HC pattern)**: A self-service diagnostics page for the admin (`/admin/health`, `requiresAdmin`). Backend `GET /api/admin/health` returns `{ checks: [{ id, name, status: 'ok'|'warn'|'fail', summary, detail }], timestamp }`. Frontend: "开始检查" button → list rows with status icon (✅/⚠️/❌) + name + `el-tag` (success/warning/danger) + summary; each row expandable via `el-collapse` showing `JSON.stringify(detail, null, 2)` in a `<pre>`. Diagnostic-package download: `window.location = '/api/admin/health/download'` — the httpOnly auth cookie rides the same-origin GET automatically, browser triggers the file download (no fetch/blob needed). Results live in a `ref` only — NOT persisted (refresh clears), per spec. Tag the disk-space check "仅供参考" (Docker disk values are unreliable). Empty state before first run.
 
@@ -535,35 +535,35 @@ if (order.notes) {
 
 | File | Exports | Used by |
 |------|---------|---------|
-| `price.js` | `PRICE_FALLBACK_SQL` (SQL CASE, alias `o`), `resolvePriceCents(order)` | order.service (stats×3, updateFinalPrice) |
-| `order-status.js` | `ACTIVE_ORDER_SQL`, `COMPLETED_ORDER_SQL`, `TERMINAL_STATUSES`, `COMPLETED_STATUSES` | order.service (queue×4, stats×3, deadlines×1), admin.service (globalStats×1) |
-| `date.js` | `toSqliteDate(date)`, `nowSqlite()`, `localDayStartSqlite(now)`, `localDayEndSqlite(now)`, `localMonthStartSqlite(now)` | order.service (deadline normalize, upcoming deadlines, stats×4) |
+| `price.ts` | `PRICE_FALLBACK_SQL` (SQL CASE, alias `o`), `resolvePriceCents(order)` | order.service (stats×3, updateFinalPrice) |
+| `order-status.ts` | `ACTIVE_ORDER_SQL`, `COMPLETED_ORDER_SQL`, `TERMINAL_STATUSES`, `COMPLETED_STATUSES` | order.service (queue×4, stats×3, deadlines×1), admin.service (globalStats×1) |
+| `date.ts` | `toSqliteDate(date)`, `nowSqlite()`, `localDayStartSqlite(now)`, `localDayEndSqlite(now)`, `localMonthStartSqlite(now)` | order.service (deadline normalize, upcoming deadlines, stats×4) |
 
 **Rules for extending**:
 - SQL fragment constants use bare column names (no alias prefix) when the query's table has no alias, or prefix `o.` when the query aliases orders as `o`. Check the consuming query before adding new fragments.
 - Date helpers always produce `YYYY-MM-DD HH:MM:SS` (space separator, UTC). Never `T` — see SQLite date pitfall below.
 - `resolvePriceCents` returns `null` (not 0) when all three fields are null — callers distinguish "unpriced" from "¥0".
 
-**order.service.js split (PROVEN v0.16, 五号 audit → 三号 executed)**: When the order service grows past ~800 lines / 20+ exports, split by responsibility into 4 sub-modules. Result: 852→**341 lines** (better than ~400 target).
+**order.service.ts split (PROVEN v0.16, 五号 audit → 三号 executed)**: When the order service grows past ~800 lines / 20+ exports, split by responsibility into 4 sub-modules. Result: 852→**341 lines** (better than ~400 target).
 
 | Order | New file | Functions | Risk |
 |-------|----------|-----------|------|
-| 1 | `order-stats.service.js` (89 lines) | getArtistStats, getUpcomingDeadlines | Low |
-| 2 | `order-queue.service.js` (59 lines) | getArtistQueue, reorderQueue, updatePriority | Low |
-| 3 | `order-gallery.service.js` (91 lines) | addReference, removeReference, setFocusImage, addDeliverable, deliverOrder | Med |
-| 4 | `order-workflow.service.js` (123 lines) | advanceStage, rollbackStage, enableTracking, getStageInfo, mapStageToStatus | Med |
+| 1 | `order-stats.service.ts` (89 lines) | getArtistStats, getUpcomingDeadlines | Low |
+| 2 | `order-queue.service.ts` (59 lines) | getArtistQueue, reorderQueue, updatePriority | Low |
+| 3 | `order-gallery.service.ts` (91 lines) | addReference, removeReference, setFocusImage, addDeliverable, deliverOrder | Med |
+| 4 | `order-workflow.service.ts` (123 lines) | advanceStage, rollbackStage, enableTracking, getStageInfo, mapStageToStatus | Med |
 
-Kept in `order.service.js` (~14 fns): createOrder, getOrder, getOrderByNo, updateOrderStatus, updateDeadline, addNote, deleteNote, updateFinalPrice, getArtistOrders, getClientQueuePosition, getClientOrdersByQq, hasClientOrders, getPlatformConfig, generateOrderNo, **compactQueue** (exported).
+Kept in `order.service.ts` (~14 fns): createOrder, getOrder, getOrderByNo, updateOrderStatus, updateDeadline, addNote, deleteNote, updateFinalPrice, getArtistOrders, getClientQueuePosition, getClientOrdersByQq, hasClientOrders, getPlatformConfig, generateOrderNo, **compactQueue** (exported).
 
 **Implementation lessons (proven)**:
 1. **`compactQueue` stays in parent and is exported** — both `updateOrderStatus` (parent) and `deliverOrder` (gallery module) call it. Moving it to the queue module would create a gallery→queue cross-dependency; keeping it in the parent means gallery→parent only (simpler graph).
-2. **`getClientQueuePosition` inlines the queue query** — it needs active-order IDs sorted by position. Importing `getArtistQueue` from order-queue.service.js would create a parent→child circular import. A 5-line inline SQL query is cleaner than restructuring the dependency graph.
+2. **`getClientQueuePosition` inlines the queue query** — it needs active-order IDs sorted by position. Importing `getArtistQueue` from order-queue.service.ts would create a parent→child circular import. A 5-line inline SQL query is cleaner than restructuring the dependency graph.
 3. **`mapStageToStatus` becomes exported** — was a private function in the parent; the workflow module exports it for testability and potential reuse.
 4. **Each step is a separate commit**: create module → remove functions from parent → update route imports → update test imports → run full test suite → commit. Tests green after EACH step (262/262 at every stage).
 5. **Test files need import updates** — `orderService.getArtistStats` → `orderStatsService.getArtistStats` etc. Use `replace_all: true` for bulk renames within the test file.
 6. **Route file gets N import lines** — one per sub-module (`import * as orderStatsService from './order-stats.service.js'`). Each call site changes from `orderService.X` to `orderXxxService.X`.
 
-**Two hard constraints**: (1) **No circular imports** — `order.service.js` must NEVER import from its sub-modules; sub-modules import `getOrder`/`compactQueue` from the parent in one direction only. (2) **Update route + test imports at each step** — `order.routes.js` has ~20 call sites; each split step must update them and run the full test suite before the next step.
+**Two hard constraints**: (1) **No circular imports** — `order.service.ts` must NEVER import from its sub-modules; sub-modules import `getOrder`/`compactQueue` from the parent in one direction only. (2) **Update route + test imports at each step** — `order.routes.ts` has ~20 call sites; each split step must update them and run the full test suite before the next step.
 
 ### SQLite Migration Best Practices (proven pattern)
 
@@ -594,7 +594,7 @@ Rules:
 - **PRAGMA check per column** — not per table, because a partially-applied migration may have added some columns
 - **Backup before migration** — `cp db db.bak.vN`, log success/failure, continue even if backup fails (warn)
 - **Update CREATE TABLE DDL too** — fresh installs must get the same schema as migrated installs
-- **Sync test helpers** — `cleanDb()` in `tests/setup.js` must DELETE from any new table; `seedArtist()` may need new column defaults if tests assert on them. Forgetting cleanDb causes FK-constraint failures or stale data leaking between tests
+- **Sync test helpers** — `cleanDb()` in `tests/setup.ts` must DELETE from any new table; `seedArtist()` may need new column defaults if tests assert on them. Forgetting cleanDb causes FK-constraint failures or stale data leaking between tests
 - **JSON TEXT columns** — store as TEXT, parse in service layer with try-catch, default NULL (not `'[]'`). Never use `json_extract()` in queries (performance + SQLite version dependency). Follow the `getCustomLinks()` defensive pattern
 - **Test idempotency** — call `initDatabase(db)` twice in a test, assert no throw
 

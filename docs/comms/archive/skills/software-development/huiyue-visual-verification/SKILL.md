@@ -36,7 +36,7 @@ EP 组件（el-empty 等）内部 SVG 用组件级变量（`--el-empty-fill-colo
 - 脚本放 **`web/e2e/`** 下（ESM import 按脚本位置找 node_modules，放根 e2e/ 找不到 web/node_modules 的 playwright；NODE_PATH 对 ESM 无效）
 - 修改脚本用 **write_file 重写全文件**——PowerShell `Set-Content` 会破坏 UTF-8 中文（Get-Content 按系统编码读入再写回，中文字符串变乱码 SyntaxError）
 - 登录选择器：el-input 无 aria-label，用 `input[placeholder="输入你的QQ号"]`；**管理员登录后跳 `/admin` 非 `/dashboard`**，waitForURL 用 `u => u.pathname !== '/login'`
-- 隔离库 seed 用 `npx tsx src/db/seed.js`（`npm run db:seed` 的 node 跑会 ERR_MODULE_NOT_FOUND，seed 动态 import .ts）
+- 隔离库 seed 用 `npx tsx src/db/seed.ts`（`npm run db:seed` 的 node 跑会 ERR_MODULE_NOT_FOUND，seed 动态 import .ts）
 - 主题切换：`localStorage.setItem('huiyue-artist-theme','ink')` + reload（AdminLayout enterArtistScope 从 localStorage 恢复）
 
 ## 4. 清理纪律
@@ -88,11 +88,11 @@ EP 组件（el-empty 等）内部 SVG 用组件级变量（`--el-empty-fill-colo
 
 **环境（多角色并行 worktree 冲突时）**
 - 3000 被他人 CLOSE_WAIT 套接字占用时：netstat 只见 CLOSE_WAIT 无 LISTENING，Get-NetTCPConnection -State Listen 查不到，但 tsx bind 仍报 EADDRINUSE。**不杀他人进程**，server 起 3001（`$env:PORT='3001'`），vite 用临时配置
-- **vite proxy 硬编码 3000**：复制仓库 vite.config.js 改 proxy target→3001 存 `web/vite.tpl-check.config.mjs`（不入库，测完即删），`npx vite --config vite.tpl-check.config.mjs` 起 5175
-- seed 用 `npx tsx src/db/seed.js`（`npm run db:seed` 的 node 跑挂，同 §3）
+- **vite proxy 硬编码 3000**：复制仓库 vite.config.ts 改 proxy target→3001 存 `web/vite.tpl-check.config.mjs`（不入库，测完即删），`npx vite --config vite.tpl-check.config.mjs` 起 5175
+- seed 用 `npx tsx src/db/seed.ts`（`npm run db:seed` 的 node 跑挂，同 §3）
 
 **demo 数据（seed 无作品/头像/公告/画风）**
-- 临时脚本放 `server/scripts/tpl-demo-*.mjs`（测完即删），import 相对路径 `'../src/db/connection.js'`
+- 临时脚本放 `server/scripts/tpl-demo-*.mjs`（测完即删），import 相对路径 `'../src/db/connection.ts'`
 - 测试图：System.Drawing 纯色 800x600 PNG 写入 `uploads/images/{artistId}/`
 - **画风只返回 1 个**是 `multi_style_enabled=0` 门控（设计行为非 bug）；测多画风 UI 需 `UPDATE artists SET multi_style_enabled=1`
 - 坑：PowerShell `npx tsx -e "..."` 内嵌 SQL 单引号炸（Unterminated string literal）——**写 .mjs 文件再跑，别用 -e**
@@ -118,9 +118,9 @@ EP 组件（el-empty 等）内部 SVG 用组件级变量（`--el-empty-fill-colo
 
 **现象**：单画风约稿页未选尺寸时，摘要卡显示「日系 合计 ¥0.00」——误导（好像选了但价格是 0），而非引导文案。
 
-**根因链（读代码 + 实测）**：`isStyleMode = styles.length > 0`（useOrderForm.js:45），**单画风时 `selectedStyleId` 自动选中唯一画风**（L48-50）→ 摘要卡 `template v-if="isStyleMode"` 分支必然进入（OrderForm.vue L442-461），`selectedStyle?.name` + `displayPrice.toFixed(2)` 无条件渲染 → 未选尺寸时 `styleDisplayPrice = selectedSize?.base_price ?? 0`（useOrderForm.js:356）= 0 → 显示 ¥0.00。`v-else` 的 `.summary-empty`（L482）永远走不到。
+**根因链（读代码 + 实测）**：`isStyleMode = styles.length > 0`（useOrderForm.ts:45），**单画风时 `selectedStyleId` 自动选中唯一画风**（L48-50）→ 摘要卡 `template v-if="isStyleMode"` 分支必然进入（OrderForm.vue L442-461），`selectedStyle?.name` + `displayPrice.toFixed(2)` 无条件渲染 → 未选尺寸时 `styleDisplayPrice = selectedSize?.base_price ?? 0`（useOrderForm.ts:356）= 0 → 显示 ¥0.00。`v-else` 的 `.summary-empty`（L482）永远走不到。
 
-**修复**：摘要卡画风模式分支价格区加 `v-if="selectedSize"` + `v-else class="summary-empty"` 引导；**但 `.summary-tier`（画风名）保留无条件渲染**——单画风已自动选中，顶部显示画风名是合理信息，测试也断言 `.summary-tier` 恒存在（OrderForm.summary.test.js:196）。新增 i18n key `summaryNoSize`（zh-CN/en.js 双语言）。
+**修复**：摘要卡画风模式分支价格区加 `v-if="selectedSize"` + `v-else class="summary-empty"` 引导；**但 `.summary-tier`（画风名）保留无条件渲染**——单画风已自动选中，顶部显示画风名是合理信息，测试也断言 `.summary-tier` 恒存在（OrderForm.summary.test.ts:196）。新增 i18n key `summaryNoSize`（web/src/locales/zh-CN.ts` + `web/src/locales/en.ts 双语言）。
 ```html
 <div v-if="selectedSize" class="summary-total">
   <span>{{ $t('orderForm.receiptTotal') }}</span>

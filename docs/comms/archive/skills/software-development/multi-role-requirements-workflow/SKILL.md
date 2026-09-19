@@ -338,7 +338,7 @@ When the design touches file storage, produce a **签名矩阵** table: every di
 - Every existing directory (images/, references/, deliverables/)
 - Every NEW directory the design introduces
 - Every field that returns a file path to the frontend (must be signed at the routes layer, never raw from service)
-- **Orphan-file GC collection**: any new file-path column MUST be added to the GC collector, or in-use files get deleted (see `multi-agent-collaboration-setup` references/db-migration-review.md → "File-Path Columns → Orphan-File GC")
+- **Orphan-file GC collection**: any new file-path column MUST be added to the GC collector, or in-use files get deleted (see `multi-agent-collaboration-setup` SKILL.md → 关键文件路由)
 
 ## Workflow: Interactive SPEC Co-Design with User (用户交互细化→SPEC)
 
