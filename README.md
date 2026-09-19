@@ -81,12 +81,7 @@ cd .. && npm run test:e2e      # E2E（仓库根目录）
 
 ### 改动后最小验证
 
-按改动类型跑最小验证清单（命令均为仓库既有脚本，不引入新工具）：
-
-- 后端改动：`cd server && npm run typecheck && npm run lint && npm test`
-- 前端改动：`cd web && npm run lint && npm run test:web && npm run check:i18n && npm run build`
-- 涉及端到端流程：根目录 `npm run test:e2e`
-- 一键全量验收：`pwsh scripts/accept.ps1`（可加 `-Worktree <路径>` 验收指定 worktree，产出结构化报告于 `workspace/temp/`）
+按改动类型的最小验证清单与「门禁全绿」定义见 `AGENTS.md`「改动后最小验证清单」一节（均为仓库既有脚本，不引入新工具）。一键全量验收：`pwsh scripts/accept.ps1`（可加 `-Worktree <路径>` 验收指定 worktree，产出结构化报告于 `workspace/temp/`）。
 
 ## 目录结构
 

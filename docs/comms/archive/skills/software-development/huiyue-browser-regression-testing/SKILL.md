@@ -20,12 +20,12 @@ metadata:
 
 ## 认证配方（TOTP 动态口令，REQ-027 后 send-code 链路已删除）
 
-旧 `send-code`/`_dev_code` 配方已失效。现走真实 TOTP：给测试库注入固定密钥 + RFC 6238 现算 6 位码（抄 `e2e/global-setup.js` 的 base32Decode/currentTotp 即可，零依赖纯 Node crypto）：
+旧 `send-code`/`_dev_code` 配方已失效。现走真实 TOTP：给测试库注入固定密钥 + RFC 6238 现算 6 位码（抄 `e2e/global-setup.ts` 的 base32Decode/currentTotp 即可，零依赖纯 Node crypto）：
 
 ```js
 const SECRET = 'JBSWY3DPEHPK3PXP' // RFC 6238 文档示例密钥，仅注入隔离测试库
 // 1) better-sqlite3 直写：UPDATE artists SET totp_secret=?, totp_verified=1, totp_failed_attempts=0, totp_locked_until=NULL WHERE qq_number IN ('10001','10003')
-// 2) currentTotp(SECRET) 现算 6 位码（30s 步长 HMAC-SHA1，代码在 e2e/global-setup.js L20-55）
+// 2) currentTotp(SECRET) 现算 6 位码（30s 步长 HMAC-SHA1，代码在 e2e/global-setup.ts L20-55）
 const verify = await fetch(`${BASE}/api/auth/verify`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({qqNumber:'10001', code: currentTotp(SECRET)}) })
 const token = verify.headers.getSetCookie().find(c=>c.startsWith('artist_token=')).split(';')[0].split('=').slice(1).join('=')
 // Playwright context:
@@ -36,7 +36,7 @@ await context.addInitScript(()=>{ localStorage.setItem('artist_logged_in','1') }
 ## 隔离测试环境（生产容器占 3000 时）
 
 生产容器 `commission-web` 常驻 3000 端口，**不能动**。worktree 实测起隔离实例：
-- seed 测试库：`$env:DB_PATH='...server/data/test-xxx.db'; npx tsx src/db/seed.js`（造 alice/bob + admin_qq=10003）
+- seed 测试库：`$env:DB_PATH='...server/data/test-xxx.db'; npx tsx src/db/seed.ts`（造 alice/bob + admin_qq=10003）
 - **不要用 vite dev**（proxy 硬编码指向 3000）：`npm run build` 后用 WEB_DIST 模式——`PORT=3100 + DB_PATH=测试库 + WEB_DIST=web/dist + ADMIN_QQ=10003 + npm start`，SPA 由 server 直出
 - 造特定状态数据（如逾期单）直接 SQL INSERT orders 表（先 `PRAGMA table_info(orders)` 核对列名，tier 是 tier_id 不是 tier_name）
 - 画师后台主题断言：`document.documentElement.getAttribute('data-artist-theme')` 应为 paper/ink；**客户端路由下必须为 null**（验收 10 零影响检查项）

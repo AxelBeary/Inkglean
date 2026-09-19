@@ -43,8 +43,8 @@ tags: [multi-agent, code-review, merge, lead-role, git-worktree, dispatch]
 
 1. **发现**：用户说"五号在修 bug"或 `git worktree list` / `git branch -a` 出现未知分支/worktree 时，主动检查。
 2. **审核**：正常流程（读交付报告 → 读真实 diff → 验证根因分析 → 测试门）。五号的 unsolicited hotfix 质量通常很高（他有动机做对——自己发现的 bug 自己修）。
-3. **额外产出注意**：unsolicited 修复常附带发现其他问题（如五号修 date-picker 时发现 app.js Windows 路径 bug）。这些附带发现**记入 STATUS.md 已知遗留**，不阻塞当前 hotfix 合入。
-4. **临时补丁不提交**：角色可能在 worktree 留了未提交的临时补丁（如 app.js 路径修复用于本地 E2E 验证）。审核前 `git status --short` 检查 unstaged changes，`git checkout <file>` 恢复——不带入 master。
+3. **额外产出注意**：unsolicited 修复常附带发现其他问题（如五号修 date-picker 时发现 app.ts Windows 路径 bug）。这些附带发现**记入 STATUS.md 已知遗留**，不阻塞当前 hotfix 合入。
+4. **临时补丁不提交**：角色可能在 worktree 留了未提交的临时补丁（如 app.ts 路径修复用于本地 E2E 验证）。审核前 `git status --short` 检查 unstaged changes，`git checkout <file>` 恢复——不带入 master。
 5. **合并后正常清理**：comms 清理 + worktree 删除 + 分支删除 + 容器重建，与派工交付一致。
 
 ## 设计 Brief 交付（用户要拿去外部 AI 生成设计稿时）
@@ -52,7 +52,7 @@ tags: [multi-agent, code-review, merge, lead-role, git-worktree, dispatch]
 用户可能说"你总结一下我去专业网页生成 AI 那里试试"。此时产出一份**自包含的设计 Brief**（`docs/design-brief-<主题>.md`），让外部 AI 无需任何项目上下文即可理解产品并出设计稿。模板见 `templates/design-brief.md`。
 
 关键原则：
-- **从代码验证**，不凭记忆：路由表（`router/index.js`）确认页面清单、侧边栏菜单（`ArtistLayout.vue`）确认导航结构、CSS 文件确认现有视觉资产
+- **从代码验证**，不凭记忆：路由表（`web/src/router/index.ts`）确认页面清单、侧边栏菜单（`web/src/components/ArtistLayout.vue`）确认导航结构、CSS 文件确认现有视觉资产
 - **说清"谁在用"**：画师是创作者、非程序员、每天高频使用——这决定设计方向（工具感 vs 展示感）
 - **说清"不做什么"**：客户端 4 模板已完成不在范围内，管理后台低频可简化
 - **说清"为什么丑"**：不是某个页面的问题，是没有统一视觉语言——每个版本各写各的 CSS
@@ -122,7 +122,7 @@ git diff master..<branch> -- <具体文件>      # 逐文件读
 
 **用户说"X号转交"但分支/文件都不存在（交付失踪诊断）**：用户转达交付后，read_file 找不到报告文件时，**不猜不编**，按序排查三步：① `git branch -a | Select-String "<预期分支名>"` 看分支是否存在（本地+远端）；② `git worktree list` 看角色 worktree 是否还在；③ `search_files docs/comms/` 看实际有哪些文件（可能文件名与用户转达的不同）。三种结果对应三种结论：分支在但报告在分支上→用 `git show` 读；分支不存在→**交付未成功到达**（角色可能没推分支/派工没传达到位），如实告知用户"找不到交付，可能原因：分支未推送/派工未送达"，让用户确认角色侧状态；文件名不同→读实际存在的文件；④ 分支和 worktree 都在、但角色 worktree 里读不到报告时，查**主 worktree** `git status --short` 的 untracked 列表——报告可能未进任何分支、直接落在主 worktree 的 docs/comms/（v0.35 实例：五号 {count} 修复报告在 wt-05 不存在，实际躺在主 worktree untracked）。**绝不假装审核了不存在的交付**。v0.32 实例：用户说"二号转交，文件：02-to-01-v032-phase1-ui-report.md"，但分支 `feat/v032-phase2-client-ui` 不存在、worktree 不存在、文件不存在——一号如实报告"找不到交付"，用户确认后说"好像没成功下发，我已重新发给二号"。
 
-**分支落后 master 的 diff 噪音**：角色从较早的 master 切分支，之后 master 有新 commit（如四号的 spec、comms 清理、**其他角色的代码合入**），`git diff master..<branch> --stat` 会显示这些文件为"删除"（负行数）。这是正常的分支落后，合并时不会丢失。**不要把它当成角色误删文件**。判断方法：**不只看文件类型**——docs/comms 和 docs/specs 是常见噪音，但**代码文件也会出现**（如其他角色合入的 useOrderPayments.js 显示为 deleted、OrderDetail.vue 显示 -204 行）。正确诊断：`git log --oneline <branch>` 找到分支基点（branch point），确认"删除"的内容对应的是基点之后 master 上的 commit（`git log <branch-point>..master --oneline`）。如果匹配 = 纯噪音，rebase 后消失。**最可靠的审核方式始终是 rebase 后看 diff，或 `git show <commit> --stat` 看单 commit 改动**。实例：五号分支基于 `2c1dfe6`（B7 前端合入前），`git diff master..55ffdd3` 显示 14 文件 -708 行（含 B7 全部代码"被删"），rebase 后 diff 干净只剩 6 文件 +186/-26。
+**分支落后 master 的 diff 噪音**：角色从较早的 master 切分支，之后 master 有新 commit（如四号的 spec、comms 清理、**其他角色的代码合入**），`git diff master..<branch> --stat` 会显示这些文件为"删除"（负行数）。这是正常的分支落后，合并时不会丢失。**不要把它当成角色误删文件**。判断方法：**不只看文件类型**——docs/comms 和 docs/specs 是常见噪音，但**代码文件也会出现**（如其他角色合入的 useOrderPayments.ts 显示为 deleted、OrderDetail.vue 显示 -204 行）。正确诊断：`git log --oneline <branch>` 找到分支基点（branch point），确认"删除"的内容对应的是基点之后 master 上的 commit（`git log <branch-point>..master --oneline`）。如果匹配 = 纯噪音，rebase 后消失。**最可靠的审核方式始终是 rebase 后看 diff，或 `git show <commit> --stat` 看单 commit 改动**。实例：五号分支基于 `2c1dfe6`（B7 前端合入前），`git diff master..55ffdd3` 显示 14 文件 -708 行（含 B7 全部代码"被删"），rebase 后 diff 干净只剩 6 文件 +186/-26。
 
 **分支搭车（hitchhiking）**：角色可能从另一个角色的分支（而非 master）切出自己的分支。合并时会把父分支的未合入 commit 一起带进 master。实例：五号 docs/audit 分支基于三号的 commit（CONTEXT.md + soul 改动）切出，合入时三号的 commit 也搭车进了 master。**审核时必须 `git log master..<branch> --oneline` 检查所有 commit**，发现非本角色的 commit 要判断：内容是否安全可搭车（如纯文档改进可接受），还是应该先 cherry-pick 出本角色的 commit 再合。合并后在汇报中注明搭车内容。
 
@@ -130,7 +130,7 @@ git diff master..<branch> -- <具体文件>      # 逐文件读
 
 逐项核对（审核检查清单）：
 - **授权范围**：把 `--stat` 的文件清单与派工里的授权列表逐条比对。角色经常「顺手」改授权外文件。改得合理可追认，但必须你主动发现并说明，不能漏过。
-  - **可预测的必要超授权**：`shared/errors.js`（新功能必加错误码）和 `tests/setup.js`（新表必补 cleanDb）几乎每个后端任务都会碰。前端任务若新增用户可见文案，`locales/zh-CN.js` + `locales/en.js` 也是必碰的。派工时可直接预授权这些文件，减少审核噪音。
+  - **可预测的必要超授权**：`server/src/shared/errors.ts`（新功能必加错误码）和 `server/tests/setup.ts`（新表必补 cleanDb）几乎每个后端任务都会碰。前端任务若新增用户可见文案，`web/src/locales/zh-CN.ts` + `web/src/locales/en.ts` 也是必碰的。派工时可直接预授权这些文件，减少审核噪音。
   - **架构改善型超授权**：角色改了共享组件（如 TplStatusBadge.vue）而非 N 个模板各改一遍——这是比授权列表更优的方案。审核时明确认可并说明"追认，改共享组件比逐模板改更好"，不要机械打回。
 - **角色声称"已做完/无需改动"**：角色可能报告「任务 C 经代码核实已在之前批次完成，无需额外改动」。这属于 self-report，**必须验证**。方法：用 `search_files` 搜索关键组件/函数在所有相关文件中的引用（如搜 `slotDisplay|TplStatusBadge` 在 4 个模板文件中），确认覆盖完整后才认可。验证通过后在派工文件中标注"✅ 已验证无需改动"，留审计痕迹。
 - **补充指令是否落地**：若你在任务中途发过补充派工（如「同步搭测试基建」），专门去 diff 里找对应文件是否存在。角色窗口可能被上下文压缩吞掉补充指令，导致「主任务做了、补充没做」——这是高频陷阱。
@@ -139,13 +139,13 @@ git diff master..<branch> -- <具体文件>      # 逐文件读
 - **共享组件不带默认样式（防同质化）**：用户明确拍板"共享逻辑，不共享皮肤"。审核前端共享组件（Tpl*.vue）时检查：组件内部是否有 margin/padding/background/border-radius/font-size 等装饰性 CSS。有则打回——视觉必须由各模板的 class 控制，组件只输出内容和状态。4 模板适配时每个模板必须有自己的视觉处理，不允许 4 个模板用同一套 class。这是用户底线，不是建议。
 - **API 链路复用**：复用已有链路时对照已有正确实现的完整步骤，不可只抄一半。
 - **composable 解构验证**：审核使用 composable 的组件时，对照模板中引用的所有变量，逐个确认是否从 composable 的解构列表中导出。v0.19 教训：OrderForm 模板用 `availableAddons.length`，但该变量从未从 `useOrderForm()` 解构，undefined.length 崩溃。二号修了可选链（症状），没发现解构遗漏（根因）。
-- **前后端 API 契约缺口**：波次并行时前端可能按派工契约构建了 UI，但后端实际未实现某个端点（如管理端列表 `GET /api/admin/messages` 在 guestbook.routes.js 中缺失）。审核前端时，对 `api/index.js` 新增的每个方法，用 `search_files` 在后端路由文件中搜对应路径，确认端点存在。缺口不阻塞前端合入（前端做了静默降级），但**合入后立即派后端补**，不等下一波。在交付 comms 中角色通常会标注"⚠️ 待三号补齐"——看到此标记时主动写补漏派工，不等用户提醒。
+- **前后端 API 契约缺口**：波次并行时前端可能按派工契约构建了 UI，但后端实际未实现某个端点（如管理端列表 `GET /api/admin/messages` 在 guestbook.routes.ts 中缺失）。审核前端时，对 `api/index.ts` 新增的每个方法，用 `search_files` 在后端路由文件中搜对应路径，确认端点存在。缺口不阻塞前端合入（前端做了静默降级），但**合入后立即派后端补**，不等下一波。在交付 comms 中角色通常会标注"⚠️ 待三号补齐"——看到此标记时主动写补漏派工，不等用户提醒。
   - **变体：后端已合入、前端在途时发现行为不匹配**：前端角色联调时可能发现后端行为与派工描述不一致（如派工写"多张封面"但后端实现为"单张自动取消"）。前端 comms 的"需要一号知晓"段通常会标注此类发现。**处置**：① 验证前端描述是否准确（读已合入的后端代码）；② 判断是派工错误还是角色实现错误；③ 若 ≤20 行修复（如删一行自动取消逻辑），直接在 master 补 commit + 更新测试断言，不退回角色重开分支。v0.25 实例：二号发现封面单张 vs 多张矛盾，一号确认是自己派工写错，直接在 master 删 setCover 的自动取消行 + 改 TC-CV-02 断言。
 - **迁移回填数据会翻转功能开关（契约缺口的严重度放大器）**：数据迁移若为所有存量记录自动回填（如 v0.32 迁移 v36 为每个画师创建"默认"画风），则依赖该数据的模式检测（如 `isStyleMode = styles.length > 0`）会对 **100% 用户**立即为真——"旧模型退化路径"变成死代码，新路径成为唯一路径。此时任何前后端契约缺口都不再是"新功能的部分降级"，而是"全量用户的核心链路断裂"。**审核规则**：分支引入"有数据则走新路径"的模式切换时，先问一句"迁移/种子数据是否已为所有用户回填了该数据？"是则该分支的提交/下单等核心链路必须端到端可用才能合入，任何 workaround（如把结构化字段塞进 description 文本前缀）都是阻塞项不是兼容方案——workaround 会让功能"看起来能跑"，掩盖全量断裂的严重度。v0.32 实例：二号三步走代码质量完好（步骤系统/计价/UI 全对），但迁移 v36 已给所有画师建了默认画风 → isStyleMode 恒真 → POST /orders 的 `additionalProperties:false` 不接受 styleSizeId → 若合入，所有订单将无价格数据（total_price_cents=null、分期不工作）。处置：挂起前端分支，先派三号扩 POST /orders，合入后再让二号 patch 提交逻辑。
 - **新代码数值计算疑似错误时先对照旧模型**：审核新计算逻辑（如价格 breakdown 明细金额分摊）发现"明细加总 ≠ 总价"等疑似错误时，先搜旧模型同类计算的实现——若公式一致，则是既有展示约定（明细仅供展示，不要求加总相等），不是新 bug，放行并在审核结论注明"与旧模型一致"。v0.32 实例：画风订单 usage/rush 行金额公式（`subtotal×(u-1)×r` / `subtotal×u×(r-1)`）与旧 calculatePrice 完全一致，不是三号新引入的错误。
 - **金额按比例分摊的尾差吸收边界（分期/节点金额）**：把总额按 basis_points 分摊到多个节点时，若每节点独立 `Math.round(total×bp/10000)`，尾差不归任何节点 → 节点金额之和与目标差 ±1~2 分。标准修复：**前 N-1 个独立四舍五入，末节点 = 目标额 − 前 N-1 之和**（吸收尾差）。**但有个隐蔽边界**：末节点吸收的必须是"按比例总额"（`Math.round(total×Σbp/10000)`）的尾差，**不是订单全额**——节点比例之和可能 ≠ 100%（如单节点 30% 定金），若末节点 = 订单全额 − 前面之和，会把 30% 节点算成 100%。**审核/实施此类分摊时先问一句：节点比例之和恒为 100% 吗？** 不恒定则末节点目标用 `ratioTotal`（按比例总额）而非 `totalCents`，并加边界测试用例（单节点 30%、比例和 ≠100%）。v0.35 实例：五号修 BUG-4 时自己发现此边界（TC-ADJ-03 守护），一号审核确认。
 - **Fastify 路由 schema 引用文件后部 const = TDZ 崩溃**：路由对象的 `schema: { ...intId }` 若引用的 `intId` 是同文件**下方**才声明的 `const`，插件注册（路由定义执行）时该 const 尚未初始化 → ReferenceError（Temporal Dead Zone），服务启动即崩。**审核新增路由 schema 复用共享片段（intId/uuidParam 等）时，确认该 const 的声明位置在引用之前**（文件顶部集中定义最稳）。这类错误 build/tsc 不报（类型层合法），只在运行时注册阶段炸，测试若没覆盖该路由的注册会漏。v0.35 实例：五号批次 A 曾误给 GET greetings 加 `schema: intId`（intId 在 L455 声明，引用在 L261），自己发现并移除避免启动崩溃。
-- **新公开路由的守卫一致性**：新增公开路由（`/api/public/*`）时，对照已有公开路由的守卫检查是否齐全。常见遗漏：`status === 'hidden'` 的画师应返回 404（现有 artist.routes.js 公开路由有此检查，新功能如留言板/点赞容易漏）。审核时搜 `getAdminQq` + `hidden` 在已有公开路由中的用法，确认新路由一致。
+- **新公开路由的守卫一致性**：新增公开路由（`/api/public/*`）时，对照已有公开路由的守卫检查是否齐全。常见遗漏：`status === 'hidden'` 的画师应返回 404（现有 artist.routes.ts 公开路由有此检查，新功能如留言板/点赞容易漏）。审核时搜 `getAdminQq` + `hidden` 在已有公开路由中的用法，确认新路由一致。
 - 逻辑正确性 / 空值越界类型 / 前后端字段一致 / 安全（注入·XSS·越权·敏感泄露）/ DB 变更可回滚 / 性能。
 - **大型迁移审核清单（5+ 表 + 老数据迁移时逐项过）**：
   - ① schema 与 REQ 数据模型逐字段对照（字段名/类型/CHECK 约束/UNIQUE/DEFAULT）
@@ -158,8 +158,8 @@ git diff master..<branch> -- <具体文件>      # 逐文件读
   - ⑧ cleanDb 顺序：子表先删（size_addon_overrides → style_addons → style_sizes → art_styles → addon_templates → artists）
   - ⑨ 回滚方案在交付报告中写明（DROP 5 表 + DELETE FROM schema_migrations WHERE version=N）
   - ⑩ 数据粒度丢失可接受性：老数据迁移可能丢失细粒度。REQ 明确说"画师后续自行配置"时标为"建议"不阻塞，但在 STATUS.md 注明。
-  - ⑪ **CHECK 约束漂移（枚举合法化重灾区）**：CHECK 焊死在存量表建表语句里，ALTER ADD COLUMN 不更新它，init.js schema 字符串只管新库。合法化枚举值前必查 `SELECT sql FROM sqlite_master WHERE name='<表>'` 看存量真实约束——代码 schema 可能早已含新值（当年加了漏做存量迁移，值一直写不进只是没人触发）。**4 层检查**（缺一层=功能断）：sqlite_master CHECK → 前端实际调用的路由白名单 → service 白名单 → 前端 UI options+i18n。重建表迁移模式、血泪点、验证方法见 `references/sqlite-check-constraint-rebuild.md`。
-  - ⑪ **CHECK 约束漂移（枚举合法化重灾区）**：CHECK 约束焊死在存量表建表语句里，`ALTER TABLE ADD COLUMN` 不更新它，init.js 的 schema 字符串只用于新库。合法化一个状态值（如管理端新增 hidden）必须先查 `SELECT sql FROM sqlite_master WHERE name='<表>'` 看存量表真实约束——代码 schema 可能早已含新值（当年加了但漏做存量迁移，该值一直写不进去只是没人触发）。修复用重建表迁移，模式与血泪点见 `references/sqlite-check-constraint-rebuild.md`。**枚举合法化 4 层检查**（缺一层=功能断）：sqlite_master CHECK → 前端实际调用的路由的枚举/白名单（同字段可能多路由各自校验）→ service 白名单 → 前端 UI options + i18n。v0.35 实例：hidden 在 v0.13 加，应用层白名单早支持，但存量 artists 表 CHECK 三值焊死——画师自己设 hidden 也会 500，只是从未被触发。
+  - ⑪ **CHECK 约束漂移（枚举合法化重灾区）**：CHECK 焊死在存量表建表语句里，ALTER ADD COLUMN 不更新它，init.ts schema 字符串只管新库。合法化枚举值前必查 `SELECT sql FROM sqlite_master WHERE name='<表>'` 看存量真实约束——代码 schema 可能早已含新值（当年加了漏做存量迁移，值一直写不进只是没人触发）。**4 层检查**（缺一层=功能断）：sqlite_master CHECK → 前端实际调用的路由白名单 → service 白名单 → 前端 UI options+i18n。重建表迁移模式、血泪点、验证方法见 `references/sqlite-check-constraint-rebuild.md`。
+  - ⑪ **CHECK 约束漂移（枚举合法化重灾区）**：CHECK 约束焊死在存量表建表语句里，`ALTER TABLE ADD COLUMN` 不更新它，init.ts 的 schema 字符串只用于新库。合法化一个状态值（如管理端新增 hidden）必须先查 `SELECT sql FROM sqlite_master WHERE name='<表>'` 看存量表真实约束——代码 schema 可能早已含新值（当年加了但漏做存量迁移，该值一直写不进去只是没人触发）。修复用重建表迁移，模式与血泪点见 `references/sqlite-check-constraint-rebuild.md`。**枚举合法化 4 层检查**（缺一层=功能断）：sqlite_master CHECK → 前端实际调用的路由的枚举/白名单（同字段可能多路由各自校验）→ service 白名单 → 前端 UI options + i18n。v0.35 实例：hidden 在 v0.13 加，应用层白名单早支持，但存量 artists 表 CHECK 三值焊死——画师自己设 hidden 也会 500，只是从未被触发。
 - **种子/演示脚本直接 INSERT 须逐列对照生产 service INSERT**：seed/demo 脚本绕过 service 层直接 INSERT 核心表时，逐列对照生产代码的 INSERT 语句——生产写了而种子漏的字段（如 `queue_position`：生产 createOrder 分配 max+1，队列看板按它排序，SQLite 中 NULL 排最前 → 演示订单顶到队列最上乱序）= 展示/排序 bug。区分"列"与"快照"：有些字段生产不落列（如 styleSizeId 进 quote_snapshot 文本快照，orders 表无 style_size_id 列）——种子注释"仅校验存在不入库"是对的，别误判遗漏；不确定先读生产 service 的 INSERT。修复 ≤5 行一号直接在 feature 分支补（如 `idx + 1`），补后容器内重跑脚本验证幂等。v0.33 实例：demo-data.ts 演示订单漏 queue_position，一号审核补 `0ccc919`。v0.34 实例：① demo-data INSERT artworks 漏 width/height 列 → TplGallery 的 aspect-ratio 占位失效 → 用户之前报过并修复的"图片顶位置"复发（种子数据绕过了修复所依赖的字段）；② INSERT orders 漏 deadline 列 → 时间条「整条平移」拖拽被全量禁用（REQ-019 设计要求有截稿日才能整条拖，五号诊断报告含容器内 1:1 复刻前端逻辑的确定性证据），用户报「拖不动」。**规则强化：已修复 bug 复发时，先查新数据来源（seed/demo 脚本/迁移回填）是否缺修复依赖的字段**；功能迭代给表加过列的，种子脚本 INSERT 要对照表全列检查，种子脚本极易落后于表结构。**派工/审核种子脚本时，把「前端行为消费的列」列成核对清单**：width/height→画廊占位、deadline→时间条拖拽、queue_position→队列排序——这类列缺失时 INSERT 照样成功、测试照样绿，只在用户体验时暴露。修复后验证：容器内重跑脚本（幂等）+ 宿主机 Python sqlite3 写断言脚本（临时 .py 放 temp 目录、跑完即删）回读 DB 确认每行。
 - **跨组件导航契约验证**：组件 A 通过 `router.push({ query: { status: 'active' } })` 跳转到组件 B 时，**必须验证 B 的 onMounted/setup 是否读取并处理了该 query 参数**。高频陷阱：A 发的值是复合/聚合值（如 `active` = 非终态、`completed` = done+delivered），但 B 的筛选器只接受单一状态枚举（pending/confirmed/wip/done/delivered/cancelled）。修复模式：B 加 `compositeFilter` computed 做客户端过滤（复合值不走后端 API 筛选，加载全量后前端 filter）。实例：StatCards 发 `?status=active`，OrderList 不读 query.status → 点击统计卡到列表但无筛选。一号审核发现后直接在 feature 分支补了 OrderList 的 query 读取 + compositeFilter（~20 行），不退回二号。
   - **query 预选的加载时序验证**：审核"URL query 预选"类功能（如主页选画风/尺寸带 `?styleId=&sizeId=` 跳下单页）时，专门验证预选逻辑与自动选中逻辑的**执行时序**——若预选依赖某个自动选中状态（如单画风自动选中唯一画风），确认自动选中是**同步**发生在预选调用之前（如 load() 里同步赋值），不是 watcher 异步触发，否则预选时依赖状态还是 null。v0.34 实例：applyQueryPreselect 依赖 selectedStyleId，验证 load() L671-673 单画风自动选中是同步的且在 L677 预选调用之前——担心的异步时序陷阱不存在，放行。
@@ -176,13 +176,13 @@ git diff master..<branch> -- <具体文件>      # 逐文件读
 - **`@click.stop` 无 handler = 点击死区（浮层/覆盖层陷阱）**：元素写了 `@click.stop` 但没绑处理函数时，该元素（及其非按钮子区域）上的所有点击被静默吞掉——用户点浮层描述区期望"开大图/跳转"却毫无反应，而父元素本有 click handler（被 stop 拦死）。测试测不出（功能"能跑"），只有人点浮层空白处才暴露。**审核方法**：搜 `.vue` 中无参数值的 `@click.stop`（后面直接跟空白/换行/`>`，没有 `="handler"`），逐个判断是故意阻止冒泡（合理）还是死区。**修复模式**：浮层本身绑合理 handler（如 `@click.stop="openLightbox(index)"`），且浮层内的交互元素（标签按钮等）**必须加 `.stop`** 防冒泡到浮层 handler 造成双触发（先开大图又跳下单）。v0.35 波 2 实例：TplGallery hover 浮层 `@click.stop` 无 handler → 桌面端点描述区无反应，一号审核补：浮层点击开大图 + 标签按钮改 `@click.stop="orderByTag(tag)"`。
 - **矛盾状态显示（手动字段 + 计算字段冲突）**：UI 同时渲染一个手动设置字段（如 `artist.status='open'`）和一个计算字段（如 `slotDisplay='本月已约满'`），两者逻辑上矛盾但各自独立计算——用户看到"✅ 可约稿 · 本月已约满"。**审核方法**：搜组件中同时引用 `status` 和 `slotDisplay`（或类似的手动+计算字段对），检查是否存在矛盾组合。**修复模式**：后端在 API 返回中新增 `effectiveStatus` 字段（计算字段覆盖手动字段：额度耗尽时 open→full），前端用 `effectiveStatus || status`（向后兼容）。保留原 `status` 不动（画师设置页仍用原值）。实例：v0.29 #54——status='open' + monthly_quota 耗尽 → slotDisplay='本月已约满'，TplStatusBadge 同时渲染两者。
 - **vue-i18n 花括号陷阱（两种）**：① `{中文}` → ICU 解析崩溃（报错）；② `{name}` 等合法 ASCII 但调用时不传参 → **静默渲染空字符串**（不报错，更隐蔽）。详见 `references/vue-i18n-placeholder-pitfall.md`。审核 locale 文件新增行时搜 `\{[a-zA-Z]` 模式，确认调用处是否传了对应参数；搜 `{[^a-zA-Z]` 模式抓中文占位符。
-- **新增 $t() 键必须存在于两个 locale 文件**：角色新增 `$t('x.y')` 调用时，搜该键是否在 zh-CN.js 和 en.js 中都已添加。缺键 = UI 直接暴露原始键名（如页面显示 `settings.coverManageLink`）。v0.30 教训：二号 Settings 封面链接用了新键但没加到 locales，用户看到裸键。**审核方法**：对 diff 中每个新增的 `$t('` 调用，提取键名在两个 locale 文件中搜索，缺的当场补（1 行改动，不退回）。
+- **新增 $t() 键必须存在于两个 locale 文件**：角色新增 `$t('x.y')` 调用时，搜该键是否在 zh-CN.ts 和 en.ts 中都已添加。缺键 = UI 直接暴露原始键名（如页面显示 `settings.coverManageLink`）。v0.30 教训：二号 Settings 封面链接用了新键但没加到 locales，用户看到裸键。**审核方法**：对 diff 中每个新增的 `$t('` 调用，提取键名在两个 locale 文件中搜索，缺的当场补（1 行改动，不退回）。
 - **双字段交叉校验的 API 调用顺序**：前端一次操作通过两个独立 PUT 更新互相约束的字段（如开工日/截稿日）时，调用顺序必须避免中间态违反后端约束。整体右移（延后）：**先更新截稿日再更新开工日**（否则 newStart > 旧 deadline → 交叉校验 400）；左移（提前）反之。v0.30 教训：REQ-019 时间条平移固定先调 updateStartDate，用户往右拖必 400 + 弹"开工日不能晚于截稿日"。审核含"一次操作调两个 API"的代码时检查顺序是否方向感知。
 - **EP `disabled-date` 禁用今天陷阱**：`:disabled-date="(d) => d < new Date()"` 会禁用当天——`d` 是日历日零点（`2026-08-03T00:00:00`），`new Date()` 含当前时间（如 `14:30`），零点 < 当前时间 = true = 禁用。截稿日和开稿日都受影响。正确写法：`(d) => d.getTime() < new Date(new Date().toDateString()).getTime()`（比较纯日期）或用 dayjs `d.isBefore(dayjs(), 'day')`。**审核规则**：搜 `disabled-date` 在 `.vue` 文件中，检查比较逻辑是否含时间分量。发现 `d < new Date()` 模式标为建议级（不阻塞合入，后续统一修），因为截稿日已有同样问题，新代码只是复制了同一模式。v0.31 实例：二号 F3 开稿日复制了截稿日的 disabled-date 写法，两处都禁用今天。
 - **拖拽与 click 共存冲突**：同一元素同时绑定 pointer 拖拽事件（pointerdown/move/up）和 `@click` 时，拖拽松手会触发 click（误跳转/误操作）。v0.30 教训：时间条横条拖拽松手直接跳进订单详情。修复模式：模块级 `let dragHappened = false`，拖拽结束（dayDelta ≠ 0）时置 true + `setTimeout(() => { dragHappened = false }, 50)`，click handler 开头 `if (dragHappened) return`。审核拖拽功能时搜同元素是否有 @click。
 - **事件修饰符死区（@click.stop 无 handler）**：浮层/覆盖层写 `@click.stop`（不带处理函数）意图阻止冒泡，但若该浮层盖在可点击区域上，点浮层非按钮区**无任何反应**（期望是开大图/跳转）——用户感知为「点不动」。同时浮层内的按钮若不加 `.stop`，点击会冒泡到外层容器双触发（开大图 + 按钮动作同时发生）。审核 hover 浮层/lightbox 类组件时：搜 `@click.stop` 后无 `="` 的写法 → 要么绑 handler（点浮层空白 = 打开详情），要么确认该区域本就不可点。v0.35 实例：二号 TplGallery hover 浮层 `@click.stop` 死区，一号审核时改为 `@click.stop="openLightbox(index)"` + 浮层内标签按钮加 `.stop` 防双触发。
 - **Fastify body schema 对无 body 路由的 400 陷阱**：路由设了 `schema: { body: { type: 'object', ... } }` 但前端调用时不发 body（如 `api.put('/artworks/1/cover')` 无第二参数），Fastify 校验空 body 不满足 `type: 'object'` → 返回 400。**审核时检查**：PUT/DELETE/PATCH 路由若声明了 body schema，确认前端调用处确实发送了 body。若路由逻辑不需要 body（如仅靠 URL 参数操作），**删掉 body schema**（不写 `body` 字段），而非写一个空 object schema。实例：`PUT /api/artist/artworks/:id/cover` 声明了 `body: { type: 'object', properties: {}, additionalProperties: false }`，前端 `api.put(url)` 无 body → 400，设封面功能完全不工作。修复：删 body schema 一行。
-- **后端新错误码必须同步前端 i18n**：后端 `errors.ts` 新增错误码 + `ERROR_MESSAGES` 中文消息后，**必须同时在 `locales/zh-CN.js` 和 `en.js` 的 `errors:` 对象中加对应键**。axios 拦截器用 `t('errors.${code}')` 翻译，键缺失 → 用户看到原始错误码字符串（如弹窗显示 `INVALID_ANNOUNCEMENT_DATE`）。**审核规则**：diff 中出现 `errors.ts` 新增码 → 立即搜 locale 文件确认有对应键。缺则一号直接补（2 行 × 2 文件）。**批量复验**（角色声称"已补齐 N 键"或审计报存量缺口时）：跑 `scripts/verify-error-code-i18n.mjs <项目根>`，输出每语言缺失/多余键清单，1 秒出结论，比目测可靠。v0.35 实例：五号审计发现存量缺 56 键（脚本实锤），批次 A 补完后一号用同一脚本复验零缺失。v0.29 实例：五号加了 INVALID_START_DATE + INVALID_ANNOUNCEMENT_DATE，locale 没加，用户体验时看到原始码。
+- **后端新错误码必须同步前端 i18n**：后端 `errors.ts` 新增错误码 + `ERROR_MESSAGES` 中文消息后，**必须同时在 `web/src/locales/zh-CN.ts` 和 `en.ts` 的 `errors:` 对象中加对应键**。axios 拦截器用 `t('errors.${code}')` 翻译，键缺失 → 用户看到原始错误码字符串（如弹窗显示 `INVALID_ANNOUNCEMENT_DATE`）。**审核规则**：diff 中出现 `errors.ts` 新增码 → 立即搜 locale 文件确认有对应键。缺则一号直接补（2 行 × 2 文件）。**批量复验**（角色声称"已补齐 N 键"或审计报存量缺口时）：跑 `scripts/verify-error-code-i18n.mjs <项目根>`，输出每语言缺失/多余键清单，1 秒出结论，比目测可靠。v0.35 实例：五号审计发现存量缺 56 键（脚本实锤），批次 A 补完后一号用同一脚本复验零缺失。v0.29 实例：五号加了 INVALID_START_DATE + INVALID_ANNOUNCEMENT_DATE，locale 没加，用户体验时看到原始码。
 - **全站 emoji 清理任务（用户拍板"删所有 emoji，SVG 无所谓"时）**：这是典型的两角色并行任务，派工三要点：① **locales 按命名空间切分归属**——一个角色管客户端命名空间（artistHome/orderForm/gallery/notFound…），另一个管后台区域复用的键（tiers/styleManage/menu…），明确写进两份派工 + STATUS「并行契约」段，rebase 冲突保留双方；② **区分真 emoji 与功能性文本符号**——✓✕✔★☆◐○↩→— 是删除/勾选/排序按钮的图标本体（与 SVG 图标同角色），删了按钮变空白，必须保留；只有彩色图形字符（🎨💰📋🔒）才删；③ **图标位不能留空**——删 emoji 后若该位置是功能图标，换 `@element-plus/icons-vue` SVG（组件对象入常量数组用 markRaw，见「图标/常量换组件对象」审核条），纯装饰/标题前缀直接删；④ **审核用 Unicode 区段扫描验证残留**：`git grep -nP "[\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}]" web/src/<目录>`，空输出 = 干净；测试文件里的 emoji 是测试样本，保留。v0.34 实例：二号管 locales 全部 132 处 + 客户端/共享组件，三号管画师/管理后台 11 个 .vue，零冲突合入。
 - **新增 UI 元素与已有功能重复审计**：角色在组件中新增按钮/入口时，**检查同一组件（含头部/工具栏）是否已有相同功能**。高频陷阱：组件头部已有「复制 QQ」按钮，角色在沟通区又加了一个「复制联系方式」——功能完全重复，用户困惑"为什么下面还有"。**审核方法**：对新增的 `el-button`/操作入口，搜同文件中是否已有相同 `@click` 处理函数（如 `copyQq`）。有则打回或合并。v0.29 实例：#17 二号在 OrderDetail 沟通区加了复制按钮，但头部 L19-22 已有 QQ 号 + 跳转 + 复制——一号直接删多余按钮。
 - **上传关联 UX 陷阱（"上传成功 ≠ 保存成功"）**：弹窗/表单内 el-upload 上传成功后只把文件路径写进表单 state，真正关联要等点"确定"才发 PUT。用户心智是"传了就生效"，不点确定关掉弹窗 = 静默丢失设置。**用户报"我后台设置了但前台不是"时的三步证据链**（3 分钟闭环，不要闷头查代码）：① 磁盘文件时间戳（`Get-ChildItem uploads\images\<id>\ | Sort LastWriteTime`）有新文件 = 上传本身成功；② DB 字段值（宿主机 python sqlite3 写 .py 查）仍是旧值 = 关联未发生；③ 服务器请求日志（`docker logs commission-web --since 90m | Select-String "PUT /api/artist/art-styles"`）无 PUT = 前端从未发关联请求。三步吻合 = 上传 UX 陷阱，不是数据丢失、不是后端 bug。**修复方向**：编辑已有实体时上传成功立即 PUT 该单字段（同 R48 头像即时保存模式）+ ElMessage 提示；新建实体（无 id）保留表单态但给醒目"确定后生效"提示。**审核规则**：对每个 el-upload 检查关联是即时还是延迟，延迟的按此模式修。v0.34 实例：用户 22:14 传 3 图落盘成功，日志零 PUT，DB 封面还是 demo 脚本写死的旧值。
@@ -191,21 +191,21 @@ git diff master..<branch> -- <具体文件>      # 逐文件读
 - **service 层新字段处理须兼容多种输入格式**：给 updateArtist 等通用更新函数加新字段处理时，旧测试可能直接传 JSON 字符串（绕过路由），新路由传数组。处理逻辑须兼容两种：`if (typeof v === 'string') { try { v = JSON.parse(v) } catch { v = [] } }`。否则旧测试挂（TC-S5-17 实例：传对象数组 JSON 字符串，新代码期望数组，得到 `[]`）。
 - **"功能不工作"但代码无缺陷（视图/模式错位）**：用户报"X 不工作"时，先确认用户是否在正确的视图/模式下操作。高频场景：功能在 Tab B 但用户停留在 Tab A（如时间条拖拽在"时间条"视图，默认是"列表"视图）。**诊断方法**：角色用 Playwright/headless 浏览器自动化验证（切到正确视图→模拟操作→检查 API 响应），若功能正常则结论为"非代码 bug，用户引导问题"。**处置**：① 不修代码（功能本身正确）；② 向用户说明操作路径（"需先切到📊时间条视图"）；③ 若交互入口不直观（如 8px handle），归入 C 类视觉改进而非 A 类 bug。v0.29 实例：#4 时间条拖拽，五号 Playwright 验证 5 个 handle 全渲染、API PUT 200、日期更新成功——功能正常，用户在列表视图找不到拖拽入口。
 - **"修了但没修全"验证**：角色修复某类问题（如可选链防御）时，常修了最显眼的几处但漏掉同类其他位置。审核时**用 search_files 搜同一模式的所有出现**（如搜 `pricePreview\.` 看是否还有非可选链访问），对照 diff 确认全覆盖。实例：v0.19 计价崩溃修复给 OrderForm.vue 第 266/303 行加了 `?.`，漏了第 133 行——用户再次崩溃。派工修复时也要在派工里写明"全局搜索同类模式，确认无遗漏"。
-- **"修了但根因没命中"——用户仍报错时一号直接查，不重新派工**：角色修了 bug 但用户说还崩，说明修复打偏了（修了次要症状，主要根因未命中）。此时**不再派工**，一号直接：①确认构建哈希已变（新代码确实部署了）；②从 minified bundle 提取崩溃位置上下文（`$lines = Get-Content OrderForm-*.js; $lines[1].Substring(col-150, 300)`）定位真正的崩溃表达式；③对照源码找根因并直接 patch。实例：二号修了 `installments` 可选链（次要），真正根因是 `availableAddons` 根本没从 `useOrderForm()` 解构出来，模板访问 `undefined.length` 崩溃。
+- **"修了但根因没命中"——用户仍报错时一号直接查，不重新派工**：角色修了 bug 但用户说还崩，说明修复打偏了（修了次要症状，主要根因未命中）。此时**不再派工**，一号直接：①确认构建哈希已变（新代码确实部署了）；②从 minified bundle 提取崩溃位置上下文（`$lines = Get-Content OrderForm-*.ts; $lines[1].Substring(col-150, 300)`）定位真正的崩溃表达式；③对照源码找根因并直接 patch。实例：二号修了 `installments` 可选链（次要），真正根因是 `availableAddons` 根本没从 `useOrderForm()` 解构出来，模板访问 `undefined.length` 崩溃。
 - **用户催促并行信号 → 立即分诊转派工，不单干**：用户说「你行吗 不行就安排别人查」「时间很紧 让大家都动起来」= 停止单独深挖：① 用 1-2 步把已有证据链收口给出结论（哪怕是部分结论，如"不是数据丢失，是 X"）；② 立即建 worktree + 写多角色并行派工（一个 turn 内写完全部派工文件并 commit 推送）；③ 回复先给已确认的根因安抚，再给触发语。用户 Frustration 时最忌讳的是再花 10 分钟独自排查完才说话。v0.34 实例：封面问题 3 分钟三步证据链收口（磁盘时间戳 + DB + 日志），随后同一 turn 建两个 worktree 并行派二号（7 项客户端批次）+ 三号（3 项后端画师批次）。
 - **snake_case / camelCase API 字段映射**：SQLite 返回 snake_case 列名（`current_stage_id`），前端期望 camelCase（`currentStageId`）。若 API 层未做映射，前端拿到 `undefined`，而 JS 中 `undefined == null` 为 `true`——所有 `== null` 守卫被穿透。审核新增 API 端点时，检查返回值是否做了 camelCase 映射（对照已有端点如 `GET /api/artist/orders` 的 `currentStageId: order.current_stage_id ?? null` 模式）。实例：Queue API 返回原始 `current_stage_id`，QueueBoard 的 `v-else-if="currentStageId == null"` 守卫形同虚设，工作流订单穿透到固定状态按钮。
   - **变体：前后端全链 snake_case 自洽 = 技术债非 bug**：新功能若后端返回 snake_case、前端消费端也全用 snake_case（如画风功能的 cover_image/base_price/sort_order 在 ArtStyleManager/TplStyleGrid/useOrderForm 中一致），功能正常——不打回，记入 STATUS 技术债（与项目其他 API camelCase 约定不一致，以后统一时一起改）。审核时先 search_files 搜该字段名在 `.vue` 文件中的用法确认两端一致再下结论。
 - **前端引用 API 字段名验证（字段发明陷阱）**：与上条不同——不是映射缺失，而是开发者**凭记忆写了一个根本不存在的字段名**。高频场景：图片/文件路径字段（`example_image` vs `example_image_path` vs `exampleImagePath`）。**审核方法**：对前端新增代码中每个 API 响应对象的属性访问（尤其图片路径、关联对象字段），用 `search_files` 在后端 service/routes 中搜该字段名确认存在。若后端用 `SELECT *`（无显式映射），字段名 = DB 列名（snake_case）。**最快验证**：搜同项目中其他组件怎么引用同一字段（如搜 `example_image` 在 `.vue` 文件中的用法），对照新组件是否一致。实例：三号 ManualOrder 用 `tier.example_image_path`，但 `GET /api/artist/profile` 的 tiers 来自 `SELECT * FROM price_tiers`（列名 `example_image`），其他组件（TplTierGrid、TierManage）全用 `example_image`——只有新组件写错，图片永不显示。修复 ≤2 行，一号直接补。**规则：前端新组件引用 API 字段时，搜同项目已有组件的用法做交叉验证，不凭记忆。**
 - **TS/运行时迁移的部署链路**：审核涉及运行时变更的分支（如 node→tsx、CJS→ESM）时，**必须检查完整部署链路**，不只看代码和测试：
   - `entrypoint.sh` / Dockerfile `CMD`：是否仍用旧运行时（如 `exec node`）？plain node 无法 import `.ts` 文件，容器启动即崩。
-  - `package.json`：新运行时（如 tsx）是否在 `dependencies` 而非 `devDependencies`？Dockerfile `--omit=dev` 会跳过 devDeps，容器里找不到 tsx。
+  - `package.tson`：新运行时（如 tsx）是否在 `dependencies` 而非 `devDependencies`？Dockerfile `--omit=dev` 会跳过 devDeps，容器里找不到 tsx。
   - 角色通常会在交付 comms 中提醒（如"⚠️ Dockerfile CMD 需改"），但**即使角色没提醒，审核时也要主动查 entrypoint.sh + Dockerfile**。这是高频遗漏点。
-  - 修复方式：一号直接在 feature 分支补 commit（rebase master 后），不退回角色——改动量极小（1 行 entrypoint + package.json 移依赖），退回只多一轮交互。
+  - 修复方式：一号直接在 feature 分支补 commit（rebase master 后），不退回角色——改动量极小（1 行 entrypoint + package.tson 移依赖），退回只多一轮交互。
   - 合入后**必须重建容器验证**（`docker compose up -d --build`），Healthy 才证明部署链路通。
-  - **E2E/测试基建也是部署链路**：Playwright global-setup.js 等测试基础设施会 `spawn` 服务器进程。运行时变更（node→tsx）后，这些 spawn 调用也必须同步更新，否则 E2E 全挂。审核 TS/运行时迁移分支时，`search_files` 搜 `spawn.*node.*index` 和 `execSync.*node.*seed` 找出所有服务器启动点。
-  - **Windows 上 spawn tsx 的正确方式**：`spawn('npx', ['tsx', ...])` 在 Windows 上失败（npx 是 .cmd，需 shell）；`shell: true` 有 DEP0190 警告且服务器可能起不来；`--import tsx` 在 spawn 上下文中模块解析失败。**可行方案**：`spawn(process.execPath, [resolve(ROOT, 'server/node_modules/tsx/dist/cli.mjs'), 'src/index.js'], { cwd: serverDir })`——直接用 node 执行 tsx 的 CLI 入口，绕过 npx 和 --import。execSync 同理：`` execSync(`"${process.execPath}" "${tsxCli}" src/db/seed.js`, { cwd: serverDir }) ``。
-  - **package-lock.json 同步**：角色把依赖从 devDependencies 移到 dependencies（如 tsx）时，常只改 package.json 不跑 `npm install` 更新 lock。master 上 `git diff server/package-lock.json` 有 diff 但 package.json 无 diff = lock 落后。一号直接在 master 提交 lock 同步（`git add server/package-lock.json && git commit -m "chore: package-lock同步"`），不退回角色。
-  - v0.21 实例：三号 TS 迁移把 errors.js→errors.ts，entrypoint.sh 仍 `exec node`，tsx 在 devDeps。一号审核发现后直接在分支补了 entrypoint 改 tsx + tsx 移 dependencies。二号 E2E 的 global-setup.js 也用了 `spawn('node', ...)`，rebase 后一号改为 tsx 绝对路径，5/5 全绿。
+  - **E2E/测试基建也是部署链路**：Playwright global-setup.ts 等测试基础设施会 `spawn` 服务器进程。运行时变更（node→tsx）后，这些 spawn 调用也必须同步更新，否则 E2E 全挂。审核 TS/运行时迁移分支时，`search_files` 搜 `spawn.*node.*index` 和 `execSync.*node.*seed` 找出所有服务器启动点。
+  - **Windows 上 spawn tsx 的正确方式**：`spawn('npx', ['tsx', ...])` 在 Windows 上失败（npx 是 .cmd，需 shell）；`shell: true` 有 DEP0190 警告且服务器可能起不来；`--import tsx` 在 spawn 上下文中模块解析失败。**可行方案**：`spawn(process.execPath, [resolve(ROOT, 'server/node_modules/tsx/dist/cli.mjs'), 'src/index.ts'], { cwd: serverDir })`——直接用 node 执行 tsx 的 CLI 入口，绕过 npx 和 --import。execSync 同理：`` execSync(`"${process.execPath}" "${tsxCli}" src/db/seed.ts`, { cwd: serverDir }) ``。
+  - **package-lock.tson 同步**：角色把依赖从 devDependencies 移到 dependencies（如 tsx）时，常只改 package.tson 不跑 `npm install` 更新 lock。master 上 `git diff server/package-lock.tson` 有 diff 但 package.tson 无 diff = lock 落后。一号直接在 master 提交 lock 同步（`git add server/package-lock.tson && git commit -m "chore: package-lock同步"`），不退回角色。
+  - v0.21 实例：三号 TS 迁移把 errors.ts→errors.ts，entrypoint.sh 仍 `exec node`，tsx 在 devDeps。一号审核发现后直接在分支补了 entrypoint 改 tsx + tsx 移 dependencies。二号 E2E 的 global-setup.ts 也用了 `spawn('node', ...)`，rebase 后一号改为 tsx 绝对路径，5/5 全绿。
 - **TS 迁移分支审核（渐进 JS→TS，每批迁移的固定审核模式）**：
   - **从正确目录跑 tsc**：`cd server && npx tsc --noEmit`（从 worktree 根目录跑会报 "This is not the tsc command you are looking for"——typescript 装在 server/node_modules）。
   - **错误分诊命令**：`npx tsc --noEmit 2>&1 | Select-String "error TS" | ForEach-Object { ($_ -split '\(')[0] } | Group-Object | Sort-Object Count -Descending`——按文件聚合，找分布规律。
@@ -219,8 +219,8 @@ git diff master..<branch> -- <具体文件>      # 逐文件读
 
 **运行时/一号自己要求"验证证据"时，改动不在测试套件覆盖范围内要如实说明**：Hermes 可能在改动后提示"补验证证据"。若改动文件是容器内执行的种子脚本等 vitest 套件不覆盖的文件，**不硬凑套件数字**（"666/666 通过"是改动前基线，与本次改动无关），如实分层给证据：① `npx tsc --noEmit` 全量类型检查（覆盖被改 .ts）② 容器内实际重跑脚本（真实执行路径）③ 宿主机断言脚本回读 DB（期望值逐行对照，脚本放 temp 目录跑完即删）。汇报时明说"这是 ad-hoc 验证非套件全绿，套件本身未受影响"——诚实的证据分层比假装全绿更有价值，也不给自己埋"声称测过实际没测"的雷。
 - **T 确认作为迷你审计（BUG 发现渠道）**：派工中的"待确认技术项"（T1-T5）不是纯 Q&A——角色在确认过程中会深入读代码，常发现现有 BUG。实例：三号确认 T3（工作流推进与 installment status 解耦）时发现 installment status 永远是 DEFAULT 'pending'，{已付}/{待付} 话术变量永远 ¥0——这是上线已久的 BUG。**处置**：① 立即记入 STATUS.md 已知遗留（标 🟡）；② 评估可否并入下一版本相关功能（如额度池实施时顺带修）；③ 在四号 spec 更新中补充 BUG 修复为验收标准。不要等角色单独报 bug——T 确认回复中主动扫"发现/注意/BUG"关键词。
-- **i18n 硬编码修复验证（一号直接补时必做）**：把组件中的硬编码中文替换为 `$t()` 后，必须验证两件事：① 所有引用的键在 zh-CN.js 和 en.js 中都存在（缺键 = UI 显示原始键名如 `tiers.tabTiers`）；② 模板区无残留硬编码中文（排除注释）。可复用脚本：`scripts/verify-i18n-keys.mjs`（用法：`node scripts/verify-i18n-keys.mjs <vue文件> <namespace> <locales目录>`）。实例：TierManage.vue 14 处硬编码中文 i18n 化，36 个 tiers.* 键全部通过，模板区残留 0 处。
-- **Windows `path.sep` 静态文件路由陷阱**：`filePath.startsWith(WEB_DIST + '/')` 在 Windows 上永远 false——`resolve()` 产生反斜杠路径（`D:\...\dist\assets\main.js`），但硬编码了正斜杠 `/`。所有静态资源 fallback 到 index.html（MIME text/html），本地 E2E 全挂，Docker/CI（Linux）不受影响。修复：`import { sep } from 'path'`，改为 `startsWith(WEB_DIST + sep)`。五号在本地跑 E2E 时发现，Docker 里一直正常所以从未暴露。**审核涉及 `startsWith` + 路径拼接的代码时，检查是否硬编码了 `/` 或 `\`。**
+- **i18n 硬编码修复验证（一号直接补时必做）**：把组件中的硬编码中文替换为 `$t()` 后，必须验证两件事：① 所有引用的键在 zh-CN.ts 和 en.ts 中都存在（缺键 = UI 显示原始键名如 `tiers.tabTiers`）；② 模板区无残留硬编码中文（排除注释）。可复用脚本：`scripts/verify-i18n-keys.mjs`（用法：`node scripts/verify-i18n-keys.mjs <vue文件> <namespace> <locales目录>`）。实例：TierManage.vue 14 处硬编码中文 i18n 化，36 个 tiers.* 键全部通过，模板区残留 0 处。
+- **Windows `path.sep` 静态文件路由陷阱**：`filePath.startsWith(WEB_DIST + '/')` 在 Windows 上永远 false——`resolve()` 产生反斜杠路径（`D:\...\dist\assets\main.ts`），但硬编码了正斜杠 `/`。所有静态资源 fallback 到 index.html（MIME text/html），本地 E2E 全挂，Docker/CI（Linux）不受影响。修复：`import { sep } from 'path'`，改为 `startsWith(WEB_DIST + sep)`。五号在本地跑 E2E 时发现，Docker 里一直正常所以从未暴露。**审核涉及 `startsWith` + 路径拼接的代码时，检查是否硬编码了 `/` 或 `\`。**
 - commit message 格式 `type(scope): 描述`，不符退回。
 
 读不出来安全性、缺上下文、不确定接口契约时：先问，不猜测、不放行、不合并。
@@ -257,44 +257,44 @@ git diff master..<branch> -- <具体文件>      # 逐文件读
 
 **⚠️⚠️ SQLite WAL + Docker Desktop Windows bind mount = 数据丢失（P0 级，已修复 `2fa9948`）**：
 
-**根因**：`connection.js` 开了 `journal_mode = WAL`。WAL 模式下数据先写 `-wal` 文件，需 checkpoint 合并到主 DB。Docker Desktop 的 bind mount（`./data:/app/data`）走 Windows 9P/Plan9 文件系统桥，**不支持 WAL 需要的共享内存（-shm）和文件锁**。数据永远困在 WAL 文件里，容器停止后 WAL 丢失，主 DB 只剩空表结构（237KB 全是 schema）。
+**根因**：`connection.ts` 开了 `journal_mode = WAL`。WAL 模式下数据先写 `-wal` 文件，需 checkpoint 合并到主 DB。Docker Desktop 的 bind mount（`./data:/app/data`）走 Windows 9P/Plan9 文件系统桥，**不支持 WAL 需要的共享内存（-shm）和文件锁**。数据永远困在 WAL 文件里，容器停止后 WAL 丢失，主 DB 只剩空表结构（237KB 全是 schema）。
 
 **实际事故**：v0.31 收工后 `docker stop` 查 DB，重启后整个数据库空了（0 画师、0 订单、0 作品）。容器运行时 API 有数据（读 WAL），Python 从 Windows 侧读主 DB 是空的（WAL 没合并），`docker stop` 后 WAL 文件消失。
 
-**修复**（`connection.js`）：检测 Docker 环境自动降级为 DELETE 模式：
+**修复**（`connection.ts`）：检测 Docker 环境自动降级为 DELETE 模式：
 ```js
 const isDocker = process.env.DOCKER || process.env.KUBERNETES_SERVICE_HOST || existsSync('/.dockerenv')
 db.pragma(isDocker ? 'journal_mode = DELETE' : 'journal_mode = WAL')
 ```
 本地开发（非 Docker）仍用 WAL（性能更好）。Docker 内用 DELETE（安全，数据直接写主文件）。
 
-**验证修复生效**：`docker exec commission-web node -e "import('/app/server/src/db/connection.js').then(m=>console.log(m.default.pragma('journal_mode')))"` → 应返回 `[{ journal_mode: 'delete' }]`。
+**验证修复生效**：`docker exec commission-web node -e "import('/app/server/src/db/connection.ts').then(m=>console.log(m.default.pragma('journal_mode')))"` → 应返回 `[{ journal_mode: 'delete' }]`。
 
 **操作规则**：
 - **查 DB 数据永远在容器运行时通过 API 查**，不停容器
 - **需要直接操作 DB 文件时**（如清理坏记录），用 Python sqlite3 从宿主机操作（写 .py 脚本文件再跑，避免 PowerShell 引号地狱），**操作完再重启容器**
 - **docker stop 前确认有可用备份**（`data/commission.db.bak.*`）
-- **容器重启后第一件事验证数据**：`docker exec commission-web node -e "fetch('http://localhost:3000/api/artists/<subdomain>').then(r=>r.json()).then(d=>console.log('artworks:',d.artworks?.length ?? 'GONE'))"` — 返回数据 = 正常，`画师不存在` = 数据丢失
+- **容器重启后第一件事验证数据**：`docker exec commission-web node -e "fetch('http://localhost:3000/api/artists/<subdomain>').then(r=>r.tson()).then(d=>console.log('artworks:',d.artworks?.length ?? 'GONE'))"` — 返回数据 = 正常，`画师不存在` = 数据丢失
 - **数据丢失恢复**：Python sqlite3 逐个查 `.bak.*` 文件内容，选最新的有数据的备份，停容器→复制备份为 commission.db→删 WAL/SHM→重启
 
-**测试数据生成（容器内）**：写 .ts 脚本 → `docker cp` 进容器 → `docker exec commission-web npx tsx /tmp/script.ts`。脚本内用 `import db from '/app/server/src/db/connection.js'` 访问运行中的 DB 连接（绕过 WAL 锁）。生成真实 PNG 文件（用 zlib deflateSync 构造最小有效 PNG）+ INSERT 记录。**不要**用 `docker run --rm node:22-slim` 挂载 Windows node_modules（`invalid ELF header`——Windows 编译的 .node 文件在 Linux 容器里跑不了）。
+**测试数据生成（容器内）**：写 .ts 脚本 → `docker cp` 进容器 → `docker exec commission-web npx tsx /tmp/script.ts`。脚本内用 `import db from '/app/server/src/db/connection.ts'` 访问运行中的 DB 连接（绕过 WAL 锁）。生成真实 PNG 文件（用 zlib deflateSync 构造最小有效 PNG）+ INSERT 记录。**不要**用 `docker run --rm node:22-slim` 挂载 Windows node_modules（`invalid ELF header`——Windows 编译的 .node 文件在 Linux 容器里跑不了）。
 
 **用户问"是不是 GC/孤儿回收导致的"时的排除链**（高频问题，用户看到图片丢失第一反应）：
 1. **回收站目录是否存在**：`docker exec commission-web ls /app/uploads/.recycle-bin/` — 不存在 = GC 从未执行过回收（GC 回收会创建 `.recycle-bin/YYYY-MM-DD/`）。用户点过"清空回收站"后该目录也会被删，但 GC 下次回收会重建——不存在说明 GC 从未回收过任何文件。
-2. **GC 跳过 DB 引用文件**：app.js `gcUploads()` 中 `if (refs.has(rel)) continue`——DB 里 artworks/order_references/deliverables/order_notes 引用的路径不会被回收。
+2. **GC 跳过 DB 引用文件**：app.ts `gcUploads()` 中 `if (refs.has(rel)) continue`——DB 里 artworks/order_references/deliverables/order_notes 引用的路径不会被回收。
 3. **GC 有 24 小时保护期**：`MIN_AGE_MS = 24h`，新文件不回收。
 4. **GC 启动时执行 + 每 24h 一次**：容器重建会触发一次。若容器重建时 DB 为空/异常（`artistCount === 0`），GC 跳过（安全检查）。
 5. **结论模式**：三项全排除后，根因通常是 **DB-磁盘数据不一致**（DB 从备份恢复/重建但 uploads volume 未同步，或手动清理了文件但 DB 记录仍在）。
 
 **DB-磁盘不一致的诊断确认**：
-- 通过 API 拿 DB 中的 image_path：`docker exec commission-web node -e "fetch('http://localhost:3000/api/artists/<subdomain>').then(r=>r.json()).then(d=>d.artworks.forEach(a=>console.log(a.id,a.image_path)))"`
+- 通过 API 拿 DB 中的 image_path：`docker exec commission-web node -e "fetch('http://localhost:3000/api/artists/<subdomain>').then(r=>r.tson()).then(d=>d.artworks.forEach(a=>console.log(a.id,a.image_path)))"`
 - 对比磁盘：`docker exec commission-web ls /app/uploads/images/`
 - 不匹配 = 数据问题，不是代码 bug。修复：删坏记录 + 重新上传，或写脚本扫全表对比磁盘。
 - **磁盘上的"孤儿目录"（不被任何 DB 记录引用）是旧数据残留**，不是 GC 产物——GC 只移入回收站不创建新目录。
 
 **磁盘上的假文件/占位文件检测**：文件存在 ≠ 文件有效。检查文件大小：真实图片至少几十 KB，4~9 字节的文件是占位符（测试脚本/种子数据创建的空壳）。诊断：`ls uploads\images\ -Recurse -File | Select-Object FullName, Length`，Length < 100 全是假的。这些目录通常不被任何 DB 记录引用（旧数据残留），可安全删除。
 
-**种子数据系统记录泄露到公开查询**：`seed.js` 创建 `subdomain='system'` 的保留画师（用于系统占位），但公开列表查询（`getAllArtists()`）未过滤它 → 落地页显示"System 系统保留"卡片。**修复模式**：公开面向用户的查询加 `AND subdomain != 'system'` 过滤。**审核规则**：seed/init 脚本新增系统/保留记录时，搜所有公开查询（`/api/artists`、`/api/public/*`）确认有排除条件。v0.31 实例：`getAllArtists()` 缺过滤，用户截图发现落地页多了 System 卡片。
+**种子数据系统记录泄露到公开查询**：`seed.ts` 创建 `subdomain='system'` 的保留画师（用于系统占位），但公开列表查询（`getAllArtists()`）未过滤它 → 落地页显示"System 系统保留"卡片。**修复模式**：公开面向用户的查询加 `AND subdomain != 'system'` 过滤。**审核规则**：seed/init 脚本新增系统/保留记录时，搜所有公开查询（`/api/artists`、`/api/public/*`）确认有排除条件。v0.31 实例：`getAllArtists()` 缺过滤，用户截图发现落地页多了 System 卡片。
 
 **数据不一致的修复**：写脚本扫 DB 所有 image_path，对比磁盘文件存在性，标记/清理不存在的记录。或让用户重新上传。先问用户"uploads 目录是否被清理过/容器是否重建过/DB 是否从备份恢复过"再决定方案。
 
@@ -303,7 +303,7 @@ db.pragma(isDocker ? 'journal_mode = DELETE' : 'journal_mode = WAL')
 顺序：**后端优先 → 前端核心 → 前端集成**。每个分支合并后跑**对应类型**的测试门，全绿再合下一个：
 - 后端改动：`cd server && npx vitest run`
 - 前端改动：`cd web && npx eslint . && npm run build`
-  - **⚠️ `npx vite build` 会被终端工具的服务器检测拦截**（误判为长驻进程）。用 `node node_modules/vite/bin/vite.js build` 替代。`npx vitest run` 不受影响。
+  - **⚠️ `npx vite build` 会被终端工具的服务器检测拦截**（误判为长驻进程）。用 `node node_modules/vite/bin/vite.ts build` 替代。`npx vitest run` 不受影响。
 - 前端测试（如存在）：`cd web && npx vitest run`
 
 **⚠️ 禁止从项目根目录跑 `npx vitest run`**：根目录会解析到 web 的 vitest v4 配置（无 jsdom 环境），导致：① 后端测试大面积误报失败（`document is not defined`）；② 测试总数远少于实际（如 231 vs 真实 576+106=682）；③ 单独跑某个文件通过但批量跑挂（并行 worker 环境配置不同）。**永远从子目录跑**：`cd server && npx vitest run`（后端 576）和 `cd web && npx vitest run`（前端 106）。v0.31 实例：根目录跑报 33 文件失败 / 68 测试失败，切到 server/ 后 576/576 全绿。
@@ -312,11 +312,11 @@ db.pragma(isDocker ? 'journal_mode = DELETE' : 'journal_mode = WAL')
 
 **⚠️ 设计变更导致旧测试适配（F4 模式）**：功能重做改变数据模型时（如收款从订单级 `paid_total_cents` 改为节点级 `paid_cents`），旧测试用旧 API 签名（不传新参数 `installmentId`）会失败——不是 bug，是测试未适配新设计。**修复模式**：更新测试调用传入新参数（如 `addPayment(order.id, { amountCents, installmentId: insts[0].id })`），断言改为新数据模型的预期值。一号直接修（≤5 行），不退回角色。v0.31 实例：TC-AR-16 期望 `paidCents: 20000` 但 F4 后不传 installmentId 的收款不更新节点 paid_cents → 补传 installmentId 即通过。**变体：合法化值曾是非法 fixture**：测试可能拿即将合法化的值当"非法值"fixture（TC-AR-09 用 'hidden' 测拒绝）——合法化枚举值时 grep 该值在测试中的用法，fixture 换真正非法值（如 'bogus'）并补正向断言。**套件全绿 ≠ 新行为正确**：状态/权限/可见性语义变更必须容器内 ad-hoc 实测（设新值→读回确认→外部可见性验证→恢复原状不留痕，脚本跑完即删），不能只靠套件数字。
 
-**⚠️ 合并含新依赖的分支后必须 `npm install`**：角色分支若往 `package.json` 加了新包（如 vitest、happy-dom、@vue/test-utils），合入 master 后主 worktree 的 `node_modules/` 没有这些包。直接跑 `npx vitest run` 会报 `Cannot find package 'vitest'`。**合并后、跑测试门前**，先 `cd web && npm install`（或 `cd server && npm install`，视哪边加了依赖）。实例：二号前端测试基建分支加了 vitest/happy-dom/@vue/test-utils，合入后跑前端测试直接炸，npm install 后 17/17 通过。
+**⚠️ 合并含新依赖的分支后必须 `npm install`**：角色分支若往 `package.tson` 加了新包（如 vitest、happy-dom、@vue/test-utils），合入 master 后主 worktree 的 `node_modules/` 没有这些包。直接跑 `npx vitest run` 会报 `Cannot find package 'vitest'`。**合并后、跑测试门前**，先 `cd web && npm install`（或 `cd server && npm install`，视哪边加了依赖）。实例：二号前端测试基建分支加了 vitest/happy-dom/@vue/test-utils，合入后跑前端测试直接炸，npm install 后 17/17 通过。
 
 **分支落后 master 时先 rebase 再审核/合并**：角色分支基于旧 master（中间有其他角色合入），`git diff master..<branch> --stat` 会显示大量"删除"噪音（实际是 master 新增的文件）。**审核前先 rebase**：`cd <worktree> && git rebase master`。冲突通常只在共改文件（如 .gitignore、locales），解决后 `git add <file> && git rebase --continue`。rebase 后 diff 干净，只看角色真实改动。合并时直接 `git merge <branch> --no-ff`（已 rebase 的分支合入无冲突）。**注意**：rebase 后角色分支的 commit hash 变了，如果角色已 push 过远端，后续 push 需要 `--force-with-lease`。v0.21 实例：二号 E2E 分支基于 `dde46ee`，master 已到 `f3358bb`（含 Sentry+TS），rebase 后 .gitignore 有一处冲突（双方各加了 Playwright 忽略规则），保留双方即可。
 
-**⚠️ rebase 前检查 unstaged changes**：角色 worktree 中 `npm install` 可能自动修改 `package.json`（如添加 `allowScripts` 字段），留下 unstaged changes。`git rebase` 遇到 unstaged changes 直接拒绝（`error: cannot rebase: You have unstaged changes`）。修复：`git stash && git rebase master && git stash pop`。stash pop 后这些 npm 产物仍为 unstaged——**不要 commit 它们**（是环境产物，不是角色改动），合并时忽略即可。
+**⚠️ rebase 前检查 unstaged changes**：角色 worktree 中 `npm install` 可能自动修改 `package.tson`（如添加 `allowScripts` 字段），留下 unstaged changes。`git rebase` 遇到 unstaged changes 直接拒绝（`error: cannot rebase: You have unstaged changes`）。修复：`git stash && git rebase master && git stash pop`。stash pop 后这些 npm 产物仍为 unstaged——**不要 commit 它们**（是环境产物，不是角色改动），合并时忽略即可。
 
 **⚠️ rebase 冲突解决：docs/soul 文件取 master 版本**：角色分支基于旧 master 时，若四号/一号在 master 更新了 `docs/soul/*.md`（soul 提示词），rebase 会在这些文件上冲突。这些文件永远以 master 为准（一号维护），解决方式：
 ```powershell
@@ -354,7 +354,7 @@ git rebase --continue
 6. 清理分支前先清 worktree：`git branch -d` 会因「used by worktree」失败，须先 `git worktree remove <path>` 再删分支。**⚠️ 只清理已合入且角色已确认完工的 worktree**。角色可能还在并行会话中工作（如五号做完崩溃修复后继续做 docs 审计，worktree 仍活跃）。清理前 `git worktree list` 确认状态，`prunable` 标记的可安全移除，非 prunable 的**先问用户该角色是否已完工**，不 `--force`。实例：差点强删五号正在用的 worktree，用户拦下。
    **Windows 批量清理陷阱**（9+ 个 worktree 时必踩）：
    - **不批量**：多个 worktree 放在一条 `&&` 链里会超时（node_modules 目录大，Windows 删除慢）。**逐个删，每个给 120s timeout**。
-   - **npm 产物**：角色 worktree 中 `npm install` 会修改 `server/package.json`（如添加 `allowScripts`），导致 `git worktree remove` 拒绝（"contains modified or untracked files"）。这些是环境产物不是代码改动，直接 `--force`。
+   - **npm 产物**：角色 worktree 中 `npm install` 会修改 `server/package.tson`（如添加 `allowScripts`），导致 `git worktree remove` 拒绝（"contains modified or untracked files"）。这些是环境产物不是代码改动，直接 `--force`。
    - **Permission denied**：Windows 文件锁（杀毒/索引/残留进程）可能导致 `--force` 也失败。处置：跳过该 worktree，继续删其余的。之后 `git worktree prune` 清 git 记录，再 `Remove-Item -Recurse -Force <path>` 删磁盘目录。
    - **正确序列**：`git worktree remove --force <path>`（逐个，120s）→ 失败的跳过 → `git worktree prune` → `Remove-Item -Recurse -Force` 残留目录 → `git branch -d` 批量删分支（分支删除很快，可批量）。
    - **rebase 过的分支 `git branch -d` 报 "not fully merged"**：审核时 rebase 过（commit hash 变了）的分支，合并后 `git branch -d` 会拒绝——它对照的是远端旧 hash，报 `not yet merged to refs/remotes/origin/<branch>, even though it is merged to HEAD`。提示信息里 **"merged to HEAD" 就是确认已合入**，安全用 `git branch -D` 删除。判断依据：merge commit 存在（`git log --oneline` 能看到 merge: ...）即可，不需要犹豫。
@@ -469,7 +469,7 @@ cmd.exe /c "docker compose up -d --build 2>&1" | Select-Object -Last 5
 **硬门控：写派工文件前，对每个功能项跑验证三搜**（不可跳过，不可"上午验过了下午不验"）：
 1. 搜组件文件名：`search_files(target='files', pattern='*TplGuestbook*')` 等
 2. 搜 API 路径：`search_files(pattern='/messages', file_glob='*.ts')` 等
-3. 搜迁移字段/表名：`search_files(pattern='guestbook_messages', file_glob='*.js')` 等
+3. 搜迁移字段/表名：`search_files(pattern='guestbook_messages', file_glob='*.ts')` 等
 
 三项中任一命中 = 已实现，从候选池移除，**不写派工**。
 
@@ -498,7 +498,7 @@ cmd.exe /c "docker compose up -d --build 2>&1" | Select-Object -Last 5
 
 **⚠️ 触发语一行制（2026-08-05 定死，覆盖下方旧规则）**：用户开角色外部窗口时**每次只复制一行**。聊天里每角色只给一行，格式固定：「你是X号（角色名），先读 docs/comms/STATUS.md 再读派工 docs/comms/01-to-0X-xxx.md 执行，worktree 在 ../xxx，只动自己分支，不推送不合并」。带「你是X号」防身份混淆（曾有二号窗口冒充一号 4 小时）。细节全写进派工文件，角色自读。**禁止**把派工内容全文内联展示（用户不会复制一坨），也**禁止**只落盘不给触发语（用户看不见文件）。完整规则与事故复盘见 `references/dispatch-delivery-discipline.md`。
 
-**授权列表预授权**：后端派工默认包含 `server/src/shared/errors.js`（错误码）和 `server/tests/setup.js`（cleanDb 同步），这两个文件每个后端任务必碰，不列进去只会制造审核噪音。前端派工若涉及多模板统一改动，考虑授权共享组件（如 `TplStatusBadge.vue`）而非逐个模板文件。
+**授权列表预授权**：后端派工默认包含 `server/src/shared/errors.ts`（错误码）和 `server/tests/setup.ts`（cleanDb 同步），这两个文件每个后端任务必碰，不列进去只会制造审核噪音。前端派工若涉及多模板统一改动，考虑授权共享组件（如 `TplStatusBadge.vue`）而非逐个模板文件。
 
 **版本内批次连续派工**：一个版本分多批（如 v0.18：第一批话术→第二批仪表盘→第三批技术债）时，**前一批合入即派下一批**，不等版本关闭或用户确认。用户拍板的是版本排期（四号排期草案），批次执行节奏由一号控制。实例：第一批话术合入后，立即派第二批仪表盘；第二批合入后，立即派第三批技术债——用户全程只说了"都空闲了，要安排docs审计吗？"，其余批次衔接无需请示。
 
@@ -575,7 +575,7 @@ v0.35 实例：波 1 派工写「其他 tab 一字不动」含旧增项 tab，�
 **一号预判减少确认来回**：派工中含"待确认"技术选项（如数据模型方案 A/B、限流策略、UI 细节）时，一号在派工里写出预判结论 + 理由（格式：`一号预判：**方案 A**。理由：……如你同意直接实施，如认为更优在交付 comms 说明`）。角色同意则零来回直接做，不同意则推翻并说明。比"你评估后告诉我"省一轮交互。实例：T1 点赞数据模型预判方案 A（计数字段），T2 限流预判同 IP 每分钟 2 条，T5 预判 0 赞不显示数字——三号/二号确认即可开工。注意：一号预判仅限**技术判断**，产品决策（如参考图限制 5 vs 20）仍须用户拍板，不预判。
 
 派工时的必做修正：
-- **派工必须嵌入一号预排查的代码现状（带行号）**：任何代码任务派工前，一号先 search_files/read_file 定位目标代码现状，把「一号已核实的代码现状」段落写进派工（文件名 + 行号 + 现状逻辑描述），角色拿到直接看目标代码，不从零搜索。适用于**所有代码派工**（不只 bug 修复和示例数据）。v0.32 实例：① 草稿恢复派工给二号列 useOrderForm.js saveDraft L395-415 / restoreDraft L432-444 / 初始化顺序 L570-602 + 6 条修复要求（含模式互斥、幂等边界），二号零往返完成；② 文档维护派工给四号直接列已核实的过时行（CONTEXT L63 迁移写 v29、L65 测试数 567），四号精确修正不跑偏。预排查 3-5 分钟，省角色一轮搜索 + 防止角色对现状的误判。
+- **派工必须嵌入一号预排查的代码现状（带行号）**：任何代码任务派工前，一号先 search_files/read_file 定位目标代码现状，把「一号已核实的代码现状」段落写进派工（文件名 + 行号 + 现状逻辑描述），角色拿到直接看目标代码，不从零搜索。适用于**所有代码派工**（不只 bug 修复和示例数据）。v0.32 实例：① 草稿恢复派工给二号列 useOrderForm.ts saveDraft L395-415 / restoreDraft L432-444 / 初始化顺序 L570-602 + 6 条修复要求（含模式互斥、幂等边界），二号零往返完成；② 文档维护派工给四号直接列已核实的过时行（CONTEXT L63 迁移写 v29、L65 测试数 567），四号精确修正不跑偏。预排查 3-5 分钟，省角色一轮搜索 + 防止角色对现状的误判。
 - **派工自洽性检查（防一号自己写错）**：写派工约束时，**逐条对照用户原声/REQ 文档**，不凭自己记忆概括。
 - **派工必须区分"当前 master 现状"与"合入后预期"（2026-08-03 二号复盘建议，已采纳）**：派工描述依赖的后端行为时，若该后端**尚未合入**，必须显式标注两个状态：「当前 master 现状：POST /orders schema 有 additionalProperties:false，传新字段会 400」「三号扩展合入后：接受 styleSizeId」。v0.32 实例：Phase 2 派工写"后端暂不处理也不报错"（未来态），实际当时会 400——二号靠自查代码兜住做了 description 前缀兜底，但多了一轮往返。不依赖角色个人警觉，派工模板强制区分。**派工时自问：我描述的每个后端行为，现在 master 上是真的吗？**
 - **派工路由错误由角色拒绝（2026-08-03 三号纪律，强化）**：用户转发派工时可能发错对象（如二号的派工发给了三号）。角色识别后应拒绝执行并回报，不越界碰非授权文件域。一号收到"派工发错了"回报时：确认正确对象已收到即可，不重复写派工文件。
@@ -583,7 +583,7 @@ v0.35 实例：波 1 派工写「其他 tab 一字不动」含旧增项 tab，�
 - **迁移版本**：SPEC 里写的迁移号常已过时。派工前查当前最大迁移版本，在派工里**明确写出正确的下一个版本号**，不让角色照抄 SPEC。
 - **审计/研判产出转为强制项**：五号的审计陷阱清单、bug 研判根因，要**逐条复制进下游派工**作为「强制检查项/修复要求」，不是 FYI 转发。
 - **SPEC 中的 API 契约摘要**：后端已合入时，前端派工里直接写 API 字段名/枚举值/返回格式，不让二号去读后端代码猜接口。
-- **派工前端前验证后端端点存在**：前端派工中列出的每个 API 端点，派工前用 `search_files` 在后端路由文件中搜对应路径（如搜 `/admin/messages` 在 `server/src/features/`），确认已实现。缺的要么先派后端补、要么前端派工里明确标注"该端点待补，先做静默降级"。实例：v0.19 第 3 波前端派工写了 `GET /api/admin/messages`，但后端 guestbook.routes.js 只有公开/画师/DELETE 路由，漏了管理端列表——前端合入后才发现，被迫追派三号补端点。
+- **派工前端前验证后端端点存在**：前端派工中列出的每个 API 端点，派工前用 `search_files` 在后端路由文件中搜对应路径（如搜 `/admin/messages` 在 `server/src/features/`），确认已实现。缺的要么先派后端补、要么前端派工里明确标注"该端点待补，先做静默降级"。实例：v0.19 第 3 波前端派工写了 `GET /api/admin/messages`，但后端 guestbook.routes.ts 只有公开/画师/DELETE 路由，漏了管理端列表——前端合入后才发现，被迫追派三号补端点。
 
 ## 第三方审计报告分诊
 
@@ -904,7 +904,7 @@ v0.35 实例：SPEC-025（价格管理一主四辅）作为 v0.35 后台整体�
 
 **"没有正确排上/生效"诊断模式（设计缺口 vs 代码 bug）**：用户说"X 没有正确排上/生效/联动"时，先区分**设计缺口 vs 代码 bug**。方法：搜该字段/功能在所有消费端的引用（前端渲染 + 后端逻辑 + 定时任务 + 其他 service）。如果只有展示引用（如 `v-if="tier.work_days"` 显示"约 7 天"）而无逻辑引用（如自动算截稿日、排期占位），则是**设计缺口**——功能从未被设计为自动联动，不是 bug。向用户说明现状（"目前只是展示标签，不会自动算截稿日"）+ 提出补全方案 + 工程量估算，不派五号修"bug"。实例：v0.25 用户说"工期没有正确排上"，work_days 在 3 个组件中只有展示引用，无任何自动排期逻辑——设计缺口，非 bug。
 
-**"功能形同虚设"诊断模式（API 存在但 UI 未接通）**：用户/画师说"X 加了个屁""做了个寂寞"时，高频根因不是 bug 而是**后端能力完整、前端入口缺失**。五号排查模式：① 搜后端 API（`PUT /orders/:id/price`）→ 存在且逻辑正确；② 搜前端调用（`updatePrice` 在 OrderDetail.vue）→ **零命中**；③ 搜唯一调用点 → 只在 ManualOrder 录单时调用，OrderDetail 从未接入。结论格式："设计缺口非 bug——API 在，按钮没接"。修复方案通常是**最小前端补丁**（加按钮调已有 API，~40 行，后端零改动），一号批准后并入最近版本让对应前端角色顺手做。**与"从未工作过"的区别**：后者是 API 本身有 bug（如 schema 400），前者是 API 正确但无人调用。诊断关键：搜 `api/index.js` 中方法定义 → 搜 `.vue` 文件中调用 → 调用为零 = UI 未接通。
+**"功能形同虚设"诊断模式（API 存在但 UI 未接通）**：用户/画师说"X 加了个屁""做了个寂寞"时，高频根因不是 bug 而是**后端能力完整、前端入口缺失**。五号排查模式：① 搜后端 API（`PUT /orders/:id/price`）→ 存在且逻辑正确；② 搜前端调用（`updatePrice` 在 OrderDetail.vue）→ **零命中**；③ 搜唯一调用点 → 只在 ManualOrder 录单时调用，OrderDetail 从未接入。结论格式："设计缺口非 bug——API 在，按钮没接"。修复方案通常是**最小前端补丁**（加按钮调已有 API，~40 行，后端零改动），一号批准后并入最近版本让对应前端角色顺手做。**与"从未工作过"的区别**：后者是 API 本身有 bug（如 schema 400），前者是 API 正确但无人调用。诊断关键：搜 `api/index.ts` 中方法定义 → 搜 `.vue` 文件中调用 → 调用为零 = UI 未接通。
 
 **⚠️ 用户拍板上下文可能推翻你的"不是 Bug"结论**：呈现 A/B/C 方案后，用户的回复常附带具体行为描述（如"现在是已经交付了的 没按钮的也不消失 所以他认为是bug"）。这些描述可能指向你初始分析遗漏的代码路径。**收到拍板后，如果用户描述的行为与你的"设计行为/非 Bug"分类矛盾，立即重新检查该具体路径**，不固守初始结论。实例：#7 初始判断为"done ≠ delivered 是设计行为"，但用户指出"没按钮的也不消失"——重新检查发现工作流订单（currentStageId != null）在最后节点时确实无交付按钮（三个入口全要求 `currentStageId == null`），这是真正的代码缺陷。派工从"UX 改进"变为"Bug 修复 + UX 改进"，内容完全不同。规则：拍板不是终点，是验证的最后一道输入。
 
@@ -942,7 +942,7 @@ v0.35 实例：SPEC-025（价格管理一主四辅）作为 v0.35 后台整体�
 - **差异化设计**：示例数据要覆盖产品的多种形态（多画风画师 + 单画风退化路径画师 + 约满状态画师），不只是"填满数据"——这正是体验走查要看的
 - **GC 保护**：只删"已删 DB 行"的文件，不碰其他 uploads 内容（GC 扫 DB 引用）
 - **不改现有代码**：授权新增一个可复跑脚本（如 `server/scripts/demo-data.ts`）+ 交付 comms
-- 脚本执行方式：写 .ts → `docker cp` 进容器 → `docker exec npx tsx /tmp/x.ts`，脚本内 `import db from '/app/server/src/db/connection.js'`（用运行中连接，绕 WAL 锁）
+- 脚本执行方式：写 .ts → `docker cp` 进容器 → `docker exec npx tsx /tmp/x.ts`，脚本内 `import db from '/app/server/src/db/connection.ts'`（用运行中连接，绕 WAL 锁）
 - **⚠️ import server 依赖（sharp 等）的 tsx 脚本必须 `-w /app/server` 执行**：sharp 及全部 server 依赖装在 `/app/server/node_modules`，从容器根目录执行会 MODULE_NOT_FOUND。正确姿势：`docker cp 脚本.ts commission-web:/app/server/tmp-脚本.ts && docker exec -w /app/server commission-web npx tsx /app/server/tmp-脚本.ts`，跑完 `docker exec commission-web rm /app/server/tmp-脚本.ts` 清容器内临时文件（v0.34 三号实测）
 
 v0.32 实例：派三号 `chore/v032-demo-data`——alice 双画风、bob 约满、carol 新建旧模型画师（演示退化路径），15-20 张 CC0 图，许可证清单随交付。
@@ -1036,7 +1036,7 @@ v0.32 实例：派三号 `chore/v032-demo-data`——alice 双画风、bob 约�
 4. **区分技术判断和产品决策**：性能优化（EP 按需引入时机）是技术判断，一号可建议；"模板会不会同质化"是产品审美，用户拍板。
 
 **前端性能快速审计清单**（空闲时或版本收尾时跑一遍）：
-- `dist/assets/*.js` 按大小排序，主包 > 800KB 需关注
+- `dist/assets/*.ts` 按大小排序，主包 > 800KB 需关注
 - 搜 `loading="lazy"` 在模板中的覆盖率（应 = 模板数）
 - 搜 `import ElementPlus` / `app.use(ElementPlus)` 确认是否全量引入
 - 搜 `vuedraggable` / 大型库确认是否动态引入
@@ -1136,7 +1136,7 @@ v0.32 实例：派三号 `chore/v032-demo-data`——alice 双画风、bob 约�
 
 用户在 GitHub 页面看到 CI 告警会截图/复制过来问"有必要做什么吗"。分两类处置：
 
-1. **平台通知（不行动）**：如 "Node.js 20 is deprecated, forced to run on Node.js 24"——这是 GitHub Actions 平台升级通知，不影响 CI 结果。告诉用户"不用管，等 action 出新版"。
+1. **平台通知（不行动）**：如 "Node.ts 20 is deprecated, forced to run on Node.ts 24"——这是 GitHub Actions 平台升级通知，不影响 CI 结果。告诉用户"不用管，等 action 出新版"。
 2. **代码 lint warning（顺手修）**：如未使用变量。用户说"顺手吧"时直接改：读文件→patch 删未使用导入/变量→跑测试确认→commit 推送。2 分钟的事，不值得派工给角色。
 
 **判断标准**：改动 ≤ 5 行 + 纯删除/重命名 + 不影响逻辑 = 一号直接做。超过这个范围派给对应角色。
