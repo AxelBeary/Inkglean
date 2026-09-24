@@ -1,37 +1,38 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-09-17 第八次刷新：审计缺陷修复波1+波2 已本地分批提交、未推送；上一次推送态为 2026-09-14 第七次刷新 `797eae10`）
+## 看板（2026-09-20 第九次刷新：以下读数全部由 git rev-parse / gh api / 直跑实测机械推出，不手抄；上一推送态 `797eae10` 已被 11 笔提交超越且均已推送）
 
-- **HEAD** `797eae10`（✅ 已推送，一次推上三笔：上一轮 `096c0b77`+`de923472` 与本轮 `797eae10`；43 文件 +3420/−684）
-- **基线**：server **1847**（159 文件）/ web **955**（139）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**；迁移 **v76**（本轮零 schema 变更）；版本 server·web 1.0.1、桌面 0.1.0　※ 此为 2026-09-17 审计修复波1+波2 后**本地**基线（未推送）；`797eae10` 推送态基线为 server 1801 / web 886 / desktop 447 / shared 23
-- **门禁（提交后实跑 accept.ps1，总耗时 604s）**：**实质全绿**——15 道 ✅，test-tamper 与 file-size 两道 ❌ 为已知 npx 假红（输出实为 `npx canceled ... ["node@26.8.2"]`），node 直调补跑**均 exit 0**（防阀 468 文件豁免 0 项）
-- **测试同改标红已取到真判据**：`--base de923472` 报业务 17 + 测试 7 同改 → 带 `--ack-reason` 裁决后放行；断言面审计：7 份测试共新增 364 行、删除 10 行，被删 expect 仅 3 条且全为「补 await」与「日期跟随正文实改」，**无任何改软凑绿**
-- ✅ **拆件已获用户追认（U3）**：ArtistLayout 775 / ArtistManage 781 行，防阀转绿；新件 `HomeTakedownBanner.vue` + `useHomeTakedown.ts`
-- 🔴 **警报未清零（R5 算漏半区）**：6 条 → 推送后自动清 3 条（server 侧 sharp/vitest/mocker）。
-- 🔴 **剩 3 条在 web 与根 lock**：#23 vitest 与 #20 @vitest/mocker（`web/package-lock.json`，现 4.1.10、补丁版 4.1.11）+ #25 sharp（根 lock 的**孤立条目**，根 package.json 无此直依赖）→ 待拍板 U20
+- **HEAD** `fff6a8a7`（✅ 与 origin/master 同步；797eae10→fff6a8a7 共 11 笔：审计修复波1+波2 五批 + docs 落档 3 笔 + web generateId 回归 + web vitest CVE 升级 + F-35/F-43 治理 2 笔）
+- **基线（9/20 直跑实测，全 exit 0）**：server **1847**（159 文件）/ web **959**（140）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**（33.5s）；迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0　※ `scripts/accept-baseline.json` 已同步至此实测值（此前滞后停在 1801/886/447/23）
+- **云端（gh 实测）**：CI / E2E / CodeQL 三条流水线对 `fff6a8a7` 均 success；Dependabot open 警报 **0**——U20 剩 3 条（#20/#23/#25）经 `d789ff8a` 落地清零，CodeQL #26~#30 经 `b6b23479` 清零
+- 🟡 **门禁工具批（N2）在途未提交**：`scripts/accept.ps1` 等本地改动 = node 直调消 npx 假红 + test-tamper v3 基线策略 + STATUS 单行防阀（新 `check-status-line.mjs`）+ 结构化结果字段 + **看板 HEAD 比对**警告行（滞后→显式警告，一致→✅；只警告不阻塞）；另有并行批同仓在途改动（TplGallery 拆件 / F-44 等）
 - 公网仍冻结中（停在 v74，本地与远端已到 v76）；默认窗 1200×820、最小窗 1200×600 不变（9/5、826 拍板）
 - 🔴 **上线前置硬警告仍有效**：管理员判定只认库值，公网部署前**必须先确认 `platform_config.admin_qq` 非空**
 
 **下一步（按优先级）**
 
-1. 🔴 **下次开工第一件事**：把 `docs/comms/待办-用户侧清单-20260914.md` 逐条端给用户提醒（U1~U20），不要闷头继续施工
-2. **新发现待拍板 U20**：web 与根 lock 的依赖半区（剩 3 条警报）——建议 web 升 vitest ^4.1.11（一行 + web 四道门禁），根 lock 那条孤立 sharp 条目单独一批清
-3. **云端已回看全绿**：推送后 CI、E2E、Push on master 三条流水线对最新一笔 `e37e4ad8` 均 **completed/success**（无需再回看）
-4. **等你终审两处对外文案**：W4 下架横幅措辞、W6 隐私三条 IP 披露（另含 U12 主页文案、U13 安装包署名）
-5. **黄红灯集中清**：Y2~Y7 与 N1~N4（含 G8 归档搬动、N2 门禁工具批：npx 假红 / check:i18n 路径失配 / **test-tamper 提交前结构性空转**）+ 上一轮 G1~G9·F-31/32/35/36 指针
-6. ✅ **F-42 口径修复已落地（2026-09-20）**：measure.mjs 汇总 JSON 后追加口径图例段（每个数字标注「去重种数」含义）；SKILL.md 补口径定义段 + 基线对照规程（登记须写明集合＋提交号＋口径，禁裸写「N 处」）。历史台账「8 种·去重口径」属去重值种数，非出现次数。
+1. 🔴 **下次开工第一件事**：把 `docs/comms/待办-用户侧清单-20260914.md` 逐条端给用户提醒（U20 已落地清零，其余按清单）
+2. **在途项提交**：accept.ps1 N2 批与并行批在途改动未提交——提交后应跑一次完整门禁验收；看板基线数字对应 9/20 工作区实跑态，并行批合入后需再同步
+3. **等你终审两处对外文案**：W4 下架横幅措辞、W6 隐私三条 IP 披露（另含 U12 主页文案、U13 安装包署名）
+4. **黄红灯集中清**：Y2~Y7 与 N1~N4（N2 本轮大半清：npx 假红 / 看板比对 / test-tamper v3 基线 / STATUS 单行防阀均已入脚本待提交，余 check:i18n 路径失配核实）+ 上一轮 G1~G9·F-31/32/35/36 指针
+5. ✅ **F-42 口径修复已落地（2026-09-20）**：measure.mjs 汇总 JSON 后追加口径图例段（每个数字标注「去重种数」含义）；SKILL.md 补口径定义段 + 基线对照规程（登记须写明集合＋提交号＋口径，禁裸写「N 处」）。历史台账「8 种·去重口径」属去重值种数，非出现次数。
 
 **常驻纪律（事故换来的，不得退色）**
 
 - 改 `desktop/src-tauri/` 必本地跑 `cargo check`：`tauri-build` 用**严格 JSON 解析器**，9/12 那笔 `//` 注释就是只跑 server/web 就交、CI 单红 desktop job 换来的（本地“全绿”是假全绿）
-- 门禁缺口已清：`check-file-size.mjs` 的 ALLOWLIST **为 0 项**，禁止用调高冻结值给长胖文件续命
+- 门禁缺口已清：`check-file-size.mjs` SCOPES 已覆盖 server/web/desktop/shared 四层（F-44），ALLOWLIST 仅剩 F-44 两项存量冻结豁免；禁止用调高冻结值给长胖文件续命
 
 **已拍板规则**
 
+- F-44（2026-09-20）：巨型文件防阀扩射 `desktop/src`、`shared/src`（better-harness 修复批，用户裁决选项①「扩射程+冻结豁免」）。存量超线按冻结值豁免：`desktop/src/views/Home.vue` 807 / `shared/src/components/PriceCard.vue` 1094，只许拆小不许再长。
+- F-44 顺手消红（沿 9/12「胖了就拆」口径）：`TplGallery.vue` 被 9/17 审计批顶到 808 行的存量违规已拆。
+  - 点赞逻辑拆至 `composables/useGalleryLikes.ts`（逐字搬移零行为变更）
+  - 与并行 G 批的 TplAlbumStage 拆分共熔；web 四道门禁绿（含 typecheck，test 140 文件 959 例）
+- STATUS 单行长度防阀（2026-09-20，better-harness 修复批，用户裁决选项①）：新增 `scripts/check-status-line.mjs`，只判本次变更新增行 >200 字符，存量长行不报；已挂 accept.ps1 第 18 道，「门禁全绿」口径改十八道（AGENTS.md 已同步）。
 - F-35（2026-09-20）：四个岗位书（`.qoder/agents/huiyue-*.md`）入库受版本管理。`.gitignore` 改 `.qoder/*` + `!.qoder/agents/` 例外。AGENTS-v2.md 第 18 行「版本管理留痕」现为事实。
 - F-43（2026-09-20）：`docs/soul/skills/` 技能库整体归档至 `docs/comms/archive/skills/`，定位为历史文档。路径引用（.js→.ts）已批量修正到工作树真实目标，multi-agent-collaboration-setup 补 SKILL.md，原位置留指针 `docs/soul/skills-ARCHIVED.md`。
 
-**起手必读**：**⚑ 下次开工第一件事：向用户逐条端出 `docs/comms/待办-用户侧清单-20260914.md`（U1~U19）提醒他做他那边的活**，再读 **⚑ 2026-09-14 第二轮定时开工收口条（本节下方第一条）**。
+**起手必读**：**⚑ 下次开工第一件事：向用户逐条端出 `docs/comms/待办-用户侧清单-20260914.md`（U1~U20）提醒他做他那边的活**，再读 **⚑ 下方正文第一条（2026-09-17 审计缺陷修复波1+波2 全量收口）**。
 
 **起手必读续**：→ 交接档 `docs/comms/交接-20260912-会话收口与待拍清单.md` → 本节看板 → `AGENTS.md`（含「STATUS 体例与归档纪律」）→ 碰桌面端再读 `desktop/docs/STATUS.md` 顶部。
 

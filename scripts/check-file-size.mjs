@@ -2,7 +2,7 @@
 // 用法：node scripts/check-file-size.mjs [仓库根路径]（accept.ps1 已挂载为门禁）
 //
 // 规则：
-//   1. server/src 与 web/src 源码文件（排除 tests/__tests__/locales）总行数（含空行）上限 800；
+//   1. server/src、web/src、desktop/src、shared/src 源码文件（排除 tests/__tests__/locales）总行数（含空行）上限 800；
 //   2. ALLOWLIST 登记的历史巨型文件豁免上限，但行数冻结在登记值——只许拆小不许再长；
 //   3. 文件拆到 800 以下后，应从 ALLOWLIST 移除（机械强制，忘了会报「可移除」提醒）。
 //
@@ -43,9 +43,15 @@ const LIMIT = 800
 // ⚠ 今后本表再新增条目的规则（自 2026-09-12 起收紧）：
 //    1）只允许登记「暂时确实拆不动」的正当豁免，须一号裁决并在条目上注明出处；
 //    2）**禁止用“调高冻结值”给长胖的文件续命**——胖了就拆，拆完必须回到本表删条目（规则 3 会报「可移除」提醒）。
-const ALLOWLIST = {}
+//
+// 2026-09-20 F-44 拍板：SCOPES 扩射 desktop/src、shared/src（better-harness 修复批，用户裁决选项①
+// 「扩射程+冻结豁免」）。存量超线 2 项按冻结值豁免，只许拆小不许再长：
+const ALLOWLIST = {
+  'desktop/src/views/Home.vue': 807,            // F-44 登记（2026-09-20 实测 807 行）
+  'shared/src/components/PriceCard.vue': 1094,  // F-44 登记（2026-09-20 实测 1094 行）
+}
 
-const SCOPES = ['server/src', 'web/src']
+const SCOPES = ['server/src', 'web/src', 'desktop/src', 'shared/src']
 const EXCLUDE = /(__tests__|[\\/]tests?[\\/]|\.test\.|\.spec\.|[\\/]locales[\\/])/
 
 function walk(dir) {

@@ -14,6 +14,19 @@ permissions:
   contents: read
 
 jobs:
+  # 巨型文件防阀（T-08）进 CI：与 accept.ps1 的 file-size 闸同一脚本（源码 800 行上限 + 豁免名单冻结值）。
+  # 独立 job：扫描范围跨 server/web（脚本内 SCOPES 自定），不挂进任一端的 job；纯 node 脚本零依赖，不需 npm ci
+  file-size:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Giant file check（check-file-size）
+        run: node scripts/check-file-size.mjs .
+
   server:
     runs-on: ubuntu-latest
     timeout-minutes: 15
