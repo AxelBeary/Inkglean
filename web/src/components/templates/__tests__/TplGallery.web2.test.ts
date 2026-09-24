@@ -41,7 +41,11 @@ function mountGallery(props: Record<string, unknown> = {}) {
       ...props
     },
     global: {
-      mocks: { $t: (key: string) => key }
+      mocks: { $t: (key: string) => key },
+      // G 批拆分：album 翻页 DOM（箭头/当前页点赞按钮）搬至 TplAlbumStage，
+      // 该子组件不 stub（渲染真实 DOM 供 .tpl-album-arrow 选择器与按钮重建断言），
+      // 其余子组件（ArtworkLikeButton 等）维持 shallow stub 口径不变
+      stubs: { TplAlbumStage: false }
     }
   })
 }

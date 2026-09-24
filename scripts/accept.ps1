@@ -1,5 +1,7 @@
 #!/usr/bin/env pwsh
 # accept.ps1 — 一号独立验收流水线（v2，2026-08-19：新增 test-tamper 测试同改标红闸门）
+# v3（2026-09-20，N2 门禁工具批）：test-tamper 基线策略修复——master 自检时 --base master
+# 与 HEAD 同一提交，diff 恒空、闸门结构性空转（ledger_R4 §4.4 定性）；改为按场景取基线。
 #
 # 目的：把「合入前复跑全门禁」固化为零遗漏的机械流程，产出结构化验收报告。
 # 纪律出处：STATUS v82 教训（合入门禁漏跑致结构污染流入 master）；
@@ -66,6 +68,27 @@ if ($behind -and [int]$behind -gt 0) {
   $preCheckNotes += "⚠️ 当前分支落后 master $behind 个提交——合入前由一号手工 merge master 并复跑"
 }
 
+# 看板 HEAD 比对（只警告不阻塞）：docs/comms/STATUS.md 顶部看板声明的 HEAD 短哈希 vs 实际 HEAD。
+# 看板滞后 = 上次收口没刷新的信号，提醒按 STATUS 体例用 git rev-parse / accept-baseline.json / 实跑结果机械推出新读数。
+$statusPath = Join-Path $repo 'docs/comms/STATUS.md'
+if (Test-Path $statusPath) {
+  $dashboardHead = $null
+  foreach ($line in (Get-Content $statusPath -TotalCount 40)) {
+    if ($line -match '\*\*HEAD\*\*\s*`([0-9a-f]{7,40})`') { $dashboardHead = $Matches[1]; break }
+  }
+  if (-not $dashboardHead) {
+    $msg = "⚠️ STATUS 看板头部 40 行内未解析到 **HEAD** 声明——看板格式可能已变，无法比对"
+    Write-Host $msg -ForegroundColor Red
+    $preCheckNotes += $msg
+  } elseif (-not $head.StartsWith($dashboardHead)) {
+    $msg = "⚠️ STATUS 看板滞后：声明 HEAD ``$dashboardHead`` ≠ 实际 HEAD ``$head``——下次收口请刷新顶部看板"
+    Write-Host $msg -ForegroundColor Red
+    $preCheckNotes += $msg
+  } else {
+    Write-Host "✅ STATUS 看板 HEAD 与实际一致（$head）" -ForegroundColor Green
+  }
+}
+
 # E2E 端口与 playwright.config.ts 同口径（默认 5099，v147 由 4999 迁：本机端口占用程序 占用且不可杀；E2E_PORT 环境变量可覆盖）
 $e2ePort = if ($env:E2E_PORT) { [int]$env:E2E_PORT } else { 5099 }
 $portBusy = Get-NetTCPConnection -LocalPort $e2ePort -State Listen -ErrorAction SilentlyContinue
@@ -100,12 +123,24 @@ if (-not $SkipE2E) {
 }
 
 # test-tamper 闸门：业务+测试同改须带裁决理由（防改测试凑绿；用例数基线防的是删测试，此处防改软断言）
-$tamperArgs = @('scripts/check-test-tamper.mjs', '--base', 'master')
+# 基线策略（v3）：check-test-tamper 判定只 diff 已提交对象（<base>...HEAD），不含工作区。
+#   - 分支 / -Worktree 验收：基线取 master（分支相对 master 的 diff），维持原口径；
+#   - 当前分支即 master（master 自检/提交后复跑）：master...HEAD 恒空 → 闸门必然「0 文件放行」，
+#     故基线改用上一笔提交 HEAD~1，让闸门对最近一笔提交做实质判读。
+# 判定逻辑本身在 check-test-tamper.mjs，未动。
+$tamperBase = if ($branch -eq 'master') { 'HEAD~1' } else { 'master' }
+$tamperArgs = @('scripts/check-test-tamper.mjs', '--base', $tamperBase)
 if ($TestTamperAck) { $tamperArgs += @('--ack-reason', $TestTamperAck) }
-$gates += @{ id = 'test-tamper'; label = '测试同改标红（check-test-tamper）'; dir = ''; npmArgs = @('exec', '--no', '--', 'node') + $tamperArgs }
+$gates += @{ id = 'test-tamper'; label = "测试同改标红（check-test-tamper，基线 $tamperBase）"; dir = ''; cmd = 'node'; npmArgs = $tamperArgs }
 
 # 巨型文件防阀（T-08，2026-08-20 深度分析报告拍板）：800 行上限 + 历史巨型冻结名单
-$gates += @{ id = 'file-size'; label = '巨型文件防阀（check-file-size）'; dir = ''; npmArgs = @('exec', '--no', '--', 'node', 'scripts/check-file-size.mjs', '.') }
+$gates += @{ id = 'file-size'; label = '巨型文件防阀（check-file-size）'; dir = ''; cmd = 'node'; npmArgs = @('scripts/check-file-size.mjs', '.') }
+
+# STATUS 单行长度防阀（2026-09-20 better-harness 修复批，用户裁决选项①）：
+# AGENTS.md 体例第 2 条「单行不超 200 字」落成机械检查，只判本次变更新增行，存量长行不报。
+# 基线策略同 test-tamper v3：master 自检取 HEAD~1（对最近一笔提交做实质判读），分支验收取 master。
+$statusLineBase = if ($branch -eq 'master') { 'HEAD~1' } else { 'master' }
+$gates += @{ id = 'status-line'; label = "STATUS 单行长度防阀（check-status-line，基线 $statusLineBase）"; dir = ''; cmd = 'node'; npmArgs = @('scripts/check-status-line.mjs', '--base', $statusLineBase) }
 
 # ---------- 基线（用例数只增不减；增长后同步更新本文件） ----------
 $baselinePath = Join-Path $repo 'scripts/accept-baseline.json'
@@ -122,7 +157,8 @@ foreach ($gate in $gates) {
   Push-Location $workDir
   try {
     $npmArgs = $gate.npmArgs
-    $output = & npm @npmArgs 2>&1 | Out-String
+    $exe = if ($gate.cmd) { $gate.cmd } else { 'npm' }
+    $output = & $exe @npmArgs 2>&1 | Out-String
     $code = $LASTEXITCODE
   } finally {
     Pop-Location
@@ -162,8 +198,15 @@ foreach ($gate in $gates) {
 $totalSw.Stop()
 
 # ---------- 报告 ----------
-$failed = $results | Where-Object { -not $_.ok }
+$failed = @($results | Where-Object { -not $_.ok })
 $verdict = if ($failed.Count -eq 0) { '✅ 全绿' } else { "🔴 $($failed.Count) 道失败" }
+# 结构化结果字段（N2 门禁工具批续，2026-09-20）：供 post-merge-deploy.ps1 机器判定，
+# 替代此前对「**✅ 全绿**」字面量的单一匹配（措辞一变即误判）。verdict=green|red，
+# failed=失败门禁 id 逗号清单，sha=本笔完整 HEAD。格式与 post-merge-deploy.ps1 的
+# accept-result 解析逻辑同步，改这边必须同步改那边。
+$failedIds = ($failed | ForEach-Object { $_.id }) -join ','
+$verdictCode = if ($failed.Count -eq 0) { 'green' } else { 'red' }
+$shaFull = (git -C $repo rev-parse HEAD).Trim()
 
 $report = [System.Text.StringBuilder]::new()
 [void]$report.AppendLine("# 验收报告 — $branch @ $head")
@@ -172,6 +215,7 @@ $report = [System.Text.StringBuilder]::new()
 [void]$report.AppendLine("- 目标：``$repo``")
 [void]$report.AppendLine("- 总耗时：$([math]::Round($totalSw.Elapsed.TotalSeconds)) 秒")
 [void]$report.AppendLine("- 结论：**$verdict**")
+[void]$report.AppendLine("<!-- accept-result: verdict=$verdictCode; failed=$failedIds; branch=$branch; sha=$shaFull -->")
 [void]$report.AppendLine('')
 if ($preCheckNotes) {
   [void]$report.AppendLine('## 前置检查')

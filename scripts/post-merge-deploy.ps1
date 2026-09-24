@@ -5,6 +5,7 @@
 #      未跑/未过 accept 时可加 -SkipAccept 跳过 accept 报告联动（会记录 WARN）
 # 流程：门禁+accept 联动 → 备份+VERIFY → prev tag → 重建 → 等健康 → 迁移回读断言 → 冒烟清单
 # 纪律：备份是强制前置；任一 FAIL 即停；回滚统一走 scripts/rollback.ps1（本次部署前快照用 -Tier deploy）
+# accept 联动判定（2026-09-20 N2 批续）：读报告结构化结果字段，非字面量匹配；详见 STEP0 处注释
 # ============================================
 param(
   [switch]$Force,
@@ -97,7 +98,14 @@ if ($gateIssues.Count -gt 0) {
 }
 Log "GATE OK: branch=$branch HEAD=$sha dirty=$($dirty.Count)"
 
-# ─── STEP0 接上：accept 报告联动（最近报告全绿 + ≤24h + HEAD 一致；-SkipAccept 可跳过） ───
+# ─── STEP0 接上：accept 报告联动（结构化结果字段判定 + ≤24h + HEAD 一致；-SkipAccept 可跳过） ───
+# 全绿判定不再匹配「**✅ 全绿**」字面量，改读 accept.ps1 报告里的结构化结果字段
+# <!-- accept-result: verdict=... failed=... branch=... sha=... -->；verdict=red 时仅当
+# 失败门禁全部落在下方显式白名单内才放行（记 WARN）。
+# 白名单条目必须标注一号裁决出处，对应门禁恢复真绿后及时移除（防幽灵豁免）。
+$ACCEPT_EXEMPT = @{
+  # 例：'file-size' = 'A-1 裁决 2026-09-xx：D-xx 批拆分在途，短期豁免（待补出处后启用）'
+}
 $shortSha = if ($sha.Length -ge 7) { $sha.Substring(0, 7) } else { $sha }
 if (-not $SkipAccept) {
   $acceptDir = Join-Path $ROOT 'workspace\temp'
@@ -105,25 +113,42 @@ if (-not $SkipAccept) {
     Sort-Object Name)
   $latestAccept = if ($acceptReports.Count -gt 0) { $acceptReports[-1] } else { $null }
   $acceptReason = ''
+  $acceptNote = '全绿'
   if (-not $latestAccept) {
     $acceptReason = 'workspace/temp 下没有 accept-master-*.md 验收报告'
-  } elseif ($shortSha -eq '') {
-    $acceptReason = '无法解析当前 HEAD 短 SHA，无法核对验收报告对应版本'
+  } elseif ($sha -eq '') {
+    $acceptReason = '无法解析当前 HEAD SHA，无法核对验收报告对应版本'
   } else {
     $reportText = Get-Content -Raw -Encoding utf8 -LiteralPath $latestAccept.FullName
     $staleH = [math]::Round(((Get-Date) - $latestAccept.LastWriteTime).TotalHours, 1)
-    if (-not $reportText.Contains('**✅ 全绿**')) {
-      $acceptReason = "最近报告 $($latestAccept.Name) 未全绿"
-    } elseif (-not $reportText.Contains("# 验收报告 — master @ $shortSha")) {
-      $acceptReason = "最近报告 $($latestAccept.Name) 对应 HEAD $shortSha 之外的提交"
-    } elseif ($staleH -gt 24) {
-      $acceptReason = "最近报告 $($latestAccept.Name) 已 $staleH 小时（>24h）"
+    $m = [regex]::Match($reportText, '<!--\s*accept-result:\s*(?<kvs>[^>]*?)\s*-->')
+    if (-not $m.Success) {
+      $acceptReason = "最近报告 $($latestAccept.Name) 缺少结构化结果字段（旧版 accept.ps1 报告）。处理：重跑 pwsh scripts/accept.ps1 产出新报告"
+    } else {
+      $kv = @{}
+      foreach ($pair in ($m.Groups['kvs'].Value -split ';')) {
+        $parts = "$pair".Trim() -split '=', 2
+        if ($parts.Length -eq 2) { $kv[$parts[0].Trim()] = $parts[1].Trim() }
+      }
+      $failedIds = @(($kv['failed'] -split ',') | Where-Object { $_ })
+      $unexempted = @($failedIds | Where-Object { -not $ACCEPT_EXEMPT.ContainsKey($_) })
+      if ($kv['verdict'] -ne 'green' -and $unexempted.Count -gt 0) {
+        $acceptReason = "最近报告 $($latestAccept.Name) 未全绿（失败门禁：$($failedIds -join ', ')；如需豁免须在 $ACCEPT_EXEMPT 显式登记并注裁决出处）"
+      } elseif ($kv['branch'] -ne 'master' -or $kv['sha'] -ne $sha) {
+        $acceptReason = "最近报告 $($latestAccept.Name) 对应 $($kv['branch'])@$($kv['sha'])，非当前 HEAD $shortSha"
+      } elseif ($staleH -gt 24) {
+        $acceptReason = "最近报告 $($latestAccept.Name) 已 $staleH 小时（>24h）"
+      } elseif ($kv['verdict'] -ne 'green') {
+        # 仅已知豁免项失败：放行但记 WARN（白名单机制的审计痕迹）
+        $acceptNote = '仅白名单豁免项失败'
+        Log ('WARN: accept 报告未全绿但失败门禁均已显式豁免：' + (($failedIds | ForEach-Object { "$_=$($ACCEPT_EXEMPT[$_])" }) -join '；'))
+      }
     }
   }
   if ($acceptReason) {
-    Stop-Fail "ACCEPT 前置失败：$acceptReason。处理：先运行 pwsh scripts/accept.ps1（需全绿且 HEAD 一致）；紧急场景加 -SkipAccept（会记录 WARN）。"
+    Stop-Fail "ACCEPT 前置失败：$acceptReason。处理：先运行 pwsh scripts/accept.ps1（需全绿或仅白名单豁免项失败，且 HEAD 一致）；紧急场景加 -SkipAccept（会记录 WARN）。"
   } else {
-    Log "ACCEPT OK: $($latestAccept.Name)（全绿，≤24h，HEAD=$shortSha）"
+    Log "ACCEPT OK: $($latestAccept.Name)（$acceptNote，≤24h，HEAD=$shortSha）"
   }
 }
 
