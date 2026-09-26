@@ -1,9 +1,13 @@
 /**
  * useSignatureRefresh — 签名 URL 定时刷新（R33）
  *
- * 签名 URL 有效期 15 分钟，长停留页面图片会 403。
- * 本 composable 每 intervalMs（默认 10 分钟）收集当前页面所有裸路径，
+ * 签名 URL 有效期 5 分钟（事实源 server/src/shared/file-sign.ts 的 FILE_TTL_MS，
+ * 260830 审计 H-4 已从 15 分钟缩短），长停留页面图片会 403。
+ * 本 composable 每 intervalMs（默认 3 分钟）收集当前页面所有裸路径，
  * 调 POST /api/artist/refresh-signatures 批量换新，静默写回响应式数据。
+ * G1 裁决（2026-09-27）：取候选 (a)+(c)——旧值（10 分钟间隔 / 8 分钟补刷阈）按 15 分钟 TTL
+ * 设计，均已超过现行 5 分钟 TTL，页面停 5~10 分钟必裂图（仅靠 @error 兜底）；
+ * 压间隔安全性已核（交接档 G1：限流 20 次/5min，双实例同开仅约 2.5 次→3 分钟间隔亦在限内）。
  *
  * 用法：
  *   const { refreshNow } = useSignatureRefresh({
@@ -29,11 +33,13 @@
 import { onUnmounted } from 'vue'
 import { artistApi } from '../api/index'
 
-const DEFAULT_INTERVAL_MS = 10 * 60 * 1000 // 10 分钟（签名 TTL 15 分钟，留 5 分钟余量）
+// G1：后端签名 TTL 已缩至 5 分钟（file-sign.ts FILE_TTL_MS），间隔/阈值同步压缩并 export 做口径哨兵。
+export const SIGNATURE_TTL_MS = 5 * 60 * 1000 // 后端口径镜像（事实源在 server，此处仅供哨兵断言）
+export const DEFAULT_INTERVAL_MS = 3 * 60 * 1000 // 3 分钟（TTL 5 分钟，留 2 分钟余量）
 const MAX_ERROR_RETRIES = 2 // @error 触发刷新的每图最大重试次数
-// R-15: 后台标签回可见的补刷阈值（Chrome 节流 setInterval 后，切后台 >15min 签名会过期；
-// 回可见时距上次刷新超过该阈值立即补一次，比 TTL 余量再多留 2 分钟）
-const VISIBLE_REFRESH_THRESHOLD_MS = 8 * 60 * 1000
+// R-15: 后台标签回可见的补刷阈值（Chrome 节流 setInterval 后，切后台签名会过期；
+// 回可见时距上次刷新超过该阈值立即补一次。G1：旧值 8 分钟 > TTL 5 分钟已失效，压至 2 分钟）
+export const VISIBLE_REFRESH_THRESHOLD_MS = 2 * 60 * 1000
 
 export function useSignatureRefresh({ collect, apply, intervalMs = DEFAULT_INTERVAL_MS }: {
   collect: () => string[]

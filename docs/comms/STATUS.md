@@ -1,10 +1,11 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-09-27 第十次刷新：读数由 accept.ps1 全量实跑机械推出，不手抄；`a6ac12a9`、`6129f7e1` 均已推送 origin/master）
+## 看板（2026-09-27 第十一次刷新：黄红灯集中清批在途；HEAD `f2935e18` 已同步 origin/master，本批改动待提交）
 
-- **HEAD** `d5864356`（⏳ 待推送：「今天吃什么」库扩建批；其前 `6129f7e1` 已同步 origin/master）
-- **基线（9/27 accept.ps1 十八道全量实跑，全绿）**：server **1847**（159 文件）/ web **963**（141）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**（25s）
-  - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；`scripts/accept-baseline.json` 已同步 web 959→963（food-menu 防退色单测 +4 例）
+- **HEAD** `f2935e18`（= origin/master；food-menu 批 `d5864356` 已推送）；⏳ **本批黄红灯集中清改动待提交**（叠在 f2935e18，四端+E2E 已亲验全绿，accept.ps1 需提交后复跑）
+- **基线（f2935e18 已提交态）**：server **1847**（159 文件）/ web **963**（141）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
+  - **本批提交后 web 963→967**（+4：ArtistHome hidden 分块哨兵 3 例 + useSignatureRefresh TTL 口径哨兵 1 例，142 文件）；四端+E2E 已亲验（web 967/server 1847/E2E 14 passed 21.7s）
+  - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；`scripts/accept-baseline.json` 已同步 web 963→967（本批实测）
 - **云端（gh 实测）**：CI / E2E / CodeQL 三条流水线对 `fff6a8a7` 均 success；Dependabot open 警报 **0**——U20 剩 3 条（#20/#23/#25）经 `d789ff8a` 落地清零，CodeQL #26~#30 经 `b6b23479` 清零
 - ✅ **门禁工具批（N2）已提交 `a6ac12a9`**：node 直调消 npx 假红 + test-tamper v3 基线策略 + 结构化结果字段 + 并行批同仓改动（TplGallery 拆件 / F-44）一并入批
   - 新增第 18 道 STATUS 单行防阀（`check-status-line.mjs`）与看板 HEAD 比对警告行：滞后→显式警告，一致→✅；只警告不阻塞
@@ -13,11 +14,11 @@
 
 **下一步（按优先级）**
 
-1. 🔴 **下次开工第一件事**：把 `docs/comms/待办-用户侧清单-20260914.md` 逐条端给用户提醒（U20 已落地清零，其余按清单）
-2. **food-menu 批推送收尾**：`d5864356` 已本地提交，十八道门禁全绿（test-tamper 带 ack 裁决复跑）待推送；基线数字已同步 9/27 实测态
+1. 🔴 **下次开工第一件事**：把 `docs/comms/待办-用户侧清单-20260914.md` 逐条端给用户（本批已销 U14/U15/U20/G1/G2/G3/G4/G6/F-31/F-32/F-35/F-36；剩 Y2~Y7 需用户本人 + U16/U17/U18/G5/G7 需拍板）
+2. **本批（黄红灯集中清）待提交**：叠在 `f2935e18`，四端+E2E 已亲验全绿（web 967 / server 1847 / E2E 14）；提交后复跑 accept.ps1 十八道取权威结论（test-tamper 带 ack）
 3. **等你终审两处对外文案**：W4 下架横幅措辞、W6 隐私三条 IP 披露（另含 U12 主页文案、U13 安装包署名）
-4. **黄红灯集中清**：Y2~Y7 与 N1~N4（N2 本轮已提交 `a6ac12a9`：npx 假红 / 看板比对 / test-tamper v3 基线 / STATUS 单行防阀均已入脚本，余 check:i18n 路径失配核实）+ 上一轮 G1~G9·F-31/32/35/36 指针
-5. ✅ **F-42 口径修复已落地（2026-09-20）**：measure.mjs 汇总 JSON 后追加口径图例段（每个数字标注「去重种数」含义）；SKILL.md 补口径定义段 + 基线对照规程（登记须写明集合＋提交号＋口径，禁裸写「N 处」）。历史台账「8 种·去重口径」属去重值种数，非出现次数。
+4. **U18 STATUS 归档搬动**：本批因「不与代码混批」纪律未做，留单独批（正文已超体例 5 条，须字符总量前后差 + 逐条比对零丢失校验）
+5. **剩红灯需拍板**：U16 板块级下架（重建 reports 表）/ U17 数据服务（另立 REQ+PIPL）/ G5 终验证据链复现性 / G7 F-09 二次重构
 
 **常驻纪律（事故换来的，不得退色）**
 
@@ -39,6 +40,26 @@
 **起手必读续**：→ 交接档 `docs/comms/交接-20260912-会话收口与待拍清单.md` → 本节看板 → `AGENTS.md`（含「STATUS 体例与归档纪律」）→ 碰桌面端再读 `desktop/docs/STATUS.md` 顶部。
 
 **起手必读续二**：改桌面 UI 必跑 `huiyue-layout-audit` 自检循环（**宿主级技能**，住 `%USERPROFILE%\.agents\skills\huiyue-layout-audit\`，不在仓库属正常；VL 评审通道不可用，只能 measure.mjs + 人工逐项清单）。
+
+> 📌 **2026-09-27 黄红灯集中清批（AI 自决，四端+E2E 门禁亲验全绿，未提交）**
+>
+> - **触发**：用户「尽量全做、能解决的别来找我手动」授权，主代理自决清黄红灯可自决项，只留真需用户账号/审美/对外文书/拍板者。
+> - **代码① N1 主页 hidden 态**：`ArtistHome.vue` onMounted 在 `status==='hidden'` 提前 return，不再并行打 4 个分块端点（对 hidden 一律 404），消除「部分内容加载失败」横幅与下架提示同屏矛盾（侦察抓出的既存 wart）；哨兵 `ArtistHome.hiddenSections.test.ts` 3 例。
+> - **代码② G1 签名刷新 TTL 适配**：`useSignatureRefresh.ts` 间隔 10→3 分、补刷阈 8→2 分（旧值按已废 15 分 TTL 设计，后端 H-4 已缩至 5 分，长停留必裂图）；export 三常量 + 口径哨兵；artist.ts/order-list.routes.ts 两处过时「15min」注释改准。
+> - **代码③ G2/N2 尾项**：`check-i18n.ts` 加 `--migrate --from --to --expect` 路径迁移（拆件搬文件时存量豁免随迁，取代 9/20 手写一次性脚本）；三重安全断言（命中数≠expect / 迁移后重复 / 新路径扫不到对应违规 均拒写），实测拒写与正常两态已验。
+> - **N1 裁决（登记为有意例外）**：主页对 hidden 返 200、其余端点 404 的差异**维持不改**——侦察证实改 404 会推翻 P4-2 §8.3（自隐身被误报「画师不存在」、丢店主自助指引、hidden 与真不存在结构上不可区分），判定已收口于 helper，HTTP 码差异是刻意 UX。
+> - **文档 F-31/F-36**：`REQ-014` 加「改判决策基线快照（选项 B，三路同荐）」头注；`纸墨设计语言提案-v1.md` 加「事实源分工（提案=原则/artist-tokens.css=取值）+ 泥金已批·未落实现」标注（实测零泥金 token，不撤拍板不擅补色值）。
+> - **文档 G4**：补归档 `.qoder/canvases/audit830-completion-report.canvas.tsx`（gitignored 换机即失）为 `docs/comms/归档-830批完工报告-20260830.md`，含 M-5 归处判定（属 31→27 差额中被剔除、未修未备案，原报告缺失无法独立验证）。
+> - **核实后销账六项（既有处置已覆盖，本批未改代码）**：
+>   - G3 settings.notify*（honestyCopy 哨兵已锁死键退役、通知开关真实用 preferences 非漏建）；G6「已拍板规则」章节（STATUS 已有，选项 a 成立）；F-32 开发自参考（已有 8/19 时效声明）。
+>   - F-35 岗位书入库（9/20 已记）；U20 依赖警报（已清零）；U15 门禁工具批（N2 `a6ac12a9` + 本批 --migrate）。
+> - **门禁（主代理亲跑，四端+E2E 全绿）**：
+>   - web lint(vue-tsc+tsc+eslint) 0 错 / test **142 文件 967** / check:i18n OK / build 2845 模块。
+>   - server typecheck 三配置 0 错 / lint(340 文件) 0 错 0 警 / test **159 文件 1847**；E2E **14 passed（21.7s）**；desktop/shared 未改（accept.ps1 提交后覆盖）。baseline 已同步 web 963→967。
+> - **测试同改口径**：新增哨兵 4 例（ArtistHome 3 + useSignatureRefresh TTL 1），卸载用例加 mockClear 适配间隔压缩后合法触发；被删断言 0 条。
+> - **U18 未做（纪律）**：STATUS 归档搬动属高风险文本迁移，AGENTS.md 明令「不与代码施工混批」，本批已动代码，留单独批。
+> - **待用户**：改动叠在 `f2935e18`，**未提交**（commit/push 待用户明示提交令）；提交后复跑 accept.ps1 十八道取权威「门禁全绿」结论。
+
 
 > 📌 **2026-09-25 「今天吃什么」库扩建批（两波采集 + 终审波）：495 → 3530 条，单文件拆为 `web/src/utils/food-menu/` 13 分片（已本地提交 `d5864356`，9/27 十八道门禁全绿，待推送）**
 >
