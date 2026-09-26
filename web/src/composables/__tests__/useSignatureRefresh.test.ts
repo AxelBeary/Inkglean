@@ -1,4 +1,4 @@
-// useSignatureRefresh 后台标签回可见补刷测试（R-15）
+// useSignatureRefresh 后台标签回可见补刷测试（R-15）+ G1 口径哨兵（间隔/阈值必须小于后端签名 TTL）
 // 覆盖：切后台超阈值回可见立即刷新、未超阈值不刷新、卸载后监听清理、定时刷新仍正常
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
@@ -11,7 +11,7 @@ vi.mock('../../api/index.js', () => ({
   artistApi: { refreshSignatures: (...args: unknown[]) => h.refreshSignatures(...args) }
 }))
 
-import { useSignatureRefresh } from '../useSignatureRefresh'
+import { useSignatureRefresh, SIGNATURE_TTL_MS, DEFAULT_INTERVAL_MS, VISIBLE_REFRESH_THRESHOLD_MS } from '../useSignatureRefresh'
 
 function mountHost(overrides: Record<string, unknown> = {}) {
   let ctx!: ReturnType<typeof useSignatureRefresh>
@@ -45,7 +45,7 @@ describe('useSignatureRefresh 可见性补刷（R-15）', () => {
     vi.useRealTimers()
   })
 
-  it('回可见时距上次刷新超过 8 分钟 → 立即刷新', async () => {
+  it('回可见时距上次刷新超过阈值（2 分钟）→ 立即刷新', async () => {
     const { wrapper } = mountHost()
     await vi.advanceTimersByTimeAsync(9 * 60 * 1000)
     setVisibility('hidden')
@@ -60,7 +60,8 @@ describe('useSignatureRefresh 可见性补刷（R-15）', () => {
 
   it('回可见但未超阈值 → 不刷新', async () => {
     const { wrapper } = mountHost()
-    await vi.advanceTimersByTimeAsync(5 * 60 * 1000)
+    // G1：旧值按 8 分钟阈值走 5 分钟；现阈值 2 分钟、间隔 3 分钟，改走 1 分钟（未碰任何刷新点）
+    await vi.advanceTimersByTimeAsync(1 * 60 * 1000)
     setVisibility('hidden')
     document.dispatchEvent(new Event('visibilitychange'))
     setVisibility('visible')
@@ -75,6 +76,8 @@ describe('useSignatureRefresh 可见性补刷（R-15）', () => {
     const { wrapper } = mountHost()
     await vi.advanceTimersByTimeAsync(9 * 60 * 1000)
     wrapper.unmount()
+    // G1：间隔压至 3 分钟后，卸载前定时器已合法触发数次；本用例只判「卸载后零新增」
+    h.refreshSignatures.mockClear()
     setVisibility('hidden')
     document.dispatchEvent(new Event('visibilitychange'))
     setVisibility('visible')
@@ -86,8 +89,16 @@ describe('useSignatureRefresh 可见性补刷（R-15）', () => {
 
   it('定时刷新仍按 interval 工作（回归保护）', async () => {
     const { wrapper } = mountHost()
-    await vi.advanceTimersByTimeAsync(10 * 60 * 1000 + 100)
+    await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL_MS + 100)
     expect(h.refreshSignatures).toHaveBeenCalled()
     wrapper.unmount()
+  })
+
+  // G1 口径哨兵：后端 H-4 已把签名 TTL 从 15 分钟缩到 5 分钟（file-sign.ts FILE_TTL_MS），
+  // 前端间隔/补刷阈值必须严格小于 TTL，否则长停留页面必裂图（本哨兵防口径再次漂移）。
+  it('口径哨兵：间隔与补刷阈值均小于后端签名 TTL', () => {
+    expect(SIGNATURE_TTL_MS).toBe(5 * 60 * 1000)
+    expect(DEFAULT_INTERVAL_MS).toBeLessThan(SIGNATURE_TTL_MS)
+    expect(VISIBLE_REFRESH_THRESHOLD_MS).toBeLessThan(SIGNATURE_TTL_MS)
   })
 })

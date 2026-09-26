@@ -232,7 +232,7 @@ export async function orderListRoutes(fastify: FastifyInstance) {
 
   /**
    * POST /api/artist/refresh-signatures
-   * 批量刷新签名 URL（前端定时轮询，防 15min 过期 403）
+   * 批量刷新签名 URL（前端定时轮询，防过期 403；TTL 现行 5 分钟，见 file-sign.ts FILE_TTL_MS）
    * 限流：同画师 20次/5分钟
    */
   fastify.post('/api/artist/refresh-signatures', {

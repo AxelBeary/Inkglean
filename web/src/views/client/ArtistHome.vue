@@ -158,6 +158,10 @@ onMounted(async () => {
   try {
     const data = await fetchArtistPublicProfile(subdomain)
     artist.value = data
+    // UI-8 hidden 态：只渲染友好提示页，分块端点（workflow/styles/gallery/platforms）对 hidden
+    // 一律 404（isArtistHomeInvisible），继续加载必全红并点亮「部分内容加载失败」横幅，
+    // 与 hidden 提示同屏自相矛盾（N1 侦察抓出的既存 wart）——直接跳过。
+    if (data.status === 'hidden') return
     const profile = data as VisibleArtistProfile
     tiers.value = profile.tiers || []
     artworks.value = profile.artworks || []

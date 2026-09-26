@@ -11,6 +11,10 @@
  *   npx tsx scripts/check-i18n.ts            # 增量检查（CI/提交前跑，新增违规 exit 1）
  *   npx tsx scripts/check-i18n.ts --init     # 重建 baseline + 输出存量违规清单（不拦截）
  *   npx tsx scripts/check-i18n.ts --prune    # 仅移除 baseline 中已不存在的过期条目（不新增）
+ *   npx tsx scripts/check-i18n.ts --migrate --from <旧路径> --to <新路径> --expect <命中条数>
+ *                                            # 拆件/搬文件时把存量豁免整路径迁移（G2/N2 尾项）：
+ *                                            # 命中数 ≠ expect 或迁移后条目总数变化 → 拒写 exit 1。
+ *                                            # 不新增豁免、不改违规串，只换路径前缀。
  *
  * 设计取舍（启发式，可能有误报）：
  *   - 只扫「用户可见」位置，不扫普通字符串字面量（状态 key、日期格式等内部值不拦）
@@ -253,6 +257,56 @@ async function main(): Promise<void> {
     const kept = [...new Set(entries)].filter(e => current.has(e)).sort()
     writeFileSync(BASELINE_FILE, JSON.stringify({ version: 1, entries: kept }, null, 2) + '\n')
     console.log(`[check-i18n] baseline 已清理: ${entries.length} → ${kept.length} 条（过期条目已移除）`)
+    return
+  }
+
+  // G2/N2 尾项机制化：拆件/搬文件时存量豁免随路径迁移（取代 9/20 手写一次性脚本）。
+  // 安全断言：命中数必须等于 --expect，且迁移只换路径前缀、条目总数不变，否则拒写。
+  if (process.argv.includes('--migrate')) {
+    const argOf = (flag: string): string | null => {
+      const i = process.argv.indexOf(flag)
+      return i >= 0 && i + 1 < process.argv.length ? process.argv[i + 1] : null
+    }
+    const from = argOf('--from')
+    const to = argOf('--to')
+    const expectRaw = argOf('--expect')
+    if (!from || !to || expectRaw == null || !/^\d+$/.test(expectRaw)) {
+      console.error('[check-i18n] --migrate 需要 --from <旧路径> --to <新路径> --expect <命中条数>')
+      process.exit(1)
+    }
+    if (!existsSync(BASELINE_FILE)) {
+      console.error('[check-i18n] 缺少 baseline，请先运行: npx tsx scripts/check-i18n.ts --init')
+      process.exit(1)
+    }
+    const entries = (JSON.parse(readFileSync(BASELINE_FILE, 'utf8')) as BaselineFile).entries
+    const expectHits = Number(expectRaw)
+    const SEP = '\u0000'
+    let hits = 0
+    const migrated = entries.map(e => {
+      const idx = e.indexOf(SEP)
+      const file = e.slice(0, idx)
+      if (file !== from) return e
+      hits += 1
+      return to + e.slice(idx)
+    })
+    if (hits !== expectHits) {
+      console.error(`[check-i18n] 迁移拒绝写入：旧路径 ${from} 命中 ${hits} 条 ≠ --expect ${expectHits}（baseline 可能已被别批改过，先人工核对）`)
+      process.exit(1)
+    }
+    if (new Set(migrated).size !== entries.length) {
+      console.error('[check-i18n] 迁移拒绝写入：迁移后出现重复条目（新路径已有同串豁免？）')
+      process.exit(1)
+    }
+    // 迁移后新条目必须全部在当前扫描结果中真实存在（防把豁免迁到错路径变成死条目遮新违规）
+    const current = new Set(violations.map(v => `${v.file}\u0000${v.text}`))
+    const orphan = migrated.filter((e, i) => e !== entries[i] && !current.has(e))
+    if (orphan.length > 0) {
+      console.error(`[check-i18n] 迁移拒绝写入：${orphan.length} 条迁移后在新路径扫不到对应违规（路径写错或文案已改）:`)
+      for (const o of orphan) console.error(`  ${o.replace(SEP, ' :: ')}`)
+      process.exit(1)
+    }
+    writeFileSync(BASELINE_FILE, JSON.stringify({ version: 1, entries: [...migrated].sort() }, null, 2) + '\n')
+    console.log(`[check-i18n] baseline 路径迁移完成: ${from} → ${to}（${hits} 条，总数 ${entries.length} 不变）`)
     return
   }
 

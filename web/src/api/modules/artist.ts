@@ -163,7 +163,7 @@ export const artistApi = {
   // v0.31 REQ-021 F1: 操作日志（分页 + ?type= 筛选）
   getOrderLogs: (id: number, { page = 1, pageSize = 50, type }: { page?: number; pageSize?: number; type?: string } = {}): Promise<OrderLogsResult> =>
     getJson(`/artist/orders/${id}/logs`, { params: { page, pageSize, type } }),
-  // R33: 签名 URL 批量刷新（防 15min 过期 403）
+  // R33: 签名 URL 批量刷新（防过期 403；TTL 现行 5 分钟，见 server file-sign.ts FILE_TTL_MS / G1）
   refreshSignatures: (paths: string[]): Promise<RefreshSignaturesResult> => postJson('/artist/refresh-signatures', { paths }),
   // R30d: 流程状态机（推进/打回/关闭跟踪；stageId 为目标节点 ID，SPEC-002 必填）
   // D-1（R-5）: options.version 可选（推进/回退/关跟踪/开跟踪同为订单写路径）
