@@ -1,11 +1,12 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-09-27 第十一次刷新：黄红灯集中清批已收口 `c90c79bc`；accept.ps1 十八道全绿 335s + GitHub CI 三流水线全绿）
+## 看板（2026-09-27 第十二次刷新：AGENTS/ 中间产物归口批已收口 `bdaff173`；accept.ps1 十八道全绿 328s）
 
-- **HEAD** `c90c79bc`（= origin/master，本批黄红灯集中清已提交推送）；food-menu 批 `d5864356` 及其前均已同步
-- **基线（c90c79bc，accept.ps1 十八道全绿实测 335s）**：server **1847**（159 文件）/ web **967**（142）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
-  - 本批 web 963→967（+4：ArtistHome hidden 分块哨兵 3 + useSignatureRefresh TTL 口径哨兵 1）；GitHub CI 四 job+E2E+CodeQL 对 c90c79bc 全绿
-  - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；`scripts/accept-baseline.json` 已同步 web 963→967（本批实测）
+- **HEAD** `bdaff173`（AGENTS/ 归口批；本看板刷新提交在其后）；黄红灯集中清批 `c90c79bc`、food-menu 批 `d5864356` 及其前均已同步
+- **基线（bdaff173，accept.ps1 十八道全绿实测 328s）**：server **1847**（159 文件）/ web **967**（142）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
+  - 本批（AGENTS 归口）四端用例数**零变化**：只改文档指针与脚本产出路径，未动业务代码
+  - 上批（黄红灯集中清 `c90c79bc`）web 963→967（+4：ArtistHome hidden 分块哨兵 3 + useSignatureRefresh TTL 口径哨兵 1）；GitHub CI 四 job+E2E+CodeQL 对其全绿
+  - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；`scripts/accept-baseline.json` 已同步 web 963→967（上批实测，本批未动）
 - **云端（gh 实测）**：CI / E2E / CodeQL 三条流水线对 `fff6a8a7` 均 success；Dependabot open 警报 **0**——U20 剩 3 条（#20/#23/#25）经 `d789ff8a` 落地清零，CodeQL #26~#30 经 `b6b23479` 清零
 - ✅ **门禁工具批（N2）已提交 `a6ac12a9`**：node 直调消 npx 假红 + test-tamper v3 基线策略 + 结构化结果字段 + 并行批同仓改动（TplGallery 拆件 / F-44）一并入批
   - 新增第 18 道 STATUS 单行防阀（`check-status-line.mjs`）与看板 HEAD 比对警告行：滞后→显式警告，一致→✅；只警告不阻塞
@@ -15,7 +16,7 @@
 **下一步（按优先级）**
 
 1. 🔴 **下次开工第一件事**：把 `docs/comms/待办-用户侧清单-20260914.md` 逐条端给用户（本批已销 U14/U15/U20/G1/G2/G3/G4/G6/F-31/F-32/F-35/F-36；剩 Y2~Y7 需用户本人 + U16/U17/U18/G5/G7 需拍板）
-2. ✅ **本批（黄红灯集中清）已收口**：`c90c79bc` 已提交推送，accept.ps1 十八道全绿（335s）+ GitHub CI 三流水线全绿
+2. ✅ **本批（AGENTS/ 中间产物归口）已收口**：`bdaff173` 已提交，accept.ps1 十八道全绿（328s），报告已落在新路径 `AGENTS/workspace/temp/`
 3. **等你终审两处对外文案**：W4 下架横幅措辞、W6 隐私三条 IP 披露（另含 U12 主页文案、U13 安装包署名）
 4. **U18 STATUS 归档搬动**：本批因「不与代码混批」纪律未做，留单独批（正文已超体例 5 条，须字符总量前后差 + 逐条比对零丢失校验）
 5. **剩红灯需拍板**：U16 板块级下架（重建 reports 表）/ U17 数据服务（另立 REQ+PIPL）/ G5 终验证据链复现性 / G7 F-09 二次重构
