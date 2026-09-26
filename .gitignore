@@ -31,7 +31,8 @@ Thumbs.db
 # Hermes Agent workspace
 .hermes/
 
-# 施工台与通道残留（codex 任务书/日志/补丁脚本/截图全在 workspace/temp，永不入库；814 整理）
+# 施工台与通道残留（codex 任务书/日志/补丁脚本/截图；814 整理）
+# 2026-09-27：workspace/ 已整体迁入 AGENTS/workspace/，本行保留作防回退（勿再往仓库根写）
 workspace/
 .workbuddy/
 
@@ -51,7 +52,13 @@ server/data/
 # Runtime data
 data/
 
+# AI 代理中间产物统一归口（2026-09-27 新建）：原根 temp/ 与 workspace/ 已整体迁入
+# README.md 例外入库（说明目录用途与子目录约定）；temp/、workspace/temp/、artifacts/ 全部不入库
+AGENTS/*
+!AGENTS/README.md
+
 # 临时参考素材（用户设计参考，不入版本库）
+# 2026-09-27：根 temp/ 已迁入 AGENTS/temp/，本行保留作防回退（勿再往仓库根写）
 temp/
 
 # AI 搜索产物残留（v0.8 误提交，2026-08-05 清扫批删除）
@@ -65,6 +72,9 @@ e2e/test.db*
 e2e/test-uploads/
 e2e/.server-pid
 e2e/.tokens.json
+
+# Python 工具缓存（偶发跑 pytest 留下，可再生；2026-09-27 归口批补：pytest 虽会自写目录内 .gitignore，仓库级显式忽略更稳）
+.pytest_cache/
 
 # 冒烟/测试库迁移快照（可再生，勿入库）
 e2e/smoke.db*

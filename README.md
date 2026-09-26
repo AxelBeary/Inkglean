@@ -81,7 +81,7 @@ cd .. && npm run test:e2e      # E2E（仓库根目录）
 
 ### 改动后最小验证
 
-按改动类型的最小验证清单与「门禁全绿」定义见 `AGENTS.md`「改动后最小验证清单」一节（均为仓库既有脚本，不引入新工具）。一键全量验收：`pwsh scripts/accept.ps1`（可加 `-Worktree <路径>` 验收指定 worktree，产出结构化报告于 `workspace/temp/`）。
+按改动类型的最小验证清单与「门禁全绿」定义见 `AGENTS.md`「改动后最小验证清单」一节（均为仓库既有脚本，不引入新工具）。一键全量验收：`pwsh scripts/accept.ps1`（可加 `-Worktree <路径>` 验收指定 worktree，产出结构化报告于 `AGENTS/workspace/temp/`）。
 
 ## 目录结构
 
@@ -100,6 +100,7 @@ web/                    # 前端（Vue 3）
     stores/             # Pinia
     locales/            # 中英文语言包
 docs/                   # 文档（含 soul 角色定义）
+AGENTS/                 # AI 代理中间产物归口（除 README 外全部 gitignore，详见其 README）
 ```
 
 ## 技术栈（维护者向）

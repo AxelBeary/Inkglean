@@ -12,8 +12,8 @@
 #   pwsh scripts/accept.ps1 -Worktree <worktree路径>   # 验收某个 worktree
 #   pwsh scripts/accept.ps1 -SkipE2E               # 跳过 E2E（不推荐，仅排障用）
 #
-# 产出：workspace/temp/accept-<分支>-<时间戳>.md（门禁报告）
-#       workspace/temp/accept-logs/<时间戳>/<门禁>.log（每道门禁完整输出）
+# 产出：AGENTS/workspace/temp/accept-<分支>-<时间戳>.md（门禁报告）
+#       AGENTS/workspace/temp/accept-logs/<时间戳>/<门禁>.log（每道门禁完整输出）
 # 退出码：0 = 全绿；1 = 任一门禁失败；2 = 环境/前置检查失败
 #
 # 注意：本脚本不 merge、不合入——merge master 与合入决定永远由一号人工执行。
@@ -42,9 +42,9 @@ if (-not (Test-Path (Join-Path $repo 'server')) -or -not (Test-Path (Join-Path $
 $branch = (git -C $repo rev-parse --abbrev-ref HEAD).Trim()
 $head = (git -C $repo rev-parse --short HEAD).Trim()
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-$logDir = Join-Path $repo "workspace/temp/accept-logs/$stamp"
+$logDir = Join-Path $repo "AGENTS/workspace/temp/accept-logs/$stamp"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
-$reportPath = Join-Path $repo "workspace/temp/accept-$branch-$stamp.md"
+$reportPath = Join-Path $repo "AGENTS/workspace/temp/accept-$branch-$stamp.md"
 
 Write-Host "=== 验收流水线 ===" -ForegroundColor Cyan
 Write-Host "目标：$repo （分支 $branch @ $head）"
