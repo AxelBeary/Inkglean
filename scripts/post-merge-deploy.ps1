@@ -108,14 +108,14 @@ $ACCEPT_EXEMPT = @{
 }
 $shortSha = if ($sha.Length -ge 7) { $sha.Substring(0, 7) } else { $sha }
 if (-not $SkipAccept) {
-  $acceptDir = Join-Path $ROOT 'workspace\temp'
+  $acceptDir = Join-Path $ROOT 'AGENTS\workspace\temp'
   $acceptReports = @(Get-ChildItem -Path $acceptDir -Filter 'accept-master-*.md' -File -ErrorAction SilentlyContinue |
     Sort-Object Name)
   $latestAccept = if ($acceptReports.Count -gt 0) { $acceptReports[-1] } else { $null }
   $acceptReason = ''
   $acceptNote = '全绿'
   if (-not $latestAccept) {
-    $acceptReason = 'workspace/temp 下没有 accept-master-*.md 验收报告'
+    $acceptReason = 'AGENTS/workspace/temp 下没有 accept-master-*.md 验收报告'
   } elseif ($sha -eq '') {
     $acceptReason = '无法解析当前 HEAD SHA，无法核对验收报告对应版本'
   } else {

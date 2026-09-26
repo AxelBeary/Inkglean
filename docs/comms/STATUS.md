@@ -34,6 +34,15 @@
 - STATUS 单行长度防阀（2026-09-20，better-harness 修复批，用户裁决选项①）：新增 `scripts/check-status-line.mjs`，只判本次变更新增行 >200 字符，存量长行不报；已挂 accept.ps1 第 18 道，「门禁全绿」口径改十八道（AGENTS.md 已同步）。
 - F-35（2026-09-20）：四个岗位书（`.qoder/agents/huiyue-*.md`）入库受版本管理。`.gitignore` 改 `.qoder/*` + `!.qoder/agents/` 例外。AGENTS-v2.md 第 18 行「版本管理留痕」现为事实。
 - F-43（2026-09-20）：`docs/soul/skills/` 技能库整体归档至 `docs/comms/archive/skills/`，定位为历史文档。路径引用（.js→.ts）已批量修正到工作树真实目标，multi-agent-collaboration-setup 补 SKILL.md，原位置留指针 `docs/soul/skills-ARCHIVED.md`。
+- 中间产物归口（2026-09-27）：新建 `AGENTS/`，原根 `temp/`（3428 文件）与 `workspace/`（966 文件）整体迁入，文件数·目录数·字节数前后完全一致（零丢失）。
+  - `.gitignore` 加 `AGENTS/*` + `!AGENTS/README.md` 例外；旧 `temp/`、`workspace/` 两行保留作防回退。子目录约定与纪律见 `AGENTS/README.md`（唯一入库件），AGENTS.md「注意事项」已同步一条归口纪律。
+  - 硬编码路径同步改 2 处：`accept.ps1:45,47`（门禁报告与日志）、`post-merge-deploy.ps1:111,118`（验收报告查找）；实测新路径生效、根目录无误建、50 份 accept-master 报告仍可被找到。
+  - 文档指针改 6 处（本文件）+ README·changelog·待办 U19 各 1 处；原 237 字的超长行按防阀口径拆短，去空白字符差恰为 +44（6×`AGENTS/` + 拆行前缀）零丢失。
+  - ⚠️ 根目录 4 个 `proto-desktop-home-*.html` **不是冗余、不得删**：`design/r2/README.md` 明载「功能安放的定稿是仓库根同名三件」，A 为选定方向终验件；design/r2/ 下三件是外部回稿原件（缺墨笔菜单等六件功能安放）。
+  - 收拾：`.pytest_cache`（5 文件）、`test-results`（1）、`playwright-report`（1）三处可再生残留搬入 `AGENTS/temp/cleanup-20260927/`，7 文件 566212 字节零丢失；`.pytest_cache/` 补进 .gitignore 作仓库级防御。
+  - 不动项：`design/`、`.impeccable/` 是在库设计资产（`.impeccable` 系 `3c5533c3` 有意留档的核查截图，被 PRODUCT.md 等 4 份文档引用）。
+  - 不动项续：playwright 两个输出目录**位置不改**——`.github/workflows/e2e.yml:66-75` 硬依赖其根目录位置上传排障 artifact，改位置须连 CI 一起改，属单独批。
+  - 门禁：改动未提交时 accept.ps1 前置拦截 exit 2（038 防再发，属预期）；三道防阀单独跑绿（巨型文件 587 / test-tamper 0 变更 / status-line 7 行）；提交后复跑完整十八道再 push。
 
 **起手必读**：**⚑ 下次开工第一件事：向用户逐条端出 `docs/comms/待办-用户侧清单-20260914.md`（U1~U20）提醒他做他那边的活**，再读 **⚑ 下方正文第一条（2026-09-17 审计缺陷修复波1+波2 全量收口）**。
 
@@ -63,7 +72,7 @@
 
 > 📌 **2026-09-25 「今天吃什么」库扩建批（两波采集 + 终审波）：495 → 3530 条，单文件拆为 `web/src/utils/food-menu/` 13 分片（已本地提交 `d5864356`，9/27 十八道门禁全绿，待推送）**
 >
-> - **一波做法**：6 路采集子代理（可联网）并行出草稿 1589 条 → 4 路独立交叉验证（V1 低GI / V2 低嘌呤 / V3 三减 / V4 可点性+查重）→ 主会话脚本化合并（裁决全编码在 `temp/food-expand-20260925/merge-rules.mjs`，可复跑审计）。
+> - **一波做法**：6 路采集子代理（可联网）并行出草稿 1589 条 → 4 路独立交叉验证（V1 低GI / V2 低嘌呤 / V3 三减 / V4 可点性+查重）→ 主会话脚本化合并（裁决全编码在 `AGENTS/temp/food-expand-20260925/merge-rules.mjs`，可复跑审计）。
 > - **二波做法**（用户「还能加更多」追加）：缺口定向再派 6 路（地方药膳/特殊人群/控糖甜品/痛风汤食/全国小吃便利店/异国烘焙饮品 共 1807 条）+ 4 路验证（V5~V8，只审新草稿）+ D1 补齐队落地 92 条改 note；合并脚本 `merge2-rules.mjs`+`merge2.mjs` 同目录可复跑。
 > - **终审波（用户追加「查重专路+核实专路」）**：8 路独立终审对 3695 条合并终态全量再核（F0 机械查核 + 痛风×2 + 低GI×2 + 三减×2 + 外卖×2，共审 ~5400 判定行）；两队重叠区判定交叉比对 **冲突 0**。
 >   - 落地方式：结构性操作由主会话 merge3 脚本应用（删标 48/删菜 2/补标仲裁）；并条净减 ~185 条、改名 26、裸英文主名归一、机械尾清（功效腔/GI 数值腔）交单一施工队串行落地。
@@ -74,13 +83,14 @@
 >   - 医学口径：糖尿病食养指南 2023 + WS/T 652—2019 / 痛风食养指南 2024 嘌呤分级 / 药膳限食源材料（V7 按保健食品可用名录筛）。页面免责提示不变。
 > - **待用户**：本批已本地提交 `d5864356`，待推送。
 >   - 9/27 复跑 accept.ps1 十八道全绿；test-tamper 门带 ack 裁决：新增测试为防退色不变量钉、非改软断言。
->   - 草稿、十二份验证/终审报告与可复跑脚本（merge/merge2/merge3/fam）在 `temp/food-expand-20260925/`（gitignored）可查逐条裁决；结构操作前快照存该目录 backup-pre-merge3/。
+>   - 草稿、十二份验证/终审报告与可复跑脚本（merge/merge2/merge3/fam）在 `AGENTS/temp/food-expand-20260925/`（gitignored）可查逐条裁决；结构操作前快照存该目录 backup-pre-merge3/。
 >   - 另：D 盘根曾残留 21 个 `temp_c10_*.txt`（子代理误写），用户已于 9/27 手动删除，实测归零，销账。
 
 
 > 📌 **2026-09-17 审计缺陷修复 波1+波2 全量收口（P0×3 + P1 四端；契约驱动 13 路文件领地并行 + 主代理收口亲跑门禁；已本地分批提交、未推送）**
 >
-> - **事实源**：依 `docs/comms/审计缺陷修复施工清单-20260917.md`（两轮审计发现逐条回代码核实版）修 P0×3 + P1（SRV/WEB/DSK/SHR）；P2（~130）/P3（37）未逐条核实，本迭代不动。施工契约 `docs/comms/施工契约-审计修复波1-20260917.md`·`波2-20260917.md`；13 路 ledger 在 `temp/ledgers/`（gitignored，本条已合并其结论与后续项）。
+> - **事实源**：依 `docs/comms/审计缺陷修复施工清单-20260917.md`（两轮审计发现逐条回代码核实版）修 P0×3 + P1（SRV/WEB/DSK/SHR）；P2（~130）/P3（37）未逐条核实，本迭代不动。
+>   - 施工契约 `docs/comms/施工契约-审计修复波1-20260917.md`·`波2-20260917.md`；13 路 ledger 在 `AGENTS/temp/ledgers/`（gitignored，本条已合并其结论与后续项）。
 > - **方法**：波1 六路（srvA/B/C + webA + dskA + shrA）、波2 七路（web1~4 + dsk1~3）按**文件领地零重叠**并行派工；主代理收口独占横切项（WEB-14/SRV-17/lib.rs 登记）+ 亲跑四端全量门禁 + e2e 冒烟，不凭子代理自检交差。
 > - **P0（3 条全修）**：P0-1 邀请空壳接管（空壳判定收紧为 `totp_secret IS NULL` + confirm 校验 invite_code_uses 存在）；P0-2 手动录单手输价被增项重复叠加（提交序列重排＝先写全部增项、updatePrice 最后绝对覆盖，与 WEB-01 三口径统一）；P0-3 桌面模块沙箱帧外带 ledger（前端根本缓解 canAccessView 门禁：第三方模块运行时拿不到 ledger + 记违规）。
 > - **server（SRV-01~17 全处置）**：SRV-03/04 requireAdmin 补桌面账本存在性+过期校验（抽 validateDesktopSession 复用）；SRV-05 OG 缓存 500 条 LRU 上限；SRV-06 迁移 BEGIN IMMEDIATE 跨进程互斥；SRV-07 .bak.vN 只留最近 3 份；SRV-08 身份码上限 10→20；SRV-09 换管理员再验窗口 60s→5min；SRV-10 一次性下载 nonce 原子消费；SRV-11 问候语特别日补 t.artist_id 租户过滤（读+写双向）；SRV-12 删画风/尺寸补在途订单守卫 + E.STYLE_IN_USE/SIZE_IN_USE 错误码；SRV-13 幂等 INSERT 改 ON CONFLICT DO UPDATE；SRV-14 WebAuthn counter 乐观锁；SRV-15 TOTP 重绑接账号级锁定；SRV-16 分期节点两路径对齐 basis_points>0；SRV-01 收入口径改 paid_total_cents 实收（仍按 completed_at 归集）；SRV-02 维持 R7 额度池设计不改后端（有意设计非逻辑错）；SRV-17 不统一 floor/round（折扣码计价 vs 小票对账属独立子系统、差≤1 分有意，两处加注释防误统一）。
@@ -111,8 +121,8 @@
 > - **消红方式**：用户回「按照工程学最优去做好」口头放行 → R4 破例进 `web/src/**` 拆件（待追认项 U3）；横幅拆为 `components/layout/HomeTakedownBanner.vue`（57 行，标记与样式逐字搬）。
 > - **消红方式续**：主页下架/恢复的两步确认 + step-up 链拆为 `composables/useHomeTakedown.ts`（93 行，两条链收敛为同一 run），另把共用的原因输入框 `askOptionalReason` 一并收进同一件。
 > - **拆后状态**：ArtistLayout **775** / ArtistManage **781** 行，防阀 exit 0；行为零变更证据：web 886 例全过（含 ArtistManage.ban 里 3 条主页下架·恢复·step-up 用例）、E2E 14 全过、lint+vue-tsc 零错。
-> - **门禁（主代理亲跑，不凭子代理汇报）**：`accept.ps1` 本体在 `:57` 前置检查（未提交跟踪件即中止，上一轮 P5 §1.1 同款死锁）被拦、零道执行（日志 `temp/r4-accept-attempt.out.txt`）。
-> - **门禁续**：改逐道等价命令复跑（日志 `temp/r4-gates/`）：server **1801/156**、web **886/125**、desktop **447/30**、shared **23/4** 四项全绿。
+> - **门禁（主代理亲跑，不凭子代理汇报）**：`accept.ps1` 本体在 `:57` 前置检查（未提交跟踪件即中止，上一轮 P5 §1.1 同款死锁）被拦、零道执行（日志 `AGENTS/temp/r4-accept-attempt.out.txt`）。
+> - **门禁续**：改逐道等价命令复跑（日志 `AGENTS/temp/r4-gates/`）：server **1801/156**、web **886/125**、desktop **447/30**、shared **23/4** 四项全绿。
 > - **门禁再续**：各端 lint（含 vue-tsc）与 build 零错，check:i18n 13 条豁免无新增，E2E **14 passed** + check-locators exit 0；test-tamper 用 node 直调绿（绕 npx bug）。
 > - **判读口径**：拆件后逐道等价命令 **17 道全绿**；但 accept.ps1 本体因 accept 前置（工作区脏）未跑成，**仍不得称「accept 十七道全绿」**，待本地提交令后补跑取硬结果。
 > - **流程矛盾登记（与上一轮 P5 §1.1 同一处）**：计划书 §三「先跑全量门禁」与 §六「绿后提交待令」互斥（accept.ps1 要工作区干净）；计划书原文未动（共同事实源）。
@@ -248,7 +258,7 @@
 > - ⚪ 830 原始审计报告**从未入库** → `M-5` 编号在账本里凭空消失（M-4/M-6 都在）、`L-3`/`L-6` 只有转述无法独立验
 > - ⚪ 终验清单 D4 后半句判据仍与代码不符（缓冲区头真值「N 笔候补」，清单当成「在途」）；`SchedStrip.vue:6` 注释讲反话（行为对、注释与 9/4 修后的实现相反）
 > - ⚪ 图片链接续期：真值 5min 但前端轮询 10min/补刷 8min，三方不一致共 **12 处**（审计工单 F-02 只登记 5 处，实测漏登 3 处代码注释）；成因＝`FILE_TTL_MS` 未 export，两端只靠注释互指。改法待实测定（压间隔已核实安全：限流 20 次/5min，两实例同开仅约 2.5 次）
-> - ⚪ 37 条终验清单里「已被自动化覆盖」所引的 Playwright 脚本在未跟踪的 `workspace/temp/`，新克隆机器复现不出
+> - ⚪ 37 条终验清单里「已被自动化覆盖」所引的 Playwright 脚本在未跟踪的 `AGENTS/workspace/temp/`，新克隆机器复现不出
 > - ⚪ F-33 索引表硬错行号已漂移：登记的 `:110/:111` 现为 `:122/:123`，`desktop/docs/STATUS.md:10` 自己的指针也跟着错（第 4 批改时要连指针一起改）
 > - ⚪ 路 3 未证实项：HTTPS 真机 Passkey 登录、分享主页到 QQ/微信是否真出卡片、375px 高频路径无阻断（截图未落盘）
 >

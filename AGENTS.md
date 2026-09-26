@@ -43,3 +43,4 @@ STATUS 是每次开工的固定阅读成本（曾实测：单行最长 3900 字�
 
 - `docs/开发自参考.md` 中的数字（用例数、行数等）与目录描述可能已过时，**不可直接引用**；引用前先对代码/实测核实。
 - 拍板类决策须记录在 STATUS，不落到其他文档：平台级/跨端拍板 → `docs/comms/STATUS.md` 的「已拍板规则」章节；桌面端专属拍板 → `desktop/docs/STATUS.md`。
+- **中间产物归口（2026-09-27 拍板）**：一次性脚本、扫描 JSON、批次 ledger、门禁日志、待拍板材料一律写 `AGENTS/`（子目录约定见 `AGENTS/README.md`），**不再往仓库根目录散落**。该目录除 `AGENTS/README.md` 外全部 gitignore；`scripts/accept.ps1` 的门禁报告与日志产出在 `AGENTS/workspace/temp/`。根目录 `AGENTS.md`（本文件）是代理入口文档，与 `AGENTS/` 目录用途无关，勿混淆。
