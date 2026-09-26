@@ -1,10 +1,10 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-09-27 第十一次刷新：黄红灯集中清批在途；HEAD `f2935e18` 已同步 origin/master，本批改动待提交）
+## 看板（2026-09-27 第十一次刷新：黄红灯集中清批已收口 `c90c79bc`；accept.ps1 十八道全绿 335s + GitHub CI 三流水线全绿）
 
-- **HEAD** `f2935e18`（= origin/master；food-menu 批 `d5864356` 已推送）；⏳ **本批黄红灯集中清改动待提交**（叠在 f2935e18，四端+E2E 已亲验全绿，accept.ps1 需提交后复跑）
-- **基线（f2935e18 已提交态）**：server **1847**（159 文件）/ web **963**（141）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
-  - **本批提交后 web 963→967**（+4：ArtistHome hidden 分块哨兵 3 例 + useSignatureRefresh TTL 口径哨兵 1 例，142 文件）；四端+E2E 已亲验（web 967/server 1847/E2E 14 passed 21.7s）
+- **HEAD** `c90c79bc`（= origin/master，本批黄红灯集中清已提交推送）；food-menu 批 `d5864356` 及其前均已同步
+- **基线（c90c79bc，accept.ps1 十八道全绿实测 335s）**：server **1847**（159 文件）/ web **967**（142）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
+  - 本批 web 963→967（+4：ArtistHome hidden 分块哨兵 3 + useSignatureRefresh TTL 口径哨兵 1）；GitHub CI 四 job+E2E+CodeQL 对 c90c79bc 全绿
   - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；`scripts/accept-baseline.json` 已同步 web 963→967（本批实测）
 - **云端（gh 实测）**：CI / E2E / CodeQL 三条流水线对 `fff6a8a7` 均 success；Dependabot open 警报 **0**——U20 剩 3 条（#20/#23/#25）经 `d789ff8a` 落地清零，CodeQL #26~#30 经 `b6b23479` 清零
 - ✅ **门禁工具批（N2）已提交 `a6ac12a9`**：node 直调消 npx 假红 + test-tamper v3 基线策略 + 结构化结果字段 + 并行批同仓改动（TplGallery 拆件 / F-44）一并入批
@@ -15,7 +15,7 @@
 **下一步（按优先级）**
 
 1. 🔴 **下次开工第一件事**：把 `docs/comms/待办-用户侧清单-20260914.md` 逐条端给用户（本批已销 U14/U15/U20/G1/G2/G3/G4/G6/F-31/F-32/F-35/F-36；剩 Y2~Y7 需用户本人 + U16/U17/U18/G5/G7 需拍板）
-2. **本批（黄红灯集中清）待提交**：叠在 `f2935e18`，四端+E2E 已亲验全绿（web 967 / server 1847 / E2E 14）；提交后复跑 accept.ps1 十八道取权威结论（test-tamper 带 ack）
+2. ✅ **本批（黄红灯集中清）已收口**：`c90c79bc` 已提交推送，accept.ps1 十八道全绿（335s）+ GitHub CI 三流水线全绿
 3. **等你终审两处对外文案**：W4 下架横幅措辞、W6 隐私三条 IP 披露（另含 U12 主页文案、U13 安装包署名）
 4. **U18 STATUS 归档搬动**：本批因「不与代码混批」纪律未做，留单独批（正文已超体例 5 条，须字符总量前后差 + 逐条比对零丢失校验）
 5. **剩红灯需拍板**：U16 板块级下架（重建 reports 表）/ U17 数据服务（另立 REQ+PIPL）/ G5 终验证据链复现性 / G7 F-09 二次重构
@@ -58,7 +58,7 @@
 >   - server typecheck 三配置 0 错 / lint(340 文件) 0 错 0 警 / test **159 文件 1847**；E2E **14 passed（21.7s）**；desktop/shared 未改（accept.ps1 提交后覆盖）。baseline 已同步 web 963→967。
 > - **测试同改口径**：新增哨兵 4 例（ArtistHome 3 + useSignatureRefresh TTL 1），卸载用例加 mockClear 适配间隔压缩后合法触发；被删断言 0 条。
 > - **U18 未做（纪律）**：STATUS 归档搬动属高风险文本迁移，AGENTS.md 明令「不与代码施工混批」，本批已动代码，留单独批。
-> - **待用户**：改动叠在 `f2935e18`，**未提交**（commit/push 待用户明示提交令）；提交后复跑 accept.ps1 十八道取权威「门禁全绿」结论。
+> - **收口（已提交推送）**：`c90c79bc` 上 origin/master；accept.ps1 十八道全绿（335s：server 1847/web 967/desktop 538/shared 27/E2E 14；test-tamper 带 ack——新增哨兵为防退色钉非改软断言）；GitHub CI 四 job+E2E+CodeQL 对 c90c79bc 均 success。
 
 
 > 📌 **2026-09-25 「今天吃什么」库扩建批（两波采集 + 终审波）：495 → 3530 条，单文件拆为 `web/src/utils/food-menu/` 13 分片（已本地提交 `d5864356`，9/27 十八道门禁全绿，待推送）**
