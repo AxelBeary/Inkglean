@@ -51,7 +51,9 @@
 > - **结构**：13 分片（最大 494 行，800 防阀内）+ index.ts 聚合，导入路径不变，FoodMenu.vue 零改动；防退色单测 `src/utils/__tests__/food-menu.test.ts` 4 例。
 > - **门禁（主代理亲跑，终审后全量）**：web lint+typecheck 0 错 / test 141 文件 963 例全绿 / check:i18n OK / build 绿（FoodMenu 独立 lazy chunk gzip 92KB）；防阀 587 文件全过。
 >   - 医学口径：糖尿病食养指南 2023 + WS/T 652—2019 / 痛风食养指南 2024 嘌呤分级 / 药膳限食源材料（V7 按保健食品可用名录筛）。页面免责提示不变。
-> - **待用户**：本批已本地提交 `d5864356`（9/27 复跑 accept.ps1 十八道全绿，test-tamper 门带 ack 裁决：新增测试为防退色不变量钉、非改软断言），待推送；草稿、十二份验证/终审报告与可复跑脚本（merge/merge2/merge3/fam）在 `temp/food-expand-20260925/`（gitignored）可查逐条裁决；结构操作前快照存该目录 backup-pre-merge3/。
+> - **待用户**：本批已本地提交 `d5864356`，待推送。
+>   - 9/27 复跑 accept.ps1 十八道全绿；test-tamper 门带 ack 裁决：新增测试为防退色不变量钉、非改软断言。
+>   - 草稿、十二份验证/终审报告与可复跑脚本（merge/merge2/merge3/fam）在 `temp/food-expand-20260925/`（gitignored）可查逐条裁决；结构操作前快照存该目录 backup-pre-merge3/。
 >   - 另：D 盘根残留 21 个 `temp_c10_*.txt`（子代理误写，可安全手删，沙箱无权删项目外文件）。
 
 
