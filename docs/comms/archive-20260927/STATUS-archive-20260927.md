@@ -3,6 +3,30 @@
 > 本文件是 docs/comms/STATUS.md 的历史归档（2026-09-13 定时开工五批收口 至 2026-08-24 2FA 加固批）。当前状态请看 STATUS.md。
 > 归档原则：原文一字不改，整体搬迁。文内旧 `temp/`、`workspace/temp/` 路径指针按 `AGENTS/README.md` 的映射规则解析（现居 `AGENTS/temp/`、`AGENTS/workspace/temp/`）。
 
+> 📌 **2026-09-14 第二轮定时开工收口（R1~R5 + W7，goal 链式调度首跑）**
+>
+> - **范围**：把上一轮 P4 后端的 v75/v76 能力补齐 web 前端（W1~W6），加 E2E 合规链路（W8）、W7 主页文案、依赖与 CI 健康批；共 6 批，编排事实源 `docs/comms/archive-20260927/定时开工总纲-第二轮-时间表与防冲突-20260913.md`（9/27 归档）。
+> - **台账指针**（同批细节只写一份、不互抄）：`docs/comms/ledgers/ledger_R1.md`·`R2`·`R3`·`R5`·`W7`，本批 `ledger_R4.md`；编排文档共 7 份（总纲 + 六份计划书）在同一目录。
+> - **R1（web 配套 W1~W6）**：新建 `AdminActions.vue` 处置留痕页 + 路由/导航；举报页来源 IP 列；画师管理页「下架/恢复主页」双键（含 step-up）；画师后台下架横幅；作品已下架徽标 + 管理端恢复键；隐私政策补三条 IP 披露。locale 全程单写者、中英成对。
+> - **web 基线 876→886**（125 文件，+10：AdminActions 3 / ArtistManage.ban 3 / ReportManage 2 / ArtistDetailDrawer 2）；lint、check:i18n（13 条豁免无新增）、build 绿。
+> - **W7**：用户拍板**方案 A** 并由链式起点批落地 `zh-CN.ts:844`·`en.ts:845`（中性提示 + 双指引），与 R1 的 W4 后台横幅闭环；纯文案改值不增删用例。
+> - **R3（E2E W8）**：新建 `e11-compliance.spec.ts` 单条 test 走 API 主链（举报→下架→幂等→客户侧最小载荷→恢复→留痕可查→不重复记账反证）；**E2E 13→14 passed**；断言与 W7 文案解耦。
+> - **R5（依赖与 CI 健康，G9 解锁）**：flaky docker CI 重跑一次转绿（四 job 全 success）；sharp 0.35.4 + vitest 4.1.11 本地升级，**未走降级路径**、零 breaking 撞上。
+> - **R5 续**：修 `publish-artwork.test.ts` TC-PA-07 漏 await 假绿（只补 await、未删断言）；关 dependabot PR #7/#8、dismiss glib #10；**server 1801/156 不变**。
+> - **警报收尾链（推送后实测纠正）**：开工 7 条 open → 收工 6 条（glib 已消）→ **push 后只自动清 3 条（server 侧）**；另 3 条属 web 与根 lock 半区，R5 未升级故仍 open（已登 U20 待拍板，详见看板与 `ledger_R4.md` §十）。
+> - 🔴→✅ **本批曾撞出一道真红（已消）**：巨型文件防阀——R1 把 `ArtistLayout.vue` 767→807（W4 横幅）、`ArtistManage.vue` 748→848（W3 双键）顶过 800 上限，先按禁区纪律只上报未自行返工。
+> - **消红方式**：用户回「按照工程学最优去做好」口头放行 → R4 破例进 `web/src/**` 拆件（待追认项 U3）；横幅拆为 `components/layout/HomeTakedownBanner.vue`（57 行，标记与样式逐字搬）。
+> - **消红方式续**：主页下架/恢复的两步确认 + step-up 链拆为 `composables/useHomeTakedown.ts`（93 行，两条链收敛为同一 run），另把共用的原因输入框 `askOptionalReason` 一并收进同一件。
+> - **拆后状态**：ArtistLayout **775** / ArtistManage **781** 行，防阀 exit 0；行为零变更证据：web 886 例全过（含 ArtistManage.ban 里 3 条主页下架·恢复·step-up 用例）、E2E 14 全过、lint+vue-tsc 零错。
+> - **门禁（主代理亲跑，不凭子代理汇报）**：`accept.ps1` 本体在 `:57` 前置检查（未提交跟踪件即中止，上一轮 P5 §1.1 同款死锁）被拦、零道执行（日志 `AGENTS/temp/r4-accept-attempt.out.txt`）。
+> - **门禁续**：改逐道等价命令复跑（日志 `AGENTS/temp/r4-gates/`）：server **1801/156**、web **886/125**、desktop **447/30**、shared **23/4** 四项全绿。
+> - **门禁再续**：各端 lint（含 vue-tsc）与 build 零错，check:i18n 13 条豁免无新增，E2E **14 passed** + check-locators exit 0；test-tamper 用 node 直调绿（绕 npx bug）。
+> - **判读口径**：拆件后逐道等价命令 **17 道全绿**；但 accept.ps1 本体因 accept 前置（工作区脏）未跑成，**仍不得称「accept 十七道全绿」**，待本地提交令后补跑取硬结果。
+> - **流程矛盾登记（与上一轮 P5 §1.1 同一处）**：计划书 §三「先跑全量门禁」与 §六「绿后提交待令」互斥（accept.ps1 要工作区干净）；计划书原文未动（共同事实源）。
+> - 🔴 **未做归档搬动**（G8 红灯）：正文现 **8 条**、已超体例「只留最新 5 条」，本批一个字未搬，待单独一批 + 字符总量前后差校验。
+> - **未 commit / 未 push** → ✅ **已提交并推送**：用户回「同意 提交 推」后，逐领地暂存 43 文件提交为 `797eae10`（+3420/−684），`git push origin master` 成功（`d4984edf..797eae10`，含上一轮两笔），详录见 `ledger_R4.md` §十。
+> - ⚑ **用户侧待办已单独立档**：`docs/comms/待办-用户侧清单-20260914.md`（U1~U19，全免代码口径）；已挂进起手必读与下一步第 1 条——下次开工先逐条端给用户，不要闷头继续施工。
+
 > 📌 **2026-09-13 定时开工五批收口（P1~P5，schedule 编排首跑）**
 >
 > - **范围**：P1 文档收口（工单 F-13~F-40 第 3/4 批）/ P2 桌面批（F-33 纠错 + F-07 登记 + 卷心 inert + 波2 拖拽改期施工）/ P3 前端三小修 + 管理后台设备 tab 补测 + F12 引导卡原型 / P4 后端两项 / P5 合并回写与 shared 色值。
