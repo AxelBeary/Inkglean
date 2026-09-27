@@ -71,7 +71,7 @@
 | 类型系统 | TypeScript strict（全仓） | 2026-08-19 一次性收尾：后端/前端/测试/脚本/配置全 TS，allowJs 已关；测试与脚本分别经 tsconfig.tests.json / tsconfig.scripts.json / e2e/tsconfig.json 纳入类型门禁；禁 any/@ts-ignore，类型缺口用局部 interface + as 断言 |
 | 前端 | Vue 3 + Element Plus + Pinia | SPA；api 层 161 DTO；全量 .ts + vue script lang="ts"，vue-tsc 进 lint/CI |
 | 前端 i18n | vue-i18n@11 | zh-CN + en 双键，check-i18n 门禁 |
-| 数据库 | SQLite（better-sqlite3 单连接，同步 API），迁移当前 **v74**（各版本明细与条数以 `server/src/db/migrations/index.ts` 末尾为准） | 单进程单连接同步模型——不支持多实例共享同一 DB；DDL 双轨（完整 schema + 迁移链）由一致性测试锁定 |
+| 数据库 | SQLite（better-sqlite3 单连接，同步 API），迁移当前 **v76**（各版本明细与条数以 `server/src/db/migrations/index.ts` 末尾为准） | 单进程单连接同步模型——不支持多实例共享同一 DB；DDL 双轨（完整 schema + 迁移链）由一致性测试锁定 |
 | 部署 | Docker Compose + Caddy（自动 HTTPS） | entrypoint 带 DB 损坏自愈（自动恢复最新备份）；生产弱会话密钥拒绝启动（815 拍板 #12） |
 | 备份 | DB 三档分层（每日 7 份 / 部署前 2 份 / 每周 4 份，815 拍板 #10）+ uploads tar 备份（2 份轮转）+ restore-db/rollback 恢复脚本（支持 -Tier 选档） | OPS.md「备份与恢复」章节 |
 | 测试 | Vitest（后端/前端用例数易随批次变动，**以 `docs/comms/STATUS.md` 最新条目的基线为准，不在此写死**）+ Playwright E2E（13 条，接入 CI；global-setup 含管理员 step-up） | |
