@@ -1,6 +1,6 @@
 <template>
   <!-- 自定义首页批一（v70）：「自定义我的首页」抽屉
-       交互/视觉事实源 = workspace/temp/proto-dashboard-drag-820.html 的抽屉部分。
+       交互/视觉事实源 = AGENTS/workspace/temp/proto-dashboard-drag-820.html 的抽屉部分。
        读写口径：打开即拉 artistApi.getDashboardPrefs()；任何改动立即 PUT 完整对象
        （后写覆盖先写）；失败由 useDashboardPrefs 统一 ElMessage 报错并回滚本地。 -->
   <el-drawer
