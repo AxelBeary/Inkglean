@@ -173,7 +173,7 @@ docker compose up -d
 
 ## 4. GC 风险窗口（审计批E R-6，务必阅读）
 
-孤儿文件 GC（app.ts `gcUploads` / `scripts/gc-uploads.ts`）把「DB 无引用」文件移入回收站，
+孤儿文件 GC（app.ts `gcUploads` / `server/scripts/gc-uploads.ts`）把「DB 无引用」文件移入回收站，
 回收窗口已从 **24h 提升到 72h**。原因（复合炸弹）：
 
 - 手工恢复旧 DB 备份后，**备份时点之后新上传且已关联订单的文件**在新 DB 里「无引用」；
