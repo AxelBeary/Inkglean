@@ -1,6 +1,6 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-09-27 第十三次刷新：U18 文档专项审计归档批进行中；纯文档批零代码）
+## 看板（2026-09-27 第十四次刷新：U18 文档归档批 + changelog 滚动分册批同日收口；纯文档零业务代码）
 
 - **HEAD** `e67c1868`（AGENTS/ 归口批看板刷新）；本批为文档归档专项批，不改任何业务代码
 - **基线（bdaff173，accept.ps1 十八道全绿实测 328s）**：server **1847**（159 文件）/ web **967**（142）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
@@ -35,6 +35,10 @@
 - STATUS 单行长度防阀（2026-09-20，better-harness 修复批，用户裁决选项①）：新增 `scripts/check-status-line.mjs`，只判本次变更新增行 >200 字符，存量长行不报；已挂 accept.ps1 第 18 道，「门禁全绿」口径改十八道（AGENTS.md 已同步）。
 - F-35（2026-09-20）：四个岗位书（`.qoder/agents/huiyue-*.md`）入库受版本管理。`.gitignore` 改 `.qoder/*` + `!.qoder/agents/` 例外。AGENTS-v2.md 第 18 行「版本管理留痕」现为事实。
 - F-43（2026-09-20）：`docs/soul/skills/` 技能库整体归档至 `docs/comms/archive/skills/`，定位为历史文档。路径引用（.js→.ts）已批量修正到工作树真实目标，multi-agent-collaboration-setup 补 SKILL.md，原位置留指针 `docs/soul/skills-ARCHIVED.md`。
+- changelog 滚动分册（2026-09-27，用户「按推荐走」）：活档 docs/changelog.md 体积门 ≤40KB/450 行 + 新增/改动 H2 段 ≤4KB，
+  门脚本 scripts/check-changelog-size.mjs（accept 第 19 道，存量段 HEAD 基线豁免沿 F-44 口径）；
+  撞线唯一处置=oldest 段整搬 docs/changelog-archive/ 新卷并逐行哈希校验，禁调高阈值续命。
+  职责分工：changelog=工程台账，对外版本叙事=GitHub Releases（正文自活档顶部条目摘编，防双写漂移以台账为事实源）。
 - 中间产物归口（2026-09-27）：新建 `AGENTS/`，原根 `temp/`（3428 文件）与 `workspace/`（966 文件）整体迁入，文件数·目录数·字节数前后完全一致（零丢失）。
   - `.gitignore` 加 `AGENTS/*` + `!AGENTS/README.md` 例外；旧 `temp/`、`workspace/` 两行保留作防回退。子目录约定与纪律见 `AGENTS/README.md`（唯一入库件），AGENTS.md「注意事项」已同步一条归口纪律。
   - 硬编码路径同步改 2 处：`accept.ps1:45,47`（门禁报告与日志）、`post-merge-deploy.ps1:111,118`（验收报告查找）；实测新路径生效、根目录无误建、50 份 accept-master 报告仍可被找到。
@@ -50,6 +54,17 @@
 **起手必读续**：→ 交接档 `docs/comms/交接-20260912-会话收口与待拍清单.md` → 本节看板 → `AGENTS.md`（含「STATUS 体例与归档纪律」）→ 碰桌面端再读 `desktop/docs/STATUS.md` 顶部。
 
 **起手必读续二**：改桌面 UI 必跑 `huiyue-layout-audit` 自检循环（**宿主级技能**，住 `%USERPROFILE%\.agents\skills\huiyue-layout-audit\`，不在仓库属正常；VL 评审通道不可用，只能 measure.mjs + 人工逐项清单）。
+
+> 📌 **2026-09-27 changelog 滚动分册批（用户拍板「按推荐走」A+B+D；纯文档+门禁脚本，零业务代码）**
+>
+> - **缘起**：文档治理批体检暴露唯一巨型活文档——`docs/changelog.md` 134.6KB/1977 行（此前「1383 行」为 Measure-Object 跳空行长行低估，已按 node 口径纠正）。
+> - **侦察**：两路 scout 并行——A 路坐实全仓**零机读零用户渲染**消费（唯一语义引用 README:127）；B 路核实 GitHub Releases 已是对外叙事载体（6 条手写人话版）+ 四方案利弊对比。
+> - **A 分册**：活档留 1.0 时代 18 段（304 行/31.6KB），v0.x 53 段整搬 `docs/changelog-archive/changelog-v0-20260927.md`（1686 行）；逐行哈希零丢失，字符差 743 = 声明 418 + 指针 134 + 头注 191 精确到字；「深度待定」段（U21 位）留活档。
+> - **B 职责声明**：活档顶部写死维护纪律——本文件=工程台账、对外叙事=Releases（正文自顶部条目摘编、以本文件为事实源防双写漂移）、顶插+不删历史只标注+滚动分册触发。
+> - **D 防阀**：新门 `scripts/check-changelog-size.mjs`（≤40KB/≤450 行；新增/改动 H2 段 ≤4KB，存量段 HEAD 基线豁免——沿 F-44「存量冻结、禁调高阈值续命」口径）；挂 accept.ps1 第 19 道；AGENTS.md「十八道」→「十九道」。
+> - **自测**：红绿双向——旧 134KB 大文件必红、模拟新增 5.5KB 段必红、现活档绿；拆分脚本幂等可复跑（红测误用 git checkout 回滚过一次，复跑恢复且输出逐字节一致——教训：未提交件禁 checkout）。
+> - **顺序纪律**：U21 若拍补登，落笔在活档「深度待定」段下；分册先于补登，防补写内容直接落进待归档区间。
+
 
 > 📌 **2026-09-27 文档专项审计归档批（U18 销账；纯文档零代码；五路侦察交叉判定 + 待复核子代理复检；本地提交不推送）**
 >
@@ -124,29 +139,6 @@
 > - **提交**：按文件归属分 5 批本地提交（server / shared / web / desktop / docs，禁 git add -A、逐路径暂存）；**未推送**（依项目惯例 push 待用户明示「提交令」）。⚠ STATUS 正文已远超体例「只留最新 5 条」，归档搬动属高风险须单独一批 + 字符总量前后差校验，本批未做（沿 G8 红灯口径登记）。
 
 
-> 📌 **2026-09-14 第二轮定时开工收口（R1~R5 + W7，goal 链式调度首跑）**
->
-> - **范围**：把上一轮 P4 后端的 v75/v76 能力补齐 web 前端（W1~W6），加 E2E 合规链路（W8）、W7 主页文案、依赖与 CI 健康批；共 6 批，编排事实源 `docs/comms/archive-20260927/定时开工总纲-第二轮-时间表与防冲突-20260913.md`（9/27 归档）。
-> - **台账指针**（同批细节只写一份、不互抄）：`docs/comms/ledgers/ledger_R1.md`·`R2`·`R3`·`R5`·`W7`，本批 `ledger_R4.md`；编排文档共 7 份（总纲 + 六份计划书）在同一目录。
-> - **R1（web 配套 W1~W6）**：新建 `AdminActions.vue` 处置留痕页 + 路由/导航；举报页来源 IP 列；画师管理页「下架/恢复主页」双键（含 step-up）；画师后台下架横幅；作品已下架徽标 + 管理端恢复键；隐私政策补三条 IP 披露。locale 全程单写者、中英成对。
-> - **web 基线 876→886**（125 文件，+10：AdminActions 3 / ArtistManage.ban 3 / ReportManage 2 / ArtistDetailDrawer 2）；lint、check:i18n（13 条豁免无新增）、build 绿。
-> - **W7**：用户拍板**方案 A** 并由链式起点批落地 `zh-CN.ts:844`·`en.ts:845`（中性提示 + 双指引），与 R1 的 W4 后台横幅闭环；纯文案改值不增删用例。
-> - **R3（E2E W8）**：新建 `e11-compliance.spec.ts` 单条 test 走 API 主链（举报→下架→幂等→客户侧最小载荷→恢复→留痕可查→不重复记账反证）；**E2E 13→14 passed**；断言与 W7 文案解耦。
-> - **R5（依赖与 CI 健康，G9 解锁）**：flaky docker CI 重跑一次转绿（四 job 全 success）；sharp 0.35.4 + vitest 4.1.11 本地升级，**未走降级路径**、零 breaking 撞上。
-> - **R5 续**：修 `publish-artwork.test.ts` TC-PA-07 漏 await 假绿（只补 await、未删断言）；关 dependabot PR #7/#8、dismiss glib #10；**server 1801/156 不变**。
-> - **警报收尾链（推送后实测纠正）**：开工 7 条 open → 收工 6 条（glib 已消）→ **push 后只自动清 3 条（server 侧）**；另 3 条属 web 与根 lock 半区，R5 未升级故仍 open（已登 U20 待拍板，详见看板与 `ledger_R4.md` §十）。
-> - 🔴→✅ **本批曾撞出一道真红（已消）**：巨型文件防阀——R1 把 `ArtistLayout.vue` 767→807（W4 横幅）、`ArtistManage.vue` 748→848（W3 双键）顶过 800 上限，先按禁区纪律只上报未自行返工。
-> - **消红方式**：用户回「按照工程学最优去做好」口头放行 → R4 破例进 `web/src/**` 拆件（待追认项 U3）；横幅拆为 `components/layout/HomeTakedownBanner.vue`（57 行，标记与样式逐字搬）。
-> - **消红方式续**：主页下架/恢复的两步确认 + step-up 链拆为 `composables/useHomeTakedown.ts`（93 行，两条链收敛为同一 run），另把共用的原因输入框 `askOptionalReason` 一并收进同一件。
-> - **拆后状态**：ArtistLayout **775** / ArtistManage **781** 行，防阀 exit 0；行为零变更证据：web 886 例全过（含 ArtistManage.ban 里 3 条主页下架·恢复·step-up 用例）、E2E 14 全过、lint+vue-tsc 零错。
-> - **门禁（主代理亲跑，不凭子代理汇报）**：`accept.ps1` 本体在 `:57` 前置检查（未提交跟踪件即中止，上一轮 P5 §1.1 同款死锁）被拦、零道执行（日志 `AGENTS/temp/r4-accept-attempt.out.txt`）。
-> - **门禁续**：改逐道等价命令复跑（日志 `AGENTS/temp/r4-gates/`）：server **1801/156**、web **886/125**、desktop **447/30**、shared **23/4** 四项全绿。
-> - **门禁再续**：各端 lint（含 vue-tsc）与 build 零错，check:i18n 13 条豁免无新增，E2E **14 passed** + check-locators exit 0；test-tamper 用 node 直调绿（绕 npx bug）。
-> - **判读口径**：拆件后逐道等价命令 **17 道全绿**；但 accept.ps1 本体因 accept 前置（工作区脏）未跑成，**仍不得称「accept 十七道全绿」**，待本地提交令后补跑取硬结果。
-> - **流程矛盾登记（与上一轮 P5 §1.1 同一处）**：计划书 §三「先跑全量门禁」与 §六「绿后提交待令」互斥（accept.ps1 要工作区干净）；计划书原文未动（共同事实源）。
-> - 🔴 **未做归档搬动**（G8 红灯）：正文现 **8 条**、已超体例「只留最新 5 条」，本批一个字未搬，待单独一批 + 字符总量前后差校验。
-> - **未 commit / 未 push** → ✅ **已提交并推送**：用户回「同意 提交 推」后，逐领地暂存 43 文件提交为 `797eae10`（+3420/−684），`git push origin master` 成功（`d4984edf..797eae10`，含上一轮两笔），详录见 `ledger_R4.md` §十。
-> - ⚑ **用户侧待办已单独立档**：`docs/comms/待办-用户侧清单-20260914.md`（U1~U19，全免代码口径）；已挂进起手必读与下一步第 1 条——下次开工先逐条端给用户，不要闷头继续施工。
 
 > 📦 **2026-09-13 及更早的历史条目已拆分归档至 docs/comms/archive-20260927/STATUS-archive-20260927.md（2026-09-27 U18 归档批拆分，原文原样搬迁）。**
 

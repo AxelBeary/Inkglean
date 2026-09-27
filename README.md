@@ -124,7 +124,7 @@ AGENTS/                 # AI 代理中间产物归口（除 README 外全部 git
 - [安全策略](SECURITY.md) — 发现安全漏洞怎么私密报告
 - [开发自参考](docs/开发自参考.md) — 架构、API、注意事项
 - [开发→生产切换指南](docs/开发→生产切换指南.md)
-- [变更日志](docs/changelog.md) — v0.1 至今
+- [变更日志](docs/changelog.md) — 1.0 时代工程台账（v0.x 全量台账见 `docs/changelog-archive/`；对外版本说明以 GitHub Releases 为准）
 - [全局状态与待办](docs/comms/STATUS.md) — 当前状态、遗留项与待办
 - [Soul 角色定义](docs/soul/) — 多角色协作的五个角色定义
 

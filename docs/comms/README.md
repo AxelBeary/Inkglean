@@ -41,6 +41,7 @@
 ## 已归档
 
 - `archive-20260927/` —— 2026-09-27 专项审计批：28 件失效文书 + 落选原型目录 + STATUS 历史卷（判定依据见该目录 README）。
+- 同批续：`docs/changelog.md` 滚动分册（A+B+D 拍板）——v0.x 台账入 `docs/changelog-archive/`，活档体积门 `scripts/check-changelog-size.mjs`（accept 第 19 道）。
 - `archive-20260819/`、`archive-20260821/`、`archive-20260824/` —— 历史 STATUS 卷与 8 月交付件。
 - `archive/` —— F-43 归档的技能库（指针 `docs/soul/skills-ARCHIVED.md`）。
 - 桌面端专属归档：`desktop/docs/archive-20260927/`（桌面 STATUS 历史卷）。

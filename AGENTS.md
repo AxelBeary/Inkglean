@@ -37,7 +37,7 @@ STATUS 是每次开工的固定阅读成本（曾实测：单行最长 3900 字�
 
 门禁输出必须完整贴出（测试数、lint 零错误）；门禁输出不完整 = 交付作废。
 
-「门禁全绿」专指 `pwsh scripts/accept.ps1` 十八道全过（server 3 + web 4 + desktop 3 + shared 3 + E2E 2 + 测试同改标红 1 + 巨型文件防阀 1 + STATUS 单行长度防阀 1；带 `-SkipE2E` 时为十六道）；仅跑 CI 四 job 时须写「CI 四 job 全绿」，**不得简称「门禁全绿」**。
+「门禁全绿」专指 `pwsh scripts/accept.ps1` 十九道全过（server 3 + web 4 + desktop 3 + shared 3 + E2E 2 + 测试同改标红 1 + 巨型文件防阀 1 + STATUS 单行长度防阀 1 + changelog 活档体积防阀 1；带 `-SkipE2E` 时为十七道）；仅跑 CI 四 job 时须写「CI 四 job 全绿」，**不得简称「门禁全绿」**。
 
 ## 注意事项
 

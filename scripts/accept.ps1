@@ -142,6 +142,10 @@ $gates += @{ id = 'file-size'; label = '巨型文件防阀（check-file-size）'
 $statusLineBase = if ($branch -eq 'master') { 'HEAD~1' } else { 'master' }
 $gates += @{ id = 'status-line'; label = "STATUS 单行长度防阀（check-status-line，基线 $statusLineBase）"; dir = ''; cmd = 'node'; npmArgs = @('scripts/check-status-line.mjs', '--base', $statusLineBase) }
 
+# changelog 活档体积防阀（2026-09-27 A+B+D 拍板批）：≤40KB/≤450 行 + 新增/改动 H2 段 ≤4KB（存量段 HEAD 基线豁免）。
+# 撞线处置唯一：按 STATUS 惯例滚动分册搬 docs/changelog-archive/ 新卷（逐行哈希零丢失）；禁调高阈值续命（同 F-44 口径）。
+$gates += @{ id = 'changelog-size'; label = 'changelog 活档体积防阀（check-changelog-size）'; dir = ''; cmd = 'node'; npmArgs = @('scripts/check-changelog-size.mjs') }
+
 # ---------- 基线（用例数只增不减；增长后同步更新本文件） ----------
 $baselinePath = Join-Path $repo 'scripts/accept-baseline.json'
 $baseline = if (Test-Path $baselinePath) { Get-Content $baselinePath -Raw | ConvertFrom-Json } else { $null }
