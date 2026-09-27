@@ -2,7 +2,7 @@
 
 ## 看板（2026-09-27 第十四次刷新：U18 文档归档批 + changelog 滚动分册批同日收口；纯文档零业务代码）
 
-- **HEAD** `e67c1868`（AGENTS/ 归口批看板刷新）；本批为文档归档专项批，不改任何业务代码
+- **HEAD** `44651c17`（changelog 分册批，本地未推送；ahead 3：`f7b65f5a`/`4d02d717`/`44651c17`）；推送前补跑十九道全量
 - **基线（bdaff173，accept.ps1 十八道全绿实测 328s）**：server **1847**（159 文件）/ web **967**（142）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
   - 本批（AGENTS 归口）四端用例数**零变化**：只改文档指针与脚本产出路径，未动业务代码
   - 上批（黄红灯集中清 `c90c79bc`）web 963→967（+4：ArtistHome hidden 分块哨兵 3 + useSignatureRefresh TTL 口径哨兵 1）；GitHub CI 四 job+E2E+CodeQL 对其全绿
