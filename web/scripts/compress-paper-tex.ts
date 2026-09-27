@@ -25,7 +25,9 @@ for (const base of [import.meta.url, process.cwd() + '/package.json']) {
 }
 if (!chromium) { console.error('PLAYWRIGHT_NOT_FOUND：请在含 playwright 依赖的目录（主仓根）运行'); process.exit(1); }
 
-/* 源图优先仓内落档副本，Downloads 原图作回退 */
+/* 源图优先仓内落档副本，Downloads 原图作回退
+   ⚠ 9/27 文档治理批登记：第一条候选路径（原 workspace/temp/prototype-login/，从未入版本跟踪）在本机已失，
+   产物 webp 已入库不受影响；重跑本脚本需先自行准备源图并改指路径。 */
 const CANDIDATES = [
   fileURLToPath(new URL('../../workspace/temp/prototype-login/paper001-color.jpg', import.meta.url)),
   'C:/Users/qly19/Downloads/Paper001_4K-JPG/Paper001_4K-JPG_Color.jpg'
