@@ -1,25 +1,23 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-09-27 第十四次刷新：U18 文档归档批 + changelog 滚动分册批同日收口；纯文档零业务代码）
+## 看板（2026-09-30 第十五次刷新：harness 修复批同日四笔收口；纯工具与文档，零业务代码）
 
-- **HEAD** `44651c17`（changelog 分册批，本地未推送；ahead 3：`f7b65f5a`/`4d02d717`/`44651c17`）；推送前补跑十九道全量
-- **基线（bdaff173，accept.ps1 十八道全绿实测 328s）**：server **1847**（159 文件）/ web **967**（142）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
-  - 本批（AGENTS 归口）四端用例数**零变化**：只改文档指针与脚本产出路径，未动业务代码
-  - 上批（黄红灯集中清 `c90c79bc`）web 963→967（+4：ArtistHome hidden 分块哨兵 3 + useSignatureRefresh TTL 口径哨兵 1）；GitHub CI 四 job+E2E+CodeQL 对其全绿
-  - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；`scripts/accept-baseline.json` 已同步 web 963→967（上批实测，本批未动）
-- **云端（gh 实测）**：CI / E2E / CodeQL 三条流水线对 `fff6a8a7` 均 success；Dependabot open 警报 **0**——U20 剩 3 条（#20/#23/#25）经 `d789ff8a` 落地清零，CodeQL #26~#30 经 `b6b23479` 清零
-- ✅ **门禁工具批（N2）已提交 `a6ac12a9`**：node 直调消 npx 假红 + test-tamper v3 基线策略 + 结构化结果字段 + 并行批同仓改动（TplGallery 拆件 / F-44）一并入批
-  - 新增第 18 道 STATUS 单行防阀（`check-status-line.mjs`）与看板 HEAD 比对警告行：滞后→显式警告，一致→✅；只警告不阻塞
+- **HEAD** `2cb3909d`（本批末笔 + 台账合账笔；ahead 9 待推送，含 9/27 落档遗留 4 笔）；推送前十九道全量已跑绿
+- **基线（bdaff173 实测 328s，本批四端用例数零变化）**：server **1847**（159 文件）/ web **967**（142）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
+  - 本批四笔：`bdf1a5bb` 日志轮转接管 / `d5e0fb8e` accept 基线 v4 + test-tamper 扩射 desktop·shared / `f84aeaa6` 证据入库约定 / `2cb3909d` 部署门禁纯文档批降级通道
+  - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；`scripts/accept-baseline.json` 未动
+  - 「门禁全绿」口径为**十九道**（含第 18 道 STATUS 单行防阀、第 19 道 changelog 体积防阀）
+- **云端（gh 实测）**：CI / E2E / CodeQL 三条流水线对 `fff6a8a7` 均 success；Dependabot open 警报 **0**——U20 剩 3 条经 `d789ff8a` 落地清零，CodeQL #26~#30 经 `b6b23479` 清零
 - 公网仍冻结中（停在 v74，本地与远端已到 v76）；默认窗 1200×820、最小窗 1200×600 不变（9/5、826 拍板）
 - 🔴 **上线前置硬警告仍有效**：管理员判定只认库值，公网部署前**必须先确认 `platform_config.admin_qq` 非空**
 
 **下一步（按优先级）**
 
-1. 🔴 **下次开工第一件事**：把 `docs/comms/待办-用户侧清单-20260914.md` 逐条端给用户（本批已销 U14/U15/U20/G1/G2/G3/G4/G6/F-31/F-32/F-35/F-36/U18；剩 Y2~Y7 需用户本人 + U16/U17/G5/G7/U21/U22 需拍板）
-2. ✅ **本批（AGENTS/ 中间产物归口）已收口**：`bdaff173` 已提交，accept.ps1 十八道全绿（328s），报告已落在新路径 `AGENTS/workspace/temp/`
+1. 🔴 **下次开工第一件事**：把 `docs/comms/待办-用户侧清单-20260914.md` 逐条端给用户（已销 U14/U15/U20/G1/G2/G3/G4/G6/F-31/F-32/F-35/F-36/U18；剩 Y2~Y7 需用户本人 + U16/U17/G5/G7/U21~U24 需拍板）
+2. ✅ **本批（harness 修复批同日四笔）已收口**：纯工具与文档改动，四端用例数零变化；验收证据见 changelog 2026-09-29/30 各段
 3. **等你终审两处对外文案**：W4 下架横幅措辞、W6 隐私三条 IP 披露（另含 U12 主页文案、U13 安装包署名）
-4. **U18 STATUS 归档搬动已做（见下方 9/27 文档治理批条目）**：主卷 26 块→5 块（搬 22）、桌面卷 45 块→5 块（搬 40），逐行哈希零丢失校验通过
-5. **剩红灯需拍板**：U16 板块级下架（重建 reports 表）/ U17 数据服务（另立 REQ+PIPL）/ G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度（F-19）/ U22 改稿上限（F-23）
+4. **U18 STATUS 归档搬动已做（见下方 9/27 文档治理批条目）**：主卷 26 块→5 块（搬 22）、桌面卷 45 块→5 块（搬 40）；正文满 6 块时再开下一轮归档批
+5. **剩红灯需拍板**：U16 板块级下架（重建 reports 表）/ U17 数据服务（另立 REQ+PIPL）/ G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度（F-19）/ U22 改稿上限（F-23）/ U23 记忆库三维决策优先级边界 / U24 视觉判断通道归属
 
 **常驻纪律（事故换来的，不得退色）**
 
@@ -28,6 +26,8 @@
 
 **已拍板规则**
 
+- 结论级证据摘要入库（2026-09-29，better-harness 修复批）：入库台账引用的拍板/验收证据，若逐条详单只住 gitignore 的 `AGENTS/`，须在 `docs/comms/evidence/` 留读者安全摘要（判定要点+日期+本机指针），细节只写一份不互抄；约定见该目录 README。
+  - 首件：`证据-记忆库维护批-20260929.md`（锚待办 U23/U24）；temp 下可执行脚本是否收编仍待拍板（U19=G5/F-40），本条不裁决。
 - F-44（2026-09-20）：巨型文件防阀扩射 `desktop/src`、`shared/src`（better-harness 修复批，用户裁决选项①「扩射程+冻结豁免」）。存量超线按冻结值豁免：`desktop/src/views/Home.vue` 807 / `shared/src/components/PriceCard.vue` 1094，只许拆小不许再长。
 - F-44 顺手消红（沿 9/12「胖了就拆」口径）：`TplGallery.vue` 被 9/17 审计批顶到 808 行的存量违规已拆。
   - 点赞逻辑拆至 `composables/useGalleryLikes.ts`（逐字搬移零行为变更）
@@ -35,6 +35,7 @@
 - STATUS 单行长度防阀（2026-09-20，better-harness 修复批，用户裁决选项①）：新增 `scripts/check-status-line.mjs`，只判本次变更新增行 >200 字符，存量长行不报；已挂 accept.ps1 第 18 道，「门禁全绿」口径改十八道（AGENTS.md 已同步）。
 - F-35（2026-09-20）：四个岗位书（`.qoder/agents/huiyue-*.md`）入库受版本管理。`.gitignore` 改 `.qoder/*` + `!.qoder/agents/` 例外。AGENTS-v2.md 第 18 行「版本管理留痕」现为事实。
 - F-43（2026-09-20）：`docs/soul/skills/` 技能库整体归档至 `docs/comms/archive/skills/`，定位为历史文档。路径引用（.js→.ts）已批量修正到工作树真实目标，multi-agent-collaboration-setup 补 SKILL.md，原位置留指针 `docs/soul/skills-ARCHIVED.md`。
+- 收口留痕约定（2026-09-29，better-harness 修复批，用户拍板）：任务内写明校验条款的，收口时须把校验命令完整输出留存进台账/报告文件（落 `AGENTS/` 批次目录或 accept.ps1 既有日志），不许只在对话里交结论；摘要须引用留痕路径。轻量纪律不新增门禁，条款全文落 AGENTS.md「改动后最小验证清单」节。
 - changelog 滚动分册（2026-09-27，用户「按推荐走」）：活档 docs/changelog.md 体积门 ≤40KB/450 行 + 新增/改动 H2 段 ≤4KB，
   门脚本 scripts/check-changelog-size.mjs（accept 第 19 道，存量段 HEAD 基线豁免沿 F-44 口径）；
   撞线唯一处置=oldest 段整搬 docs/changelog-archive/ 新卷并逐行哈希校验，禁调高阈值续命。
@@ -48,12 +49,30 @@
   - 不动项：`design/`、`.impeccable/` 是在库设计资产（`.impeccable` 系 `3c5533c3` 有意留档的核查截图；9/27 复核订正：实为 2 处活引用——本文件与审计工单，桌面侧引用已随归档搬动；PRODUCT.md 无路径引用，原「4 份文档引用」说法不实）。
   - 不动项续：playwright 两个输出目录**位置不改**——`.github/workflows/e2e.yml:66-75` 硬依赖其根目录位置上传排障 artifact，改位置须连 CI 一起改，属单独批。
   - 门禁：改动未提交时 accept.ps1 前置拦截 exit 2（038 防再发，属预期）；三道防阀单独跑绿（巨型文件 587 / test-tamper 0 变更 / status-line 7 行）；提交后复跑完整十八道再 push。
+- 纯文档批降级通道（2026-09-29，better-harness 修复批，用户直接授权）：`post-merge-deploy.ps1` STEP0 验收联动新增降级口——报告 verdict=green 仅 HEAD 不一致时，
+  若报告 SHA..HEAD 全部提交只触及 `docs/**`、`desktop/docs/**`、任意 `.md`（`$ACCEPT_DOC_PATH`），记 WARN 放行而非 Stop-Fail。
+  - 不扩大：verdict=red、报告陈旧(>24h)、SHA 不可解析（离线/历史改写）仍阻断；降级分支已显式守 `$staleH -le 24` 防短路陈旧门；改路径清单须先在本节拍板；$ACCEPT_EXEMPT 仍空表不动。
+  - 既有绕过留痕不变：-Force / -SkipAccept 仍记 WARN（本批顺手补上 -SkipAccept 实际未写的 WARN 行），阻断仍走 Stop-Fail 写告警文件。
+  - 验证：沙盒 git 仓八景（纯文档领先→WARN 放行；含代码/离线 SHA/红报告/25h 陈旧→阻断；-Force/-SkipAccept/dirty 景行为不变），取证件 `AGENTS/temp/docdowngrade-20260929/results.md`。详见 changelog 同批条。
 
-**起手必读**：**⚑ 下次开工第一件事：向用户逐条端出 `docs/comms/待办-用户侧清单-20260914.md`（U1~U22）提醒他做他那边的活**，再读 **⚑ 下方正文第一条（2026-09-27 文档专项审计归档批）**。
+**起手必读**：**⚑ 下次开工第一件事：向用户逐条端出 `docs/comms/待办-用户侧清单-20260914.md`（U1~U24）提醒他做他那边的活**，再读 **⚑ 下方正文第一条（2026-09-29 记忆库系统性维护批）**。
 
 **起手必读续**：→ 交接档 `docs/comms/交接-20260912-会话收口与待拍清单.md` → 本节看板 → `AGENTS.md`（含「STATUS 体例与归档纪律」）→ 碰桌面端再读 `desktop/docs/STATUS.md` 顶部。
 
 **起手必读续二**：改桌面 UI 必跑 `huiyue-layout-audit` 自检循环（**宿主级技能**，住 `%USERPROFILE%\.agents\skills\huiyue-layout-audit\`，不在仓库属正常；VL 评审通道不可用，只能 measure.mjs + 人工逐项清单）。
+
+>  📌 **2026-09-29 记忆库系统性维护批（AI 自决，15 路辩论代理验证；纯记忆平台操作，零代码零业务文档变更）**
+>
+> - **触发**：用户要求逐条核查项目记忆/知识/经验/审计中混乱、重复、矛盾、过期、不一致、粒度问题，使用海量子代理辩论式验证防错删。
+> - **方法**：全量盘点 356 条→机械预筛 6 疑集群(37条)→12 路正反方辩论+3 路裁判→执行维护。每集群正反两路各读证据包+仓库只读取证→裁判交叉比对→主代理终裁执行。
+> - **净效果**：删 4 条（三门槛全过+quarantine留档）、改写/修正/压缩/加注 28 条、纯留 5 条（历史裁定锁死/体例保护）。
+> - **P0 事实修正**：SSL 规范卡 `trust_pool` 推荐→实测解析失败禁用，改为 `trusted_ca_cert_file` 唯一写法（OPS.md:360 实测）。
+> - **两项待拍板交用户**：D12（停等 vs 不停等优先级边界，e8f5872f↔任务书条）、D10（视觉判断走宿主 Read 还是外部 VL）。
+> - **真碰撞待治理**：87d53050 与某 common_pitfalls 条逐字同标题（护栏条自身撞碰撞），本轮只扩 keywords 未动——需走四步甄别。
+> - **证据归档**：本机详单 `AGENTS/workspace/temp/mem-audit-20260929/`（SUMMARY.md 总入口、6 证据包、12 辩论书、3 终裁、2 删除快照）。
+> - **入库证据锚**：结论级摘要 `docs/comms/evidence/证据-记忆库维护批-20260929.md`（待办 U23/U24 的入库指针，9/29 证据摘要入库约定首件）。
+> - **STATUS 归档提醒**：正文已达 6 条，第 6 条（9/17 审计缺陷波1+波2）应搬入 archive 子目录——搬动单独一批做，不与本批混。
+
 
 > 📌 **2026-09-27 changelog 滚动分册批（用户拍板「按推荐走」A+B+D；纯文档+门禁脚本，零业务代码）**
 >
