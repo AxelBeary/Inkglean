@@ -1,14 +1,14 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-09-30 第十五次刷新：harness 修复批同日四笔收口；纯工具与文档，零业务代码）
+## 看板（2026-09-30 第十七次刷新：brace-expansion/fast-uri 12 条 Dependabot + CodeQL #31 警报清零批收口；纯四端锁刷新，零业务代码）
 
-- **HEAD** `2cb3909d`（本批末笔 + 台账合账笔；ahead 9 待推送，含 9/27 落档遗留 4 笔）；推送前十九道全量已跑绿
-- **基线（bdaff173 实测 328s，本批四端用例数零变化）**：server **1847**（159 文件）/ web **967**（142）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
-  - 本批四笔：`bdf1a5bb` 日志轮转接管 / `d5e0fb8e` accept 基线 v4 + test-tamper 扩射 desktop·shared / `f84aeaa6` 证据入库约定 / `2cb3909d` 部署门禁纯文档批降级通道
+- **HEAD** `ba4cba1f`（brace-expansion/fast-uri 清零批，已推送 origin/master 同步；本 STATUS 销账笔在其上）；改前 undici 链 `596c4445`→`04c9eb04` 亦已推送
+- **基线（bdaff173 实测 328s；历批四端用例数零变化，`ba4cba1f` 复跑一致）**：server **1847**（159 文件）/ web **967**（142）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
+  - harness 批四笔（前批）：`bdf1a5bb` 日志轮转接管 / `d5e0fb8e` accept 基线 v4 + test-tamper 扩射 desktop·shared / `f84aeaa6` 证据入库约定 / `2cb3909d` 部署门禁纯文档批降级通道
   - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；`scripts/accept-baseline.json` 未动
   - 「门禁全绿」口径为**十九道**（含第 18 道 STATUS 单行防阀、第 19 道 changelog 体积防阀）
-- **云端（gh 实测）**：CI / E2E / CodeQL 对新 HEAD `596c4445` 均 success；undici 18 条警报已清零（auto_dismissed / fixed）
-  - **新披露 12 条 open**（brace-expansion ×9：4 high/5 medium；fast-uri ×3：medium；Dependabot PR #11/#12 在途）——处置另批待拍
+- **云端（gh 实测）**：E2E 对 `ba4cba1f` success、CI 复扫中；Dependabot open=0（12 条全转 fixed）、Code-scanning open=0（#31 false positive 驳回）；undici 18 条前批已清零
+  - **本批清零 12 条 Dependabot**（brace-expansion ×9：2 high/7 medium；fast-uri ×3：medium）+ CodeQL #31（js/regex-injection，归档脚本 argv 无攻击者汇点）；PR #11(shared)/#12(server) 单锁范围不全已关闭
   - 旧记录存档：U20 曾对 `d789ff8a` 清零（#20/#23/#25），CodeQL #26~#30 经 `b6b23479` 清零
 - 公网仍冻结中（停在 v74，本地与远端已到 v76）；默认窗 1200×820、最小窗 1200×600 不变（9/5、826 拍板）
 - 🔴 **上线前置硬警告仍有效**：管理员判定只认库值，公网部署前**必须先确认 `platform_config.admin_qq` 非空**
@@ -21,7 +21,7 @@
 4. **U18 STATUS 归档搬动已做（见下方 9/27 文档治理批条目）**：主卷 26 块→5 块（搬 22）、桌面卷 45 块→5 块（搬 40）；正文满 6 块时再开下一轮归档批
 5. **剩红灯需拍板**：U16 板块级下架（重建 reports 表）/ U17 数据服务（另立 REQ+PIPL）/ G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度（F-19）/ U22 改稿上限（F-23）/ U23 记忆库三维决策优先级边界 / U24 视觉判断通道归属
 6. ✅ **undici 漏洞链修复已收口 `596c4445`**：server·web overrides 加 `"undici": "^8.10.2"`（实测解析 8.11.2），18 条警报 GitHub 自动关闭；十九道全绿 653s
-7. 🔴 **新增待拍**：brace-expansion ×9 + fast-uri ×3 新披露警报（PR #11/#12 在途）；本批任务书明列范围外，处置另批
+7. ✅ **brace-expansion/fast-uri 12 条警报清零批已收口 `ba4cba1f`**：四端锁定点刷新（不改 package.json/overrides），四端 audit 全 0、19 道等价门禁绿、云端双零；留痕 `AGENTS/workspace/temp/deps-zerobatch-20260930/`
 
 **常驻纪律（事故换来的，不得退色）**
 

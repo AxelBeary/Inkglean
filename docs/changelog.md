@@ -6,6 +6,12 @@
 > - 滚动分册：活档体积门 `scripts/check-changelog-size.mjs`（≤40KB / ≤450 行，单段 ≤4KB，accept 第 19 道）；撞线即搬 oldest 段入 `docs/changelog-archive/` 新卷（整段零改动 + 逐行哈希校验，禁调高阈值续命）。
 > - v0.x 时代（v0.1~v0.46+）全量台账在 `docs/changelog-archive/changelog-v0-20260927.md`，只读历史。
 
+## 依赖收敛批：brace-expansion/fast-uri 警报清零（2026-09-30，安全报警处置，零业务代码）
+
+- 四端 `package-lock.json` 定点刷新 `npm update brace-expansion fast-uri --package-lock-only`（不改 package.json、不加 overrides、不引新依赖）：brace-expansion 5.0.9→5.0.12 / 2.1.4→2.1.7，fast-uri 3.1.7→3.1.8 / 4.1.4→4.2.1（`^4.0.0` 兼容）。逐锁 diff 13 处全为 be/fast-uri，0 增删包、0 dev 变更，minimatch/eslint/ajv/fast-json-stringify/@playwright/test/tsx/typescript/vitest 未跳版；plain `--package-lock-only` 因锁定版仍满足范围不自愈（server audit 仍报 2），故走定点 update。
+- 清零 12 条 Dependabot（brace-expansion ×9：2 high/7 medium；fast-uri ×3：medium，逐条 fixed）+ CodeQL #31（js/regex-injection，归档区一次性开发脚本、正则入参仅来自本机 argv 无攻击者汇点，false positive 驳回）；关闭单锁范围不全的 PR #11(shared)/#12(server)。
+- 验证：四端 `npm audit` 全 0；13 端门禁 + E2E 2 道全绿（1847/967/538/27/14，零回归）。accept.ps1 因并行会话脏工作区（`daily-backup.bat`/`.gitignore` 非本批改动）受阻，按纪律改用等价直接命令组，留痕 `AGENTS/workspace/temp/deps-zerobatch-20260930/`。
+
 ## 依赖收敛批：undici 警报清零（2026-09-30，安全报警处置，零业务代码）
 
 - server·web 两处 `package.json` overrides 新增 `"undici": "^8.10.2"`（单一传递链 jsdom@30 → undici，实测解析 8.11.2），重算两个 `package-lock.json`；清零 GitHub 18 条 Dependabot 开放警报（5 high / 7 medium / 6 low，GitHub 自动关闭，未手动 dismiss）。
