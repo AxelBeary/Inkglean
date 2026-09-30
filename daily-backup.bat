@@ -12,6 +12,8 @@ rem Container WORKDIR=/app, --prefix points to /app/server (batch E audit fix)
 rem Host needs node (>=22.6) and server/ deps installed (better-sqlite3 for verification)
 rem P2-E (2026-08-14): UTF-8 timestamps via scripts/backup-log.ps1 (no cmd %date%/%time% GBK garbage);
 rem log rotation via scripts/rotate-log.ps1 (5MB x 3, best-effort)
+rem 2026-09-29 (harness server-log finding): parameterless rotate-log.ps1 call sweeps its
+rem MANAGED list (data/server.log, local non-Docker server log), same 5MB x 3 convention
 rem Optional args: --tier <daily|deploy|weekly> (default daily)
 rem NOTE: keep this file ASCII-only; non-ASCII bytes break cmd.exe batch parsing under GBK codepage
 rem ============================================
@@ -32,6 +34,8 @@ if "%~1"=="--tier" (
 rem ---- 0) log rotation (best-effort) + UTF-8 timestamped start marker ----
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\rotate-log.ps1" -Path "%BACKUP_LOG%"
 if errorlevel 1 echo ROTATE_LOG_WARN: rotation failed, continuing >> "%BACKUP_LOG%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\rotate-log.ps1"
+if errorlevel 1 echo ROTATE_MANAGED_WARN: managed-list rotation failed, continuing >> "%BACKUP_LOG%"
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\backup-log.ps1" -LogPath "%BACKUP_LOG%" -Message "=== daily-backup start ==="
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\backup-log.ps1" -LogPath "%BACKUP_LOG%" -Message "BACKUP_TIER=%BACKUP_TIER%"
 

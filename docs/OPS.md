@@ -70,7 +70,7 @@ Windows 宿主的每日备份由计划任务 `CommissionDailyBackup` 在 03:30 �
   2. `docker compose exec -T web npm --prefix /app/server run backup` 产出 DB 快照，解析 `BACKUP_OK <路径>`；
   3. `node scripts/verify-backup.mjs <路径>` 执行 SQLite `integrity_check` + `foreign_key_check`，未得到 `VERIFY_OK` 即退出 1（损坏产物不放行）；
   4. `docker compose exec -T web npm --prefix /app/server run backup:uploads` 备份 uploads；DB/校验/uploads 任一步失败写 `DB_BACKUP_FAILED` / `BACKUP_ARTIFACT_NOT_FOUND` / `VERIFY_FAILED` / `UPLOADS_BACKUP_FAILED` 标记并以退出码 1 结束（日志轮转失败仅记 `ROTATE_LOG_WARN`，不阻断）。
-- **日志**：`data/backups/daily-backup.log`，超过 5MB 由 `rotate-log.ps1` 轮转为 `.1`/`.2`/`.3`（最多 3 份，best-effort）。
+- **日志**：`data/backups/daily-backup.log`，超过 5MB 由 `rotate-log.ps1` 轮转为 `.1`/`.2`/`.3`（最多 3 份，best-effort）。同脚本无参调用还会轮转接管清单（MANAGED）上的 `data/server.log`（本地非 Docker 服务端日志，同一 5MB×3 口径，见 §14），`daily-backup.bat` 步骤 0 已接线。
 - **换机重建**：新机满足上述依赖后，把 Windows 计划任务指向新仓库根 `daily-backup.bat`，沿用任务名 `CommissionDailyBackup` 与 03:30 时间，手工触发一次并核对 `daily-backup.log` 出现 `BACKUP_OK` 与 `VERIFY_OK` 后再放行。仓库内没有创建/迁移计划任务的脚本，任务本身需在 Windows 计划任务中配置。
 
 ### 2.1 备份链巡检（每日必查：备份「根本没跑」比「跑失败」更难发现）
@@ -398,3 +398,17 @@ services:
 - 本机 `curl https://127.0.0.1` 返回 **000 是正常**——AOP client_auth 在 TLS 层拒掉一切无 Cloudflare 客户端证书的直连，本机裸敲必被拒，**不能据此判故障**；
 - 服务器内正确自检：`ss -ltn | grep :3000` 应见 127.0.0.1:3000 LISTEN；`curl -s http://127.0.0.1:3000/api/health` 应返回 `{"status":"ok",...}`；
 - 全链路验收走浏览器（经 Cloudflare），不要用服务器本机 curl 443 替代。
+
+---
+
+## 14. 服务端日志归属与轮转（两种拓扑，2026-09-29 补）
+
+> 背景（harness 发现项 server-log-ownership）：报障模板（`.github/ISSUE_TEMPLATE/bug_report.yml`「日志 / 截图」字段）把「贴 `data/server.log` 的内容」列为用户首选定位手段，但此前运维口径只写 Docker 一种拓扑，且本地路径的 `data/server.log` 无人轮转。本节补齐对账。
+
+| 拓扑 | 日志位置 | 轮转口径 | 排障入口 |
+| --- | --- | --- | --- |
+| **本地非 Docker**（`node install.mjs` / 双击「启动网站.bat」，`install.mjs` 把服务 stdio 追加写入） | `data/server.log`（Windows 与 Linux 原生模式同路径；历史分片为轮转产物 `.1`/`.2`/`.3`） | `scripts/rotate-log.ps1` 接管清单（MANAGED）：超过 5MB 轮转为 `.1`~`.3`，best-effort；`daily-backup.bat` 步骤 0 无参调用顺带轮转，也可手工 `pwsh scripts/rotate-log.ps1` | 直接打开/粘贴 `data/server.log` 内容（报障首选，与模板口径一致）；启动超时/进程退出时 install.mjs 也会打印该路径 |
+| **Docker 部署**（compose 全家桶 / update.sh） | 容器 stdout/stderr，宿主落盘在 Docker 引擎的 json-file（仓库无 `data/server.log`） | `docker-compose.yml` 内置 `logging` json-file `max-size 10m × max-file 3`，无需 rotate-log 接管 | `docker compose logs -f web`（应用）/ `docker compose logs -f caddy`（反代）；容器内自检禁 curl（§7 F-13） |
+
+- 手工验证轮转：`pwsh scripts/rotate-log.ps1`（无参 = 只扫接管清单；带 `-Path` = 照旧轮转指定日志，现有三处接线不受影响）。
+- 🔒 **防泄露口径（公开页约束，不可放开）**：画师端订单详情等公开页的失败响应体**不得回显任何内部标识、请求 ID 或日志线索**——排障只能在日志侧对账（本节两类入口），响应侧带标识属有意不做的取舍，修复日志问题时不要把「响应里加关联 ID」当方案。
