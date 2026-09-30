@@ -2,6 +2,9 @@
 # accept.ps1 — 一号独立验收流水线（v2，2026-08-19：新增 test-tamper 测试同改标红闸门）
 # v3（2026-09-20，N2 门禁工具批）：test-tamper 基线策略修复——master 自检时 --base master
 # 与 HEAD 同一提交，diff 恒空、闸门结构性空转（ledger_R4 §4.4 定性）；改为按场景取基线。
+# v4（2026-09-29，better-harness 修复批）：master 自检且 HEAD 领先远端时，diff 类防阀
+# （test-tamper / status-line）基线从 HEAD~1 扩展为 origin/master（即覆盖 origin/master..HEAD
+# 全部未推送批次）；仍不 merge、不合入。
 #
 # 目的：把「合入前复跑全门禁」固化为零遗漏的机械流程，产出结构化验收报告。
 # 纪律出处：STATUS v82 教训（合入门禁漏跑致结构污染流入 master）；
@@ -68,6 +71,27 @@ if ($behind -and [int]$behind -gt 0) {
   $preCheckNotes += "⚠️ 当前分支落后 master $behind 个提交——合入前由一号手工 merge master 并复跑"
 }
 
+# diff 类防阀（test-tamper / status-line）基线策略（v4）：
+#   - 分支 / -Worktree 验收：基线取 master（分支相对 master 的 diff），维持原口径；
+#   - master 自检：HEAD 与 origin/master 之间若有未推送提交，基线扩展为 origin/master
+#     （两个 checker 均 diff <base>...HEAD，等价 origin/master..HEAD 范围），覆盖全部未推送
+#     批次（旧口径 HEAD~1 只判最近一笔，前面几笔漏判）；
+#     无远端引用或已同步（领先 0）时回退 HEAD~1，对最近一笔提交做实质判读。
+# 注意：--base 只传单个引用，不能传 A..HEAD 范围——范围串会被 checker 的
+# rev-parse '${base}^{commit}' 解析成 HEAD 本身，触发 HEAD==base 的工作区 diff 误分支。
+# 本段只算基线做复核，不 fetch、不 merge、不合入——既有边界不变。
+$diffBase = 'HEAD~1'
+if ($branch -eq 'master') {
+  $originMaster = (git -C $repo rev-parse --verify --quiet 'origin/master^{commit}' 2>$null)
+  if ($originMaster) {
+    $ahead = [int](git -C $repo rev-list --count "$originMaster..HEAD" 2>$null)
+    if ($ahead -gt 0) {
+      $diffBase = 'origin/master'
+      $preCheckNotes += "ℹ️ HEAD 领先 origin/master $ahead 个提交——diff 类防阀基线扩展为 origin/master，覆盖未推送范围 origin/master..HEAD 全部批次"
+    }
+  }
+}
+
 # 看板 HEAD 比对（只警告不阻塞）：docs/comms/STATUS.md 顶部看板声明的 HEAD 短哈希 vs 实际 HEAD。
 # 看板滞后 = 上次收口没刷新的信号，提醒按 STATUS 体例用 git rev-parse / accept-baseline.json / 实跑结果机械推出新读数。
 $statusPath = Join-Path $repo 'docs/comms/STATUS.md'
@@ -123,12 +147,9 @@ if (-not $SkipE2E) {
 }
 
 # test-tamper 闸门：业务+测试同改须带裁决理由（防改测试凑绿；用例数基线防的是删测试，此处防改软断言）
-# 基线策略（v3）：check-test-tamper 判定只 diff 已提交对象（<base>...HEAD），不含工作区。
-#   - 分支 / -Worktree 验收：基线取 master（分支相对 master 的 diff），维持原口径；
-#   - 当前分支即 master（master 自检/提交后复跑）：master...HEAD 恒空 → 闸门必然「0 文件放行」，
-#     故基线改用上一笔提交 HEAD~1，让闸门对最近一笔提交做实质判读。
-# 判定逻辑本身在 check-test-tamper.mjs，未动。
-$tamperBase = if ($branch -eq 'master') { 'HEAD~1' } else { 'master' }
+# 基线策略见上方 v4 前置段：分支验收取 master；master 自检取 origin/master（有未推送
+# 提交时）或 HEAD~1（已同步/无远端引用）。判定逻辑本身在 check-test-tamper.mjs，未动。
+$tamperBase = if ($branch -eq 'master') { $diffBase } else { 'master' }
 $tamperArgs = @('scripts/check-test-tamper.mjs', '--base', $tamperBase)
 if ($TestTamperAck) { $tamperArgs += @('--ack-reason', $TestTamperAck) }
 $gates += @{ id = 'test-tamper'; label = "测试同改标红（check-test-tamper，基线 $tamperBase）"; dir = ''; cmd = 'node'; npmArgs = $tamperArgs }
@@ -138,8 +159,8 @@ $gates += @{ id = 'file-size'; label = '巨型文件防阀（check-file-size）'
 
 # STATUS 单行长度防阀（2026-09-20 better-harness 修复批，用户裁决选项①）：
 # AGENTS.md 体例第 2 条「单行不超 200 字」落成机械检查，只判本次变更新增行，存量长行不报。
-# 基线策略同 test-tamper v3：master 自检取 HEAD~1（对最近一笔提交做实质判读），分支验收取 master。
-$statusLineBase = if ($branch -eq 'master') { 'HEAD~1' } else { 'master' }
+# 基线策略同 test-tamper（见上方 v4 前置段）：master 自检取 origin/master 或 HEAD~1，分支验收取 master。
+$statusLineBase = if ($branch -eq 'master') { $diffBase } else { 'master' }
 $gates += @{ id = 'status-line'; label = "STATUS 单行长度防阀（check-status-line，基线 $statusLineBase）"; dir = ''; cmd = 'node'; npmArgs = @('scripts/check-status-line.mjs', '--base', $statusLineBase) }
 
 # changelog 活档体积防阀（2026-09-27 A+B+D 拍板批）：≤40KB/≤450 行 + 新增/改动 H2 段 ≤4KB（存量段 HEAD 基线豁免）。

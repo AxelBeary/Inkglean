@@ -9,8 +9,10 @@
 //       本闸门补的是另一半：**改**测试——用例数不减，断言却被改软。
 //
 // 判定口径（git diff --name-only <base>...HEAD）：
-//   - 测试文件：server/tests/**、e2e/tests/**、web 下 *.test.* / *.spec.*
-//   - 业务文件：server/src/** 与 web/src/** 中的非测试文件
+//   - 测试文件：server/tests/**、e2e/tests/**、desktop/src/** 与 web 下 *.test.* / *.spec.*、
+//     shared/src/__tests__/**
+//   - 业务文件：server/src/** 与 web/src/** 中的非测试文件；
+//     desktop/src/**、shared/src/**（含 __tests__ 之外的源码）
 //   - 两者同时出现 = 标红，须 --ack-reason 显式裁决
 //   - 只改测试不动业务：不阻塞，黄色提醒人工复核（防测试被单独改软）
 //
@@ -51,9 +53,14 @@ const changed = git('diff', '--name-only', `${base}...HEAD`)
 const isTestFile = p =>
   p.startsWith('server/tests/') ||
   p.startsWith('e2e/tests/') ||
-  (p.startsWith('web/') && /\.(test|spec)\.[a-z]+$/.test(p))
+  p.startsWith('shared/src/__tests__/') ||
+  (p.startsWith('desktop/src/') || p.startsWith('web/')) && /\.(test|spec)\.[a-z]+$/.test(p)
 
-const isSrcRoot = p => p.startsWith('server/src/') || p.startsWith('web/src/')
+const isSrcRoot = p =>
+  p.startsWith('server/src/') ||
+  p.startsWith('web/src/') ||
+  p.startsWith('desktop/src/') ||
+  p.startsWith('shared/src/')
 
 const testFiles = changed.filter(isTestFile)
 const bizFiles = changed.filter(p => isSrcRoot(p) && !isTestFile(p))
