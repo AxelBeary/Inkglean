@@ -7,10 +7,9 @@
   - 本批四笔：`bdf1a5bb` 日志轮转接管 / `d5e0fb8e` accept 基线 v4 + test-tamper 扩射 desktop·shared / `f84aeaa6` 证据入库约定 / `2cb3909d` 部署门禁纯文档批降级通道
   - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；`scripts/accept-baseline.json` 未动
   - 「门禁全绿」口径为**十九道**（含第 18 道 STATUS 单行防阀、第 19 道 changelog 体积防阀）
-- **云端（gh 实测）**：CI / E2E / CodeQL 三条流水线对 `fff6a8a7` 均 success；**Dependabot open 警报回升至 18 条**（5 high / 7 medium / 6 low，推送 `c71d408b` 当场报出）
-  - 实测定位：18 条全属**单一传递依赖链** `jsdom@30.0.1 → undici ^8.9.0`（server·web 两端 lock 现锁 8.10.0，需 ≥ 8.10.2）；
-    jsdom 在 vitest 开发期链路，不在生产运行时（Docker 镜像与桌面壳均不带），但警报仍须清零才能恢复“open 警报 0”口径
-  - 旧记录存档：U20 曾对 `d789ff8a` 清零（#20/#23/#25），CodeQL #26~#30 经 `b6b23479` 清零；本批为 9/29 新披露，非旧账复发
+- **云端（gh 实测）**：CI / E2E / CodeQL 对新 HEAD `596c4445` 均 success；undici 18 条警报已清零（auto_dismissed / fixed）
+  - **新披露 12 条 open**（brace-expansion ×9：4 high/5 medium；fast-uri ×3：medium；Dependabot PR #11/#12 在途）——处置另批待拍
+  - 旧记录存档：U20 曾对 `d789ff8a` 清零（#20/#23/#25），CodeQL #26~#30 经 `b6b23479` 清零
 - 公网仍冻结中（停在 v74，本地与远端已到 v76）；默认窗 1200×820、最小窗 1200×600 不变（9/5、826 拍板）
 - 🔴 **上线前置硬警告仍有效**：管理员判定只认库值，公网部署前**必须先确认 `platform_config.admin_qq` 非空**
 
@@ -21,7 +20,8 @@
 3. **等你终审两处对外文案**：W4 下架横幅措辞、W6 隐私三条 IP 披露（另含 U12 主页文案、U13 安装包署名）
 4. **U18 STATUS 归档搬动已做（见下方 9/27 文档治理批条目）**：主卷 26 块→5 块（搬 22）、桌面卷 45 块→5 块（搬 40）；正文满 6 块时再开下一轮归档批
 5. **剩红灯需拍板**：U16 板块级下架（重建 reports 表）/ U17 数据服务（另立 REQ+PIPL）/ G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度（F-19）/ U22 改稿上限（F-23）/ U23 记忆库三维决策优先级边界 / U24 视觉判断通道归属
-6. 🔴 **新增待拍（本批推送当场实测发现）**：undici 漏洞链修复——`server` 与 `web` 两处 `package.json` 的 overrides 加 `"undici": "^8.10.2"`，重算 lock 后跑十九道，目标清零 18 条 Dependabot 警报
+6. ✅ **undici 漏洞链修复已收口 `596c4445`**：server·web overrides 加 `"undici": "^8.10.2"`（实测解析 8.11.2），18 条警报 GitHub 自动关闭；十九道全绿 653s
+7. 🔴 **新增待拍**：brace-expansion ×9 + fast-uri ×3 新披露警报（PR #11/#12 在途）；本批任务书明列范围外，处置另批
 
 **常驻纪律（事故换来的，不得退色）**
 
