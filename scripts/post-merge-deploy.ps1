@@ -6,6 +6,7 @@
 # 流程：门禁+accept 联动 → 备份+VERIFY → prev tag → 重建 → 等健康 → 迁移回读断言 → 冒烟清单
 # 纪律：备份是强制前置；任一 FAIL 即停；回滚统一走 scripts/rollback.ps1（本次部署前快照用 -Tier deploy）
 # accept 联动判定（2026-09-20 N2 批续）：读报告结构化结果字段，非字面量匹配；详见 STEP0 处注释
+# 纯文档批降级通道（2026-09-29 拍板，见 STATUS「已拍板规则」）：报告 SHA→HEAD 全为文档路径提交时 HEAD 不一致降级 WARN 放行；详见 STEP0 注释
 # ============================================
 param(
   [switch]$Force,
@@ -106,6 +107,10 @@ Log "GATE OK: branch=$branch HEAD=$sha dirty=$($dirty.Count)"
 $ACCEPT_EXEMPT = @{
   # 例：'file-size' = 'A-1 裁决 2026-09-xx：D-xx 批拆分在途，短期豁免（待补出处后启用）'
 }
+# 纯文档批降级通道（2026-09-29 拍板登记于 STATUS「已拍板规则」）：报告全绿但 HEAD 领先于报告 SHA 时，
+# 若报告 SHA..HEAD 全部提交只触及以下文档路径，降级为 WARN 放行而非 Stop-Fail。
+# 口径不扩大：verdict=red、报告陈旧(>24h)、SHA 不可解析（离线/历史被改写）仍一律阻断；改本清单须先 STATUS 拍板。
+$ACCEPT_DOC_PATH = '(^docs/|^desktop/docs/|\.md$)'
 $shortSha = if ($sha.Length -ge 7) { $sha.Substring(0, 7) } else { $sha }
 if (-not $SkipAccept) {
   $acceptDir = Join-Path $ROOT 'AGENTS\workspace\temp'
@@ -135,7 +140,24 @@ if (-not $SkipAccept) {
       if ($kv['verdict'] -ne 'green' -and $unexempted.Count -gt 0) {
         $acceptReason = "最近报告 $($latestAccept.Name) 未全绿（失败门禁：$($failedIds -join ', ')；如需豁免须在 $ACCEPT_EXEMPT 显式登记并注裁决出处）"
       } elseif ($kv['branch'] -ne 'master' -or $kv['sha'] -ne $sha) {
-        $acceptReason = "最近报告 $($latestAccept.Name) 对应 $($kv['branch'])@$($kv['sha'])，非当前 HEAD $shortSha"
+        # 纯文档批降级通道：仅当 branch 口径仍为 master、只 HEAD 不一致、报告仍在 ≤24h 窗口内，
+        # 且报告 SHA 可解析为 HEAD 祖先、SHA..HEAD 全部改动文件命中 $ACCEPT_DOC_PATH 时放行（记 WARN）；
+        # 任一环节不成立维持原阻断口径（24h 陈旧门不得因降级而短路——降级分支位于 elseif 链上，需在此显式守）。
+        $docOnlySha = ''
+        if ($kv['branch'] -eq 'master' -and $staleH -le 24 -and $kv['sha'] -match '^[0-9a-fA-F]{7,40}$') {
+          git merge-base --is-ancestor $kv['sha'] HEAD 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            $changedFiles = @((git diff --name-only "$($kv['sha'])..HEAD" 2>$null | Out-String) -split "`r`n|`n" | Where-Object { $_ })
+            $nondoc = @($changedFiles | Where-Object { $_ -notmatch $ACCEPT_DOC_PATH })
+            if ($changedFiles.Count -gt 0 -and $nondoc.Count -eq 0) { $docOnlySha = $kv['sha'] }
+          }
+        }
+        if ($docOnlySha) {
+          $acceptNote = '纯文档批降级'
+          Log ("WARN: 验收报告($($latestAccept.Name)) SHA=$($docOnlySha.Substring(0, 7)) 非 HEAD $shortSha，但 $((git rev-list --count "$docOnlySha..HEAD" 2>$null | Out-String).Trim()) 个领先提交仅触及文档路径（口径：$ACCEPT_DOC_PATH，STATUS 2026-09-29 拍板），降级放行")
+        } else {
+          $acceptReason = "最近报告 $($latestAccept.Name) 对应 $($kv['branch'])@$($kv['sha'])，非当前 HEAD $shortSha"
+        }
       } elseif ($staleH -gt 24) {
         $acceptReason = "最近报告 $($latestAccept.Name) 已 $staleH 小时（>24h）"
       } elseif ($kv['verdict'] -ne 'green') {
@@ -150,6 +172,9 @@ if (-not $SkipAccept) {
   } else {
     Log "ACCEPT OK: $($latestAccept.Name)（$acceptNote，≤24h，HEAD=$shortSha）"
   }
+} else {
+  # 与顶部注释口径对齐：跳过 accept 联动必留 WARN（此前只静默跳过，审计痕迹缺失）
+  Log 'WARN: -SkipAccept 已跳过 accept 报告联动（未核对验收报告全绿/HEAD 一致/≤24h）'
 }
 
 # ─── STEP1 强制备份 + 备份产物 VERIFY（fail-fast） ───
