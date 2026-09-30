@@ -6,6 +6,13 @@
 > - 滚动分册：活档体积门 `scripts/check-changelog-size.mjs`（≤40KB / ≤450 行，单段 ≤4KB，accept 第 19 道）；撞线即搬 oldest 段入 `docs/changelog-archive/` 新卷（整段零改动 + 逐行哈希校验，禁调高阈值续命）。
 > - v0.x 时代（v0.1~v0.46+）全量台账在 `docs/changelog-archive/changelog-v0-20260927.md`，只读历史。
 
+## 依赖收敛批：undici 警报清零（2026-09-30，安全报警处置，零业务代码）
+
+- server·web 两处 `package.json` overrides 新增 `"undici": "^8.10.2"`（单一传递链 jsdom@30 → undici，实测解析 8.11.2），重算两个 `package-lock.json`；清零 GitHub 18 条 Dependabot 开放警报（5 high / 7 medium / 6 low，GitHub 自动关闭，未手动 dismiss）。
+- 选用 overrides 而非 `npm audit fix`：避免连带升级其他传递依赖跳版。undici 随 dev 链路（jsdom）存在，生产镜像与桌面壳不携带。
+- 验证：十九道全绿 653s（server 1847 / web 967 / desktop 538 / shared 27 / E2E 14，与看板基线一致）；CI / E2E / CodeQL 对 `596c4445` 均 success。留痕 `AGENTS/temp/dependabot-undici-20260930/`。
+- 首跑全量 1 道偏红：并行会话同 HEAD 门禁 E2E 互踩（`.server-pid` / 端口 5099 共享），环境静默后复跑全绿；本批代码无责。
+
 ## 部署门禁纯文档批降级通道批（2026-09-29，harness 发现项，小批次零业务代码）
 
 - `scripts/post-merge-deploy.ps1` STEP0 验收联动新增**纯文档批降级通道**：报告 `verdict=green` 仅 HEAD 不一致时，若报告 SHA..HEAD 全部提交只触及 `docs/**`、`desktop/docs/**`、任意 `.md`（新常量 `$ACCEPT_DOC_PATH`），记 WARN 降级放行而非 Stop-Fail。
