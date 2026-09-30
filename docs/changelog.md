@@ -6,6 +6,22 @@
 > - 滚动分册：活档体积门 `scripts/check-changelog-size.mjs`（≤40KB / ≤450 行，单段 ≤4KB，accept 第 19 道）；撞线即搬 oldest 段入 `docs/changelog-archive/` 新卷（整段零改动 + 逐行哈希校验，禁调高阈值续命）。
 > - v0.x 时代（v0.1~v0.46+）全量台账在 `docs/changelog-archive/changelog-v0-20260927.md`，只读历史。
 
+## 部署门禁纯文档批降级通道批（2026-09-29，harness 发现项，小批次零业务代码）
+
+- `scripts/post-merge-deploy.ps1` STEP0 验收联动新增**纯文档批降级通道**：报告 `verdict=green` 仅 HEAD 不一致时，若报告 SHA..HEAD 全部提交只触及 `docs/**`、`desktop/docs/**`、任意 `.md`（新常量 `$ACCEPT_DOC_PATH`），记 WARN 降级放行而非 Stop-Fail。
+  - 前置安全钩：仅当报告 branch 仍为 master、SHA 可解析且为 HEAD 祖先时才走降级；`merge-base --is-ancestor` 不通过（离线、历史被改写）回到原阻断口径。`$ACCEPT_EXEMPT` 仍为空表，未新增任何门禁豁免。
+  - 写完首版自检时发现并堵上一个自己引入的洞：降级分支坐在原 elseif 链上会短路 24h 陈旧门（三天前的报告 + 纯文档提交也能放行），已把 `$staleH -le 24` 显式写进降级条件并加 s8 景断住。
+  - 顺手补一缺陷：`-SkipAccept` 分支此前**静默跳过不写日志**，与脚本顶部注释「会记录 WARN」不符；现补 WARN 一行，审计痕迹只增不减。
+- 验证（沙盒 git 仓八景，取证件 `AGENTS/temp/docdowngrade-20260929/results.md`）：全绿同 SHA 基准→ACCEPT OK；纯文档领先 2 提交→WARN 降级放行并进 STEP1；含代码领先提交→仍阻断（exit 1 + 告警文件）；报告 SHA 离线→阻断；`verdict=red` 无豁免→阻断（降级通道不覆盖红报告）；纯文档但报告已 25h 旧→阻断；`-SkipAccept`→WARN；脏工作区 `-Force`→发布门禁 WARN 绕过、不带 `-Force`→GATE FAIL（既有绕过留痕与告警文件行为未削弱）。脚本另过 `Parser::ParseInput` 零语法错 + 三道防阀（status-line / changelog-size / file-size）全绿。
+- 口径已登记 `docs/comms/STATUS.md`「已拍板规则」；改路径清单须先拍板，不擅自扩大豁免范围。
+
+## 服务端日志轮转接入批（2026-09-29，harness 发现项 server-log-ownership，小批次零业务代码）
+
+- `scripts/rotate-log.ps1` 新增接管清单（MANAGED）：`-Path` 改可选，无参调用扫描清单并按同一 5MB×3 口径逐档 best-effort 轮转；现有三处 `-Path` 接线（deploy.log ×2 / daily-backup.log）实测不受影响。
+- `daily-backup.bat` 步骤 0 增无参调用接上接管清单（保持 ASCII-only）。
+- `docs/OPS.md` 新增 §14：两种拓扑（本地非 Docker `data/server.log` vs Docker json-file 10m×3）的日志位置、轮转口径与排障入口，与报障模板「贴 server.log 内容为首选定位手段」对账；并写明公开页失败响应体不得回显内部标识/日志线索的防泄露口径不变。
+- 验证：沙箱 6MB 级 server.log 无参调用实转成 `.1`；链式迁移 `.1→.2`、超 Keep 淘汰实测；文件缺失/低于阈值 no-op；pwsh 与 powershell.exe 5.1 双入口 exit 0。
+
 ## 文档治理专项批 ×2（2026-09-27，纯文档零业务代码）
 
 - **U18 文档专项审计归档批**（`f7b65f5a`）：五路侦察交叉判定 + 三路推翻式复检；主 STATUS 26→5 块、桌面 STATUS 45→5 块（逐行哈希零丢失）；
