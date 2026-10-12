@@ -3,7 +3,7 @@
 ## 看板（2026-10-12 第十八次刷新：依赖警报根治批——11 条 Dependabot 处置完（axios 整包删除）+ 四端 audit 全 0 + dependabot.yml 五目录通道落地）
 
 - **HEAD** 本批代码共两笔：`c2b3a18e`（批B 拆 axios 改原生 fetch）+ `e0d0f0f9`（补 Blob 体与 204/空体解包两条口径）；其前 `8c80537a`（批A 四端锁+dependabot.yml）/ `dfaca136`（changelog 分册）/ `0fb3cf82`（工具铺认领批补入库）；其上只再叠文档销账笔，**待用户推送**
-- **基线（accept.ps1 十九道全绿 @ 收口 HEAD，685s）**：server **1847**（159 文件）/ web **981**（143）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
+- **基线（accept.ps1 十九道全绿 @ `00163498`，685s；其后仅看板措辞笔，三道文档防阀另跑绿）**：server **1847**（159 文件）/ web **981**（143）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
   - web 因新建 `http.test.ts` 14 例而 +14（142→143 文件），`scripts/accept-baseline.json` 已同步
   - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；本批未动 src-tauri（无需 cargo check）
   - 「门禁全绿」口径仍为**十九道**（用户未采纳第 20 道 audit 门禁）
