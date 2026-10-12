@@ -6,6 +6,15 @@
 > - 滚动分册：活档体积门 `scripts/check-changelog-size.mjs`（≤40KB / ≤450 行，单段 ≤4KB，accept 第 19 道）；撞线即搬 oldest 段入 `docs/changelog-archive/` 新卷（整段零改动 + 逐行哈希校验，禁调高阈值续命）。
 > - v0.x 时代（v0.1~v0.46+）全量台账在 `docs/changelog-archive/changelog-v0-20260927.md`，只读历史。
 
+## 依赖警报清零批·第一笔：四端锁 PATCH 定点刷新 + Dependabot 通道落地（2026-10-12，安全报警处置，零业务代码）
+
+- 在 `^` 范围内定点刷锁（不改 manifest、不加 overrides、不用 `npm audit fix --force`）：server fastify 5.12.1→5.12.5、sharp 0.35.4→0.35.5、@fastify/busboy 3.2.0→3.2.3、dompurify 3.4.13→3.4.16（isomorphic-dompurify 内嵌）；四端 source-map-js 1.2.1→1.2.2；web/desktop/shared vue 3.5.4x→3.5.43（含 @vue/server-renderer）与 postcss-selector-parser→7.1.6；web dompurify→3.4.16。逐包判档：77 个锁条目全为 PATCH，0 major、0 增删包。
+- 除 GitHub 已开 12 条中的 busboy/dompurify 三笔，顺手把 GitHub 尚未扫出但本地 `npm audit` 已红的 vue、fastify、sharp、source-map-js、postcss-selector-parser 一起清掉，避开下周再跑一轮全量门禁；axios 留下的 7 条由第二笔拆包根治。
+- 新增 `.github/dependabot.yml`：五目录（root/server/web/desktop/shared）全覆盖、周一 02:00 出批、同批 minor+patch 合并成一个 PR、major 不出自动 PR（破坏性跳版不得无人评审直接合）。
+- 同批前置：活档 41177 B 撞 40 KB 体积门，按「撞线唯一处置=oldest 段整搬」另起一笔分册（`dfaca136`，逐行哈希零丢失）。
+- 踩坑留痕：`npm update <包> --package-lock-only` 会连 `node_modules/.package-lock.json` 一起改写，导致后续 `npm install` 误判 “up to date”而磁盘仍是旧版（server/shared 实遇）；须删该清单或不带该开关重刷，并靠读 `node_modules/<包>/package.json` 做磁盘实测收口，不能只看 `npm ls`。
+- 验证：四端 13 道 + E2E 2 道 + 4 道防阀直连全绿（server **1847** / web **967** / desktop **538** / shared **27** / E2E **14**，与看板基线一致零回归）；完整输出留痕 `AGENTS/workspace/temp/deps-zerobatch-20261012/gates-batchA.log`。
+
 ## 工具铺认领批补入库：U01/U02/U25/U33/U44 自检扫描工具落 scripts/（2026-10-12，漏提交收口，零业务代码）
 
 - 现场核实：16 个脚本 + `.gitignore`/`daily-backup.bat` 两笔改动在位（mtime 2026-09-29~09-30），台账 `AGENTS/workspace/temp/toolshop-claim-20260930/` 已有逐件实跑 exit 码与三方合并留痕，但从未 `git add`——属漏提交，按“已拍板已交付”单独一笔入库，不裹挟任何依赖改动。
