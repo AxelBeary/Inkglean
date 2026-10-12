@@ -1,7 +1,7 @@
 // api 请求核（原生 fetch）防再发锁（2026-10-12 拆 axios 批新增）
-// 锁的是「拆掉 axios 后必须与旧实现同形」的六个行为点：URL 前缀与查询串编码、cookie 随请求、
-// JSON 体带 Content-Type 而 FormData 体绝不带 Content-Type（WEB-11 反模式）、空体解包、错误体非 JSON 不炸、
-// 错误对象 status/code/detail 形状与超时兜底文案。改坏任一条这里就红，不等用户报障。
+// 锁的是「拆掉 axios 后必须与旧实现同形」的行为点：URL 前缀与查询串编码、cookie 随请求、
+// JSON 体带 Content-Type 而 FormData/Blob 体不带（WEB-11 反模式）、空体与 204 解包为 undefined、
+// 错误体非 JSON 不炸、错误对象 status/code/detail 形状与超时/网络失败兜底文案。改坏任一条这里就红，不等用户报障。
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const h = vi.hoisted(() => ({
@@ -26,7 +26,7 @@ vi.mock('../../router/index.js', () => ({
   SETUP_ROUTE: { path: '/setup', name: 'SetupWizard' }
 }))
 
-import { getJson, postJson, patchJson } from '../modules/http'
+import { getJson, postJson, patchJson, deleteJson } from '../modules/http'
 
 /** 取最近一次 fetch 调用的入参 */
 function lastCall(): { url: string; init: RequestInit } {
@@ -100,6 +100,15 @@ describe('请求核：请求体与 Content-Type', () => {
     expect(init.body).toBe(fd)
   })
 
+  it('Blob 体同样不手设 Content-Type（保留其自带类型）', async () => {
+    h.fetch.mockResolvedValue(jsonResponse({ ok: 1 }))
+    const blob = new Blob(['x'], { type: 'image/png' })
+    await postJson('/upload/note-image', blob, { timeout: 120_000 })
+    const headers = lastCall().init.headers as Record<string, string>
+    expect(Object.keys(headers)).not.toContain('Content-Type')
+    expect(lastCall().init.body).toBe(blob)
+  })
+
   it('无体请求不写 body；调用方 header 原样透传且可覆盖（幂等键/x-anon-token 场景）', async () => {
     // Response 的 body 只能读一次，多次请求必须每次给新实例（真实 fetch 本就如此）
     h.fetch.mockImplementation(() => Promise.resolve(jsonResponse({ ok: 1 })))
@@ -118,9 +127,11 @@ describe('请求核：响应解包', () => {
     await expect(getJson<{ items: number[]; total: number }>('/artist/orders')).resolves.toEqual({ items: [1, 2], total: 2 })
   })
 
-  it('空响应体解包为空串（与 axios transformResponse 对空体的结果一致）', async () => {
+  it('空响应体与 204 均解包为 undefined（施工图口径；实测服务端无此类端点，对现有调用点零影响）', async () => {
     h.fetch.mockResolvedValue(new Response('', { status: 200 }))
-    await expect(patchJson('/artist/orders/1/note', { text: 'x' })).resolves.toBe('')
+    await expect(patchJson('/artist/orders/1/note', { text: 'x' })).resolves.toBeUndefined()
+    h.fetch.mockResolvedValue(new Response(null, { status: 204 }))
+    await expect(deleteJson('/artist/orders/1/note/2')).resolves.toBeUndefined()
   })
 
   it('非 JSON 成功体原样返回文本', async () => {
