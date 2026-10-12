@@ -12,6 +12,8 @@
 - 推送后 CodeQL 新报 #32（`js/incomplete-multi-character-sanitization`，`scripts/U44-scan-unflattened-styles.mjs:91`），落在本批刚补入库的工具铺脚本上。**先判真伪再动手**：实测构造 `'<sty<style>x</style>le>body{}</style>'`，单遍正则处理后仍残留 `'<style>body{}</style>'`，属真实重叠绕过而非误报。
 - 修法（`b0072409`）：新增 `stripStyleBlocks()` 循环删除直到结果不再变化（不动点），替代单遍 `replace`；处理后残留检查 = false。行为零变化已量化：对 `web/src` 下 168 个真实 .vue 逐文件比对两种写法，结果不同的文件数 = 0；改后 U44 实跑 exit=0、扫 176 文件照常产出清单。不采借 dismiss 绕过扫描报警。
 - 同批前置：本笔顶插前活档已第二次撞 40KB 线（41152 B），按口径再次把最旧三段（2026-08-16~08-18）整搬新分册 `changelog-20260816-20260818-20261012.md`（`e2172d6b`，逐行哈希零丢失，脚本 exit=0）。
+- **自动关单已落地（收口实测）**：逐号拉 `GET /dependabot/alerts/{n}`，#72~#82 = **11/11 state=fixed**（fixed_at 2026-10-12T14:58 UTC，推送后约 1 小时），**全程零 dismiss**；CodeQL 亦 open=0。本批 11 条警报全部清零。
+- 复扫另暴露与本批无关的一条：#83 **rustls**（medium，`desktop/src-tauri/Cargo.lock`，已修 0.23.45）——属 Rust 侧，本批禁区不碰 src-tauri。同时新通道自行交出两份可审 PR：**#15**（npm 分组 32 个 minor/patch，五目录合一一单）、**#16**（rustls 0.23.43→0.23.45），即“警报→可审 PR”闭环已第一次跑通；两份 PR 的发落转待办 U30，本批不代合。
 
 ## 依赖警报清零批·第二笔：拆掉 axios，web HTTP 层改原生 fetch 根治（2026-10-12，关键路径，含测试迁移）
 
