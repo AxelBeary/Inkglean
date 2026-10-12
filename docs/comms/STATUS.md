@@ -2,18 +2,15 @@
 
 ## 看板（2026-10-12 第十八次刷新：依赖警报根治批——11 条 Dependabot 处置完（axios 整包删除）+ 四端 audit 全 0 + dependabot.yml 五目录通道落地）
 
-- **HEAD** 本批代码共两笔：`c2b3a18e`（批B 拆 axios 改原生 fetch）+ `e0d0f0f9`（补 Blob 体与 204/空体解包两条口径）；其前 `8c80537a`（批A 四端锁+dependabot.yml）/ `dfaca136`（changelog 分册）/ `0fb3cf82`（工具铺认领批补入库）；其上只再叠文档销账笔，**待用户推送**
+- **HEAD 与推送**：本批代码两笔 `c2b3a18e`（拆 axios 改原生 fetch）+ `e0d0f0f9`（补 Blob 体与 204/空体两条口径），其前 `8c80537a`（批A 四端锁+dependabot.yml）/ `dfaca136`（分册）/ `0fb3cf82`（工具铺补入库）；经用户授权已全部代推，origin/master 已同步
 - **基线（accept.ps1 十九道全绿 @ `00163498`，685s；其后仅看板措辞笔，三道文档防阀另跑绿）**：server **1847**（159 文件）/ web **981**（143）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
   - web 因新建 `http.test.ts` 14 例而 +14（142→143 文件），`scripts/accept-baseline.json` 已同步
-  - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；本批未动 src-tauri（无需 cargo check）
-  - 「门禁全绿」口径仍为**十九道**（用户未采纳第 20 道 audit 门禁）
-- **已推送**：用户 10-12 夜授权代推，共两批上云：`5fbc3e04..cc4a607e`（12 笔）与 `cc4a607e..829c5320`（修复+分册+台账 3 笔）；两笔 SHA 的 CI 四 job、E2E、CodeQL 均 success
+  - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；本批未动 src-tauri（无需 cargo check）；「门禁全绿」口径仍为**十九道**（用户未采纳第 20 道 audit 门禁）
+- **已推送两批上云**：`5fbc3e04..cc4a607e`（12 笔）与 `cc4a607e..2c6253d7`（修复+分册+台账），各 SHA 的 CI 四 job、E2E、CodeQL 均 success
 - **CodeQL**：首推后新报 1 条 #32（工具铺脚本 U44 单遍正则重叠绕过，**实测属实非误报**），改循环删除至不动点后**由新扫描自动关闭**（open 1→0，非 dismiss）；现 open=0
-- **dependabot.yml 已生效的实证**：作业名直含五目录 `npm_and_yarn in /., /desktop, /server, /shared, /web`（以前只出单目录 PR）；SBOM 2087 包中 axios = 0、依赖图已刷新
-- **11 条 Dependabot 警报已全部自动关闭**：逐号核过 #72~#82 = **11/11 fixed**（fixed_at 2026-10-12T14:58 UTC），**全程零 dismiss**；上一批同族警报要等的手动收单这次自己跑完了（延迟约 1 小时，但无需人工）
+- **dependabot.yml 已生效的实证**：本批新增该文件（五目录 / 周一 02:00 / minor+patch 合并单 PR / major 不自动出），已自行交出 #15（五目录合一单、32 个 minor/patch）与 #16（rustls 0.23.43→0.23.45），“警报→可审 PR”闭环首次跑通
+- **11 条 Dependabot 警报已全部自动关闭**：逐号核过 #72~#82 = **11/11 fixed**（fixed_at 2026-10-12T14:58 UTC），**全程零 dismiss**；依赖图已刷新（SBOM 2087 包中 axios = 0）
 - **复扫新暴露一条与本批无关的警报**：#83 rustls（medium，`desktop/src-tauri/Cargo.lock`，已修版 0.23.45）——属 Rust 侧，不碰 src-tauri 是本批禁区，转下批处置（需本地 cargo check）
-- **新通道第一次开张的实证**：Dependabot 自动提交了 PR **#15**（`bump the npm-minor-patch group across 5 directories with 32 updates`，一单包五目录、标签自动挂 dependencies+javascript）与 **#16**（rustls 0.23.43→0.23.45）——“警报→可审 PR”已成形
-- **本批机制新增**：`.github/dependabot.yml`（五目录全覆盖 / 周一 02:00 / minor+patch 合并单 PR / major 不出自动 PR）
 - 公网仍冻结中（停在 v74，本地与远端已到 v76）；默认窗 1200×820、最小窗 1200×600 不变（9/5、826 拍板）
 - 🔴 **上线前置硬警告仍有效**：管理员判定只认库值，公网部署前**必须先确认 `platform_config.admin_qq` 非空**
 
