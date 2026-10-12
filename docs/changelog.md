@@ -8,19 +8,20 @@
 
 ## 依赖警报清零批·第二笔：拆掉 axios，web HTTP 层改原生 fetch 根治（2026-10-12，关键路径，含测试迁移）
 
-- 为什么根治而不升版：axios 一周内 12 个 GHSA 披露、独占总 12 条警报里的 7 条，而本项目只用到 `params / headers / timeout / FormData` 四项能力；桌面端（`desktop/src/api`）与网页两处 blob 下载早已走 fetch，两端 HTTP 口径就此统一。web `npm audit` 由 6 项归零，锁内 axios 及其传递依赖共 25 个包移除。
+- 为什么根治而不升版：axios 一周内 12 个 GHSA 披露、独占 11 条警报里的 8 条，而本项目只用到 `params / headers / timeout / FormData` 四项能力；桌面端（`desktop/src/api`）与网页两处 blob 下载早已走 fetch，两端 HTTP 口径就此统一。web `npm audit` 由 6 项归零，锁内 axios 及其传递依赖共 25 个包移除。
 - 改动面：`web/src/api/modules/http.ts`（axios 实例 + 响应拦截器 → fetch 请求核 + `fail` 错误归一化；503 SETUP_REQUIRED 逃逸、i18n 错误码翻译、401 登出与白名单码与绑定失效旗标、`ApiError` 的 status/code/detail 逐字搬移）；`artist.ts`/`order.ts` 三处 `AxiosRequestConfig` → 本地 `RequestConfig`；`web/package.json` 删 axios；注释同步 7 处（upload.ts、webauthn.ts、ToolsExport.vue×2、HealthCheck.vue、两个测试头、desktop/src/api/errors.ts）；`THIRD-PARTY-NOTICES.md` 删 axios 行。
 - 行为对齐（对外契约逐字不变，251 处 helper 调用点与全部 view/store 不动）：URL 仍挂 `/api` 前缀；params 跳过 null/undefined 且键值各自 `encodeURIComponent`（空格编成 %20，与 axios 同形）；`credentials: 'include'` 等价原 `withCredentials`；FormData 体不手设 Content-Type（WEB-11）；对象体 `JSON.stringify` + `application/json`（fastify 按 content-type 选解析器，缺头会被判成无 body）；超时默认 15s、上传 120s，用 AbortController + finally 清计时器（不用 `AbortSignal.timeout`，避开 happy-dom 环境依赖）；空体解包回 `''`、非 JSON 错误体不炸。
 - 测试：`bindRequired401.test.ts` 驱动方式从 axios adapter reject 改为 stub 全局 fetch 返 401（四条断言不放松）；新增 `http.test.ts` 13 例防再发锁（URL 前缀/params 编码与跳空/credentials/JSON 体带 Content-Type/FormData 体不带/无体不写 body/header 透传与覆盖/三种解包形态/错误对象形状/非 JSON 错误体/超时与网络失败兜底）。web 用例 967→980（142→143 文件），`scripts/accept-baseline.json` 已同步。
 - 工具链踩坑：`RequestConfig.params` 先写成 `Record<string, ...>` 会让两个无索引签名的 interface（AdminMessageFilters / AdminInviteCodeQuery）编译不过，收宽为 `object` 并在请求核单点转型；测试里同一个 `Response` 实例被两次请求复用会报 “Body has already been used”，必须每次给新实例。
 - 验证与收尾：提交后工作区干净，`pwsh scripts/accept.ps1 -TestTamperAck …` **十九道全绿**（总耗时 600s；server 1847 / web 980 / desktop 538 / shared 27 / E2E 14），报告 `AGENTS/workspace/temp/accept-master-20261012-194507.md`；五处 `npm audit`（root+四端）终态归零。
 - 浏览器实机冒烟（本机 5210 独立端口 + 独立测试库，用完已停服务并删库）：FormData 参考图上传 200 并渲染持久化、筛选分页查询串干净（空值整段省略，无 `undefined`/`null`）、CSV blob 真下载、结构化错误以中文呈现、控制台零 error。未覆盖：原生文件选择器那一下点击（受工具限制用页内注入替代）、已登录访 `/admin` 现为静默拦回——两项转待办 U28 由用户补确认。
-- 云端：关闭 Dependabot PR #13（axios bump，与拆包路线冲突）与 #14（busboy bump，已被批A 等价覆盖）并各写理由，开放 PR 归零；12 条警报待推送后复扫自动转 fixed（不手动 dismiss）。结论级证据摘要入库 `docs/comms/evidence/证据-依赖警报根治批-20261012.md`。
+- 云端：关闭 Dependabot PR #13（axios bump，与拆包路线冲突）与 #14（busboy bump，已被批A 等价覆盖）并各写理由，开放 PR 归零；11 条警报待推送后复扫自动转 fixed（不手动 dismiss）。结论级证据摘要入库 `docs/comms/evidence/证据-依赖警报根治批-20261012.md`。
 
 ## 依赖警报清零批·第一笔：四端锁 PATCH 定点刷新 + Dependabot 通道落地（2026-10-12，安全报警处置，零业务代码）
 
 - 在 `^` 范围内定点刷锁（不改 manifest、不加 overrides、不用 `npm audit fix --force`）：server fastify 5.12.1→5.12.5、sharp 0.35.4→0.35.5、@fastify/busboy 3.2.0→3.2.3、dompurify 3.4.13→3.4.16（isomorphic-dompurify 内嵌）；四端 source-map-js 1.2.1→1.2.2；web/desktop/shared vue 3.5.4x→3.5.43（含 @vue/server-renderer）与 postcss-selector-parser→7.1.6；web dompurify→3.4.16。逐包判档：77 个锁条目全为 PATCH，0 major、0 增删包。
-- 除 GitHub 已开 12 条中的 busboy/dompurify 三笔，顺手把 GitHub 尚未扫出但本地 `npm audit` 已红的 vue、fastify、sharp、source-map-js、postcss-selector-parser 一起清掉，避开下周再跑一轮全量门禁；axios 留下的 7 条由第二笔拆包根治。
+- 除 GitHub 已开 11 条中的 busboy/dompurify 三笔，顺手把 GitHub 尚未扫出但本地 `npm audit` 已红的 vue、fastify、sharp、source-map-js、postcss-selector-parser 一起清掉，避开下周再跑一轮全量门禁；axios 留下的 8 条由第二笔拆包根治。
+- 数字订正（收口时 gh 实测）：本批开工时误记为「12 条 / axios ×7」，把 #76 一条警报内的两份公告当成两条；真实口径为 **11 条 = axios ×8（#74~#80、#82）+ busboy ×1（#81）+ dompurify ×2（#72/#73）**，本档与 STATUS 同步改正。
 - 新增 `.github/dependabot.yml`：五目录（root/server/web/desktop/shared）全覆盖、周一 02:00 出批、同批 minor+patch 合并成一个 PR、major 不出自动 PR（破坏性跳版不得无人评审直接合）。
 - 同批前置：活档 41177 B 撞 40 KB 体积门，按「撞线唯一处置=oldest 段整搬」另起一笔分册（`dfaca136`，逐行哈希零丢失）。
 - 踩坑留痕：`npm update <包> --package-lock-only` 会连 `node_modules/.package-lock.json` 一起改写，导致后续 `npm install` 误判 “up to date”而磁盘仍是旧版（server/shared 实遇）；须删该清单或不带该开关重刷，并靠读 `node_modules/<包>/package.json` 做磁盘实测收口，不能只看 `npm ls`。
