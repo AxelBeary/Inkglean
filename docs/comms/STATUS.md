@@ -1,27 +1,25 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-09-30 第十七次刷新：brace-expansion/fast-uri 12 条 Dependabot + CodeQL #31 警报清零批收口；纯四端锁刷新，零业务代码）
+## 看板（2026-10-12 第十八次刷新：依赖警报根治批——12 条 Dependabot 处置完（axios 整包删除）+ 四端 audit 全 0 + dependabot.yml 五目录通道落地）
 
-- **HEAD** `ba4cba1f`（brace-expansion/fast-uri 清零批，已推送 origin/master 同步；本 STATUS 销账笔在其上）；改前 undici 链 `596c4445`→`04c9eb04` 亦已推送
-- **基线（bdaff173 实测 328s；历批四端用例数零变化，`ba4cba1f` 复跑一致）**：server **1847**（159 文件）/ web **967**（142）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
-  - harness 批四笔（前批）：`bdf1a5bb` 日志轮转接管 / `d5e0fb8e` accept 基线 v4 + test-tamper 扩射 desktop·shared / `f84aeaa6` 证据入库约定 / `2cb3909d` 部署门禁纯文档批降级通道
-  - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；`scripts/accept-baseline.json` 未动
-  - 「门禁全绿」口径为**十九道**（含第 18 道 STATUS 单行防阀、第 19 道 changelog 体积防阀）
-- **云端（gh 实测）**：E2E 对 `ba4cba1f` success、CI 复扫中；Dependabot open=0（12 条全转 fixed）、Code-scanning open=0（#31 false positive 驳回）；undici 18 条前批已清零
-  - **本批清零 12 条 Dependabot**（brace-expansion ×9：2 high/7 medium；fast-uri ×3：medium）+ CodeQL #31（js/regex-injection，归档脚本 argv 无攻击者汇点）；PR #11(shared)/#12(server) 单锁范围不全已关闭
-  - 旧记录存档：U20 曾对 `d789ff8a` 清零（#20/#23/#25），CodeQL #26~#30 经 `b6b23479` 清零
+- **HEAD** `c2b3a18e`（批B 拆 axios 改原生 fetch）；同批前三笔 `8c80537a`（批A 四端锁刷新+dependabot.yml）/ `dfaca136`（changelog 分册）/ `0fb3cf82`（工具铺认领批补入库）；本 STATUS 笔在其上，**待用户推送**
+- **基线（accept.ps1 十九道全绿 @ `c2b3a18e`，600s）**：server **1847**（159 文件）/ web **980**（142）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
+  - web 因新建 `http.test.ts` 13 例而 +13（142→143 文件），`scripts/accept-baseline.json` 已同步
+  - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；本批未动 src-tauri（无需 cargo check）
+  - 「门禁全绿」口径仍为**十九道**（用户未采纳第 20 道 audit 门禁）
+- **云端（gh 实测）**：Dependabot open=12（批A 已修 busboy/dompurify 3 条，批B 已拆 axios 7 条，**待推送后复扫自动转 fixed**）、Code-scanning open=0、开放 PR=0（#13/#14 已关闭并写明理由）
+- **本批机制新增**：`.github/dependabot.yml`（五目录全覆盖 / 周一 02:00 / minor+patch 合并单 PR / major 不出自动 PR）
 - 公网仍冻结中（停在 v74，本地与远端已到 v76）；默认窗 1200×820、最小窗 1200×600 不变（9/5、826 拍板）
 - 🔴 **上线前置硬警告仍有效**：管理员判定只认库值，公网部署前**必须先确认 `platform_config.admin_qq` 非空**
 
 **下一步（按优先级）**
 
-1. 🔴 **下次开工第一件事**：把 `docs/comms/待办-用户侧清单-20260914.md` 逐条端给用户（已销 U14/U15/U20/G1/G2/G3/G4/G6/F-31/F-32/F-35/F-36/U18；剩 Y2~Y7 需用户本人 + U16/U17/G5/G7/U21~U24 需拍板）
-2. ✅ **本批（harness 修复批同日四笔）已收口并推送 `c71d408b`**：纯工具与文档改动，十九道全绿（618s），四端用例数零变化
-3. **等你终审两处对外文案**：W4 下架横幅措辞、W6 隐私三条 IP 披露（另含 U12 主页文案、U13 安装包署名）
-4. **U18 STATUS 归档搬动已做（见下方 9/27 文档治理批条目）**：主卷 26 块→5 块（搬 22）、桌面卷 45 块→5 块（搬 40）；正文满 6 块时再开下一轮归档批
-5. **剩红灯需拍板**：U16 板块级下架（重建 reports 表）/ U17 数据服务（另立 REQ+PIPL）/ G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度（F-19）/ U22 改稿上限（F-23）/ U23 记忆库三维决策优先级边界 / U24 视觉判断通道归属
-6. ✅ **undici 漏洞链修复已收口 `596c4445`**：server·web overrides 加 `"undici": "^8.10.2"`（实测解析 8.11.2），18 条警报 GitHub 自动关闭；十九道全绿 653s
-7. ✅ **brace-expansion/fast-uri 12 条警报清零批已收口 `ba4cba1f`**：四端锁定点刷新（不改 package.json/overrides），四端 audit 全 0、19 道等价门禁绿、云端双零；留痕 `AGENTS/workspace/temp/deps-zerobatch-20260930/`
+1. 🔴 **U2 推送令（只能你做）**：push 后 GitHub 自动关单 + 跑 CI 四 job / E2E / CodeQL，我这边不代推
+2. 🔴 **STATUS 正文已溢到 7 块**（体例只留最新 5）：`9/17 审计缺陷波1+波2`、`9/25 今天吃什么`、`9/27 黄红灯` 三块应整搬 archive 子目录（逐字零丢失校验），属高风险文本搬动——**单独一批，等你放行**
+3. **待你拍板的技术债（本批只登记不动）**：isomorphic-dompurify 3.22.0→4.5.0（major，需验 jsdom 与 API）；server 以 tsx 作生产依赖使 source-map-js 进生产链路（改预编译构建是架构活）
+4. **两处人工补确认**：原生文件选择器那一下点击（浏览器子代理受 CDP 限制用页内注入替代）；已登录画师访问 `/admin` 现为静默拦回，是否补「权限不足」中文提示
+5. **等你终审两处对外文案**：W4 下架横幅措辞、W6 隐私三条 IP 披露（另含 U12 主页文案、U13 安装包署名）
+6. **剩红灯需拍板**：U16 板块级下架 / U17 数据服务 / G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度 / U22 改稿上限 / U23 记忆库优先级边界 / U24 视觉判断通道归属
 
 **常驻纪律（事故换来的，不得退色）**
 
@@ -59,11 +57,26 @@
   - 既有绕过留痕不变：-Force / -SkipAccept 仍记 WARN（本批顺手补上 -SkipAccept 实际未写的 WARN 行），阻断仍走 Stop-Fail 写告警文件。
   - 验证：沙盒 git 仓八景（纯文档领先→WARN 放行；含代码/离线 SHA/红报告/25h 陈旧→阻断；-Force/-SkipAccept/dirty 景行为不变），取证件 `AGENTS/temp/docdowngrade-20260929/results.md`。详见 changelog 同批条。
 
-**起手必读**：**⚑ 下次开工第一件事：向用户逐条端出 `docs/comms/待办-用户侧清单-20260914.md`（U1~U24）提醒他做他那边的活**，再读 **⚑ 下方正文第一条（2026-09-29 记忆库系统性维护批）**。
+**起手必读**：**⚑ 下次开工第一件事**：提醒用户推送本批（看板第 1 条），并确认是否开 STATUS 溢文归档批（看板第 2 条）；再读 **⚑ 下方正文第一条（2026-10-12 依赖警报根治批）**。
 
 **起手必读续**：→ 交接档 `docs/comms/交接-20260912-会话收口与待拍清单.md` → 本节看板 → `AGENTS.md`（含「STATUS 体例与归档纪律」）→ 碰桌面端再读 `desktop/docs/STATUS.md` 顶部。
 
 **起手必读续二**：改桌面 UI 必跑 `huiyue-layout-audit` 自检循环（**宿主级技能**，住 `%USERPROFILE%\.agents\skills\huiyue-layout-audit\`，不在仓库属正常；VL 评审通道不可用，只能 measure.mjs + 人工逐项清单）。
+
+>  📌 **2026-10-12 依赖警报根治批（用户拍板三项：拆 axios / 四端 audit 全清零 / 加 dependabot.yml；含 web HTTP 层重写）**
+>
+> - **触发**：12 条 Dependabot 开放警报（axios ×7、busboy ×1、dompurify ×2）+ 两个开放 PR；CodeQL 开放 0。
+> - **逐条研判**：axios 单周 12 个 GHSA、独占 7 条警报→判定整包删除而非升版；busboy/dompurify 属范围内可取已修版；
+>   dompurify 公告只影响 IN_PLACE + 移除节点的 afterSanitize 钩子，本项目用 afterSanitizeAttributes 且非 IN_PLACE，实际不可利用但仍升级。
+> - **批A `8c80537a`**：四端锁 PATCH 定点刷新（fastify 5.12.5 / sharp 0.35.5 / busboy 3.2.3 / dompurify 3.4.16 / vue 3.5.43 / source-map-js 1.2.2 / postcss-selector-parser 7.1.6）；77 条目全 PATCH、0 major 0 增删。
+> - **批B `c2b3a18e`**：`web/src/api/modules/http.ts` 由 axios 实例+拦截器改为浏览器原生 fetch，对外契约逐字不变（251 处 helper 调用点与全部 view/store 不动）；锁内 axios 及传递依赖共 25 包移除。
+> - **测试**：新增 `http.test.ts` 13 例防再发锁；`bindRequired401` 只换驱动管道不改断言；web 967→980，`accept-baseline.json` 已同步。
+> - **验证**：accept.ps1 十九道全绿（600s；1847/980/538/27/14）；五处 npm audit 归零；真浏览器冒烟两轮（FormData 上传、params 分页、CSV blob 下载、结构化错误中文呈现，零 console error）。
+> - **机制**：新增 `.github/dependabot.yml`（五目录 / 周一 02:00 / minor+patch 合并单 PR / major 不自动出）；PR #13/#14 已关并写明理由，开放 PR 归零。
+> - **同批前置两笔**：`0fb3cf82` 工具铺认领批补入库（侦察兵定性：已拍板、已逐件实跑、已三方合并，唯独从未 git add）；`dfaca136` changelog 撞 40KB 线，最旧两段整搬新分册（逐行哈希零丢失）。
+> - **踩坑两条**：`npm update --package-lock-only` 会连 `node_modules/.package-lock.json` 一起改，导致后续 `npm install` 误判 up-to-date 而磁盘仍旧版；`params` 收窄成 `Record` 会让无索引签名的 interface 编译不过。
+> - **入库证据锚**：`docs/comms/evidence/证据-依赖警报根治批-20261012.md`；本机详单 `AGENTS/workspace/temp/deps-zerobatch-20261012/`。
+> - **遗留待拍板**：isomorphic-dompurify 3.22.0→4.5.0（major）；server 以 tsx 作生产依赖使 source-map-js 进生产链路。
 
 >  📌 **2026-09-29 记忆库系统性维护批（AI 自决，15 路辩论代理验证；纯记忆平台操作，零代码零业务文档变更）**
 >

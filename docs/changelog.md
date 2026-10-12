@@ -13,6 +13,9 @@
 - 行为对齐（对外契约逐字不变，251 处 helper 调用点与全部 view/store 不动）：URL 仍挂 `/api` 前缀；params 跳过 null/undefined 且键值各自 `encodeURIComponent`（空格编成 %20，与 axios 同形）；`credentials: 'include'` 等价原 `withCredentials`；FormData 体不手设 Content-Type（WEB-11）；对象体 `JSON.stringify` + `application/json`（fastify 按 content-type 选解析器，缺头会被判成无 body）；超时默认 15s、上传 120s，用 AbortController + finally 清计时器（不用 `AbortSignal.timeout`，避开 happy-dom 环境依赖）；空体解包回 `''`、非 JSON 错误体不炸。
 - 测试：`bindRequired401.test.ts` 驱动方式从 axios adapter reject 改为 stub 全局 fetch 返 401（四条断言不放松）；新增 `http.test.ts` 13 例防再发锁（URL 前缀/params 编码与跳空/credentials/JSON 体带 Content-Type/FormData 体不带/无体不写 body/header 透传与覆盖/三种解包形态/错误对象形状/非 JSON 错误体/超时与网络失败兜底）。web 用例 967→980（142→143 文件），`scripts/accept-baseline.json` 已同步。
 - 工具链踩坑：`RequestConfig.params` 先写成 `Record<string, ...>` 会让两个无索引签名的 interface（AdminMessageFilters / AdminInviteCodeQuery）编译不过，收宽为 `object` 并在请求核单点转型；测试里同一个 `Response` 实例被两次请求复用会报 “Body has already been used”，必须每次给新实例。
+- 验证与收尾：提交后工作区干净，`pwsh scripts/accept.ps1 -TestTamperAck …` **十九道全绿**（总耗时 600s；server 1847 / web 980 / desktop 538 / shared 27 / E2E 14），报告 `AGENTS/workspace/temp/accept-master-20261012-194507.md`；五处 `npm audit`（root+四端）终态归零。
+- 浏览器实机冒烟（本机 5210 独立端口 + 独立测试库，用完已停服务并删库）：FormData 参考图上传 200 并渲染持久化、筛选分页查询串干净（空值整段省略，无 `undefined`/`null`）、CSV blob 真下载、结构化错误以中文呈现、控制台零 error。未覆盖：原生文件选择器那一下点击（受工具限制用页内注入替代）、已登录访 `/admin` 现为静默拦回——两项转待办 U28 由用户补确认。
+- 云端：关闭 Dependabot PR #13（axios bump，与拆包路线冲突）与 #14（busboy bump，已被批A 等价覆盖）并各写理由，开放 PR 归零；12 条警报待推送后复扫自动转 fixed（不手动 dismiss）。结论级证据摘要入库 `docs/comms/evidence/证据-依赖警报根治批-20261012.md`。
 
 ## 依赖警报清零批·第一笔：四端锁 PATCH 定点刷新 + Dependabot 通道落地（2026-10-12，安全报警处置，零业务代码）
 
