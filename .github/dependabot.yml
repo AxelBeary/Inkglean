@@ -1,5 +1,5 @@
 # Dependabot 版本更新通道（2026-10-12 拍板）
-# 背景：依赖警报已连续多周成批冒出（undici 18 条、brace-expansion/fast-uri 12 条、axios/busboy/dompurify 12 条），
+# 背景：依赖警报已连续多周成批冒出（undici 18 条、brace-expansion/fast-uri 12 条、axios/busboy/dompurify 11 条），
 #       历批都在"手动刷锁 + 关闭单目录 PR"上重复付费。本文件把通道改成正轨：机器人出可审 PR，人只负责过门禁与合并。
 # 四条口径（均经用户拍板）：
 #   1. 五目录全覆盖——root / server / web / desktop / shared 各有一份 lockfile，漏一个就会重演"PR 单锁范围不全被关掉"。
