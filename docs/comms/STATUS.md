@@ -7,14 +7,16 @@
   - web 因新建 `http.test.ts` 14 例而 +14（142→143 文件），`scripts/accept-baseline.json` 已同步
   - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；本批未动 src-tauri（无需 cargo check）
   - 「门禁全绿」口径仍为**十九道**（用户未采纳第 20 道 audit 门禁）
-- **云端（gh 实测）**：Dependabot open=11（批A 已修 busboy 1 + dompurify 2，批B 已拆 axios 8，**待推送后复扫自动转 fixed**）、Code-scanning open=0、开放 PR=0（#13/#14 已关闭并写明理由）
+- **已推送**：用户 10-12 夜授权代推，`5fbc3e04..cc4a607e`（12 笔）已上 origin/master；其后再推 CodeQL #32 修复笔
+- **云端（gh 实测、对 `cc4a607e`）**：CI 四 job、E2E、CodeQL 全 success；**dependabot.yml 已生效**—作业名含五目录 `npm_and_yarn in /., /desktop, /server, /shared, /web`；SBOM 2087 包里 axios = 0
+- **警报**：CodeQL 推前 open=0，新暴 1 条 #32（工具铺脚本 U44 单遍正则重叠绕过，**实测属实非误报**，已改循环删除修复而非 dismiss）；Dependabot 11 条仍开（图已刷新，属自动关单作业时延），不手动 dismiss
 - **本批机制新增**：`.github/dependabot.yml`（五目录全覆盖 / 周一 02:00 / minor+patch 合并单 PR / major 不出自动 PR）
 - 公网仍冻结中（停在 v74，本地与远端已到 v76）；默认窗 1200×820、最小窗 1200×600 不变（9/5、826 拍板）
 - 🔴 **上线前置硬警告仍有效**：管理员判定只认库值，公网部署前**必须先确认 `platform_config.admin_qq` 非空**
 
 **下一步（按优先级）**
 
-1. 🔴 **U2 推送令（只能你做）**：push 后 GitHub 自动关单 + 跑 CI 四 job / E2E / CodeQL，我这边不代推
+1. 🔴 **U2 推送令（只能你做）**：✅ 已于 10-12 夜经你授权由代理代推 `cc4a607e`；待推完自动关单后复核 11 条警报是否转 fixed
 2. 🔴 **STATUS 正文已溢到 7 块**（体例只留最新 5）：`9/17 审计缺陷波1+波2`、`9/25 今天吃什么`、`9/27 黄红灯` 三块应整搬 archive 子目录（逐字零丢失校验），属高风险文本搬动——**单独一批，等你放行**
 3. **待你拍板的技术债（本批只登记不动）**：isomorphic-dompurify 3.22.0→4.5.0（major，需验 jsdom 与 API）；server 以 tsx 作生产依赖使 source-map-js 进生产链路（改预编译构建是架构活）
 4. **两处人工补确认（U28）**：原生文件选择器那一下点击（子代理受 CDP 限制用页内注入替代）；已登录画师访 `/admin` 现为静默拦回，是否补「权限不足」中文提示。预览站已起：`http://127.0.0.1:5210/artist/alice/order` 的参考图上传即是原生选择器（免登录），看完让代理闭站
