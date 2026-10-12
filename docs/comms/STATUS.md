@@ -6,7 +6,7 @@
 - **基线（accept.ps1 十九道全绿 @ `00163498`，685s；其后仅看板措辞笔，三道文档防阀另跑绿）**：server **1847**（159 文件）/ web **981**（143）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
   - web 因新建 `http.test.ts` 14 例而 +14（142→143 文件），`scripts/accept-baseline.json` 已同步
   - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；本批未动 src-tauri（无需 cargo check）；「门禁全绿」口径仍为**十九道**（用户未采纳第 20 道 audit 门禁）
-- **已推送两批上云**：`5fbc3e04..cc4a607e`（12 笔）与 `cc4a607e..2c6253d7`（修复+分册+台账），各 SHA 的 CI 四 job、E2E、CodeQL 均 success
+- **云端已验至 `00764be8`**：该 SHA 上 CI 四 job、E2E、CodeQL 全 success；代码两笔 `cc4a607e` / `829c5320` 亦全绿。纯文档笔会有 CI 显示 cancelled——`ci.yml` 与 `e2e.yml` 均 `cancel-in-progress: true`，后一次推送撤跑前者属设计内，不是失败
 - **CodeQL**：首推后新报 1 条 #32（工具铺脚本 U44 单遍正则重叠绕过，**实测属实非误报**），改循环删除至不动点后**由新扫描自动关闭**（open 1→0，非 dismiss）；现 open=0
 - **dependabot.yml 已生效的实证**：本批新增该文件（五目录 / 周一 02:00 / minor+patch 合并单 PR / major 不自动出），已自行交出 #15（五目录合一单、32 个 minor/patch）与 #16（rustls 0.23.43→0.23.45），“警报→可审 PR”闭环首次跑通
 - **11 条 Dependabot 警报已全部自动关闭**：逐号核过 #72~#82 = **11/11 fixed**（fixed_at 2026-10-12T14:58 UTC），**全程零 dismiss**；依赖图已刷新（SBOM 2087 包中 axios = 0）
@@ -16,7 +16,7 @@
 
 **下一步（按优先级）**
 
-1. ✅ **U2 推送令已执行**（10-12 夜经你授权由代理代推至 `93bcb814`）：云端 CI 四 job / E2E / CodeQL 全 success；本批 11 条警报已全部自动转 fixed，CodeQL open=0（含 #32 真修后自关）
+1. ✅ **U2 推送令已执行**（10-12 夜经你授权由代理代推，本地与 origin/master 已同步、工作树干净）：本批 11 条警报全部自动转 fixed（零 dismiss），CodeQL open=0
 2. 🔴 **新通道交来的两份 PR 等你发落**（详见 U30）：#15 是 npm 分组 32 个 minor/patch（合前我跑十九道再报数）、#16 是 rustls（碰 Rust，需本地 cargo check）
 3. 🔴 **STATUS 正文已溢到 7 块**（体例只留最新 5）：`9/17 审计缺陷波1+波2`、`9/25 今天吃什么`、`9/27 黄红灯` 三块应整搬 archive 子目录（逐字零丢失校验），属高风险文本搬动——**单独一批，等你放行**
 4. **待你拍板的技术债（本批只登记不动）**：isomorphic-dompurify 3.22.0→4.5.0（major，需验 jsdom 与 API）；server 以 tsx 作生产依赖使 source-map-js 进生产链路（改预编译构建是架构活）
