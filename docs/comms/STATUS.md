@@ -17,9 +17,10 @@
 1. 🔴 **U2 推送令（只能你做）**：push 后 GitHub 自动关单 + 跑 CI 四 job / E2E / CodeQL，我这边不代推
 2. 🔴 **STATUS 正文已溢到 7 块**（体例只留最新 5）：`9/17 审计缺陷波1+波2`、`9/25 今天吃什么`、`9/27 黄红灯` 三块应整搬 archive 子目录（逐字零丢失校验），属高风险文本搬动——**单独一批，等你放行**
 3. **待你拍板的技术债（本批只登记不动）**：isomorphic-dompurify 3.22.0→4.5.0（major，需验 jsdom 与 API）；server 以 tsx 作生产依赖使 source-map-js 进生产链路（改预编译构建是架构活）
-4. **两处人工补确认**：原生文件选择器那一下点击（浏览器子代理受 CDP 限制用页内注入替代）；已登录画师访问 `/admin` 现为静默拦回，是否补「权限不足」中文提示
-5. **等你终审两处对外文案**：W4 下架横幅措辞、W6 隐私三条 IP 披露（另含 U12 主页文案、U13 安装包署名）
-6. **剩红灯需拍板**：U16 板块级下架 / U17 数据服务 / G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度 / U22 改稿上限 / U23 记忆库优先级边界 / U24 视觉判断通道归属
+4. **两处人工补确认（U28）**：原生文件选择器那一下点击（浏览器子代理受 CDP 限制用页内注入替代）；已登录画师访问 `/admin` 现为静默拦回，是否补「权限不足」中文提示
+5. **新登记 U29（后台真机轮发现的两处小坑，非本批引入）**：举报/处置留痕页有 3 条 i18n key 拼接传入 undefined（`compliance.report.types.undefined` 等，用户不可见）；管理员二次验证弹窗关闭后隐藏输入框仍留着已消费的动态码（建议 destroy-on-close）
+6. **等你终审两处对外文案**：W4 下架横幅措辞、W6 隐私三条 IP 披露（另含 U12 主页文案、U13 安装包署名）
+7. **剩红灯需拍板**：U16 板块级下架 / U17 数据服务 / G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度 / U22 改稿上限 / U23 记忆库优先级边界 / U24 视觉判断通道归属
 
 **常驻纪律（事故换来的，不得退色）**
 
@@ -71,7 +72,7 @@
 > - **批A `8c80537a`**：四端锁 PATCH 定点刷新（fastify 5.12.5 / sharp 0.35.5 / busboy 3.2.3 / dompurify 3.4.16 / vue 3.5.43 / source-map-js 1.2.2 / postcss-selector-parser 7.1.6）；77 条目全 PATCH、0 major 0 增删。
 > - **批B `c2b3a18e`**：`web/src/api/modules/http.ts` 由 axios 实例+拦截器改为浏览器原生 fetch，对外契约逐字不变（251 处 helper 调用点与全部 view/store 不动）；锁内 axios 及传递依赖共 25 包移除。
 > - **测试**：新增 `http.test.ts` 14 例防再发锁；`bindRequired401` 只换驱动管道不改断言；web 967→981，`accept-baseline.json` 已同步。
-> - **验证**：accept.ps1 十九道全绿（server 1847 / web 981 / desktop 538 / shared 27 / E2E 14）；五处 npm audit 归零；真浏览器冒烟多轮（FormData 上传、params 分页、CSV blob 下载、结构化错误中文呈现，零 console error）。
+> - **验证**：accept.ps1 十九道全绿（server 1847 / web 981 / desktop 538 / shared 27 / E2E 14）；五处 npm audit 归零；五条链路真机验通（登录 / 客户建单含查单链接 / 图片上传 / CSV 导出 / 管理后台含二次验证与筛选），控制台零 error、零脏查询串。
 > - **机制**：新增 `.github/dependabot.yml`（五目录 / 周一 02:00 / minor+patch 合并单 PR / major 不自动出）；PR #13/#14 已关并写明理由，开放 PR 归零。
 > - **同批前置两笔**：`0fb3cf82` 工具铺认领批补入库（侦察兵定性：已拍板、已逐件实跑、已三方合并，唯独从未 git add）；`dfaca136` changelog 撞 40KB 线，最旧两段整搬新分册（逐行哈希零丢失）。
 > - **踩坑两条**：`npm update --package-lock-only` 会连 `node_modules/.package-lock.json` 一起改，导致后续 `npm install` 误判 up-to-date 而磁盘仍旧版；`params` 收窄成 `Record` 会让无索引签名的 interface 编译不过。
