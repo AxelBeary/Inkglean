@@ -6,6 +6,13 @@
 > - 滚动分册：活档体积门 `scripts/check-changelog-size.mjs`（≤40KB / ≤450 行，单段 ≤4KB，accept 第 19 道）；撞线即搬 oldest 段入 `docs/changelog-archive/` 新卷（整段零改动 + 逐行哈希校验，禁调高阈值续命）。
 > - v0.x 时代（v0.1~v0.46+）全量台账在 `docs/changelog-archive/changelog-v0-20260927.md`，只读历史。
 
+## 依赖警报根治批·第三笔：代推上云 + 推送后新暴露的 CodeQL #32 真修（2026-10-12，安全报警处置）
+
+- 经用户授权代推 `5fbc3e04..cc4a607e`（12 笔）。云端对 `cc4a607e`：CI 四 job、E2E、CodeQL 全 success；本批新增的 `.github/dependabot.yml` 已生效—作业名直接含五目录 `npm_and_yarn in /., /desktop, /server, /shared, /web`（以前只会出单目录 PR）；依赖图已刷新，SBOM 2087 包中 axios = 0。11 条 Dependabot 警报因自动关单作业时延仍标 open，不手动 dismiss，等自动转 fixed 后复核。
+- 推送后 CodeQL 新报 #32（`js/incomplete-multi-character-sanitization`，`scripts/U44-scan-unflattened-styles.mjs:91`），落在本批刚补入库的工具铺脚本上。**先判真伪再动手**：实测构造 `'<sty<style>x</style>le>body{}</style>'`，单遍正则处理后仍残留 `'<style>body{}</style>'`，属真实重叠绕过而非误报。
+- 修法（`b0072409`）：新增 `stripStyleBlocks()` 循环删除直到结果不再变化（不动点），替代单遍 `replace`；处理后残留检查 = false。行为零变化已量化：对 `web/src` 下 168 个真实 .vue 逐文件比对两种写法，结果不同的文件数 = 0；改后 U44 实跑 exit=0、扫 176 文件照常产出清单。不采借 dismiss 绕过扫描报警。
+- 同批前置：本笔顶插前活档已第二次撞 40KB 线（41152 B），按口径再次把最旧三段（2026-08-16~08-18）整搬新分册 `changelog-20260816-20260818-20261012.md`（`e2172d6b`，逐行哈希零丢失，脚本 exit=0）。
+
 ## 依赖警报清零批·第二笔：拆掉 axios，web HTTP 层改原生 fetch 根治（2026-10-12，关键路径，含测试迁移）
 
 - 为什么根治而不升版：axios 一周内 12 个 GHSA 披露、独占 11 条警报里的 8 条，而本项目只用到 `params / headers / timeout / FormData` 四项能力；桌面端（`desktop/src/api`）与网页两处 blob 下载早已走 fetch，两端 HTTP 口径就此统一。web `npm audit` 由 6 项归零，锁内 axios 及其传递依赖共 25 个包移除。
