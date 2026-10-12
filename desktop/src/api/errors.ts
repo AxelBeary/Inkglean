@@ -1,7 +1,7 @@
 // 云端请求错误（波2 拖拽改期批新增）：把 HTTP status 与后端业务码 **原样带上来**。
 // 为什么必须有这个文件：桌面 api 层原先一律 `throw new Error(message)`，status/code/detail 全丢，
 // 于是 409「排期已被别人改过」（ORDER_CONFLICT）在桌面端**根本无法判定**——波2 的乐观锁回滚重拉
-// 也就无从触发。网页端靠 axios 拦截器给错误挂 code（web/src/api/modules/http.ts），
+// 也就无从触发。网页端在 fetch 请求核里给错误挂 code（web/src/api/modules/http.ts），
 // 桌面用 fetch，故在此手工组装同款形状，两端错误语义对齐。
 // 纪律：本文件只描述"错在哪"，不做任何跳转/登出/提示决策（那是 store 与页面层的事）。
 

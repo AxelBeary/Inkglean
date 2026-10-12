@@ -106,7 +106,7 @@ export interface WebAuthnCredentialJSON {
 /**
  * 原生 PublicKeyCredential → 后端 JSON 形状。
  * id 直接用浏览器给出的 Base64URL DOMString；rawId / response.* 的 ArrayBuffer
- * 全部转 Base64URL（axios JSON 序列化不会丢失二进制字段）。
+ * 全部转 Base64URL（请求体走 JSON 文本，字符串字段不会在序列化中丢二进制内容）。
  */
 export function publicKeyCredentialToJSON(credential: PublicKeyCredential): WebAuthnCredentialJSON {
   const response: Record<string, string | null> = {}

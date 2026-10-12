@@ -6,6 +6,14 @@
 > - 滚动分册：活档体积门 `scripts/check-changelog-size.mjs`（≤40KB / ≤450 行，单段 ≤4KB，accept 第 19 道）；撞线即搬 oldest 段入 `docs/changelog-archive/` 新卷（整段零改动 + 逐行哈希校验，禁调高阈值续命）。
 > - v0.x 时代（v0.1~v0.46+）全量台账在 `docs/changelog-archive/changelog-v0-20260927.md`，只读历史。
 
+## 依赖警报清零批·第二笔：拆掉 axios，web HTTP 层改原生 fetch 根治（2026-10-12，关键路径，含测试迁移）
+
+- 为什么根治而不升版：axios 一周内 12 个 GHSA 披露、独占总 12 条警报里的 7 条，而本项目只用到 `params / headers / timeout / FormData` 四项能力；桌面端（`desktop/src/api`）与网页两处 blob 下载早已走 fetch，两端 HTTP 口径就此统一。web `npm audit` 由 6 项归零，锁内 axios 及其传递依赖共 25 个包移除。
+- 改动面：`web/src/api/modules/http.ts`（axios 实例 + 响应拦截器 → fetch 请求核 + `fail` 错误归一化；503 SETUP_REQUIRED 逃逸、i18n 错误码翻译、401 登出与白名单码与绑定失效旗标、`ApiError` 的 status/code/detail 逐字搬移）；`artist.ts`/`order.ts` 三处 `AxiosRequestConfig` → 本地 `RequestConfig`；`web/package.json` 删 axios；注释同步 7 处（upload.ts、webauthn.ts、ToolsExport.vue×2、HealthCheck.vue、两个测试头、desktop/src/api/errors.ts）；`THIRD-PARTY-NOTICES.md` 删 axios 行。
+- 行为对齐（对外契约逐字不变，251 处 helper 调用点与全部 view/store 不动）：URL 仍挂 `/api` 前缀；params 跳过 null/undefined 且键值各自 `encodeURIComponent`（空格编成 %20，与 axios 同形）；`credentials: 'include'` 等价原 `withCredentials`；FormData 体不手设 Content-Type（WEB-11）；对象体 `JSON.stringify` + `application/json`（fastify 按 content-type 选解析器，缺头会被判成无 body）；超时默认 15s、上传 120s，用 AbortController + finally 清计时器（不用 `AbortSignal.timeout`，避开 happy-dom 环境依赖）；空体解包回 `''`、非 JSON 错误体不炸。
+- 测试：`bindRequired401.test.ts` 驱动方式从 axios adapter reject 改为 stub 全局 fetch 返 401（四条断言不放松）；新增 `http.test.ts` 13 例防再发锁（URL 前缀/params 编码与跳空/credentials/JSON 体带 Content-Type/FormData 体不带/无体不写 body/header 透传与覆盖/三种解包形态/错误对象形状/非 JSON 错误体/超时与网络失败兜底）。web 用例 967→980（142→143 文件），`scripts/accept-baseline.json` 已同步。
+- 工具链踩坑：`RequestConfig.params` 先写成 `Record<string, ...>` 会让两个无索引签名的 interface（AdminMessageFilters / AdminInviteCodeQuery）编译不过，收宽为 `object` 并在请求核单点转型；测试里同一个 `Response` 实例被两次请求复用会报 “Body has already been used”，必须每次给新实例。
+
 ## 依赖警报清零批·第一笔：四端锁 PATCH 定点刷新 + Dependabot 通道落地（2026-10-12，安全报警处置，零业务代码）
 
 - 在 `^` 范围内定点刷锁（不改 manifest、不加 overrides、不用 `npm audit fix --force`）：server fastify 5.12.1→5.12.5、sharp 0.35.4→0.35.5、@fastify/busboy 3.2.0→3.2.3、dompurify 3.4.13→3.4.16（isomorphic-dompurify 内嵌）；四端 source-map-js 1.2.1→1.2.2；web/desktop/shared vue 3.5.4x→3.5.43（含 @vue/server-renderer）与 postcss-selector-parser→7.1.6；web dompurify→3.4.16。逐包判档：77 个锁条目全为 PATCH，0 major、0 增删包。

@@ -1,8 +1,8 @@
 // 端点方法 · 画师后台端点（profile/作品/折扣/留言/散单/订单/队列/仪表盘/画风增项/工具）（F-09 自 web/src/api/index.ts 按域纯搬移拆分，端点 URL / 请求方法 / 参数名 / 注释一字未改）
 // 由 api/index.ts（barrel）再导出，调用方 import 路径不变
 
-import type { AxiosRequestConfig } from 'axios'
 import { getJson, postJson, putJson, deleteJson } from './http'
+import type { RequestConfig } from './http'
 import type { PagedResult, HasMoreResult, PublicArtistDTO, AuthMeResult, Artwork, ArtworkWithTags, ArtworkWithWarning, PublishArtworkResult, SetArtworkTagsResult, DeleteArtworkResult, CommissionRule, GuestbookMessage, SimpleSuccessResult, WorkflowStageDTO, WorkflowResult, SavePaymentResult, DeleteStageResult, GreetingResult, DiscountCode, DiscountCodesResult, ToggleDiscountResult, DeleteDiscountResult, AddonTemplate, DeleteAddonTemplateResult, StyleSize, StyleAddonWithTemplate, ArtStyleWithDetails, SizeAddonOverride, DeletedResult, OrderStatus, OrderPriority, OrderDetail, EnrichedOrderDetail, DeliverResult, ArtistOrderItem, QueueOrderItem, ArtistOrdersResult, OrderLogsResult, PaymentsResult, AddPaymentResult, RefreshSignaturesResult, ArtistStats, CustomerTokenResult, RevenueResult, TodoResult, ScheduleResult, DashboardPrefs, ActivityResult, ArtistTrackingResult, ToolsClientsResult, ToolsClientResult, SaveToolsClientResult, OkResult, ReturningClientsResult, StandaloneIncomesResult, CreateStandaloneIncomeResult, IncomeSummaryResult, ArtistProfileResult, VersionedOptions, UpdateStatusOptions, PublishArtworkRequest, CreateDiscountCodeRequest, UpdateDiscountCodeRequest, CreateManualOrderRequest, AddNoteRequest, ExtraItemRequest, AddReferenceRequest, SetFocusImageRequest, UpdatePriceRequest, AddPaymentRequest, DeliverRequest, SavePaymentNode, AddonTemplateInput, ArtStyleInput, StyleSizeInput, StyleAddonSetItem, SizeOverrideSetItem, SaveToolsClientRequest, CreateStandaloneIncomeRequest, OnboardingState, PlatformAnnouncement } from '../types'
 // DTO 类型统一从 '../types'（barrel）按名取用；inline import('../types') 为原 import('./types') 的路径等价改写
 
@@ -107,7 +107,7 @@ export const artistApi = {
     getJson('/artist/queue', zone ? { params: { zone } } : undefined),
   getOrder: (id: number): Promise<EnrichedOrderDetail> => getJson(`/artist/orders/${id}`),
   // G-4（D-2 契约衔接）: options 透传幂等键 header（手动录单端点当前忽略，随契约升级自动生效）
-  createManualOrder: (data: CreateManualOrderRequest, options: AxiosRequestConfig = {}): Promise<OrderDetail> =>
+  createManualOrder: (data: CreateManualOrderRequest, options: RequestConfig = {}): Promise<OrderDetail> =>
     postJson('/artist/orders/manual', data, options),
   // R-2: 取消已收款订单需 confirmPaidCancel 确认（Batch A 契约：不带则 409 CANCEL_WITH_PAYMENT）；
   // options 透传为 body 附加字段，既有调用方不传时行为不变
@@ -158,7 +158,7 @@ export const artistApi = {
   // B7: 额度池收款（记录/流水/撤销=负数记录）
   getPayments: (id: number): Promise<PaymentsResult> => getJson(`/artist/orders/${id}/payments`),
   // D-2（R-9）: options 透传幂等键 header（同一次提交重试复用同 key）
-  addPayment: (id: number, data: AddPaymentRequest, options: AxiosRequestConfig = {}): Promise<AddPaymentResult> =>
+  addPayment: (id: number, data: AddPaymentRequest, options: RequestConfig = {}): Promise<AddPaymentResult> =>
     postJson(`/artist/orders/${id}/payments`, data, options),
   // v0.31 REQ-021 F1: 操作日志（分页 + ?type= 筛选）
   getOrderLogs: (id: number, { page = 1, pageSize = 50, type }: { page?: number; pageSize?: number; type?: string } = {}): Promise<OrderLogsResult> =>

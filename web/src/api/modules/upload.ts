@@ -15,7 +15,7 @@ interface UploadOptions {
 }
 
 // WEB-11 修复：删除手动设的 'Content-Type':'multipart/form-data'（无 boundary 是危险反模式），
-// 让 axios/浏览器自动根据 FormData 带正确 boundary。
+// 让 fetch/浏览器自动根据 FormData 带正确 boundary。
 export const uploadApi = {
   image: (file: Blob): Promise<UploadImageResult> => {
     const fd = new FormData()

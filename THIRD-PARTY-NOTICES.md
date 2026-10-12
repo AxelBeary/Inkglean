@@ -51,7 +51,6 @@
 | vue / vue-router / vue-i18n | MIT |
 | element-plus / @element-plus/icons-vue | MIT |
 | pinia | MIT |
-| axios | MIT |
 | dompurify | Apache-2.0 / MPL-2.0 双许可 |
 | simple-icons | CC0-1.0 |
 | vuedraggable | MIT |
@@ -157,4 +156,4 @@ Get-Content "$env:USERPROFILE\.cargo\registry\src\index.crates.io-*\serde-1.0.22
 
 ---
 
-*最后更新：2026-10-12（依赖警报清零批：dompurify 3.4.13→3.4.16 实测复核，许可不变；本批为四端锁的 PATCH 档定点刷新（无新增依赖、无许可变更）。此前：2026-09-12 审计第 2 批 F-12：补登 @simplewebauthn/server / isomorphic-dompurify（含其内嵌 dompurify 的双许可）/ ajv / qrcode 前端侧 / serde 与 serde_json，全部许可实测；登记口径改为「五端 manifest 运行时直接依赖 + Rust 直接 crate」并写死实测方法；第六节重新生成命令补齐五端与 Rust；顺带修 simpleIcons 扩展名、幽灵截图目录、pinia 两端版本差异、windows crate 用途漏项。再前：2026-08-26 桌面端本地核心环波1 新增 tauri-plugin-sql 登记；同日正式图标批与 notification / global-shortcut / single-instance；2026-08-20 新增 tesseract.js 依赖与运行时 CDN 说明、chart.js 依赖与 oimimo-scheduler 设计参考致谢）*
+*最后更新：2026-10-12（依赖警报清零批：前端 HTTP 层拆掉 axios 改浏览器原生 fetch（运行时直接依赖减一项，本表同步删除 axios 行），dompurify 3.4.13→3.4.16 实测复核；本批为四端锁的 PATCH 档定点刷新与一项依赖移除，无新增依赖、无许可变更。此前：2026-09-12 审计第 2 批 F-12：补登 @simplewebauthn/server / isomorphic-dompurify（含其内嵌 dompurify 的双许可）/ ajv / qrcode 前端侧 / serde 与 serde_json，全部许可实测；登记口径改为「五端 manifest 运行时直接依赖 + Rust 直接 crate」并写死实测方法；第六节重新生成命令补齐五端与 Rust；顺带修 simpleIcons 扩展名、幽灵截图目录、pinia 两端版本差异、windows crate 用途漏项。再前：2026-08-26 桌面端本地核心环波1 新增 tauri-plugin-sql 登记；同日正式图标批与 notification / global-shortcut / single-instance；2026-08-20 新增 tesseract.js 依赖与运行时 CDN 说明、chart.js 依赖与 oimimo-scheduler 设计参考致谢）*
