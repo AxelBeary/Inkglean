@@ -1,13 +1,14 @@
-// api 拦截器 401 分流测试（824：TOTP_BIND_REQUIRED 登出 + 旗标带到登录页）
+// api 请求核 401 分流测试（824：TOTP_BIND_REQUIRED 登出 + 旗标带到登录页）
 // 覆盖：绑定失效码触发登出并写旗标；已在登录页不写旗标；白名单码不登出；普通 401 登出不写旗标
+// 2026-10-12 拆 axios 批：驱动方式由「axios adapter 直接 reject AxiosError」改为「stub 全局 fetch 返回 401 + JSON 错误体」，
+// 四条断言语义与覆盖面原样保留（本文件只换驱动管道，不放松任何断言）
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { AxiosError } from 'axios'
-import type { AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { TOTP_BIND_REQUIRED_NOTICE_KEY } from '../../constants/auth'
 
 const h = vi.hoisted(() => ({
   push: vi.fn(),
   reset: vi.fn(),
+  fetch: vi.fn(),
   routeName: 'ArtistDashboard'
 }))
 
@@ -34,40 +35,38 @@ vi.mock('../../router/index.js', () => ({
 
 import api from '../index'
 
-/** 构造带业务错误码的 401 AxiosError（与后端 AppError 形状 { code, error } 对齐） */
-function make401(code?: string): AxiosError {
-  const config = {} as InternalAxiosRequestConfig
-  const response = {
-    data: code ? { code, error: 'raw-server-message' } : {},
+/** 构造带业务错误码的 401 响应（与后端 AppError 形状 { code, error } 对齐） */
+function make401(code?: string): Response {
+  return new Response(code ? JSON.stringify({ code, error: 'raw-server-message' }) : '', {
     status: 401,
     statusText: 'Unauthorized',
-    headers: {},
-    config
-  } as AxiosResponse
-  return new AxiosError('Request failed with status code 401', AxiosError.ERR_BAD_RESPONSE, config, undefined, response)
+    headers: { 'Content-Type': 'application/json' }
+  })
 }
 
-/** 用自定义 adapter 直发拒绝，驱动响应拦截器错误分支 */
+/** 用 stub 的 fetch 直发 401，驱动请求核的错误分支 */
 function fire401(code?: string): Promise<unknown> {
-  return api
-    .get('/probe', { adapter: () => Promise.reject(make401(code)) })
-    .catch((err: unknown) => err)
+  h.fetch.mockResolvedValue(make401(code))
+  return api.get('/probe').catch((err: unknown) => err)
 }
 
 beforeEach(() => {
   h.push.mockClear()
   h.reset.mockClear()
+  h.fetch.mockReset()
   h.routeName = 'ArtistDashboard'
   localStorage.clear()
   sessionStorage.clear()
   localStorage.setItem('artist_logged_in', '1')
+  vi.stubGlobal('fetch', h.fetch)
 })
 
 afterEach(() => {
+  vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
 
-describe('api 拦截器 401 分流（824）', () => {
+describe('api 请求核 401 分流（824）', () => {
   it('TOTP_BIND_REQUIRED（非登录页）：触发登出 + 写旗标 + 跳登录页，错误对象带 code', async () => {
     const err = (await fire401('TOTP_BIND_REQUIRED')) as { code?: string }
 

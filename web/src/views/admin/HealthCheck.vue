@@ -237,7 +237,7 @@ async function downloadReport() {
     // httpOnly cookie 随同源 GET 请求自动携带；带 credentials 与拦截器语义一致
     const res = await fetch('/api/admin/health/download', { credentials: 'include', signal: controller.signal })
     if (!res.ok) {
-      // 401 → 与 axios 拦截器一致：清会话并跳登录
+      // 401 → 与 api 请求核（web/src/api/modules/http.ts）一致：清会话并跳登录
       if (res.status === 401) {
         store.logout()
         window.location.href = '/login'

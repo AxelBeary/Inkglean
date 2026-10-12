@@ -21,7 +21,7 @@ const h = vi.hoisted(() => ({
   enterArtistScope: vi.fn()
 }))
 
-// 真实 api 模块会建 axios 实例并挂拦截器，测试只需拦截这一次写入
+// 真实 api 模块会建 fetch 请求核并挂错误处理，测试只需拦截这一次写入
 vi.mock('../../../api/index.js', () => ({
   setupApi: { setOnboardingMode: (...a: unknown[]) => h.setOnboardingMode(...a) }
 }))

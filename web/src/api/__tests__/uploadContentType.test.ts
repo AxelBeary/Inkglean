@@ -1,4 +1,4 @@
-// WEB-11 回归测试：upload API 不得手动设 Content-Type（让 axios/浏览器自动带 boundary）
+// WEB-11 回归测试：upload API 不得手动设 Content-Type（让 fetch/浏览器自动带 boundary）
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 interface PostJsonCall {

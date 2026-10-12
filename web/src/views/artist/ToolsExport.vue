@@ -164,11 +164,11 @@ async function doExport() {
   const [from, to] = range.value
   exporting.value = true
   emptyHint.value = false
-  // 05D-E1: CSV blob 下载保留 fetch（不经 JSON 拦截器），但补 15s 超时 + 401 登出（对齐 axios 拦截器行为）
+  // 05D-E1: CSV blob 下载保留 fetch（不经 JSON 请求核），但补 15s 超时 + 401 登出（对齐 api 层错误处理行为）
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 15000)
   try {
-    // token 在 httpOnly cookie → 必须带 credentials；CSV 走 blob 下载（不经过 axios JSON 拦截器）
+    // token 在 httpOnly cookie → 必须带 credentials；CSV 走 blob 下载（不经过 api 请求核的 JSON 解包）
     const res = await fetch(`/api/artist/tools/export.csv?from=${from}&to=${to}`, { credentials: 'include', signal: controller.signal })
     if (!res.ok) {
       // 05D-E1: 401 → 与拦截器一致清认证并跳登录
