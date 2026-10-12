@@ -80,6 +80,17 @@ function decls(body) {
   return out;
 }
 
+// 循环删除 <style> 块，两轮结果相同即停：单遍正则可被重叠结构绕过（CodeQL #32 js/incomplete-multi-character-sanitization）。
+// 例：'<sty<style>x</style>le>' 单遍删除后仍残 '<style>'；此处的 template 只用于静态分析的模板区近似，不改变真实文件的判定口径
+function stripStyleBlocks(text) {
+  let cur = text;
+  for (;;) {
+    const next = cur.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+    if (next === cur) return next;
+    cur = next;
+  }
+}
+
 // ---------- 装载 ----------
 const loaded = files.map((f) => ({ f, text: fs.readFileSync(f, 'utf8') }));
 for (const o of loaded) {
@@ -88,7 +99,7 @@ for (const o of loaded) {
     o.rules.push(...collectRules(stripComments(blk), null));
   }
   // 模板内联 style（去掉 <style> 块后的部分，近似模板/脚本区）
-  o.template = /\.vue$/i.test(o.f) ? o.text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') : '';
+  o.template = /\.vue$/i.test(o.f) ? stripStyleBlocks(o.text) : '';
 }
 
 // ---------- R1 字号跟随 ----------
