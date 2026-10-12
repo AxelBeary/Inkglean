@@ -46,6 +46,7 @@ type "%TMP_OUT%" >> "%BACKUP_LOG%"
 if not "%BACKUP_CODE%"=="0" (
   powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\backup-log.ps1" -LogPath "%BACKUP_LOG%" -Message "DB_BACKUP_FAILED"
   del "%TMP_OUT%" >nul 2>&1
+  call :u01_watchdog
   exit /b 1
 )
 
@@ -57,6 +58,7 @@ if not defined VERIFY_TARGET (
   powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\backup-log.ps1" -LogPath "%BACKUP_LOG%" -Message "BACKUP_ARTIFACT_NOT_FOUND"
   echo - FAILED to parse BACKUP_OK from npm run backup output, backup artifact unverified >> "%BACKUP_LOG%"
   del "%TMP_OUT%" >nul 2>&1
+  call :u01_watchdog
   exit /b 1
 )
 
@@ -66,12 +68,14 @@ if errorlevel 1 (
   powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\backup-log.ps1" -LogPath "%BACKUP_LOG%" -Message "VERIFY_SKIPPED_NODE_MISSING: node not found on host, cannot verify backup, aborting"
   echo - Next: install Node.js 22.6+ or run from a machine with node on PATH, then re-run >> "%BACKUP_LOG%"
   del "%TMP_OUT%" >nul 2>&1
+  call :u01_watchdog
   exit /b 1
 )
 node scripts\verify-backup.mjs "%VERIFY_TARGET%" >> "%BACKUP_LOG%" 2>&1
 if errorlevel 1 (
   powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\backup-log.ps1" -LogPath "%BACKUP_LOG%" -Message "VERIFY_FAILED: backup artifact failed integrity check, aborting deploy chain"
   del "%TMP_OUT%" >nul 2>&1
+  call :u01_watchdog
   exit /b 1
 )
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\backup-log.ps1" -LogPath "%BACKUP_LOG%" -Message "VERIFY_OK_RECORDED"
@@ -81,6 +85,7 @@ docker compose exec -T web npm --prefix /app/server run backup:uploads >> "%BACK
 if errorlevel 1 (
   powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\backup-log.ps1" -LogPath "%BACKUP_LOG%" -Message "UPLOADS_BACKUP_FAILED"
   del "%TMP_OUT%" >nul 2>&1
+  call :u01_watchdog
   exit /b 1
 )
 
@@ -101,3 +106,20 @@ if errorlevel 1 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0script
 :after_weekly
 
 del "%TMP_OUT%" >nul 2>&1
+
+rem ---- 5) U01 backup freshness watchdog (read-only report, appended last) ----
+rem Runs after every branch above (success path here, abort paths via "call :u01_watchdog").
+call :u01_watchdog
+exit /b 0
+
+rem ---- U01 watchdog subroutine: never changes the chain result, never writes outside the log ----
+:u01_watchdog
+where node >nul 2>&1
+if errorlevel 1 (
+  powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\backup-log.ps1" -LogPath "%BACKUP_LOG%" -Message "U01_WATCHDOG_SKIPPED_NODE_MISSING"
+  goto :eof
+)
+node "%~dp0scripts\U01-backup-freshness.mjs" --repo "%~dp0." --no-task >> "%BACKUP_LOG%" 2>&1
+set "U01_CODE=%ERRORLEVEL%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\backup-log.ps1" -LogPath "%BACKUP_LOG%" -Message "U01_WATCHDOG_CODE=%U01_CODE%"
+goto :eof

@@ -82,6 +82,17 @@ e2e/smoke-*.db*
 e2e/smoke-*uploads*/
 server/data/d3-verify.tmp.db
 
+# 工具铺取入的自检/扫描工具（scripts/U0*）运行产物，可再生，勿入库（2026-09-30 取货批）
+scripts/U01-freshness-board.html
+scripts/U01-freshness-last.json
+scripts/U01-report.html
+
+# U02 并行车道扫描运行产物（同上，一跑即脏 git status，2026-10-12 补）
+scripts/U02-现场清单-*.md
+scripts/U02-现场清单-*.html
+scripts/reports/
+scripts/scan-latest.txt
+
 # 本机配置备份（含密钥，严禁入库）
 .env.bak*
 

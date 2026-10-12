@@ -6,6 +6,14 @@
 > - 滚动分册：活档体积门 `scripts/check-changelog-size.mjs`（≤40KB / ≤450 行，单段 ≤4KB，accept 第 19 道）；撞线即搬 oldest 段入 `docs/changelog-archive/` 新卷（整段零改动 + 逐行哈希校验，禁调高阈值续命）。
 > - v0.x 时代（v0.1~v0.46+）全量台账在 `docs/changelog-archive/changelog-v0-20260927.md`，只读历史。
 
+## 工具铺认领批补入库：U01/U02/U25/U33/U44 自检扫描工具落 scripts/（2026-10-12，漏提交收口，零业务代码）
+
+- 现场核实：16 个脚本 + `.gitignore`/`daily-backup.bat` 两笔改动在位（mtime 2026-09-29~09-30），台账 `AGENTS/workspace/temp/toolshop-claim-20260930/` 已有逐件实跑 exit 码与三方合并留痕，但从未 `git add`——属漏提交，按“已拍板已交付”单独一笔入库，不裹挟任何依赖改动。
+- 工具职责：U01 备份新鲜度看门狗（`daily-backup.bat` 五条中止分支 + 成功路径接入，复用 `verify-backup.mjs` 退出码，不改原备份链结果）；U02 并行车道只读扫描与现场清单（判据集中在 `U02-verdict.ps1`，只报不删）；U25 发版数字三源自检（A+B 双闸）；U33 待拍板队列台（产物防越界写 + 敏感串打码）；U44 web 样式平铺清单扫描。
+- 本笔顺手补齐：`.gitignore` 原先漏了 U02 的运行产物（`scripts/U02-现场清单-*.md/html`、`scripts/reports/U02-lane-report-*`、`scripts/scan-latest.txt`），一跑即污染 `git status`，已补 4 行忽略。
+- 有意不入门禁：这批是自取型人工/双击工具，`scripts/accept.ps1` 的 `$gates` 不挂（沿用 09-30 取货批口径）；`docs/**` 与 README 零引用，不存在悬空指针。
+- 遗留（不阻塞）：`U25_root.txt` 与 `U02-verdict.ps1` 已知根名单绑本机工作区路径（换机可用参数覆盖）；U02 系列 .ps1 为 UTF-8 BOM，与仓库既有 .ps1（NO-BOM）风格不一致，PS5.1 认中文无害。
+
 ## 依赖收敛批：brace-expansion/fast-uri 警报清零（2026-09-30，安全报警处置，零业务代码）
 
 - 四端 `package-lock.json` 定点刷新 `npm update brace-expansion fast-uri --package-lock-only`（不改 package.json、不加 overrides、不引新依赖）：brace-expansion 5.0.9→5.0.12 / 2.1.4→2.1.7，fast-uri 3.1.7→3.1.8 / 4.1.4→4.2.1（`^4.0.0` 兼容）。逐锁 diff 13 处全为 be/fast-uri，0 增删包、0 dev 变更，minimatch/eslint/ajv/fast-json-stringify/@playwright/test/tsx/typescript/vitest 未跳版；plain `--package-lock-only` 因锁定版仍满足范围不自愈（server audit 仍报 2），故走定点 update。
