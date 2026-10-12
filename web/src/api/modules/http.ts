@@ -6,6 +6,7 @@
 //   而本项目只用到 params / headers / timeout / FormData 四项能力；桌面端（desktop/src/api）与本页两处 blob 下载早已走 fetch，两端 HTTP 口径就此统一。
 //   迁移红线：**对外行为逐字不变**——URL 前缀与查询串格式、凭 cookie 发请求、成功解包为响应体、错误对象的 status/code/detail 与文案链路、
 //   503 SETUP_REQUIRED 逃逸、401 登出与白名单码，全部按原实现搬移，不夹带语义调整。
+//   唯一语义差（施工图已钉死）：2xx 空体与 204 返 undefined（axios 旧行为是 ''）；实测服务端无任何 204/空体端点（`code(204)` 全仓零命中），对调用点零影响。
 
 import { safeRemoveItem, safeSessionSetItem } from '../../utils/storage'
 import { TOTP_BIND_REQUIRED_NOTICE_KEY } from '../../constants/auth'
@@ -62,19 +63,20 @@ function buildUrl(url: string, params?: object): string {
 
 /**
  * 请求体与 Content-Type：
- * FormData 原样交给浏览器（**绝不手设 Content-Type**——WEB-11 教训：缺 boundary 的 multipart 头是危险反模式），
- * 其余非空数据序列化 JSON 并显式声明 application/json（fastify 按 content-type 选解析器，缺头会被判成无 body）。
+ * FormData 与 Blob 原样交给浏览器，**这两种 body 一律不手设 Content-Type**（WEB-11 教训：缺 boundary 的 multipart 头是危险反模式；
+ * Blob 手设会顶掉它自带的类型），其余非空数据序列化 JSON 并显式声明 application/json（fastify 按 content-type 选解析器，缺头会被判成无 body）。
  */
 function buildBody(data: unknown): { body?: BodyInit; contentType?: string } {
   if (data === undefined || data === null) return {}
-  if (data instanceof FormData) return { body: data }
+  if (data instanceof FormData || data instanceof Blob) return { body: data }
   return { body: JSON.stringify(data), contentType: 'application/json' }
 }
 
-/** 成功响应解包：空体回 ''、JSON 解析成对象、非 JSON 原样回文本（三点均与 axios transformResponse 结果一致） */
+/** 成功响应解包：204 或空体返 undefined，JSON 解析成对象，非 JSON 原样回文本 */
 async function readSuccess<T>(res: Response): Promise<T> {
+  if (res.status === 204) return undefined as unknown as T
   const text = await res.text()
-  if (!text) return '' as T
+  if (!text) return undefined as unknown as T
   try {
     return JSON.parse(text) as T
   } catch {
