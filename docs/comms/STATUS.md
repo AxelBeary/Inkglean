@@ -2,8 +2,8 @@
 
 ## 看板（2026-10-12 第十八次刷新：依赖警报根治批——11 条 Dependabot 处置完（axios 整包删除）+ 四端 audit 全 0 + dependabot.yml 五目录通道落地）
 
-- **HEAD** `c2b3a18e`（批B 拆 axios 改原生 fetch）；同批前三笔 `8c80537a`（批A 四端锁刷新+dependabot.yml）/ `dfaca136`（changelog 分册）/ `0fb3cf82`（工具铺认领批补入库）；本 STATUS 笔在其上，**待用户推送**
-- **基线（accept.ps1 十九道全绿，本批收口复跑）**：server **1847**（159 文件）/ web **981**（143）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
+- **HEAD** 本批代码共两笔：`c2b3a18e`（批B 拆 axios 改原生 fetch）+ `e0d0f0f9`（补 Blob 体与 204/空体解包两条口径）；其前 `8c80537a`（批A 四端锁+dependabot.yml）/ `dfaca136`（changelog 分册）/ `0fb3cf82`（工具铺认领批补入库）；其上只再叠文档销账笔，**待用户推送**
+- **基线（accept.ps1 十九道全绿 @ 收口 HEAD，685s）**：server **1847**（159 文件）/ web **981**（143）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
   - web 因新建 `http.test.ts` 14 例而 +14（142→143 文件），`scripts/accept-baseline.json` 已同步
   - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；本批未动 src-tauri（无需 cargo check）
   - 「门禁全绿」口径仍为**十九道**（用户未采纳第 20 道 audit 门禁）
@@ -72,7 +72,7 @@
 > - **批A `8c80537a`**：四端锁 PATCH 定点刷新（fastify 5.12.5 / sharp 0.35.5 / busboy 3.2.3 / dompurify 3.4.16 / vue 3.5.43 / source-map-js 1.2.2 / postcss-selector-parser 7.1.6）；77 条目全 PATCH、0 major 0 增删。
 > - **批B `c2b3a18e`**：`web/src/api/modules/http.ts` 由 axios 实例+拦截器改为浏览器原生 fetch，对外契约逐字不变（251 处 helper 调用点与全部 view/store 不动）；锁内 axios 及传递依赖共 25 包移除。
 > - **测试**：新增 `http.test.ts` 14 例防再发锁；`bindRequired401` 只换驱动管道不改断言；web 967→981，`accept-baseline.json` 已同步。
-> - **验证**：accept.ps1 十九道全绿（server 1847 / web 981 / desktop 538 / shared 27 / E2E 14）；五处 npm audit 归零；五条链路真机验通（登录 / 客户建单含查单链接 / 图片上传 / CSV 导出 / 管理后台含二次验证与筛选），控制台零 error、零脏查询串。
+> - **验证**：accept.ps1 十九道全绿（685s；server 1847 / web 981 / desktop 538 / shared 27 / E2E 14）；五处 npm audit 归零；五条链路真机验通（登录 / 客户建单含查单链接 / 图片上传 / CSV 导出 / 管理后台含二次验证与筛选），控制台零 error、零脏查询串。
 > - **机制**：新增 `.github/dependabot.yml`（五目录 / 周一 02:00 / minor+patch 合并单 PR / major 不自动出）；PR #13/#14 已关并写明理由，开放 PR 归零。
 > - **同批前置两笔**：`0fb3cf82` 工具铺认领批补入库（侦察兵定性：已拍板、已逐件实跑、已三方合并，唯独从未 git add）；`dfaca136` changelog 撞 40KB 线，最旧两段整搬新分册（逐行哈希零丢失）。
 > - **踩坑两条**：`npm update --package-lock-only` 会连 `node_modules/.package-lock.json` 一起改，导致后续 `npm install` 误判 up-to-date 而磁盘仍旧版；`params` 收窄成 `Record` 会让无索引签名的 interface 编译不过。
