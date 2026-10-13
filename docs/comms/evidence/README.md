@@ -26,3 +26,4 @@ gitignore，一次性取证目录随 cleanup 批次清除（先例见 9/29 记�
 |---|---|
 | `证据-记忆库维护批-20260929.md` | 待办 U23/U24（D12/D10 未拍板）；STATUS 9/29 记忆库维护批条 |
 | `证据-依赖警报根治批-20261012.md` | STATUS 10/12 依赖警报根治批条与看板；待办新增两条依赖技术债（isomorphic-dompurify major、tsx 生产依赖链） |
+| `证据-PR与警报治理批-20261013.md` | STATUS 10/13 批条与看板；desktop/docs/STATUS.md 成对升级条；待办 U30 销账、新立 U31/U32 |
