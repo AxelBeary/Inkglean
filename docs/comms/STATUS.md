@@ -20,7 +20,7 @@
 
 1. ✅ **U30 已执行**（两份 PR 发落）：#16 先合并自动关警报 #83；#15 在 bot 分支补齐后合入；合入后新通道当日又出 #17（3 项 patch），本地十九道全绿 @ `c39d14e6` 后一并合入——全程零 dismiss
 2. 🔴 **STATUS 正文已溢到 8 块**（体例只留最新 5）：`9/17 审计缺陷波1+波2`、`9/25 今天吃什么`、`9/27 黄红灯` 三块应整搬 archive 子目录（逐字零丢失校验），属高风险文本搬动——**单独一批，等你放行**
-3. **待你拍板的技术债（本批只登记不动）**：U25 isomorphic-dompurify 3.22.0→4.5.0（major）；U26 server 以 tsx 作生产依赖
+3. **待你拍板的技术债（本批只登记不动）**：U25 isomorphic-dompurify 3.22.0→4.5.0（major）；U26 server 以 tsx 作生产依赖；U33 桌面发版流水线从未跑过（缺 vars/secrets，首版必红）
    - **新 U31** 桌面工具链与 web/shared 收敛（typescript 5.6 + vue-tsc 2.x 一起对齐）
    - **新 U32** 桌面 capabilities 两处既有缺口 `sql:allow-execute` / `opener:allow-open-path`
 4. **桌面端 UI 终验待你过目**：本批把桌面壳真机起到过（dev 编译 + 进程存活 + 零 panic），但标题栏拖拽、托盘左键、通知弹窗、原生文件选择器、本地记账读写这几项只有你能在真窗上判定，清单见正文首条「待你终验」
@@ -104,7 +104,11 @@
 >   本地记账读写与跨窗广播、撕悬浮三窗。代理侧只证到「能起壳、无 Rust 报错、无权限报错」。
 > - **遗留转待拍板**：U31 桌面工具链与 web/shared 收敛；U32 capabilities 两处既有缺口 `sql:allow-execute` / `opener:allow-open-path`；
 >   U25 isomorphic-dompurify major；U26 server tsx 生产依赖；U27 STATUS 溢文归档（本批后正文 8 块）。
-> - **体积提示**：changelog 活档本批顶插后实测 **39503 B / 278 行**，已逼近 40KB 线；下批顶插前先按口径把最旧段整搬分册（逐行哈希零丢失），不要等撞线再做。
+> - **发版路径实跑（收口后补）**：本机 `npx tauri build --bundles nsis` 已验到两件事——release 编译通过（1m07s）与 **CLI 版本比对闸不报错**（日志进到 `Info Patching ... nsis` / `Verifying NSIS package`）；
+>   卡在从 GitHub 下 NSIS 工具链（本机网络两次失败：TLS 意外断连 / global timeout），属环境不是代码。另 `cargo tree -i rustls` 实测 rustls 0.23.45 单副本且确实经 updater←reqwest 可达。
+> - **顺手探明的发版前置缺口（新立 U33）**：`desktop-release.yml` 运行记录为零、仓库 vars/secrets 各 0 条、无 `desktop-v*` tag；
+>   且 conf 无 `bundle.createUpdaterArtifacts` 而流水线硬找 `*.nsis.zip`（官方口径只有 `"v1Compatible"` 才出该命名）——首版发布前须先配好，代理代不了。
+> - **体积提示**：changelog 活档本批收口后实测 **40524 B / 283 行**（阀值 40KB / 450 行），只剩不到 450 字节的余量；下批顶插前**先按口径把最旧段整搬分册**（逐行哈希零丢失），不要等撞线再做。
 > - **入库证据锚**：`docs/comms/evidence/证据-PR与警报治理批-20261013.md`；本机详单 `AGENTS/deps-pr15-pairing-20261013/`。
 > - **当日续单**：#15 合入后新通道按新配置立即重算，交出 #17（server @fastify/static 10.1.5→10.1.6、web vue-i18n 11.4.13→11.4.14、prettier 3.9.9→3.9.10，均为上游刚发的 patch）；
 >   本地十九道全绿 @ `c39d14e6`（593s）+ CI 六项绿后合入。终态：开放警报 0、CodeQL 0、开放 PR 0；桌面 `@tauri-apps/*` 屏蔽后 #17 果然不再碰 JS SDK，关闸生效首证。
