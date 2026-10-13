@@ -2,8 +2,9 @@
 
 ## 看板（2026-10-13 第十九次刷新：PR 与警报治理批——#15/#16 落地 + Tauri JS↔Rust 成对升级 + 警报归零）
 
-- **HEAD 与推送**：本批三笔施工提交落在 Dependabot PR #15 分支（成对升级 / web 修复 / 桌面 TS 退回），代码 HEAD `5e91cb44`；#16 已先行合入 master（`7e6435f5`）
-- **基线（accept.ps1 十九道全绿 @ `5e91cb44`，563s）**：server **1847**（159 文件）/ web **982**（143）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
+- **HEAD 与推送**：本批施工提交（成对升级 / web 修复 / 桌面 TS 退回 / 审查回写）全部落在 Dependabot PR #15 分支，收口 HEAD `d549798b`；#16 已先行合入 master（`7e6435f5`）
+- **基线（accept.ps1 十九道全绿 @ `d549798b`，含声明层收口笔）**：server **1847**（159 文件）/ web **982**（143）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
+  - 首跑在代码三笔 `5e91cb44`（563s），审查回写后再跑一遍同样全绿；本行只改看板数字，三道文档防阀另跑绿
   - web +1：`ManualOrderLeft.refUpload.test.ts` 补 on-exceed 哨兵，`scripts/accept-baseline.json` 已同步
   - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；「门禁全绿」口径仍为**十九道**
 - **警报与 PR 归零**：#83 rustls 随 #16 **自动转 fixed（零 dismiss）**；#15 合入后 Dependabot open=0、CodeQL open=0
@@ -97,7 +98,7 @@
 > - **子代理交叉核验后补的两笔回写**：分组 PR 夹带的 **44 处传递依赖跳 major** 逐条清点并登记为已评审可接受（进生产包的只 @vueuse/core 与 content-disposition，两项均已核无害）；
 >   `THIRD-PARTY-NOTICES.md` 实测回写 @simplewebauthn/server 13.3.2→13.3.3；`accept-baseline.json` 的 note/updatedAt 跟到 10-13；`AGENTS.md` 验证清单补上 tauri info 那一口；`docs/CONTEXT.md` 去掉写死的 E2E 条数。
 > - **验证**：`cargo check` exit=0；`npx tauri info` 无 mismatch；`npm run tauri dev` 起壳成功、`desktop.exe` 存活、日志零 panic 零 unknown permission；
->   **accept.ps1 十九道全绿 @ `5e91cb44`（563s：server 1847 / web 982 / desktop 538 / shared 27 / E2E 14）**；五目录 `npm audit` 全 0；
+>   **accept.ps1 十九道全绿 @ `d549798b`（再跑一遍也绿：server 1847 / web 982 / desktop 538 / shared 27 / E2E 14；首跑在代码三笔 `5e91cb44`，563s）**；五目录 `npm audit` 全 0；
 >   磁盘实装核对 typescript 5.6.3 / vue-tsc 2.2.12 / @tauri-apps 逐条同号；真浏览器冒烟：6 张参考图全不入队 + 弹「最多上传5张参考图」+ 控制台零 error。
 > - **待你终验（只有真窗能判）**：标题栏拖拽/最小/最大/还原/关闭、托盘左键与菜单、通知是否重复弹、原生文件选择器 open/save、
 >   本地记账读写与跨窗广播、撕悬浮三窗。代理侧只证到「能起壳、无 Rust 报错、无权限报错」。
