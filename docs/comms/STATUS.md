@@ -99,7 +99,9 @@
 >   `THIRD-PARTY-NOTICES.md` 实测回写 @simplewebauthn/server 13.3.2→13.3.3；`accept-baseline.json` 的 note/updatedAt 跟到 10-13；`AGENTS.md` 验证清单补上 tauri info 那一口；`docs/CONTEXT.md` 去掉写死的 E2E 条数。
 > - **验证**：`cargo check` exit=0；`npx tauri info` 无 mismatch；`npm run tauri dev` 起壳成功、`desktop.exe` 存活、日志零 panic 零 unknown permission；
 >   **accept.ps1 十九道全绿 @ `d549798b`（再跑一遍也绿：server 1847 / web 982 / desktop 538 / shared 27 / E2E 14；首跑在代码三笔 `5e91cb44`，563s）**；五目录 `npm audit` 全 0；
->   磁盘实装核对 typescript 5.6.3 / vue-tsc 2.2.12 / @tauri-apps 逐条同号；真浏览器冒烟：6 张参考图全不入队 + 弹「最多上传5张参考图」+ 控制台零 error。
+>   磁盘实装核对 typescript 5.6.3 / vue-tsc 2.2.12 / @tauri-apps 逐条同号（声明=磁盘=crate 三方全等）；
+>   真浏览器冒烟三轮（临时件跑完即删）：6 张参考图全不入队 + 弹「最多上传5张参考图」；收入导出真下 CSV（落盘含播种金额）；参考图上传成功路径且头为带 boundary 的 multipart；
+>   截图两张存 `AGENTS/deps-pr15-pairing-20261013/smoke-*.png` 并已目视核对。登录/Passkey/管理员 step-up 由 E2E 14 例在真实 Chromium 下覆盖。
 > - **待你终验（只有真窗能判）**：标题栏拖拽/最小/最大/还原/关闭、托盘左键与菜单、通知是否重复弹、原生文件选择器 open/save、
 >   本地记账读写与跨窗广播、撕悬浮三窗。代理侧只证到「能起壳、无 Rust 报错、无权限报错」。
 > - **遗留转待拍板**：U31 桌面工具链与 web/shared 收敛；U32 capabilities 两处既有缺口 `sql:allow-execute` / `opener:allow-open-path`；
