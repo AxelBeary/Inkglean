@@ -7,6 +7,13 @@
 #   3. 同批 minor + patch 合并成一个 PR（grouped），一次门禁覆盖一次合并。
 #   4. major 不出自动 PR——破坏性跳版没有无人评审直接合入的份，需要升级时由人另立批次评估。
 # 与仓库 Settings → Security 侧的 Dependabot security alerts / security updates 共存：本文件只管 version updates。
+# 2026-10-13 增补（桌面端两条成对约束，PR #15 复盘换来的，详见 desktop/docs/STATUS.md）：
+#   5. `/desktop` 拆独立条目并屏蔽 `@tauri-apps/*` 与 `typescript`——Tauri 官方要求 JS SDK 与 Rust crate
+#      成对（核心同 minor、插件精确同号，https://v2.tauri.app/develop/updating-dependencies/ ），本文件只跑
+#      npm 生态、天然无法成对；该比对只在 `tauri build/dev/info` 触发，CI 四 job 碰不到，等于把雷埋到发版。
+#      桌面端 typescript 与该端仍停在 2.x 的 vue-tsc 是绑定组合，收敛到 web/shared 那套属单独一批（待办 U31）。
+#   6. Rust 侧（Cargo）不建 version updates 通道：同上理由，crate 只允许与 npm 成对手工升；
+#      漏洞类更新走 Security 侧自动 PR（首例：rustls #16 / 警报 #83）。
 version: 2
 updates:
   - package-ecosystem: npm
@@ -14,7 +21,6 @@ updates:
       - "/"
       - "/server"
       - "/web"
-      - "/desktop"
       - "/shared"
     schedule:
       interval: weekly
@@ -36,3 +42,31 @@ updates:
       - dependency-name: "*"
         update-types:
           - version-update:semver-major
+      # 桌面 Tauri 全家桶只人工成对升（本项对上面四个目录是防御性冗余，包只在 /desktop 出现）
+      - dependency-name: "@tauri-apps/*"
+
+  # 桌面端单列：与 src-tauri 的 Cargo.lock 存在跨语言成对约束，自动通道只能动一边，故摘出关键耦合项
+  - package-ecosystem: npm
+    directory: "/desktop"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "02:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - javascript
+    groups:
+      npm-minor-patch-desktop:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+      - dependency-name: "@tauri-apps/*"
+      - dependency-name: "typescript"
