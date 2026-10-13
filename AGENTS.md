@@ -31,7 +31,7 @@ STATUS 是每次开工的固定阅读成本（曾实测：单行最长 3900 字�
 | 后端改动 | `cd server && npm run typecheck && npm run lint && npm test` |
 | 前端改动 | `cd web && npm run lint && npm run test:web && npm run check:i18n && npm run build` |
 | 涉及端到端流程 | 仓库根目录 `npm run test:e2e` |
-| 桌面端改动 | `cd desktop && npm run lint && npm run test && npm run build` + `cd desktop/src-tauri && cargo check`（已进 CI `desktop` job） |
+| 桌面端改动 | `cd desktop && npm run lint && npm run test && npm run build` + `cd desktop/src-tauri && cargo check`（已进 CI `desktop` job）；**动 `@tauri-apps/*` JS 或 `src-tauri/` 时另跑 `npx tauri info`**（在 `desktop/` 下）——官方要求 JS↔Rust 成对（核心同 minor、插件精确同号），该比对只在 tauri CLI 触发，CI 四 job 与 accept.ps1 十九道都查不到（10-13 靠 Dependabot 单边跳版换来的） |
 | 桌面端 UI/布局改动 | 四端门禁之上，另跑 `huiyue-layout-audit` 自检循环（宿主级技能，住 `%USERPROFILE%\.agents\skills\huiyue-layout-audit\`，不在仓库属正常；VL 评审通道不可用时只能 measure.mjs + 人工逐项清单） |
 | 共享层改动（`shared/`） | `cd shared && npm run lint && npm run test && npm run typecheck`，并回 `web`、`desktop` 各跑一次 build |
 

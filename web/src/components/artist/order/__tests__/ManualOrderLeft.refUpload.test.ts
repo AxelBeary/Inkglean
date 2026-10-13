@@ -3,7 +3,9 @@
 //   1. v-model:file-list 双向绑定（粘贴推入的项被 EP 渲染）
 //   2. 粘贴上限使用 uploadedRefs.length（拖拽成功后粘贴正确计数）
 //   3. 先拖 3 再粘 3 → 第 6 张被阻止（核心缺陷场景）
-//   4. 达上限后 el-upload on-exceed 软提示 manualOrder.refExceed（模板挂裸标识符 handler 的哨兵）
+//   4. 达上限后 el-upload on-exceed 软提示 manualOrder.refExceed（行为契约哨兵）
+//      注：本例只锁「超限→恰好一次中文软提示」这条行为；「模板区禁写内联箭头访问 import 绑定」的
+//      **形态**由 `web lint` 里的 `vue-tsc --noEmit` 保护（vue-tsc 3.3.12 dotValue 回归会在写法退回时报 TS2339），别指望这例能防回退
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import ElementPlus, { ElMessage } from 'element-plus'

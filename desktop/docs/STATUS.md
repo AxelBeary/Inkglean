@@ -33,6 +33,10 @@
 >   两处**既有**缺口转待拍板 U32：`sql:default` 不含 `allow-execute`（本仓 `bridge/db.ts` 建表走 execute）、`opener:default` 不含 `allow-open-path`（`bridge/index.ts` 走 openPath）——升级前后口径相同，非本批引入。
 > - **机制关闸（防下周复发）**：`.github/dependabot.yml` 将 `/desktop` 拆为独立条目并 ignore `@tauri-apps/*` 与 `typescript`（主条目另加 `@tauri-apps/*`）；
 >   Rust 侧**不建** version updates 通道，漏洞类更新继续走 Security 侧自动 PR（首例：rustls #16，警报 #83 已自动转 fixed）。
+> - **声明层收口（工单审查后补）**：`desktop/package.json` 里 `@tauri-apps/api` 与五个插件由裸 `^2` 改为**精确版本**
+>   （api 2.12.2 / dialog 2.8.1 / notification 2.5.1 / opener 2.7.0 / sql 2.5.0 / updater 2.13.2），与 Cargo.lock 同号——
+>   以前“JS↔Rust 同号”只靠 lockfile 承载，人手一条 `npm install` 就能把 JS 单推而 `npm ci`/CI 看不出；关闸只挡得住机器人。
+>   `@tauri-apps/cli`（devDep、独立发版、无 crate 对子）保持 `^2`。实跑：`npm install` 后锁仅变 6 行 specifier，解析版本零变动。
 > - **待用户终验（代理证不到那一层）**：自绘标题栏拖拽/最小/最大/还原/关闭、托盘左键与菜单回调、通知弹窗次数、原生文件选择器 open/save、
 >   本地 SQLite 建表→写→读→跨窗广播、撕悬浮三窗与 window-state denylist、`asset:` 图在新 wry 下可加载。
 > - **遗留**：U31 桌面工具链与 web/shared 收敛（typescript 5.6 + vue-tsc 2.x → 5.9 + 3.3，属 major 级、单独一批）；tauri 2.12.3 补丁与 cli 2.12.2 未取（成对口径取与 npm 同号的 2.12.2）。
