@@ -7,7 +7,7 @@
   - 首跑在代码三笔 `5e91cb44`（563s），审查回写后再跑一遍同样全绿；本行只改看板数字，三道文档防阀另跑绿
   - web +1：`ManualOrderLeft.refUpload.test.ts` 补 on-exceed 哨兵，`scripts/accept-baseline.json` 已同步
   - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；「门禁全绿」口径仍为**十九道**
-- **警报与 PR 归零**：#83 rustls 随 #16 **自动转 fixed（零 dismiss）**；#15 合入后 Dependabot open=0、CodeQL open=0
+- **警报与 PR 归零**：#83 rustls 随 #16 **自动转 fixed（零 dismiss）**；#15/#17 均已合入，现 Dependabot open=0、CodeQL open=0、开放 PR=0（master `601e8947`）
 - **本批动了 Rust**（`desktop/src-tauri/Cargo.lock` 成对升级）：tauri 2.12.2、updater 2.13.2、sql 2.5.0、notification 2.5.1、dialog 2.8.1、opener 2.7.0
   - 连带 wry 0.57.0 / tao 0.37.1 / muda 0.20.0 / tray-icon 0.25.1 / plugin-fs 2.7.0；四个无 npm 对子的 Rust-only 插件不动
   - 本地实测：`cargo check` exit=0、`npx tauri info` 无 mismatch 且插件逐条同号、`npm run tauri dev` 起壳成功零 panic
@@ -18,7 +18,7 @@
 
 **下一步（按优先级）**
 
-1. ✅ **U30 已执行**（两份 PR 发落）：#16 已合入并自动关闭警报 #83；#15 由本代理在其 bot 分支上补齐后合并，全程未手工 dismiss
+1. ✅ **U30 已执行**（两份 PR 发落）：#16 先合并自动关警报 #83；#15 在 bot 分支补齐后合入；合入后新通道当日又出 #17（3 项 patch），本地十九道全绿 @ `c39d14e6` 后一并合入——全程零 dismiss
 2. 🔴 **STATUS 正文已溢到 8 块**（体例只留最新 5）：`9/17 审计缺陷波1+波2`、`9/25 今天吃什么`、`9/27 黄红灯` 三块应整搬 archive 子目录（逐字零丢失校验），属高风险文本搬动——**单独一批，等你放行**
 3. **待你拍板的技术债（本批只登记不动）**：U25 isomorphic-dompurify 3.22.0→4.5.0（major）；U26 server 以 tsx 作生产依赖
    - **新 U31** 桌面工具链与 web/shared 收敛（typescript 5.6 + vue-tsc 2.x 一起对齐）
@@ -106,6 +106,8 @@
 >   U25 isomorphic-dompurify major；U26 server tsx 生产依赖；U27 STATUS 溢文归档（本批后正文 8 块）。
 > - **体积提示**：changelog 活档本批顶插后实测 **39503 B / 278 行**，已逼近 40KB 线；下批顶插前先按口径把最旧段整搬分册（逐行哈希零丢失），不要等撞线再做。
 > - **入库证据锚**：`docs/comms/evidence/证据-PR与警报治理批-20261013.md`；本机详单 `AGENTS/deps-pr15-pairing-20261013/`。
+> - **当日续单**：#15 合入后新通道按新配置立即重算，交出 #17（server @fastify/static 10.1.5→10.1.6、web vue-i18n 11.4.13→11.4.14、prettier 3.9.9→3.9.10，均为上游刚发的 patch）；
+>   本地十九道全绿 @ `c39d14e6`（593s）+ CI 六项绿后合入。终态：开放警报 0、CodeQL 0、开放 PR 0；桌面 `@tauri-apps/*` 屏蔽后 #17 果然不再碰 JS SDK，关闸生效首证。
 
 
 >  📌 **2026-10-12 依赖警报根治批（用户拍板三项：拆 axios / 四端 audit 全清零 / 加 dependabot.yml；含 web HTTP 层重写）**
