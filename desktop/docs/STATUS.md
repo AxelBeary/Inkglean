@@ -1,15 +1,45 @@
 # 桌面端（拾绘桌面版）子项目状态
 
-## 看板（2026-09-27 刷新：U18 归档批搬动 40 块；此前看板滞后约 22 天）
+## 看板（2026-10-13 刷新：PR 与警报治理批——桌面端 Tauri JS↔Rust 成对升级落地 + 自动通道关闸）
 
-- **HEAD** 随主仓 `master`；桌面端 9/13 后零代码新批，在途施工无
+- **HEAD** 随主仓 `master`；桌面端 9/13 后首个动了 `src-tauri/` 的批次（仅 Cargo.lock，未改源码/配置）
 - **默认窗 1200×820**（9/5 拍板，内滚实测 1px≈零）；最小窗 **1200×600 不动**（826 亲定「不允许放太小」）
-- **基线 538**（37 文件；9/27 主仓 accept.ps1 十八道全绿实测）；版本 0.1.0，**尚未发布**（无 `desktop-v*` tag）
+- **基线 538**（37 文件；10-13 主仓 accept.ps1 十九道全绿实测 `5e91cb44`）；版本 0.1.0，**尚未发布**（无 `desktop-v*` tag）
+- 🔴 **Tauri 成对规矩（10-13 拍板）**：`@tauri-apps/*` JS 与 crate 必同批同号；已从 dependabot 自动通道摘出，只许人工成对升——细则见下方 10-13 批条
+- **当前成对现状**：tauri 2.12.2↔api 2.12.2；updater 2.13.2 / sql 2.5.0 / dialog 2.8.1 / opener 2.7.0 / notification 2.5.1 逐条同号；`tauri info` 无 mismatch
 - **波1 已提交推送**（`2e1e6902`）；9/5 审计批**已提交**（`b0d327d2`，看板原「尚未 commit」已过时）；后续波次（826 商业化、9/12-13 波2）均已在主仓 master
-- **待用户波1 终验**：`docs/comms/桌面端主页重设计波1-终验清单-20260904-待用户终验.md`（9 组 37 条；D3/D4 判据与窗高口径已于 9/5 修正；=待办清单 U6，前置已满足）
+- **待用户终验（两摊）**：波1 终验清单 9 组 37 条（=待办 U6）+ 10-13 成对升级后的窗口行为清单（标题栏/托盘/通知/文件选择器/本地库/悬浮窗）
 - **发布前必查**：`desktop/docs/发布前待办清单-825.md`（第 19/20 项发布流水线缺陷；第 1 项已改 v74→现状 v76）
 - **文档债 F-33 已清（9/13 定时开工 P2 批）**：细目见 `docs/comms/ledgers/ledger_P2.md`
 - 体例提示：保留区 5 块仍为旧式单行超长，待后续新批顺手重排；新条目一律短标题 + 分组要点。
+
+> 📌 **2026-10-13 Tauri JS↔Rust 成对升级 + 自动通道关闸（用户拍板：连 Rust 一起升，不退回 JS）**
+>
+> - **触发**：Dependabot PR #15 把桌面端 7 个 JS 包单边推前（api 2.12.2 / cli 2.12.1 / updater 2.13.2 / sql 2.5.0 / notification 2.5.1 / dialog 2.8.1 / jszip 3.10.2）。
+> - **官方硬口径**：https://v2.tauri.app/develop/updating-dependencies/ —— 核心 `@tauri-apps/api` 与 `tauri` crate **同 minor**；插件 npm 与 crate **精确同号**（官方会在 patch 就引入跳端改动）。
+>   该比对由 tauri CLI 在 `build/dev/info` 强制执行（社区报错文案见 tauri issue #14875）；本仓 CI desktop job 只跑 `cargo check`，**碰不到这道闸**。
+> - **本批配对**（6 条 `cargo update -p … --precise …`，先核心后插件；禁裸 `cargo update`）：
+>   tauri 2.11.5→2.12.2、updater 2.10.1→2.13.2、sql 2.4.0→2.5.0、notification 2.3.3→2.5.1、dialog 2.7.2→2.8.1、opener 2.5.4→2.7.0。
+>   连带：wry 0.55.1→0.57.0、tao 0.35.3→0.37.1、muda 0.19.3→0.20.0、tray-icon 0.24.2→0.25.1、plugin-fs 2.5.1→2.7.0（被 dialog 强制抬）、
+>   tauri-utils 2.10.1、tauri-build/codegen/macros 2.7.x、runtime(-wry) 2.12.1、新增 windows 0.62.2 副本。**Cargo.toml 零改动**（`cargo update` 只动 lock）。
+> - **刻意不动的四个 Rust-only 插件**（无 npm 对子、成对闸不查）：autostart 2.5.1 / global-shortcut 2.3.2 / single-instance 2.4.3 / window-state 2.4.1。
+> - **实测证据**（全量输出存 `AGENTS/deps-pr15-pairing-20261013/`）：`cargo check` exit=0（1m00s）；`npx tauri info` 无 mismatch 且插件逐条同号；
+>   `npm run tauri dev` dev 编译 1m15s 后 `desktop.exe` 拉起并存活，日志零 panic、零 unknown permission（仅有 thiserror crate 名命中 error 关键字，属假匹配）。
+>   磁盘实测 JS：api 2.12.2 / cli 2.12.1 / updater 2.13.2 / sql 2.5.0 / notification 2.5.1 / dialog 2.8.1 / opener 2.7.0 / typescript 5.6.3 / vue-tsc 2.2.12。
+> - **行为保持与已知变化**：updater 装完重启——2.13.2 `restart_after_install` 默认 true、`install_mode` 默认 passive → NSIS 仍 `/P /R`，与 2.10.1 一致，故**未动 `tauri.conf.json`**；
+>   tao 0.37 起 `WM_ENDSESSION` 直接退出进程，系统关机时「关闭到托盘」偏好不再拦截（登记为已知行为变更）；
+>   notification 2.5 修了 Windows `isPermissionGranted()` 恒 false → 授权分支路径会变，需真机看通知是否重复弹。
+> - **权限面复核结论**：13 条 capability 标识在新版全部存在（`updater:default` 仍含 check/download/install）；`tauri-utils` 2.10.1 对本仓 conf 无新增必填项、无键名重命名，不会因 `deny_unknown_fields` 抛。
+>   两处**既有**缺口转待拍板 U32：`sql:default` 不含 `allow-execute`（本仓 `bridge/db.ts` 建表走 execute）、`opener:default` 不含 `allow-open-path`（`bridge/index.ts` 走 openPath）——升级前后口径相同，非本批引入。
+> - **机制关闸（防下周复发）**：`.github/dependabot.yml` 将 `/desktop` 拆为独立条目并 ignore `@tauri-apps/*` 与 `typescript`（主条目另加 `@tauri-apps/*`）；
+>   Rust 侧**不建** version updates 通道，漏洞类更新继续走 Security 侧自动 PR（首例：rustls #16，警报 #83 已自动转 fixed）。
+> - **声明层收口（工单审查后补）**：`desktop/package.json` 里 `@tauri-apps/api` 与五个插件由裸 `^2` 改为**精确版本**
+>   （api 2.12.2 / dialog 2.8.1 / notification 2.5.1 / opener 2.7.0 / sql 2.5.0 / updater 2.13.2），与 Cargo.lock 同号——
+>   以前“JS↔Rust 同号”只靠 lockfile 承载，人手一条 `npm install` 就能把 JS 单推而 `npm ci`/CI 看不出；关闸只挡得住机器人。
+>   `@tauri-apps/cli`（devDep、独立发版、无 crate 对子）保持 `^2`。实跑：`npm install` 后锁仅变 6 行 specifier，解析版本零变动。
+> - **待用户终验（代理证不到那一层）**：自绘标题栏拖拽/最小/最大/还原/关闭、托盘左键与菜单回调、通知弹窗次数、原生文件选择器 open/save、
+>   本地 SQLite 建表→写→读→跨窗广播、撕悬浮三窗与 window-state denylist、`asset:` 图在新 wry 下可加载。
+> - **遗留**：U31 桌面工具链与 web/shared 收敛（typescript 5.6 + vue-tsc 2.x → 5.9 + 3.3，属 major 级、单独一批）；tauri 2.12.3 补丁与 cli 2.12.2 未取（成对口径取与 npm 同号的 2.12.2）。
 
 > 📌 **2026-09-27 文档专项审计归档批（桌面侧，U18 销账；纯文档零代码）**
 >

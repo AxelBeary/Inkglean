@@ -49,7 +49,7 @@
             <el-table-column prop="qq_number" :label="$t('admin.colQq')" width="110" />
             <el-table-column :label="$t('admin.colStatus')" width="110">
               <template #default="{ row }">
-                <el-tag :type="ARTIST_STATUS_TYPE[row.status] || 'info'" effect="light">
+                <el-tag :type="artistStatusType(row.status)" effect="light">
                   {{ $t(`common.statusShort.${row.status}`) }}
                 </el-tag>
               </template>
@@ -165,11 +165,18 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatDateTime } from '../../utils/datetime'
 import { ARTIST_STATUS_TYPE } from '../../constants/order'
+import type { EpTagType } from '../../constants/order'
 
 const { t } = useI18n()
 const stats = ref<GlobalStats | null>(null)
 const artists = ref<AdminArtistItem[]>([])
 const loading = ref(true)
+
+/** 画师主页状态 → EP tag type（未知状态兜底 info，与 constants/order 的 statusType/priorityType 同口径）
+ *  具名函数化：模板内对 import 绑定做下标访问在 vue-tsc 3.3.x 有 dotValue 误插 .value 的回归风险 */
+function artistStatusType(status: string): EpTagType {
+  return ARTIST_STATUS_TYPE[status] || 'info'
+}
 
 // ─── F4: 留言管理（跨画师）；REQ-022 F5: 三维筛选（画师/审核状态/是否已回复） ───
 const adminMessages = ref<AdminGuestbookMessage[]>([])
