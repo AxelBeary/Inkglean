@@ -87,11 +87,15 @@
 >   该比对只在 `tauri build/dev/info` 触发，CI desktop job 只跑 cargo check → **不配 Rust 就把雷埋进下次发版**。
 >   6 条 `cargo update --precise` 配号：tauri 2.12.2 / updater 2.13.2 / sql 2.5.0 / notification 2.5.1 / dialog 2.8.1 / opener 2.7.0；
 >   连带 wry 0.57.0、tao 0.37.1、muda 0.20.0、tray-icon 0.25.1、plugin-fs 2.7.0、windows 0.62.2；四个无 npm 对子的 Rust-only 插件不动。
-> - **独立复验定论**：Cargo.lock 29 升级 + 12 新增 + 9 删除全部可追溯到声称面，**零意外变更**；
->   serde/base64/windows 0.58/reqwest/sqlx/rustls 未被越范围推动；13 条权限标识在新版全部存在；tauri-utils 2.10.1 对本仓 conf 无解析风险。
+> - **独立复验定论**：Cargo.lock 版本集变动 50 项（29 升级 / 12 新增 / 9 删除）逐项可追溯到 6 条 --precise 及其传递面，**无本仓直接依赖被越范围推动**；
+>   其中 cargo_toml 0.22→1.0.1、urlpattern 0.3→0.6、json-patch 3→4.2、brotli 8→9、ctor 0.8→1.0.13、window-vibrancy 0.6→0.8、webview2-com 0.38→0.39
+>   属 semver-major 级传递跃迁（构建期链 = tauri-build 2.7.2 + cargo_toml 1.0.1），本仓无直接依赖；13 条权限标识在新版全部存在；tauri-utils 2.10.1 对本仓 conf 无解析风险。
 > - **行为保持核实**：updater 2.13.2 `restart_after_install` 默认 true + `install_mode` 默认 passive → NSIS 仍 `/P /R`，与 2.10.1 一致，故不动 conf。
 > - **登记已知行为变更**：tao 0.37 起 `WM_ENDSESSION` 直接退出进程，系统关机时「关闭到托盘」偏好不再拦截（非阻塞）。
 > - **机制关闸**：`.github/dependabot.yml` 拆 `/desktop` 独立条目并 ignore `@tauri-apps/*` + `typescript`；Rust 侧不建 version updates 通道。
+>   并把桌面端 6 个 `@tauri-apps` JS 改为**精确版本**（与 Cargo.lock 同号）——成对不变量从“只靠 lockfile”抬到声明层，防人手 `npm install` 把 JS 单推（锁仅变 6 行 specifier，解析版本零变动）。
+> - **子代理交叉核验后补的两笔回写**：分组 PR 夹带的 **44 处传递依赖跳 major** 逐条清点并登记为已评审可接受（进生产包的只 @vueuse/core 与 content-disposition，两项均已核无害）；
+>   `THIRD-PARTY-NOTICES.md` 实测回写 @simplewebauthn/server 13.3.2→13.3.3；`accept-baseline.json` 的 note/updatedAt 跟到 10-13；`AGENTS.md` 验证清单补上 tauri info 那一口；`docs/CONTEXT.md` 去掉写死的 E2E 条数。
 > - **验证**：`cargo check` exit=0；`npx tauri info` 无 mismatch；`npm run tauri dev` 起壳成功、`desktop.exe` 存活、日志零 panic 零 unknown permission；
 >   **accept.ps1 十九道全绿 @ `5e91cb44`（563s：server 1847 / web 982 / desktop 538 / shared 27 / E2E 14）**；五目录 `npm audit` 全 0；
 >   磁盘实装核对 typescript 5.6.3 / vue-tsc 2.2.12 / @tauri-apps 逐条同号；真浏览器冒烟：6 张参考图全不入队 + 弹「最多上传5张参考图」+ 控制台零 error。
