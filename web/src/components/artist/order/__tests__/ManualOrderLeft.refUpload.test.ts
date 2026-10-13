@@ -3,9 +3,12 @@
 //   1. v-model:file-list 双向绑定（粘贴推入的项被 EP 渲染）
 //   2. 粘贴上限使用 uploadedRefs.length（拖拽成功后粘贴正确计数）
 //   3. 先拖 3 再粘 3 → 第 6 张被阻止（核心缺陷场景）
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+//   4. 达上限后 el-upload on-exceed 软提示 manualOrder.refExceed（行为契约哨兵）
+//      注：本例只锁「超限→恰好一次中文软提示」这条行为；「模板区禁写内联箭头访问 import 绑定」的
+//      **形态**由 `web lint` 里的 `vue-tsc --noEmit` 保护（vue-tsc 3.3.12 dotValue 回归会在写法退回时报 TS2339），别指望这例能防回退
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import ElementPlus from 'element-plus'
+import ElementPlus, { ElMessage } from 'element-plus'
 import { createI18n } from 'vue-i18n'
 import zhCN from '../../../../locales/zh-CN'
 
@@ -61,6 +64,11 @@ describe('WEB-04: ManualOrderLeft 参考图上限与显示', () => {
     h.uploadRef.mockImplementation(() =>
       Promise.resolve({ token: 'tok', uploaded: { filePath: `refs/${Math.random().toString(36).slice(2)}.png`, url: '/uploads/test.png' } })
     )
+  })
+
+  afterEach(() => {
+    // 仅恢复本文件内 vi.spyOn 出去的 EP 方法（哨兵用例），不泄漏给其他用例
+    vi.restoreAllMocks()
   })
 
   it('el-upload 使用 v-model:file-list（双向绑定，粘贴图可显示）', () => {
@@ -143,6 +151,22 @@ describe('WEB-04: ManualOrderLeft 参考图上限与显示', () => {
     await flushPromises()
 
     expect(h.uploadRef).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('达上限后 el-upload on-exceed → ElMessage.warning 收到 manualOrder.refExceed 文案', () => {
+    const warnSpy = vi.spyOn(ElMessage, 'warning').mockImplementation(() => ({} as ReturnType<typeof ElMessage.warning>))
+    const wrapper = mount(ManualOrderLeft, { global: { plugins: [ElementPlus, i18n] } })
+
+    const upload = wrapper.findComponent({ name: 'ElUpload' })
+    const onExceed = upload.props('onExceed') as (files: File[], uploadFiles: unknown[]) => void
+    expect(onExceed).toBeTypeOf('function')
+
+    // EP 超限回调契约 (files, uploadFiles)：handler 按契约忽略实参，只出软提示
+    onExceed([makeFile('over.png')], [])
+
+    expect(warnSpy).toHaveBeenCalledTimes(1)
+    expect(warnSpy).toHaveBeenCalledWith(zhCN.manualOrder.refExceed)
     wrapper.unmount()
   })
 })

@@ -42,7 +42,7 @@
         drag multiple
         :auto-upload="true" :http-request="handleRefUpload"
         accept="image/*" list-type="picture-card" :limit="MAX_IMAGE_COUNT"
-        v-model:file-list="refFileList" :on-exceed="() => ElMessage.warning($t('manualOrder.refExceed'))"
+        v-model:file-list="refFileList" :on-exceed="handleRefExceed"
         :on-remove="handleRefRemove" class="mo-ref-upload"
         @dragenter.capture="guardDragEnter"
         @dragover.capture="guardDragOver"
@@ -235,6 +235,12 @@ function handleRefRemove(file: UploadFile) {
     if (idx > -1) uploadedRefs.value.splice(idx, 1)
     refUidMap.value.delete(String(file.uid))
   }
+}
+
+// F2: 参考图超上限的软提示（EP on-exceed 契约 (files, uploadFiles) => void，本 handler 忽略实参，行为同原内联箭头）。
+// 具名 function 声明而非模板内联闭包：vue-tsc 3.3.x 对模板闭包里的 import 绑定会误插 .value（dotValue 回归），裸标识符绕开
+function handleRefExceed() {
+  ElMessage.warning(t('manualOrder.refExceed'))
 }
 
 // ─── 粘贴上传（R5 复用） ───

@@ -71,7 +71,7 @@
 | @sentry/node | MIT |
 | nanoid | MIT |
 | qrcode | MIT |
-| @simplewebauthn/server | MIT（实测 13.3.2；Passkey/WebAuthn 服务端验证——登录安全组件） |
+| @simplewebauthn/server | MIT（实测 13.3.3；Passkey/WebAuthn 服务端验证——登录安全组件；2026-10-13 PR 与警报治理批在 `^13.3.2` 范围内随分组批刷到 13.3.3，许可未变） |
 | isomorphic-dompurify | MIT（实测 3.22.0；服务端 HTML 净化——XSS 防线。**其内嵌依赖 dompurify 3.4.16 为 MPL-2.0 / Apache-2.0 双许可**，实测 license 字段 `(MPL-2.0 OR Apache-2.0)`，随本包一起分发时须连带体现；2026-10-12 依赖安全批在 `^3.4.13` 范围内刷新） |
 | ajv | MIT（实测 8.20.0；JSON Schema 校验） |
 | dotenv | BSD-2-Clause |
@@ -156,4 +156,4 @@ Get-Content "$env:USERPROFILE\.cargo\registry\src\index.crates.io-*\serde-1.0.22
 
 ---
 
-*最后更新：2026-10-12（依赖警报清零批：前端 HTTP 层拆掉 axios 改浏览器原生 fetch（运行时直接依赖减一项，本表同步删除 axios 行），dompurify 3.4.13→3.4.16 实测复核；本批为四端锁的 PATCH 档定点刷新与一项依赖移除，无新增依赖、无许可变更。此前：2026-09-12 审计第 2 批 F-12：补登 @simplewebauthn/server / isomorphic-dompurify（含其内嵌 dompurify 的双许可）/ ajv / qrcode 前端侧 / serde 与 serde_json，全部许可实测；登记口径改为「五端 manifest 运行时直接依赖 + Rust 直接 crate」并写死实测方法；第六节重新生成命令补齐五端与 Rust；顺带修 simpleIcons 扩展名、幽灵截图目录、pinia 两端版本差异、windows crate 用途漏项。再前：2026-08-26 桌面端本地核心环波1 新增 tauri-plugin-sql 登记；同日正式图标批与 notification / global-shortcut / single-instance；2026-08-20 新增 tesseract.js 依赖与运行时 CDN 说明、chart.js 依赖与 oimimo-scheduler 设计参考致谢）*
+*最后更新：2026-10-13（PR 与警报治理批：本批为 Dependabot npm 分组 32 项 minor/patch + 桌面端 Tauri JS↔Rust 成对升级，无新增直接依赖、无许可变更；实测回写 @simplewebauthn/server 13.3.2→13.3.3。此前：2026-10-12 依赖警报清零批：前端 HTTP 层拆掉 axios 改浏览器原生 fetch（运行时直接依赖减一项，本表同步删除 axios 行），dompurify 3.4.13→3.4.16 实测复核；本批为四端锁的 PATCH 档定点刷新与一项依赖移除，无新增依赖、无许可变更。此前：2026-09-12 审计第 2 批 F-12：补登 @simplewebauthn/server / isomorphic-dompurify（含其内嵌 dompurify 的双许可）/ ajv / qrcode 前端侧 / serde 与 serde_json，全部许可实测；登记口径改为「五端 manifest 运行时直接依赖 + Rust 直接 crate」并写死实测方法；第六节重新生成命令补齐五端与 Rust；顺带修 simpleIcons 扩展名、幽灵截图目录、pinia 两端版本差异、windows crate 用途漏项。再前：2026-08-26 桌面端本地核心环波1 新增 tauri-plugin-sql 登记；同日正式图标批与 notification / global-shortcut / single-instance；2026-08-20 新增 tesseract.js 依赖与运行时 CDN 说明、chart.js 依赖与 oimimo-scheduler 设计参考致谢）*
