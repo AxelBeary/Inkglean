@@ -37,6 +37,13 @@
 >   （api 2.12.2 / dialog 2.8.1 / notification 2.5.1 / opener 2.7.0 / sql 2.5.0 / updater 2.13.2），与 Cargo.lock 同号——
 >   以前“JS↔Rust 同号”只靠 lockfile 承载，人手一条 `npm install` 就能把 JS 单推而 `npm ci`/CI 看不出；关闸只挡得住机器人。
 >   `@tauri-apps/cli`（devDep、独立发版、无 crate 对子）保持 `^2`。实跑：`npm install` 后锁仅变 6 行 specifier，解析版本零变动。
+> - **发版路径实跑（收口后补，日志存 `AGENTS/deps-pr15-pairing-20261013/tauri-build-nsis.log`）**：本机 `npx tauri build --bundles nsis` 两件事得到证实：
+>   ① release 编译通过（首跑 2m31s / 重跑 1m07s，`target/release/desktop.exe` 产出）；② **CLI 版本比对闸不拦**（日志进到 `Info Patching ... with bundle type information: nsis` 与 `Info Verifying NSIS package`）——
+>   即本批的 JS↔Rust 成对在真正的打包路径上站住了。卡在下一步：从 GitHub 下 `nsis-3.11.zip` 工具链两次失败（TLS 意外断连 / global timeout），属本机网络取不到 release 资产，不是代码问题（EXIT=1 如实记录）。
+>   另 `cargo tree -i rustls` 实测：rustls 0.23.45 **单副本**，确实经 `tauri-plugin-updater 2.13.2 ← reqwest 0.13.4` 可达（所以上批的 rustls 警报不是纸面风险）。
+> - 🔴 **新发现 U33：桌面发版流水线从未真跑过**：`desktop-release.yml` 运行记录为零、仓库 variables/secrets 各 0 条、无 `desktop-v*` tag；
+>   且 `tauri.conf.json` 无 `bundle.createUpdaterArtifacts`，而流水线 `:98` 硬找 `*.nsis.zip`（官方文档：只有取 `"v1Compatible"` 才出该命名）。
+>   首版发布前须先配更新基址 + 签名私钥 + 定该命名口径，否则第一次发版必红——需用户账号权限，代理代不了。
 > - **待用户终验（代理证不到那一层）**：自绘标题栏拖拽/最小/最大/还原/关闭、托盘左键与菜单回调、通知弹窗次数、原生文件选择器 open/save、
 >   本地 SQLite 建表→写→读→跨窗广播、撕悬浮三窗与 window-state denylist、`asset:` 图在新 wry 下可加载。
 > - **遗留**：U31 桌面工具链与 web/shared 收敛（typescript 5.6 + vue-tsc 2.x → 5.9 + 3.3，属 major 级、单独一批）；tauri 2.12.3 补丁与 cli 2.12.2 未取（成对口径取与 npm 同号的 2.12.2）。
