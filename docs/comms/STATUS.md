@@ -1,33 +1,38 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-10-12 第十八次刷新：依赖警报根治批——11 条 Dependabot 处置完（axios 整包删除）+ 四端 audit 全 0 + dependabot.yml 五目录通道落地）
+## 看板（2026-10-13 第十九次刷新：PR 与警报治理批——#15/#16 落地 + Tauri JS↔Rust 成对升级 + 警报归零）
 
-- **HEAD 与推送**：本批代码两笔 `c2b3a18e`（拆 axios 改原生 fetch）+ `e0d0f0f9`（补 Blob 体与 204/空体两条口径），其前 `8c80537a`（批A 四端锁+dependabot.yml）/ `dfaca136`（分册）/ `0fb3cf82`（工具铺补入库）；经用户授权已全部代推，origin/master 已同步
-- **基线（accept.ps1 十九道全绿 @ `00163498`，685s；其后仅看板措辞笔，三道文档防阀另跑绿）**：server **1847**（159 文件）/ web **981**（143）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
-  - web 因新建 `http.test.ts` 14 例而 +14（142→143 文件），`scripts/accept-baseline.json` 已同步
-  - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；本批未动 src-tauri（无需 cargo check）；「门禁全绿」口径仍为**十九道**（用户未采纳第 20 道 audit 门禁）
-- **云端已验至 `00764be8`**：该 SHA 上 CI 四 job、E2E、CodeQL 全 success；代码两笔 `cc4a607e` / `829c5320` 亦全绿。纯文档笔会有 CI 显示 cancelled——`ci.yml` 与 `e2e.yml` 均 `cancel-in-progress: true`，后一次推送撤跑前者属设计内，不是失败
-- **CodeQL**：首推后新报 1 条 #32（工具铺脚本 U44 单遍正则重叠绕过，**实测属实非误报**），改循环删除至不动点后**由新扫描自动关闭**（open 1→0，非 dismiss）；现 open=0
-- **dependabot.yml 已生效的实证**：本批新增该文件（五目录 / 周一 02:00 / minor+patch 合并单 PR / major 不自动出），已自行交出 #15（五目录合一单、32 个 minor/patch）与 #16（rustls 0.23.43→0.23.45），“警报→可审 PR”闭环首次跑通
-- **11 条 Dependabot 警报已全部自动关闭**：逐号核过 #72~#82 = **11/11 fixed**（fixed_at 2026-10-12T14:58 UTC），**全程零 dismiss**；依赖图已刷新（SBOM 2087 包中 axios = 0）
-- **复扫新暴露一条与本批无关的警报**：#83 rustls（medium，`desktop/src-tauri/Cargo.lock`，已修版 0.23.45）——属 Rust 侧，不碰 src-tauri 是本批禁区，转下批处置（需本地 cargo check）
+- **HEAD 与推送**：本批三笔施工提交落在 Dependabot PR #15 分支（成对升级 / web 修复 / 桌面 TS 退回），代码 HEAD `5e91cb44`；#16 已先行合入 master（`7e6435f5`）
+- **基线（accept.ps1 十九道全绿 @ `5e91cb44`，563s）**：server **1847**（159 文件）/ web **982**（143）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
+  - web +1：`ManualOrderLeft.refUpload.test.ts` 补 on-exceed 哨兵，`scripts/accept-baseline.json` 已同步
+  - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；「门禁全绿」口径仍为**十九道**
+- **警报与 PR 归零**：#83 rustls 随 #16 **自动转 fixed（零 dismiss）**；#15 合入后 Dependabot open=0、CodeQL open=0
+- **本批动了 Rust**（`desktop/src-tauri/Cargo.lock` 成对升级）：tauri 2.12.2、updater 2.13.2、sql 2.5.0、notification 2.5.1、dialog 2.8.1、opener 2.7.0
+  - 连带 wry 0.57.0 / tao 0.37.1 / muda 0.20.0 / tray-icon 0.25.1 / plugin-fs 2.7.0；四个无 npm 对子的 Rust-only 插件不动
+  - 本地实测：`cargo check` exit=0、`npx tauri info` 无 mismatch 且插件逐条同号、`npm run tauri dev` 起壳成功零 panic
+- **桌面 Tauri 成对规矩（本日拍板并已关闸）**：`@tauri-apps/*` 与桌面 `typescript` 已从 dependabot 自动通道摘出，只许人工成对升；细则见 `desktop/docs/STATUS.md`
+- **web 红的真凶不是 element-plus**：vue-tsc 3.3.12 上游回归（修复 PR #6238 本日仍 open）→ 已改写法根治，见下方正文首条
 - 公网仍冻结中（停在 v74，本地与远端已到 v76）；默认窗 1200×820、最小窗 1200×600 不变（9/5、826 拍板）
 - 🔴 **上线前置硬警告仍有效**：管理员判定只认库值，公网部署前**必须先确认 `platform_config.admin_qq` 非空**
 
 **下一步（按优先级）**
 
-1. ✅ **U2 推送令已执行**（10-12 夜经你授权由代理代推，本地与 origin/master 已同步、工作树干净）：本批 11 条警报全部自动转 fixed（零 dismiss），CodeQL open=0
-2. 🔴 **新通道交来的两份 PR 等你发落**（详见 U30）：#15 是 npm 分组 32 个 minor/patch（合前我跑十九道再报数）、#16 是 rustls（碰 Rust，需本地 cargo check）
-3. 🔴 **STATUS 正文已溢到 7 块**（体例只留最新 5）：`9/17 审计缺陷波1+波2`、`9/25 今天吃什么`、`9/27 黄红灯` 三块应整搬 archive 子目录（逐字零丢失校验），属高风险文本搬动——**单独一批，等你放行**
-4. **待你拍板的技术债（本批只登记不动）**：isomorphic-dompurify 3.22.0→4.5.0（major，需验 jsdom 与 API）；server 以 tsx 作生产依赖使 source-map-js 进生产链路（改预编译构建是架构活）
-5. **两处人工补确认（U28）**：原生文件选择器那一下点击（子代理受 CDP 限制用页内注入替代）；已登录画师访 `/admin` 现为静默拦回，是否补「权限不足」中文提示。预览站已起：`http://127.0.0.1:5210/artist/alice/order` 的参考图上传即是原生选择器（免登录），看完让代理闭站
-6. **新登记 U29（后台真机轮发现的两处小坑，非本批引入）**：举报/处置留痕页有 3 条 i18n key 拼接传入 undefined（`compliance.report.types.undefined` 等，用户不可见）；管理员二次验证弹窗关闭后隐藏输入框仍留着已消费的动态码（建议 destroy-on-close）
+1. ✅ **U30 已执行**（两份 PR 发落）：#16 已合入并自动关闭警报 #83；#15 由本代理在其 bot 分支上补齐后合并，全程未手工 dismiss
+2. 🔴 **STATUS 正文已溢到 8 块**（体例只留最新 5）：`9/17 审计缺陷波1+波2`、`9/25 今天吃什么`、`9/27 黄红灯` 三块应整搬 archive 子目录（逐字零丢失校验），属高风险文本搬动——**单独一批，等你放行**
+3. **待你拍板的技术债（本批只登记不动）**：U25 isomorphic-dompurify 3.22.0→4.5.0（major）；U26 server 以 tsx 作生产依赖
+   - **新 U31** 桌面工具链与 web/shared 收敛（typescript 5.6 + vue-tsc 2.x 一起对齐）
+   - **新 U32** 桌面 capabilities 两处既有缺口 `sql:allow-execute` / `opener:allow-open-path`
+4. **桌面端 UI 终验待你过目**：本批把桌面壳真机起到过（dev 编译 + 进程存活 + 零 panic），但标题栏拖拽、托盘左键、通知弹窗、原生文件选择器、本地记账读写这几项只有你能在真窗上判定，清单见正文首条「待你终验」
+5. **两处人工补确认（U28）**：原生文件选择器那一下点击（子代理受 CDP 限制用页内注入替代）；已登录画师访 `/admin` 现为静默拦回，是否补「权限不足」中文提示
+6. **新登记 U29（后台真机轮发现的两处小坑，非本批引入）**：举报/处置留痕页有 3 条 i18n key 拼接传入 undefined（用户不可见）；管理员二次验证弹窗关闭后隐藏输入框仍留着已消费的动态码（建议 destroy-on-close）
 7. **等你终审两处对外文案**：W4 下架横幅措辞、W6 隐私三条 IP 披露（另含 U12 主页文案、U13 安装包署名）
 8. **剩红灯需拍板**：U16 板块级下架 / U17 数据服务 / G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度 / U22 改稿上限 / U23 记忆库优先级边界 / U24 视觉判断通道归属
 
 **常驻纪律（事故换来的，不得退色）**
 
 - 改 `desktop/src-tauri/` 必本地跑 `cargo check`：`tauri-build` 用**严格 JSON 解析器**，9/12 那笔 `//` 注释就是只跑 server/web 就交、CI 单红 desktop job 换来的（本地“全绿”是假全绿）
+- **动桌面端 `@tauri-apps/*` JS SDK 必同批把 `Cargo.lock` 配到同号**（核心同 minor、插件精确同号），并跑 `npx tauri info` 留证：该比对只在 `tauri build/dev/info` 触发，**CI 四 job 全绿不等于发版流水线不红**（10-13 靠 dependabot 单边跳版换来的）
+- **模板区禁写「内联箭头函数/闭包内访问 import 绑定的属性或元素」**：vue-tsc 3.3.12/3.3.13 有 dotValue 误插 `.value` 的回归（上游 #6238 未合并），须抽成 `<script setup>` 具名 `function`；复发点见 10-13 批条
 - 门禁缺口已清：`check-file-size.mjs` SCOPES 已覆盖 server/web/desktop/shared 四层（F-44），ALLOWLIST 仅剩 F-44 两项存量冻结豁免；禁止用调高冻结值给长胖文件续命
 
 **已拍板规则**
@@ -61,11 +66,42 @@
   - 既有绕过留痕不变：-Force / -SkipAccept 仍记 WARN（本批顺手补上 -SkipAccept 实际未写的 WARN 行），阻断仍走 Stop-Fail 写告警文件。
   - 验证：沙盒 git 仓八景（纯文档领先→WARN 放行；含代码/离线 SHA/红报告/25h 陈旧→阻断；-Force/-SkipAccept/dirty 景行为不变），取证件 `AGENTS/temp/docdowngrade-20260929/results.md`。详见 changelog 同批条。
 
-**起手必读**：**⚑ 下次开工第一件事**：提醒用户推送本批（看板第 1 条），并确认是否开 STATUS 溢文归档批（看板第 2 条）；再读 **⚑ 下方正文第一条（2026-10-12 依赖警报根治批）**。
+**起手必读**：**⚑ 下次开工第一件事**：确认 #15 已合入并复扫云端（看板第 1 条），并询问是否开 STATUS 溢文归档批（看板第 2 条）；再读 **⚑ 下方正文第一条（2026-10-13 PR 与警报治理批）**。
 
 **起手必读续**：→ 交接档 `docs/comms/交接-20260912-会话收口与待拍清单.md` → 本节看板 → `AGENTS.md`（含「STATUS 体例与归档纪律」）→ 碰桌面端再读 `desktop/docs/STATUS.md` 顶部。
 
 **起手必读续二**：改桌面 UI 必跑 `huiyue-layout-audit` 自检循环（**宿主级技能**，住 `%USERPROFILE%\.agents\skills\huiyue-layout-audit\`，不在仓库属正常；VL 评审通道不可用，只能 measure.mjs + 人工逐项清单）。
+
+>  📌 **2026-10-13 PR 与警报治理批（用户拍板：连 Rust 成对升级 / 桌面 TS 退回 5.6 / 改 bot 分支→门禁→合并代推）**
+>
+> - **触发**：新通道首次交出的两份可审 PR（待办 U30）+ 唯一开放警报 #83 rustls（medium）。
+> - **#16 先合**：本地 `cargo check` exit=0（19.4s 增量）→ `gh pr merge 16 --merge`（master `7e6435f5`）；
+>   警报 #83 随即 `state=fixed`（fixed_at 2026-10-13T06:44Z），**零 dismiss**。
+> - **#15 到手是红的**：CI web job 报一条 TS2339，本地按 PR 锁 `npm ci` 复现出同一条。
+> - **归因（三路侦察 + 一路推翻式复验，结论冲突时以复验为准）**：真凶是 vue-tsc 3.3.12 的 dotValue 双趟模板解包，不是 element-plus——
+>   2.14.3 与 2.14.7 的 `message/index.d.ts` 逐字节相同、`onExceed` 契约未变，且该 PR 未动 vue/typescript。
+>   上游 vuejs/language-tools 同型 issue #6237、修复 PR #6238 本日仍 open，3.3.13 的 codegen 文件与 3.3.12 哈希全同，等不到。
+> - **修法（改写法根治，零 any 零 @ts-ignore）**：`ManualOrderLeft.vue:45` 的 `:on-exceed` 抽成具名 `function handleRefExceed`；
+>   同通道近失点 `AdminDashboard.vue:52` 抽 `artistStatusType()`；补 1 例哨兵，web 981→982 并同步 `accept-baseline.json`。
+> - **桌面端成对升级（本批最大面）**：官方要求核心同 minor、插件精确同号，而 dependabot 只跑 npm 生态、天然无法成对；
+>   该比对只在 `tauri build/dev/info` 触发，CI desktop job 只跑 cargo check → **不配 Rust 就把雷埋进下次发版**。
+>   6 条 `cargo update --precise` 配号：tauri 2.12.2 / updater 2.13.2 / sql 2.5.0 / notification 2.5.1 / dialog 2.8.1 / opener 2.7.0；
+>   连带 wry 0.57.0、tao 0.37.1、muda 0.20.0、tray-icon 0.25.1、plugin-fs 2.7.0、windows 0.62.2；四个无 npm 对子的 Rust-only 插件不动。
+> - **独立复验定论**：Cargo.lock 29 升级 + 12 新增 + 9 删除全部可追溯到声称面，**零意外变更**；
+>   serde/base64/windows 0.58/reqwest/sqlx/rustls 未被越范围推动；13 条权限标识在新版全部存在；tauri-utils 2.10.1 对本仓 conf 无解析风险。
+> - **行为保持核实**：updater 2.13.2 `restart_after_install` 默认 true + `install_mode` 默认 passive → NSIS 仍 `/P /R`，与 2.10.1 一致，故不动 conf。
+> - **登记已知行为变更**：tao 0.37 起 `WM_ENDSESSION` 直接退出进程，系统关机时「关闭到托盘」偏好不再拦截（非阻塞）。
+> - **机制关闸**：`.github/dependabot.yml` 拆 `/desktop` 独立条目并 ignore `@tauri-apps/*` + `typescript`；Rust 侧不建 version updates 通道。
+> - **验证**：`cargo check` exit=0；`npx tauri info` 无 mismatch；`npm run tauri dev` 起壳成功、`desktop.exe` 存活、日志零 panic 零 unknown permission；
+>   **accept.ps1 十九道全绿 @ `5e91cb44`（563s：server 1847 / web 982 / desktop 538 / shared 27 / E2E 14）**；五目录 `npm audit` 全 0；
+>   磁盘实装核对 typescript 5.6.3 / vue-tsc 2.2.12 / @tauri-apps 逐条同号；真浏览器冒烟：6 张参考图全不入队 + 弹「最多上传5张参考图」+ 控制台零 error。
+> - **待你终验（只有真窗能判）**：标题栏拖拽/最小/最大/还原/关闭、托盘左键与菜单、通知是否重复弹、原生文件选择器 open/save、
+>   本地记账读写与跨窗广播、撕悬浮三窗。代理侧只证到「能起壳、无 Rust 报错、无权限报错」。
+> - **遗留转待拍板**：U31 桌面工具链与 web/shared 收敛；U32 capabilities 两处既有缺口 `sql:allow-execute` / `opener:allow-open-path`；
+>   U25 isomorphic-dompurify major；U26 server tsx 生产依赖；U27 STATUS 溢文归档（本批后正文 8 块）。
+> - **体积提示**：changelog 活档本批顶插后实测 **39503 B / 278 行**，已逼近 40KB 线；下批顶插前先按口径把最旧段整搬分册（逐行哈希零丢失），不要等撞线再做。
+> - **入库证据锚**：`docs/comms/evidence/证据-PR与警报治理批-20261013.md`；本机详单 `AGENTS/deps-pr15-pairing-20261013/`。
+
 
 >  📌 **2026-10-12 依赖警报根治批（用户拍板三项：拆 axios / 四端 audit 全清零 / 加 dependabot.yml；含 web HTTP 层重写）**
 >
