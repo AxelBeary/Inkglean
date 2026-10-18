@@ -4,6 +4,7 @@
 // F8 二期（波8）：自动识别在画/离开/其他占比条（autoTime store，仅存本机永不上传）。
 // 本地模式：收入位空态，墨环照常（本地数据）。等高纪律：定行数，内容截断。
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import type { IncomeOverview, RevenueResult } from '../api/types'
 import { useTimerStore, formatSeconds } from '../stores/timer'
 import { useAutoTimeStore } from '../stores/autoTime'
@@ -22,6 +23,10 @@ const props = defineProps<{
 
 const timer = useTimerStore()
 const autoTime = useAutoTimeStore()
+const router = useRouter()
+
+/** 打开整年绘画时间热力图（工具箱·绘画时间页） */
+function goPaintTime() { void router.push({ name: 'tool-paint-time' }) }
 
 function fmtYuan(cents: number): string {
   return `¥${Math.round(cents / 100).toLocaleString('zh-CN')}`
@@ -102,6 +107,8 @@ const monthText = computed(() => {
     <WeekBars :week="autoTime.week" />
     <!-- 月对比（波16）：本月/上月在画，↑↓ 随行 -->
     <span v-if="hasMonths" class="month-line">{{ monthText }}</span>
+    <!-- 整年在画热力图入口（RingoTrack 款）：跳工具箱·绘画时间页 -->
+    <button type="button" class="heat-link" @click="goPaintTime">整年热力图 ›</button>
   </div>
 </template>
 
@@ -139,6 +146,13 @@ const monthText = computed(() => {
 .week-k { font-size: 11px; letter-spacing: .1em; color: var(--ink4); display: block; margin-bottom: 6px; }
 /* 月对比（波16）：周条下一行小字，随行不撑面板 */
 .month-line { display: block; margin-top: 6px; font-size: 11.5px; color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 整年热力图入口（RingoTrack 款）：周条下一枚纸签链接，跳绘画时间页 */
+.heat-link {
+  margin-top: 8px; font-size: 11.5px; color: var(--hq-d); padding: 3px 10px;
+  background: var(--hq-t); border: 1px solid var(--hq-t2); border-radius: var(--r-s-hand);
+  transition: color var(--dur-fast), background var(--dur-fast), border-color var(--dur-fast);
+}
+.heat-link:hover { color: var(--hq); background: var(--hq-t2); border-color: var(--hq); }
 @keyframes pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   .live i.on { animation: none; }

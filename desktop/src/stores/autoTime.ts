@@ -111,6 +111,12 @@ export interface MonthTimeRow {
   other: number
 }
 
+/** 热力图数据源：一天一条在画秒数（整年方格墙用；升序时间序） */
+export interface HeatDay {
+  date: string
+  paint: number
+}
+
 export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
   const today = ref<DayTime>({ paint: 0, idle: 0, other: 0 })
   /** 内存 today 归属的本地日历日（DSK-06：跨午夜靠它判要不要滚日，昨天累计不带进今天） */
@@ -121,6 +127,8 @@ export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
   const week = ref<DayTimeRow[]>([])
   /** 近 2 个月时长行（波16 月对比图；升序，旧在前） */
   const months = ref<MonthTimeRow[]>([])
+  /** 全量按日在画秒数（整年热力图数据源；升序时间序，读失败留空不影响主计时） */
+  const heatDays = ref<HeatDay[]>([])
   const loaded = ref(false)
   const unavailable = ref(false)
   let timer: ReturnType<typeof setInterval> | null = null
@@ -206,6 +214,23 @@ export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
       week.value = days
     } catch {
       // 读失败：周条留空，不影响主计时
+    }
+  }
+
+  /** 读全量按日在画秒数（整年热力图数据源；行数＝使用天数，量级极小）。
+   *  读失败留空不影响主计时；热力图页挂载时单独拉一次，不进采样轮询（省得每票重读全表）。 */
+  async function loadHeat(): Promise<void> {
+    if (!isDesktop()) return
+    try {
+      const db = await openLocalDb()
+      const rows = await db.select<{ date: string; paint_secs: number }[]>(
+        'SELECT date, paint_secs FROM local_time_log ORDER BY date ASC'
+      )
+      heatDays.value = rows
+        .filter(r => typeof r.date === 'string' && typeof r.paint_secs === 'number')
+        .map(r => ({ date: r.date, paint: r.paint_secs }))
+    } catch {
+      // 读失败：热力图留空，不影响主计时
     }
   }
 
@@ -323,5 +348,5 @@ export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
     lastSampleAt = null
   }
 
-  return { today, todayDate, orderSeconds, week, months, loaded, unavailable, hasData, loadToday, loadOrderTimes, loadWeek, loadMonths, start, stop }
+  return { today, todayDate, orderSeconds, week, months, heatDays, loaded, unavailable, hasData, loadToday, loadOrderTimes, loadWeek, loadMonths, loadHeat, start, stop }
 })
