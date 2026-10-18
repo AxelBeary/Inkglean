@@ -1,33 +1,32 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-10-13 第十九次刷新：PR 与警报治理批——#15/#16 落地 + Tauri JS↔Rust 成对升级 + 警报归零）
+## 看板（2026-10-19 第二十次刷新：可做批收口——web 前端三小坑 + STATUS 溢文归档 + accept 看板监测修复）
 
-- **HEAD 与推送**：本批施工提交（成对升级 / web 修复 / 桌面 TS 退回 / 审查回写）全部落在 Dependabot PR #15 分支，收口 HEAD `d549798b`；#16 已先行合入 master（`7e6435f5`）
-- **基线（accept.ps1 十九道全绿 @ `d549798b`，含声明层收口笔）**：server **1847**（159 文件）/ web **982**（143）/ desktop **538**（37）/ shared **27**（4）/ E2E **14**
-  - 首跑在代码三笔 `5e91cb44`（563s），审查回写后再跑一遍同样全绿；本行只改看板数字，三道文档防阀另跑绿
-  - web +1：`ManualOrderLeft.refUpload.test.ts` 补 on-exceed 哨兵，`scripts/accept-baseline.json` 已同步
+- **HEAD 与推送**：十九道全绿 @ `7d9d0f03`（A web 前端小坑 + B STATUS 归档两 --no-ff 合并 + accept 看板监测正则修复）；本看板刷新为后续 docs 提交，收口后 push origin/master
+- **基线（accept.ps1 十九道全绿 @ `7d9d0f03`，692s）**：server **1847**（159 文件）/ web **982**（143）/ desktop **551**（38）/ shared **27**（4）/ E2E **14**
+  - desktop 538→551（+13）系 10-18 桌面「绘画时间」热力图批新增 `heatmap.test.ts`；`accept-baseline.json` 已同步
+  - 本收口批（web 前端小坑 + STATUS 归档 + accept 监测修复）零测试改动，各端计数不变
   - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；「门禁全绿」口径仍为**十九道**
 - **警报与 PR 归零**：#83 rustls 随 #16 **自动转 fixed（零 dismiss）**；#15/#17 均已合入，现 Dependabot open=0、CodeQL open=0、开放 PR=0（master `601e8947`）
 - **本批动了 Rust**（`desktop/src-tauri/Cargo.lock` 成对升级）：tauri 2.12.2、updater 2.13.2、sql 2.5.0、notification 2.5.1、dialog 2.8.1、opener 2.7.0
   - 连带 wry 0.57.0 / tao 0.37.1 / muda 0.20.0 / tray-icon 0.25.1 / plugin-fs 2.7.0；四个无 npm 对子的 Rust-only 插件不动
   - 本地实测：`cargo check` exit=0、`npx tauri info` 无 mismatch 且插件逐条同号、`npm run tauri dev` 起壳成功零 panic
 - **桌面 Tauri 成对规矩（本日拍板并已关闸）**：`@tauri-apps/*` 与桌面 `typescript` 已从 dependabot 自动通道摘出，只许人工成对升；细则见 `desktop/docs/STATUS.md`
-- **web 红的真凶不是 element-plus**：vue-tsc 3.3.12 上游回归（修复 PR #6238 本日仍 open）→ 已改写法根治，见下方正文首条
+- **web 红的真凶不是 element-plus**：vue-tsc 3.3.12 上游回归（修复 PR #6238）→ 已改写法根治，见正文 10-13 批条
 - 公网仍冻结中（停在 v74，本地与远端已到 v76）；默认窗 1200×820、最小窗 1200×600 不变（9/5、826 拍板）
 - 🔴 **上线前置硬警告仍有效**：管理员判定只认库值，公网部署前**必须先确认 `platform_config.admin_qq` 非空**
 
 **下一步（按优先级）**
 
-1. ✅ **U30 已执行**（两份 PR 发落）：#16 先合并自动关警报 #83；#15 在 bot 分支补齐后合入；合入后新通道当日又出 #17（3 项 patch），本地十九道全绿 @ `c39d14e6` 后一并合入——全程零 dismiss
-2. 🔴 **STATUS 正文已溢到 8 块**（体例只留最新 5）：`9/17 审计缺陷波1+波2`、`9/25 今天吃什么`、`9/27 黄红灯` 三块应整搬 archive 子目录（逐字零丢失校验），属高风险文本搬动——**单独一批，等你放行**
+1. ✅ **可做批收口完成 @ `7d9d0f03`**：A web 前端三小坑（U28b 补权限提示 / U29a 举报类型生键兜底 / U29b 弹窗清动态码）+ B STATUS 溢文归档 + accept 看板监测正则修复，两 --no-ff 合并 + 十九道全绿
+2. 🔴 **STATUS 正文又溢到 6 块**（体例只留最新 5）：新增 10-19 收口块顶到第 6，最旧块 `9/27 文档专项审计归档批` 应整搬 archive 子目录（逐字零丢失校验），属高风险文本搬动——**单独一批，等你放行**
 3. **待你拍板的技术债（本批只登记不动）**：U25 isomorphic-dompurify 3.22.0→4.5.0（major）；U26 server 以 tsx 作生产依赖；U33 桌面发版流水线从未跑过（缺 vars/secrets，首版必红）
-   - **新 U31** 桌面工具链与 web/shared 收敛（typescript 5.6 + vue-tsc 2.x 一起对齐）
-   - **新 U32** 桌面 capabilities 两处既有缺口 `sql:allow-execute` / `opener:allow-open-path`
-4. **桌面端 UI 终验待你过目**：本批把桌面壳真机起到过（dev 编译 + 进程存活 + 零 panic），但标题栏拖拽、托盘左键、通知弹窗、原生文件选择器、本地记账读写这几项只有你能在真窗上判定，清单见正文首条「待你终验」
-5. **两处人工补确认（U28）**：原生文件选择器那一下点击（子代理受 CDP 限制用页内注入替代）；已登录画师访 `/admin` 现为静默拦回，是否补「权限不足」中文提示
-6. **新登记 U29（后台真机轮发现的两处小坑，非本批引入）**：举报/处置留痕页有 3 条 i18n key 拼接传入 undefined（用户不可见）；管理员二次验证弹窗关闭后隐藏输入框仍留着已消费的动态码（建议 destroy-on-close）
-7. **等你终审两处对外文案**：W4 下架横幅措辞、W6 隐私三条 IP 披露（另含 U12 主页文案、U13 安装包署名）
-8. **剩红灯需拍板**：U16 板块级下架 / U17 数据服务 / G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度 / U22 改稿上限 / U23 记忆库优先级边界 / U24 视觉判断通道归属
+   - **U31** 桌面工具链与 web/shared 收敛（typescript 5.6 + vue-tsc 2.x 一起对齐）
+   - **U32** 桌面 capabilities 两处既有缺口 `sql:allow-execute` / `opener:allow-open-path`
+4. **桌面端 UI 真机终验待你过目**：标题栏拖拽、托盘左键、通知弹窗、原生文件选择器（U28a 那下点击）、本地记账读写——只有你能在真窗判定，清单见 10-13 批条「待你终验」
+5. **桌面「绘画时间」热力图批（`9c2e8d65`）**：已提交并同步 desktop 基线 538→551，本主 STATUS 正文未单立块，细节在 `desktop/docs/STATUS.md`
+6. **等你终审两处对外文案**：W4 下架横幅措辞、W6 隐私三条 IP 披露（另含 U12 主页文案、U13 安装包署名）
+7. **剩红灯需拍板**：U16 板块级下架 / U17 数据服务 / G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度 / U22 改稿上限 / U23 记忆库优先级边界 / U24 视觉判断通道归属
 
 **常驻纪律（事故换来的，不得退色）**
 
@@ -67,11 +66,26 @@
   - 既有绕过留痕不变：-Force / -SkipAccept 仍记 WARN（本批顺手补上 -SkipAccept 实际未写的 WARN 行），阻断仍走 Stop-Fail 写告警文件。
   - 验证：沙盒 git 仓八景（纯文档领先→WARN 放行；含代码/离线 SHA/红报告/25h 陈旧→阻断；-Force/-SkipAccept/dirty 景行为不变），取证件 `AGENTS/temp/docdowngrade-20260929/results.md`。详见 changelog 同批条。
 
-**起手必读**：**⚑ 下次开工第一件事**：确认 #15 已合入并复扫云端（看板第 1 条），并询问是否开 STATUS 溢文归档批（看板第 2 条）；再读 **⚑ 下方正文第一条（2026-10-13 PR 与警报治理批）**。
+**起手必读**：**⚑ 下次开工第一件事**：读顶部看板（HEAD `7d9d0f03`，可做批已收口）→ 询问是否开 STATUS 正文第 6 块归档批（看板第 2 条）→ 再读 **⚑ 下方正文第一条（2026-10-19 可做批收口）**。
 
 **起手必读续**：→ 交接档 `docs/comms/交接-20260912-会话收口与待拍清单.md` → 本节看板 → `AGENTS.md`（含「STATUS 体例与归档纪律」）→ 碰桌面端再读 `desktop/docs/STATUS.md` 顶部。
 
 **起手必读续二**：改桌面 UI 必跑 `huiyue-layout-audit` 自检循环（**宿主级技能**，住 `%USERPROFILE%\.agents\skills\huiyue-layout-audit\`，不在仓库属正常；VL 评审通道不可用，只能 measure.mjs + 人工逐项清单）。
+
+>  📌 **2026-10-19 可做批收口（用户授权全做：web 前端三小坑 + STATUS 溢文归档 + accept 看板监测修复）**
+>
+> - **触发**：用户问「还有什么能做」，一号筛出无需拍板、领地不冲突的两批 + 一处门禁监测 bug。
+> - **A 批 web 前端小坑**（分支 `web-frontend-fixes-1018`，5 文件零测试改动）：
+>   - U29b 二次验证弹窗关闭清空已消费动态码（StepUpDialog watch 关闭分支）
+>   - U29a 举报页 typeLabel 空值兜底防生键（对齐 AdminActions 范式）
+>   - U28b 非管理员进 /admin 补「权限不足」提示 + zh/en 双 locale 键
+> - **B 批 STATUS 溢文归档**（分支 `status-archive-1018`）：9/17 审计、9/25 今天吃什么、9/27 黄红灯三块整搬 `archive-20261019/`；收口以 git 同源逐行程序化核实 47 行零丢失、STATUS 只余 3 指针。
+> - **附带修 bug**：accept.ps1 看板 HEAD 比对正则自 10-13 起恒不匹配真实看板格式（`**HEAD 与推送**`），监测静默失效只报「无法比对」；放宽为「`**HEAD` 开头 + 行内首个反引号短哈希」，功能恢复。
+> - **两 worktree 并行隔离**：均基于干净 master，收口 --ff-only 快进到 `9c2e8d65`（桌面热力图批已提交）后 --no-ff 合并回 master，零越界。
+> - **门禁**：accept.ps1 十九道全绿 @ `7d9d0f03`（692s；server 1847/web 982/desktop 551/shared 27/E2E 14）
+>   - test-tamper 首轮红=桌面热力图批 `9c2e8d65` 新增 heatmap.test.ts（新功能配套新测试，additive），非本批引起，诚实 ack 放行
+> - **留痕**：`AGENTS/artifacts/施工书-可做批-20261018/`（施工书 A/B + ledger-A/B + ledger-closeout + 门禁日志）。
+
 
 >  📌 **2026-10-13 PR 与警报治理批（用户拍板：连 Rust 成对升级 / 桌面 TS 退回 5.6 / 改 bot 分支→门禁→合并代推）**
 >
