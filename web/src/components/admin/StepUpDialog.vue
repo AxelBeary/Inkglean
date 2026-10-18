@@ -86,7 +86,13 @@ interface FlatPasskeyCredential {
 
 /** 打开时重置状态 + 探测管理员 QQ 与 Passkey 凭据 */
 watch(() => props.modelValue, async (open) => {
-  if (!open) return
+  // U29(b)：关闭分支也要清空——component 常驻不销毁，el-dialog 的 destroy-on-close 只销毁内部 DOM，
+  // 不清 setup 里的 code ref，否则再次打开会残留上一次已消费的 6 位动态码
+  if (!open) {
+    code.value = ''
+    error.value = ''
+    return
+  }
   code.value = ''
   error.value = ''
   hasPasskey.value = false
