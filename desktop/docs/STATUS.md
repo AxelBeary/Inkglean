@@ -4,7 +4,8 @@
 
 - **HEAD** 随主仓 `master`；桌面端 9/13 后首个动了 `src-tauri/` 的批次（仅 Cargo.lock，未改源码/配置）
 - **默认窗 1200×820**（9/5 拍板，内滚实测 1px≈零）；最小窗 **1200×600 不动**（826 亲定「不允许放太小」）
-- **基线 538**（37 文件；10-13 主仓 accept.ps1 十九道全绿实测 `5e91cb44`）；版本 0.1.0，**尚未发布**（无 `desktop-v*` tag）
+- **基线 551**（38 文件；10-18 热力图批后 desktop 亲跑 lint/test/build 全绿；10-13 曾 accept 十九道全绿 `5e91cb44`）；版本 0.1.0，**尚未发布**（无 `desktop-v*` tag）
+- **新近（10-18）**：绘画时间·整年在画热力图进工具箱（RingoTrack 款、纸墨墨色深浅、亮暗双主题），**未提交待用户验**；细目见下方 10-18 条
 - 🔴 **Tauri 成对规矩（10-13 拍板）**：`@tauri-apps/*` JS 与 crate 必同批同号；已从 dependabot 自动通道摘出，只许人工成对升——细则见下方 10-13 批条
 - **当前成对现状**：tauri 2.12.2↔api 2.12.2；updater 2.13.2 / sql 2.5.0 / dialog 2.8.1 / opener 2.7.0 / notification 2.5.1 逐条同号；`tauri info` 无 mismatch
 - **波1 已提交推送**（`2e1e6902`）；9/5 审计批**已提交**（`b0d327d2`，看板原「尚未 commit」已过时）；后续波次（826 商业化、9/12-13 波2）均已在主仓 master
@@ -12,6 +13,15 @@
 - **发布前必查**：`desktop/docs/发布前待办清单-825.md`（第 19/20 项发布流水线缺陷；第 1 项已改 v74→现状 v76）
 - **文档债 F-33 已清（9/13 定时开工 P2 批）**：细目见 `docs/comms/ledgers/ledger_P2.md`
 - 体例提示：保留区 5 块仍为旧式单行超长，待后续新批顺手重排；新条目一律短标题 + 分组要点。
+
+> 📌 **2026-10-18 绘画时间·整年在画热力图（RingoTrack 款；用户拍板：纸墨墨色深浅 + 独立页 + 直接接）**
+>
+> - 新增工具箱页 `/tools/paint-time`（`views/tools/PaintTimeTool.vue`）：整年方格墙（53 列×7 格、墨色 5 档深浅）+ 汇总一行（近一年在画/活跃天/最长连击/当前连击/单日最高）+ 复用近 7 日周条与月对比。
+> - 纯函数 `tools/heatmap.ts`（分档/网格/月份签防挤/连击）+ 组件 `components/home/PaintHeatmap.vue`；数据源＝本地 `local_time_log`（autoTime 新增 `loadHeat()`），纯本地不联网。
+> - 入口两处：墨笔菜单「工具箱→绘画时间」+ 经营板块周条下「整年热力图 ›」纸签。
+> - 亮暗兼容靠只吃纸墨 token（`--hq`/`--ink-rgb` 随 `data-desktop-theme` 翻色），无额外暗色代码；Playwright 亮/暗双联截图核过（截图存 `AGENTS/artifacts/`）。
+> - 门禁（主代理亲跑；工作区未提交故 accept.ps1 不跑）：lint 0 错 / test 551 全过（新增 `heatmap.test.ts` 13 例）/ build(vue-tsc+vite) 绿；基线 538→551 已同步 `scripts/accept-baseline.json`。
+> - 未 commit、未 push（等用户下令）。
 
 > 📌 **2026-10-13 Tauri JS↔Rust 成对升级 + 自动通道关闸（用户拍板：连 Rust 一起升，不退回 JS）**
 >

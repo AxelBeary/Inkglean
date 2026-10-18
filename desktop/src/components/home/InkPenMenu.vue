@@ -190,7 +190,7 @@ function openMoreDrawer() {
 }
 
 // ─── 工具箱（波2）：价目分享卡（F3）/ 小票打印机（F4），纯离线工具双模式均可用 ───
-function goTool(name: 'tool-price-card' | 'tool-receipt' | 'tool-profile' | 'tool-templates' | 'tool-export' | 'tool-modules') {
+function goTool(name: 'tool-price-card' | 'tool-receipt' | 'tool-profile' | 'tool-templates' | 'tool-export' | 'tool-paint-time' | 'tool-modules') {
   setOpen(false)
   void router.push({ name })
 }
@@ -345,6 +345,11 @@ function goTool(name: 'tool-price-card' | 'tool-receipt' | 'tool-profile' | 'too
       <button type="button" class="pm-item" @click="goTool('tool-export')">
         <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 10v2.5h11V10" /><path d="M8 2.5V9" /><path d="M5.5 6.5 8 9l2.5-2.5" /></svg>
         <span class="mid">数据导出</span>
+        <span class="hint tag">打开 ↗</span>
+      </button>
+      <button type="button" class="pm-item" @click="goTool('tool-paint-time')">
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="3" height="3" rx=".6" /><rect x="6.75" y="2.5" width="3" height="3" rx=".6" /><rect x="11" y="2.5" width="3" height="3" rx=".6" /><rect x="2.5" y="6.75" width="3" height="3" rx=".6" /><rect x="6.75" y="6.75" width="3" height="3" rx=".6" /><rect x="2.5" y="11" width="3" height="3" rx=".6" /><rect x="6.75" y="11" width="3" height="3" rx=".6" /><rect x="11" y="11" width="3" height="3" rx=".6" /></svg>
+        <span class="mid">绘画时间</span>
         <span class="hint tag">打开 ↗</span>
       </button>
       <button type="button" class="pm-item" @click="goTool('tool-modules')">
