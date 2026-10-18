@@ -94,11 +94,13 @@ if ($branch -eq 'master') {
 
 # 看板 HEAD 比对（只警告不阻塞）：docs/comms/STATUS.md 顶部看板声明的 HEAD 短哈希 vs 实际 HEAD。
 # 看板滞后 = 上次收口没刷新的信号，提醒按 STATUS 体例用 git rev-parse / accept-baseline.json / 实跑结果机械推出新读数。
+# 解析口径：看板标题形如「**HEAD 与推送**：…收口 HEAD `<sha>`」，粗体标题带后缀、哈希在句子后半段；
+# 故匹配「以 **HEAD 开头的粗体标题」+ 该行第一个反引号短哈希（旧口径要求字面 **HEAD** 紧跟哈希，看板格式演进后恒不匹配、监测静默失效）。
 $statusPath = Join-Path $repo 'docs/comms/STATUS.md'
 if (Test-Path $statusPath) {
   $dashboardHead = $null
   foreach ($line in (Get-Content $statusPath -TotalCount 40)) {
-    if ($line -match '\*\*HEAD\*\*\s*`([0-9a-f]{7,40})`') { $dashboardHead = $Matches[1]; break }
+    if ($line -match '\*\*HEAD.*?`([0-9a-f]{7,40})`') { $dashboardHead = $Matches[1]; break }
   }
   if (-not $dashboardHead) {
     $msg = "⚠️ STATUS 看板头部 40 行内未解析到 **HEAD** 声明——看板格式可能已变，无法比对"
