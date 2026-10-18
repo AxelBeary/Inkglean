@@ -840,6 +840,10 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     backHome: 'Back to home',
     artistsTitle: 'Or visit one of our artists'
   },
+  // U28(b): router guard prompt (signed-in non-admin visiting the admin console)
+  router: {
+    insufficientPermission: "You don't have permission to access the admin console"
+  },
   artistHome: {
     commission: 'Commission me', track: 'Track order',
     menuLabel: 'Menu',
