@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import i18n from '../i18n/index'
 import { useArtistStore } from '../stores/artist'
 import { useThemeStore } from '../stores/theme'
@@ -248,6 +249,8 @@ router.beforeEach(async (to, _from, next) => {
   }
 
   if (to.meta.requiresAdmin && !artistStore.isAdmin) {
+    // U28(b)：已登录非管理员进管理后台不再静默踢回，先给一条明确提示
+    ElMessage.warning(i18n.global.t('router.insufficientPermission'))
     return next({ name: 'ArtistDashboard' })
   }
 

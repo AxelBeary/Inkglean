@@ -177,7 +177,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { CircleCheck, Delete, ChatDotRound, Warning, Unlock, House } from '@element-plus/icons-vue'
 import { complianceApi, adminApi } from '../../api/index'
-import type { AdminArtistItem, ReportItem, ReportTargetType } from '../../api/types'
+import type { AdminArtistItem, ReportItem } from '../../api/types'
 import StepUpDialog from '../../components/admin/StepUpDialog.vue'
 
 const { t } = useI18n()
@@ -205,8 +205,14 @@ function onCompactActionsChange(e: MediaQueryListEvent) { compactActions.value =
 onMounted(() => mqCompactActions.addEventListener('change', onCompactActionsChange))
 onUnmounted(() => mqCompactActions.removeEventListener('change', onCompactActionsChange))
 
-function typeLabel(type: ReportTargetType): string {
-  return t(`compliance.report.types.${type}`)
+// U29(a)：举报目标类型文案。后端老数据/新增类型可能给出未登记值或空值，
+// 直接拼 key 会打出 compliance.report.types.undefined 并触发缺键告警（污染翻译检查与控制台）
+function typeLabel(type: string | null | undefined): string {
+  if (!type) return ''
+  const key = `compliance.report.types.${type}`
+  const label = t(key)
+  // 未知类型回退原值，不渲染生键（对齐 AdminActions.actionLabel / targetTypeLabel 兜底范式）
+  return label === key ? type : label
 }
 
 async function load() {
