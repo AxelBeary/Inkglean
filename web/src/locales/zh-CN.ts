@@ -839,6 +839,10 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     backHome: '回平台首页',
     artistsTitle: '或者，去看看这些画师'
   },
+  // U28(b)：路由守卫提示（已登录非管理员访问管理后台）
+  router: {
+    insufficientPermission: '你没有访问管理后台的权限'
+  },
   artistHome: {
     commission: '我要约稿', track: '查询进度',
     menuLabel: '菜单',
