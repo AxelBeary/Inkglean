@@ -72,7 +72,7 @@
 | nanoid | MIT |
 | qrcode | MIT |
 | @simplewebauthn/server | MIT（实测 13.3.3；Passkey/WebAuthn 服务端验证——登录安全组件；2026-10-13 PR 与警报治理批在 `^13.3.2` 范围内随分组批刷到 13.3.3，许可未变） |
-| isomorphic-dompurify | MIT（实测 3.22.0；服务端 HTML 净化——XSS 防线。**其内嵌依赖 dompurify 3.4.16 为 MPL-2.0 / Apache-2.0 双许可**，实测 license 字段 `(MPL-2.0 OR Apache-2.0)`，随本包一起分发时须连带体现；2026-10-12 依赖安全批在 `^3.4.13` 范围内刷新） |
+| isomorphic-dompurify | MIT（实测 4.6.0；服务端 HTML 净化——XSS 防线。**其内嵌依赖 dompurify 3.4.17 为 MPL-2.0 / Apache-2.0 双许可**，实测 license 字段 `(MPL-2.0 OR Apache-2.0)`，随本包一起分发时须连带体现；2026-10-12 依赖安全批在 `^3.4.13` 范围内刷新） |
 | ajv | MIT（实测 8.20.0；JSON Schema 校验） |
 | dotenv | BSD-2-Clause |
 | tsx / typescript | MIT / Apache-2.0 |

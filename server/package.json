@@ -33,7 +33,7 @@
     "better-sqlite3": "^12.11.1",
     "dotenv": "^16.4.0",
     "fastify": "^5.12.1",
-    "isomorphic-dompurify": "^3.22.0",
+    "isomorphic-dompurify": "^4.6.0",
     "nanoid": "^5.0.0",
     "qrcode": "^1.5.4",
     "sharp": "^0.35.4",
