@@ -2,8 +2,8 @@
 
 ## 看板（2026-10-19 第二十一次刷新：技术债四合一批收口——changelog 分册 + U25 dompurify 4 + U31 桌面工具链 + U32 权限）
 
-- **HEAD 与推送**：十九道全绿 @ `01b3fcae`（技术债四合一批 A/B/C 三路 --no-ff 合并，零冲突）；本看板与 changelog·desktop STATUS 为收口 docs 提交，随后 push origin/master
-- **基线（accept.ps1 十九道全绿 @ `01b3fcae`，678s）**：server **1847**（159 文件）/ web **982**（143）/ desktop **551**（38）/ shared **27**（4）/ E2E **14**
+- **HEAD 与推送**：十九道全绿 @ `aaa5164e`（第二轮 659s，已含 undici 提版 + STATUS 溢文归档）；三路 --no-ff 合并零冲突；本看板与 changelog·desktop STATUS 为后续 docs 提交
+- **基线（accept.ps1 十九道全绿 @ `aaa5164e`，659s；首轮 @ `01b3fcae`，678s）**：server **1847**（159 文件）/ web **982**（143）/ desktop **551**（38）/ shared **27**（4）/ E2E **14**
   - 本批四件事零测试改动，五端计数与 `accept-baseline.json` 逐一吻合，基线文件未动
   - 上批（可做批 @ `7d9d0f03`）计数不变；desktop 538→551 系 10-18 热力图批新增 `heatmap.test.ts`
   - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；「门禁全绿」口径仍为**十九道**
@@ -19,10 +19,11 @@
 **下一步（按优先级）**
 
 1. ✅ **本批收口 @ `01b3fcae`**：技术债四合一批四件事（changelog 分册 + U25 + U31 + U32），十九道全绿
-2. **待你拍板（本批新发现，详见正文首条末节）**：① `overrides.undici` 下界低于 jsdom 30.1.3 要求；② U32 运行时冒烟放行；③ 归档卷头注引用 gitignored 路径；④ 正文溢到 6 块，归档批待开
-3. **待你拍板的技术债（剩余）**：U26 server 以 tsx 作生产依赖；U33 桌面发版流水线从未跑过（缺 vars/secrets，首版必红）
-4. **待你终验 / 终审**：桌面 UI 真机清单（标题栏拖拽、托盘左键、通知弹窗、原生文件选择器、本地记账）；对外文案 W4 下架横幅 / W6 隐私 IP 披露 / U12 主页文案 / U13 安装包署名
-5. **剩红灯需拍板**：U16 板块级下架 / U17 数据服务 / G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度 / U22 改稿上限 / U23 记忆库优先级边界 / U24 视觉判断通道归属
+2. **本批四项待拍板已裁（用户 10-19 口头拍定）**：① `overrides.undici` 已提到 ^8.12.1；② U32 冒烟已跑，`sql:allow-execute` 运行时确证；③ 归档卷头注路径照旧留着；④ 溢文归档已单独一批做完
+3. **新销待办（本批顺手发现，详见正文首条）**：U45 悬浮窗能力面完全没有 sql 权限而 `FloatDeadline.vue` 在用本地账目 store；U46 桌面端零真 IPC 测试，ACL 缺口天生测不到
+4. **待你拍板的技术债（剩余）**：U26 server 以 tsx 作生产依赖；U33 桌面发版流水线从未跑过（缺 vars/secrets，首版必红）
+5. **待你终验 / 终审**：桌面 UI 真机清单（标题栏拖拽、托盘左键、通知弹窗、原生文件选择器、本地记账）；对外文案 W4 下架横幅 / W6 隐私 IP 披露 / U12 主页文案 / U13 安装包署名
+6. **剩红灯需拍板**：U16 板块级下架 / U17 数据服务 / G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度 / U22 改稿上限 / U23 记忆库优先级边界 / U24 视觉判断通道归属
 
 **常驻纪律（事故换来的，不得退色）**
 
@@ -89,16 +90,28 @@
 > - **C-附 U32**：`capabilities/default.json` 补 `sql:allow-execute` + `opener:allow-open-path`（缺口经插件 `default.toml` 源码坐实，非推测）。
 >   - sql 2.5.0 default = close/load/select（无 execute）；opener 2.7.0 default = open-url/reveal-item/default-urls（无 open-path）。
 >   - 调用点 `desktop/src/bridge/db.ts:102` 建表 execute、`bridge/index.ts:45-46` openPath；`floating.json` 权限面不含二者，未动。
->   - ⚠ 证据止于静态与构建期：`tauri dev` 运行时冒烟未做（会在用户真桌面弹窗，须放行）—— permission denial 是否消失待终验。
+>   - ⚠ 证据原止于静态与构建期——**10-19 已补运行时冒烟（见下「四项已裁」第②项），`sql:allow-execute` 已确证；`opener:allow-open-path` 仍待人点**（它失败无痕，只能真人在本地记账展开文件行点「打开」）。
 > - **收口**：三路 --no-ff 合并 `71d09eef`/`1ddcd733`/`01b3fcae` 零冲突；`pwsh scripts/accept.ps1` **十九道全绿 @ `01b3fcae`（678s）**；
 >   完整输出留 `AGENTS/artifacts/施工书-技术债四合一批-20261019/accept-19gates-20261019.log`；计数与基线吻合，`accept-baseline.json` 未动。
 >   - 合并后主仓须在 `server/`、`desktop/` 各跑一次 `npm install` 才能让 node_modules 跟上合并后的 lock（worktree 双副本既有约定），本批已跑。
-> - **待拍板（本批发现，一律未自决）**：
->   - ① `server/package.json` 的 `overrides.undici` 钉 `^8.10.2`（实装 8.11.2），而 jsdom 30.1.3 声明要 `^8.12.1`——下界没吃到，暂无安全与功能影响；
->     该 override 系 `596c4445` 为清零 18 条 Dependabot 警报而设，提到 `^8.12.1` 不违背钉版意图（同 major 内取新）。
->   - ② U32 运行时冒烟是否放行（代价：在用户桌面弹一次真窗）。
->   - ③ 归档卷头注引用了 gitignored 的 `AGENTS/` 脚本路径，clone 者看不到；待裁措辞。
->   - ④ STATUS 正文因本条溢到 6 块，溢文归档按体例须单独一批做。
+> - **本批四项待拍板已裁（用户 10-19 口头拍定，均已执行）**：
+>   - ① **undici 已提版**：`server/package.json` 的 `overrides.undici` `^8.10.2` → `^8.12.1`（实装 8.12.2），让 jsdom 30.1.3 吃到自己声明的下界。该 override 系 `596c4445` 为清零 18 条警报而设，同 major 内取新不违背钉版意图。
+>     lock 只动 1 款、零包增删；`npm ls undici` 唯一消费者就是 `isomorphic-dompurify → jsdom → undici`；audit 0；server 三道重跑全绿（159/1847）。
+>   - ② **U32 运行时冒烟已跑（用户放行弹真窗）**：起 `npm run tauri dev`，cargo 21.48s 完成后拉起 `desktop.exe`；
+>     客观证据不用读屏：**启动前本机 `%APPDATA%\com.shihui.desktop\local.db` 实测 0 张表，拉起后首次探针即 7 张表齐全**
+>     （`local_orders/files/profile/templates/img_cache/time_log/order_time`）→ `sql:allow-execute` 运行时确认生效；测完已关进程零残留。
+>   - ③ **归档卷头注路径**：用户裁「照旧留着」（仓内已有多处指 `AGENTS/` 的台账引用，不为孤例）。
+>   - ④ **溢文归档已单独一批做完**：正文第 6 块「9/27 changelog 滚动分册批」（L190–L198，9 行 / 1800 B）整搬
+>     `docs/comms/archive-20261019/STATUS溢文…`→ 正文回到 5 块；零丢失用**整份重建法**证：新主档去指针行 + 归档正文放回原位，与基线 `f7dbb44e` 全文件 SHA-256 逐字节相等（`a5d74da8…`，218 行）。
+> - **冒烟顺手捣出两笔（新增待办 U45 / U46，本批未动）**：
+>   - **U45 不是理论风险，是已经坏过的事实**：Rust 侧 `tauri_plugin_sql::Builder::default().build()` **不带 migrations**（`lib.rs:46` 注释自述建表全靠前端），
+>     而本机 `local.db` 创建后（mtime 8/27）一直是空库——即修复前桌面本地记账在本机从未真正建过表，失败被 `localLedger.ts` 的 catch 吞成 `unavailable`。
+>   - **同机制怀疑**：`capabilities/floating.json` 权限面只有 `core:default` + `start-dragging`，**连 `sql:default` 都没有**，而 `FloatDeadline.vue:8,13` 在用 `useLocalLedgerStore`；
+>     若悬浮窗真走 openLocalDb，撕悬浮的截稿倒计时在本地模式下同样拿不到账目（静态无法定论，需运行时核实）。
+>   - **U46 测试盲区**：全仓桌面端 **零条真 IPC 测试**——vitest 全部 `vi.mock` bridge 或走 happy-dom 逃生门降级，Rust 侧无 test，无 WebDriver 层；
+>     ACL 缺口在这套门禁下天生测不到（十九道全绿期间本地记账其实一直是坏的）。本批两条新权限只靠静态+本次冒烟兼容。
+> - **收口追加**：拍板项落地后重跑 `pwsh scripts/accept.ps1` **第二轮十九道全绿 @ `aaa5164e`（659s）**，
+>   输出留 `AGENTS/artifacts/施工书-技术债四合一批-20261019/accept-19gates-round2.log`（首轮 `01b3fcae`/678s 同期保留）。
 
 >  📌 **2026-10-19 可做批收口（用户授权全做：web 前端三小坑 + STATUS 溢文归档 + accept 看板监测修复）**
 >

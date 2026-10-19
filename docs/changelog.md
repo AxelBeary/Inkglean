@@ -8,23 +8,29 @@
 
 ## 技术债四合一批：changelog 分册 + U25 dompurify 4 + U31 桌面工具链收敛 + U32 权限（2026-10-19，用户拍板全做）
 
-> 三路 worktree 并行（A docs / B server / C desktop，领地零交叉）+ 一号串行收口；`pwsh scripts/accept.ps1` **十九道全绿 @ `01b3fcae`（678s）**，五端计数不变（server 1847 / web 982 / desktop 551 / shared 27 / E2E 14）。
+> 三路 worktree 并行（A docs / B server / C desktop，领地零交叉）+ 一号串行收口；`pwsh scripts/accept.ps1` **十九道全绿 @ `01b3fcae`（678s）**，五端计数全不变。
 
 - **changelog 滚动分册**：活档 40524 B 撞 40KB 体积阀，按拍板纪律只搬 oldest 段（禁调高阈值续命）。最旧 12 段（2026-08-19 ~ 09-12，173 行 / 16372 B）整搬 `docs/changelog-archive/changelog-1.0-early-20261019.md`，搬后活档 24492 B / 111 行。
-  - 零丢失证据：一号**独立反证**（不复用施工方脚本口径）——新活档去掉本次新增指针行 + 归档卷正文 173 行拼回整份文档，与基线 `adc9cce5` 做全文件 SHA-256 比对，结果逐字节相等（`cb57d265…`）。
-  - 边界订正：施工书原写 L107–L283 会吞掉活档尾部三条既有 📦 归档指针（L280–L282），实际边界 L107–L279；指针文案日期范围按实测写 08-19 ~ 09-12。
+  - 零丢失证据：一号**独立反证**（不复用施工方脚本口径）——新活档去新指针 + 归档正文拼回整份，与基线 `adc9cce5` 全文件 SHA-256 逐字节相等。
+  - 边界订正：施工书原写 L107–L283 会吞掉活档尾部三条既有 📦 归档指针（L280–L282），实际边界 L107–L279。
 - **U25 isomorphic-dompurify ^3.22.0 → ^4.6.0**（server 唯一使用点 `src/shared/sanitize.ts`，本批零改动）。
-  - 事实订正：3.22.0 与 4.6.0 的 `engines` 完全相同（`^22.22.2 || ^24.15.0 || >=26.0.0`），现装 3.22.0 早已带 jsdom 30；「4.x 才正式声明 Node 要求」不成立，Dockerfile / engines / Node 版本未动，生产 `node:22-slim` 无新增风险。
+  - 事实订正：3.22.0 与 4.6.0 的 `engines` 完全相同（`^22.22.2 || ^24.15.0 || >=26.0.0`），现装 3.22.0 早已带 jsdom 30；
+    「4.x 才正式声明 Node 要求」不成立，Dockerfile / engines / Node 版本未动，生产 `node:22-slim` 无新增风险。
   - lock 变动面仅 dompurify/jsdom 子树 4 款、零包增删（`@asamuzakjp/dom-selector` 9.2.4→10.0.4 系 jsdom 30.1.3 上游自身要求）；`npm audit` 前后均 0；`overrides` 四项原样保留。
   - `RETURN_DOM` 路径已由 `tests/audit-batch-f-sanitize.test.ts` TC-F5-01~03 直接断言覆盖，本批不补测试（1847 例不变）。
 - **U31 桌面工具链收敛**：`typescript` ~5.6.2 → ~5.9.0（实装 5.9.3）、`vue-tsc` ^2.1.10 → ^3.3.12（实装 3.3.12），与 web/shared 做到声明 + lock + 实装三层逐字对齐（npm 会把 `^3.3.12` 写成 `^3.3.13`，已钉回精确版）。
-  - **desktop 未受 vue-tsc 3.3.x dotValue 回归影响**：模板区内联箭头仅 2 处、触碰 import 绑定 0 处，build 零诊断，`src/**` 一行未改——后续会话不必以为欠着返工。
-  - 「零爆错」经必错探针自证（临时 .vue 触出模板 TS2339 + script TS2322），探针未入库；tsconfig 口径对齐本批按禁区未做（另批）。
-  - `cargo check` exit=0（复用主仓 target），`npx tauri info` 已留证。
-- **U32 capabilities 缺口补齐**：`desktop/src-tauri/capabilities/default.json` 加 `sql:allow-execute` + `opener:allow-open-path`。缺口经插件源码坐实：sql 2.5.0 default 仅 close/load/select，opener 2.7.0 default 仅 open-url/reveal-item/default-urls；调用点在 `bridge/db.ts:102` 建表 execute 与 `bridge/index.ts:45-46` openPath。`floating.json` 权限面不含二者，未动。
+  - **desktop 未受 vue-tsc 3.3.x dotValue 回归影响**：模板区内联箭头仅 2 处、触碰 import 绑定 0 处，build 零诊断，`src/**` 一行未改。
+  - 「零爆错」经必错探针自证，探针未入库；tsconfig 口径对齐按禁区未做（另批）；`cargo check` exit=0，`npx tauri info` 已留证。
+- **U32 capabilities 缺口补齐**：`desktop/src-tauri/capabilities/default.json` 加 `sql:allow-execute` + `opener:allow-open-path`。缺口经插件 `default.toml` 源码坐实（sql default 无 execute、opener default 无 open-path），
+  调用点在 `bridge/db.ts:102` 建表与 `bridge/index.ts:45-46` openPath；`floating.json` 权限面不含二者，未动。
 - **登记**：`THIRD-PARTY-NOTICES.md` 同步 isomorphic-dompurify 实测 4.6.0、内嵌 dompurify 3.4.17（许可未变）。
-- **台账与留痕**：施工书、三份派工单、三份 ledger、十九道完整输出全在 `AGENTS/artifacts/施工书-技术债四合一批-20261019/`。
-- **待拍板四项**（本批发现，一律未自决）：见 `docs/comms/STATUS.md` 看板第 2 条——`overrides.undici` 下界低于 jsdom 30.1.3 要求、U32 运行时冒烟放行、归档卷头注引用 gitignored 路径、STATUS 正文溢到 6 块的归档批。
+- **台账与留痕**：施工书、三份派工单、三份 ledger、两轮十九道完整输出均在 `AGENTS/artifacts/施工书-技术债四合一批-20261019/`。
+- **拍板后续（用户 10-19 拍定四项，已执行）**：`overrides.undici` ^8.10.2 → ^8.12.1（实装 8.12.2，lock 只动 1 款、audit 0、server 159/1847 重跑全绿）；
+  U32 运行时冒烟已跑——本机 `local.db` 启动前 0 张表、`tauri dev` 拉起后即 7 张表齐全，`sql:allow-execute` 真生效
+  （Rust 侧 sql 插件不带 migrations，可见修复前本地记账在本机从未建过表，失败被 store 的 catch 吞成 unavailable）；归档卷头注路径照旧留着；STATUS 正文溢文已单独一批搬完。
+- **新销待办 U45 / U46**：U45 悬浮窗能力面无任何 sql 权限而 `FloatDeadline.vue` 在用账目 store（待运行时核实）；
+  U46 桌面端零真 IPC 测试（vitest 全 mock bridge），ACL 缺口在现有十九道下天生测不到。另 `opener:allow-open-path` 无自动可观测量，仍待真人点「打开」。
+- **收口追加**：拍板项落地后重跑，**第二轮十九道全绿 @ `aaa5164e`（659s）**。本批细节只写一份，全文见 `docs/comms/STATUS.md` 正文首条。
 
 ## 警报治理批当日续单：#17 三项 patch（2026-10-13）
 

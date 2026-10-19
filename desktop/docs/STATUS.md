@@ -2,11 +2,12 @@
 
 ## 看板（2026-10-19 刷新：技术债四合一批——U31 工具链与 web/shared 对齐 + U32 capabilities 补两权限）
 
-- **HEAD** 随主仓 `master`（本批 `01b3fcae`）；动了 `src-tauri/` 的只有 `capabilities/default.json`（Rust 源码与 Cargo 零改动）
+- **HEAD** 随主仓 `master`（本批收口 `aaa5164e`）；动了 `src-tauri/` 的只有 `capabilities/default.json`（Rust 源码与 Cargo 零改动）
 - **工具链已收敛（U31，10-19）**：`typescript` ~5.9.0（实装 5.9.3）+ `vue-tsc` ^3.3.12（实装 3.3.12），与 web/shared 声明+lock+实装三层逐字对齐；tsconfig 口径对齐未做（另批）
-- **U32 已补（10-19）**：`default.json` 新增 `sql:allow-execute` + `opener:allow-open-path`；⚠ 运行时冒烟待用户放行（会弹真窗）
+- **U32 已补且运行时已验（10-19）**：`default.json` 新增 `sql:allow-execute` + `opener:allow-open-path`；冒烟实证建库权限真生效（本机 local.db 0→7 张表）；`opener` 那条仍待人点（失败无痕）
+- 🔴 **U45 疑缺（本批冒烟捣出，未修）**：`capabilities/floating.json` 权限面**连 `sql:default` 都没有**，而 `FloatDeadline.vue` 在用本地账目 store——撕悬浮在本地模式可能拿不到账目，待运行时核实
 - **默认窗 1200×820**（9/5 拍板，内滚实测 1px≈零）；最小窗 **1200×600 不动**（826 亲定「不允许放太小」）
-- **基线 551**（38 文件；10-19 工具链换代零测试改动；十九道全绿 @ `01b3fcae`，上批 `7d9d0f03`）；版本 0.1.0，**尚未发布**（无 `desktop-v*` tag）
+- **基线 551**（38 文件；10-19 工具链换代零测试改动；十九道全绿 @ `aaa5164e`，首轮 `01b3fcae`）；版本 0.1.0，**尚未发布**（无 `desktop-v*` tag）
 - **新近（10-18）**：绘画时间·整年在画热力图进工具箱（RingoTrack 款）——看板原「未提交」**已过时**，实际已提交 `9c2e8d65` 且基线 538→551 已同步；细目见下方 10-18 条
 - 🔴 **Tauri 成对规矩（10-13 拍板）**：`@tauri-apps/*` JS 与 crate 必同批同号；已从 dependabot 自动通道摘出，只许人工成对升——细则见下方 10-13 批条
 - **当前成对现状**：tauri 2.12.2↔api 2.12.2；updater 2.13.2 / sql 2.5.0 / dialog 2.8.1 / opener 2.7.0 / notification 2.5.1 逐条同号；`tauri info` 无 mismatch
@@ -27,8 +28,12 @@
 > - **U32**：`src-tauri/capabilities/default.json` 补 `sql:allow-execute` + `opener:allow-open-path`。缺口经插件源码实测而非推测：
 >   `tauri-plugin-sql-2.5.0/permissions/default.toml` = close/load/select（无 execute）；`tauri-plugin-opener-2.7.0` = open-url/reveal-item/default-urls（无 open-path）。
 >   调用点：`src/bridge/db.ts:102` 建表走 `db.execute(stmt)`；`src/bridge/index.ts:45-46` 走 `openPath(target)`。`floating.json` 权限面不含 sql/opener，未动。
-> - **门禁**：lint 0 错 / test 551（38 文件）/ build 绿；`cargo check` exit=0；`npx tauri info` 无 mismatch；收口由主代理亲跑十九道全绿 @ `01b3fcae`（678s）。
-> - **未做（禁区与待放行）**：tsconfig 口径对齐（与 web 差异大，另批）；`@tauri-apps/*` 与 Cargo 未跟版（成对规矩管着）；`tauri dev` 运行时冒烟未做——证据止于静态与构建期，permission denial 是否消失待终验。
+> - **门禁**：lint 0 错 / test 551（38 文件）/ build 绿；`cargo check` exit=0；`npx tauri info` 无 mismatch；主代理两轮亲跑十九道全绿（首轮 `01b3fcae`/678s，拍板项落地后第二轮 `aaa5164e`/659s）。
+> - **运行时冒烟（10-19 用户放行后已跑，`sql:allow-execute` 确证）**：判法不读屏——本机 `local.db` 启动前实测 **0 张表**（`sqlite_master` 空），`tauri dev` 拉起后首次探针即 **7 张表齐全**。
+>   反面证据：Rust 侧 `lib.rs:46` 的 sql 插件 **不带 migrations**（建表全靠前端 execute），所以修复前 execute 被 ACL 拒→建表永远没执行过→失败被 `localLedger.ts` catch 吞成 `unavailable`。
+>   即：**本地记账在本机曾是静默坏的**，不只看得到 UI 才能发现。`opener:allow-open-path` 无自动可观测量，需真人：本地模式 → 本地记账 → 展开挂文件行 → 点「打开」。
+> - **新销待办 U45 / U46**：U45 悬浮窗权限面无 sql 而 `FloatDeadline.vue` 在用账目 store；U46 全仓桌面端 **零条真 IPC 测试**（vitest 全 mock bridge / happy-dom 逃生门，Rust 无 test，无 WebDriver）→ ACL 缺口在现有十九道下天生测不到。
+> - **未做（禁区与待放行）**：tsconfig 口径对齐（与 web 差异大，另批）；`@tauri-apps/*` 与 Cargo 未跟版（成对规矩管着）；`opener` 权限的运行时真人点击验证未做（失败无痕，需用户在自己窗口里点一下）。
 > - 施工台账：`AGENTS/artifacts/施工书-技术债四合一批-20261019/ledger-C.md`（含逐行原始输出）。
 
 > 📌 **2026-10-18 绘画时间·整年在画热力图（RingoTrack 款；用户拍板：纸墨墨色深浅 + 独立页 + 直接接）**
