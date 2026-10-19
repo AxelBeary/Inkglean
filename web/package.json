@@ -23,13 +23,13 @@
     "@inkglean/shared": "file:../shared",
     "@sentry/vue": "^10.76.2",
     "chart.js": "^4.5.1",
-    "dompurify": "^3.4.13",
+    "dompurify": "^3.4.17",
     "element-plus": "^2.14.7",
     "pinia": "^2.2.0",
     "qrcode": "^1.5.4",
-    "simple-icons": "^16.34.0",
+    "simple-icons": "^16.35.0",
     "tesseract.js": "^7.0.0",
-    "vue": "^3.5.0",
+    "vue": "^3.5.44",
     "vue-i18n": "^11.4.14",
     "vue-router": "^4.4.0",
     "vuedraggable": "^4.1.0"
@@ -37,7 +37,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^22.20.5",
-    "@typescript-eslint/eslint-plugin": "^8.71.1",
+    "@typescript-eslint/eslint-plugin": "^8.71.2",
     "@typescript-eslint/parser": "^8.67.0",
     "@vitejs/plugin-vue": "^5.2.0",
     "@vue/test-utils": "^2.5.1",
@@ -46,14 +46,14 @@
     "globals": "^17.13.0",
     "happy-dom": "^20.14.6",
     "jiti": "^2.7.0",
-    "jsdom": "^30.1.2",
+    "jsdom": "^30.1.3",
     "prettier": "^3.9.10",
     "tsx": "^4.23.15",
     "typescript": "~5.9.0",
     "unplugin-vue-components": "^32.1.0",
     "vite": "^6.4.4",
-    "vitest": "^4.1.11",
-    "vue-tsc": "^3.3.12"
+    "vitest": "^4.1.12",
+    "vue-tsc": "^3.3.13"
   },
   "allowScripts": {
     "vue-demi@0.14.10": true,
