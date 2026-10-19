@@ -1,11 +1,11 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-10-19 第二十次刷新：可做批收口——web 前端三小坑 + STATUS 溢文归档 + accept 看板监测修复）
+## 看板（2026-10-19 第二十一次刷新：技术债四合一批收口——changelog 分册 + U25 dompurify 4 + U31 桌面工具链 + U32 权限）
 
-- **HEAD 与推送**：十九道全绿 @ `7d9d0f03`（A web 前端小坑 + B STATUS 归档两 --no-ff 合并 + accept 看板监测正则修复）；本看板刷新为后续 docs 提交，收口后 push origin/master
-- **基线（accept.ps1 十九道全绿 @ `7d9d0f03`，692s）**：server **1847**（159 文件）/ web **982**（143）/ desktop **551**（38）/ shared **27**（4）/ E2E **14**
-  - desktop 538→551（+13）系 10-18 桌面「绘画时间」热力图批新增 `heatmap.test.ts`；`accept-baseline.json` 已同步
-  - 本收口批（web 前端小坑 + STATUS 归档 + accept 监测修复）零测试改动，各端计数不变
+- **HEAD 与推送**：十九道全绿 @ `01b3fcae`（技术债四合一批 A/B/C 三路 --no-ff 合并，零冲突）；本看板与 changelog·desktop STATUS 为收口 docs 提交，随后 push origin/master
+- **基线（accept.ps1 十九道全绿 @ `01b3fcae`，678s）**：server **1847**（159 文件）/ web **982**（143）/ desktop **551**（38）/ shared **27**（4）/ E2E **14**
+  - 本批四件事零测试改动，五端计数与 `accept-baseline.json` 逐一吻合，基线文件未动
+  - 上批（可做批 @ `7d9d0f03`）计数不变；desktop 538→551 系 10-18 热力图批新增 `heatmap.test.ts`
   - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；「门禁全绿」口径仍为**十九道**
 - **警报与 PR 归零**：#83 rustls 随 #16 **自动转 fixed（零 dismiss）**；#15/#17 均已合入，现 Dependabot open=0、CodeQL open=0、开放 PR=0（master `601e8947`）
 - **本批动了 Rust**（`desktop/src-tauri/Cargo.lock` 成对升级）：tauri 2.12.2、updater 2.13.2、sql 2.5.0、notification 2.5.1、dialog 2.8.1、opener 2.7.0
@@ -18,16 +18,11 @@
 
 **下一步（按优先级）**
 
-1. ✅ **可做批收口完成 @ `7d9d0f03`**：A web 前端三小坑（U28b 补权限提示 / U29a 举报类型生键兜底 / U29b 弹窗清动态码）+ B STATUS 溢文归档 + accept 看板监测正则修复，两 --no-ff 合并 + 十九道全绿
-2. ✅ **STATUS 正文已归档回 5 块**（2026-10-19 拆归档批）：最旧块 `9/27 文档专项审计归档批` 已整搬 `archive-20261019/`（独立会话以 git 同源逐行反查 15 行零丢失）；下次再溢到 6 块照此单独批归档
-3. **待你拍板的技术债（本批只登记不动）**：U25 isomorphic-dompurify 3.22.0→4.5.0（major）；U26 server 以 tsx 作生产依赖；U33 桌面发版流水线从未跑过（缺 vars/secrets，首版必红）
-   - **U31** 桌面工具链与 web/shared 收敛（typescript 5.6 + vue-tsc 2.x 一起对齐）
-   - **U32** 桌面 capabilities 两处既有缺口 `sql:allow-execute` / `opener:allow-open-path`
-4. **桌面端 UI 真机终验待你过目**：标题栏拖拽、托盘左键、通知弹窗、原生文件选择器（U28a 那下点击）、本地记账读写——只有你能在真窗判定，清单见 10-13 批条「待你终验」
-5. **桌面「绘画时间」热力图批（`9c2e8d65`）**：已提交并同步 desktop 基线 538→551，本主 STATUS 正文未单立块，细节在 `desktop/docs/STATUS.md`
-- **⚡️ 施工书已完成**：技术债四合一批（changelog 分册、dompurify 升级、桌面工具链收敛+capabilities）已记录，待开工。
-6. **等你终审两处对外文案**：W4 下架横幅措辞、W6 隐私三条 IP 披露（另含 U12 主页文案、U13 安装包署名）
-7. **剩红灯需拍板**：U16 板块级下架 / U17 数据服务 / G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度 / U22 改稿上限 / U23 记忆库优先级边界 / U24 视觉判断通道归属
+1. ✅ **本批收口 @ `01b3fcae`**：技术债四合一批四件事（changelog 分册 + U25 + U31 + U32），十九道全绿
+2. **待你拍板（本批新发现，详见正文首条末节）**：① `overrides.undici` 下界低于 jsdom 30.1.3 要求；② U32 运行时冒烟放行；③ 归档卷头注引用 gitignored 路径；④ 正文溢到 6 块，归档批待开
+3. **待你拍板的技术债（剩余）**：U26 server 以 tsx 作生产依赖；U33 桌面发版流水线从未跑过（缺 vars/secrets，首版必红）
+4. **待你终验 / 终审**：桌面 UI 真机清单（标题栏拖拽、托盘左键、通知弹窗、原生文件选择器、本地记账）；对外文案 W4 下架横幅 / W6 隐私 IP 披露 / U12 主页文案 / U13 安装包署名
+5. **剩红灯需拍板**：U16 板块级下架 / U17 数据服务 / G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度 / U22 改稿上限 / U23 记忆库优先级边界 / U24 视觉判断通道归属
 
 **常驻纪律（事故换来的，不得退色）**
 
@@ -67,11 +62,43 @@
   - 既有绕过留痕不变：-Force / -SkipAccept 仍记 WARN（本批顺手补上 -SkipAccept 实际未写的 WARN 行），阻断仍走 Stop-Fail 写告警文件。
   - 验证：沙盒 git 仓八景（纯文档领先→WARN 放行；含代码/离线 SHA/红报告/25h 陈旧→阻断；-Force/-SkipAccept/dirty 景行为不变），取证件 `AGENTS/temp/docdowngrade-20260929/results.md`。详见 changelog 同批条。
 
-**起手必读**：**⚑ 下次开工第一件事**：读顶部看板（HEAD `7d9d0f03`，可做批已收口）→ 询问是否开 STATUS 正文第 6 块归档批（看板第 2 条）→ 再读 **⚑ 下方正文第一条（2026-10-19 可做批收口）**。
+**起手必读**：**⚑ 下次开工第一件事**：读顶部看板（HEAD `01b3fcae`，技术债四合一批已收口）→ 问看板第 2 条四项拍板 → 再读 **⚑ 下方正文第一条（2026-10-19 技术债四合一批收口）**。
 
 **起手必读续**：→ 交接档 `docs/comms/交接-20260912-会话收口与待拍清单.md` → 本节看板 → `AGENTS.md`（含「STATUS 体例与归档纪律」）→ 碰桌面端再读 `desktop/docs/STATUS.md` 顶部。
 
 **起手必读续二**：改桌面 UI 必跑 `huiyue-layout-audit` 自检循环（**宿主级技能**，住 `%USERPROFILE%\.agents\skills\huiyue-layout-audit\`，不在仓库属正常；VL 评审通道不可用，只能 measure.mjs + 人工逐项清单）。
+
+>  📌 **2026-10-19 技术债四合一批收口（用户拍板全做：changelog 分册 + U25 dompurify 4 + U31 桌面工具链收敛 + U32 权限补齐）**
+>
+> - **拓扑**：三路 worktree 并行（A docs / B server / C desktop，领地零交叉），一号串行收口；施工书、三份派工单与三份 ledger 在 `AGENTS/artifacts/施工书-技术债四合一批-20261019/`。
+> - **A 路 changelog 滚动分册**：活档 40524 B 撞 40KB 阀，最旧 12 段（基线 L107–L279，173 行 / 16372 B）整搬
+>   `docs/changelog-archive/changelog-1.0-early-20261019.md`；搬后活档 24492 B / 111 行（余量约 15.5KB）。
+>   - 零丢失证据（一号独立反证，未复用施工方脚本口径）：新活档去掉本次新指针 + 归档正文 173 行拼回整份，与基线**全文件 SHA-256 全等**（`cb57d265…`，283 行 / 40524 B）。
+>   - **边界订正**：施工书原写 L107–L283，会把活档尾部三条既有 📦 归档指针（L280–L282）一起吞掉；实际边界 L107–L279。
+>   - 新指针行文案按实测范围写 2026-08-19 ~ 09-12（施工书原写「08-23 及更早」不准）。
+> - **B 路 U25**：`isomorphic-dompurify` ^3.22.0 → ^4.6.0（分支 1 commit，`server/src/shared/sanitize.ts` 零改动）。
+>   - **事实订正**：3.22.0 与 4.6.0 的 `engines` **完全相同**（`^22.22.2 || ^24.15.0 || >=26.0.0`），且现装 3.22.0 早已带 jsdom 30；
+>     施工书「4.x 才正式声明 Node 要求」不成立，Dockerfile / engines / Node 版本一律未动，生产 `node:22-slim` 无新增风险。
+>   - lock 变动面仅 dompurify/jsdom 子树 4 款、零包增删；`@asamuzakjp/dom-selector` 9.2.4→10.0.4 系 jsdom 30.1.3 上游自己提的要求；`npm audit` 前后均 0。
+>   - RETURN_DOM 路径经 TC-F5-01~03 直接断言覆盖，本批不补测试，1847 例前后一致。
+> - **C 路 U31**：desktop `typescript` ~5.6.2 → ~5.9.0（实装 5.9.3）、`vue-tsc` ^2.1.10 → ^3.3.12（实装 3.3.12），与 web/shared **声明 + lock + 实装三层逐字对齐**。
+>   - C-1 先 commit 作安全锚；npm 会把 `^3.3.12` 自动写成 `^3.3.13`，C 路钉回精确版才谈得上「对齐」。
+>   - **正面结论（免得后续会话误欠一笔返工）**：desktop 未受 vue-tsc 3.3.x dotValue 回归影响——模板内联箭头仅 2 处、触碰 import 绑定 0 处，`npm run build` 零诊断，`src/**` 一行未改。
+>   - 「零爆错」经探针自证：临时插必错 .vue（模板 TS2339 + script TS2322）确证会报错；探针未进任何 commit，磁盘无残留。
+>   - tsconfig 口径对齐**本批未做**（已列禁区，另批）；`cargo check` exit=0（复用主仓 target）；`npx tauri info` 已留证。
+> - **C-附 U32**：`capabilities/default.json` 补 `sql:allow-execute` + `opener:allow-open-path`（缺口经插件 `default.toml` 源码坐实，非推测）。
+>   - sql 2.5.0 default = close/load/select（无 execute）；opener 2.7.0 default = open-url/reveal-item/default-urls（无 open-path）。
+>   - 调用点 `desktop/src/bridge/db.ts:102` 建表 execute、`bridge/index.ts:45-46` openPath；`floating.json` 权限面不含二者，未动。
+>   - ⚠ 证据止于静态与构建期：`tauri dev` 运行时冒烟未做（会在用户真桌面弹窗，须放行）—— permission denial 是否消失待终验。
+> - **收口**：三路 --no-ff 合并 `71d09eef`/`1ddcd733`/`01b3fcae` 零冲突；`pwsh scripts/accept.ps1` **十九道全绿 @ `01b3fcae`（678s）**；
+>   完整输出留 `AGENTS/artifacts/施工书-技术债四合一批-20261019/accept-19gates-20261019.log`；计数与基线吻合，`accept-baseline.json` 未动。
+>   - 合并后主仓须在 `server/`、`desktop/` 各跑一次 `npm install` 才能让 node_modules 跟上合并后的 lock（worktree 双副本既有约定），本批已跑。
+> - **待拍板（本批发现，一律未自决）**：
+>   - ① `server/package.json` 的 `overrides.undici` 钉 `^8.10.2`（实装 8.11.2），而 jsdom 30.1.3 声明要 `^8.12.1`——下界没吃到，暂无安全与功能影响；
+>     该 override 系 `596c4445` 为清零 18 条 Dependabot 警报而设，提到 `^8.12.1` 不违背钉版意图（同 major 内取新）。
+>   - ② U32 运行时冒烟是否放行（代价：在用户桌面弹一次真窗）。
+>   - ③ 归档卷头注引用了 gitignored 的 `AGENTS/` 脚本路径，clone 者看不到；待裁措辞。
+>   - ④ STATUS 正文因本条溢到 6 块，溢文归档按体例须单独一批做。
 
 >  📌 **2026-10-19 可做批收口（用户授权全做：web 前端三小坑 + STATUS 溢文归档 + accept 看板监测修复）**
 >

@@ -1,11 +1,13 @@
 # 桌面端（拾绘桌面版）子项目状态
 
-## 看板（2026-10-13 刷新：PR 与警报治理批——桌面端 Tauri JS↔Rust 成对升级落地 + 自动通道关闸）
+## 看板（2026-10-19 刷新：技术债四合一批——U31 工具链与 web/shared 对齐 + U32 capabilities 补两权限）
 
-- **HEAD** 随主仓 `master`；桌面端 9/13 后首个动了 `src-tauri/` 的批次（仅 Cargo.lock，未改源码/配置）
+- **HEAD** 随主仓 `master`（本批 `01b3fcae`）；动了 `src-tauri/` 的只有 `capabilities/default.json`（Rust 源码与 Cargo 零改动）
+- **工具链已收敛（U31，10-19）**：`typescript` ~5.9.0（实装 5.9.3）+ `vue-tsc` ^3.3.12（实装 3.3.12），与 web/shared 声明+lock+实装三层逐字对齐；tsconfig 口径对齐未做（另批）
+- **U32 已补（10-19）**：`default.json` 新增 `sql:allow-execute` + `opener:allow-open-path`；⚠ 运行时冒烟待用户放行（会弹真窗）
 - **默认窗 1200×820**（9/5 拍板，内滚实测 1px≈零）；最小窗 **1200×600 不动**（826 亲定「不允许放太小」）
-- **基线 551**（38 文件；10-18 热力图批后 desktop 亲跑 lint/test/build 全绿；10-13 曾 accept 十九道全绿 `5e91cb44`）；版本 0.1.0，**尚未发布**（无 `desktop-v*` tag）
-- **新近（10-18）**：绘画时间·整年在画热力图进工具箱（RingoTrack 款、纸墨墨色深浅、亮暗双主题），**未提交待用户验**；细目见下方 10-18 条
+- **基线 551**（38 文件；10-19 工具链换代零测试改动；十九道全绿 @ `01b3fcae`，上批 `7d9d0f03`）；版本 0.1.0，**尚未发布**（无 `desktop-v*` tag）
+- **新近（10-18）**：绘画时间·整年在画热力图进工具箱（RingoTrack 款）——看板原「未提交」**已过时**，实际已提交 `9c2e8d65` 且基线 538→551 已同步；细目见下方 10-18 条
 - 🔴 **Tauri 成对规矩（10-13 拍板）**：`@tauri-apps/*` JS 与 crate 必同批同号；已从 dependabot 自动通道摘出，只许人工成对升——细则见下方 10-13 批条
 - **当前成对现状**：tauri 2.12.2↔api 2.12.2；updater 2.13.2 / sql 2.5.0 / dialog 2.8.1 / opener 2.7.0 / notification 2.5.1 逐条同号；`tauri info` 无 mismatch
 - **波1 已提交推送**（`2e1e6902`）；9/5 审计批**已提交**（`b0d327d2`，看板原「尚未 commit」已过时）；后续波次（826 商业化、9/12-13 波2）均已在主仓 master
@@ -13,6 +15,21 @@
 - **发布前必查**：`desktop/docs/发布前待办清单-825.md`（第 19/20 项发布流水线缺陷；第 1 项已改 v74→现状 v76）
 - **文档债 F-33 已清（9/13 定时开工 P2 批）**：细目见 `docs/comms/ledgers/ledger_P2.md`
 - 体例提示：保留区 5 块仍为旧式单行超长，待后续新批顺手重排；新条目一律短标题 + 分组要点。
+
+> 📌 **2026-10-19 技术债四合一批桌面侧（U31 工具链收敛 + U32 capabilities 补权限；用户拍板全做）**
+>
+> - **U31**：`typescript` ~5.6.2 → ~5.9.0（实装 5.9.3）、`vue-tsc` ^2.1.10 → ^3.3.12（实装 3.3.12），三层（声明/lock/实装）与 web、shared 逐字对齐。
+>   - npm 会把 `^3.3.12` 自动写成 `^3.3.13`，已钉回精确版——否则三端口径外表上「对齐」实则不一致。
+>   - 分支内串行：C-1 ts 先过三道并 commit 作安全锚 → C-2 vue-tsc → C-附权限。
+> - **dotValue 回归在桌面侧零命中（记此免得后续会话误欠返工）**：模板区内联箭头仅 2 处（`panels/LedgerPanel.vue:184`、`views/ScheduleView.vue:179`）、同时触碰 import 绑定 0 处，
+>   `npm run build` 在 vue-tsc 3.3.12 下零诊断，`desktop/src/**` 一行未改。10-13 那套「抽具名 function」根治写法本批无需启用。
+>   - 「零爆错」经必错探针自证：临时建 `ProbeSelftest.vue`（模板 TS2339 + script TS2322）确证 vue-tsc 3 确实会报错；探针未进任何 commit，磁盘无残留。
+> - **U32**：`src-tauri/capabilities/default.json` 补 `sql:allow-execute` + `opener:allow-open-path`。缺口经插件源码实测而非推测：
+>   `tauri-plugin-sql-2.5.0/permissions/default.toml` = close/load/select（无 execute）；`tauri-plugin-opener-2.7.0` = open-url/reveal-item/default-urls（无 open-path）。
+>   调用点：`src/bridge/db.ts:102` 建表走 `db.execute(stmt)`；`src/bridge/index.ts:45-46` 走 `openPath(target)`。`floating.json` 权限面不含 sql/opener，未动。
+> - **门禁**：lint 0 错 / test 551（38 文件）/ build 绿；`cargo check` exit=0；`npx tauri info` 无 mismatch；收口由主代理亲跑十九道全绿 @ `01b3fcae`（678s）。
+> - **未做（禁区与待放行）**：tsconfig 口径对齐（与 web 差异大，另批）；`@tauri-apps/*` 与 Cargo 未跟版（成对规矩管着）；`tauri dev` 运行时冒烟未做——证据止于静态与构建期，permission denial 是否消失待终验。
+> - 施工台账：`AGENTS/artifacts/施工书-技术债四合一批-20261019/ledger-C.md`（含逐行原始输出）。
 
 > 📌 **2026-10-18 绘画时间·整年在画热力图（RingoTrack 款；用户拍板：纸墨墨色深浅 + 独立页 + 直接接）**
 >
