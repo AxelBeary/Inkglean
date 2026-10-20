@@ -185,13 +185,15 @@ foreach ($gate in $gates) {
   try {
     $npmArgs = $gate.npmArgs
     $exe = if ($gate.cmd) { $gate.cmd } else { 'npm' }
-    $output = & $exe @npmArgs 2>&1 | Out-String
+    # 大输出（server vitest 约 12MB）走管道 + Out-String 会填满 OS 管道缓冲，
+    # 子进程阻塞、父进程等不到退出；直接流式落盘再读回，日志仍是完整原始输出。
+    & $exe @npmArgs *> $logFile
     $code = $LASTEXITCODE
+    $output = Get-Content -Path $logFile -Raw -Encoding utf8
   } finally {
     Pop-Location
   }
   $sw.Stop()
-  Set-Content -Path $logFile -Value $output -Encoding utf8
   $ok = ($code -eq 0)
 
   $detail = ''
