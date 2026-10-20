@@ -48,7 +48,7 @@ const h = vi.hoisted(() => ({
   getProfile: vi.fn(),
   getArtworks: vi.fn(),
   getAddonTemplates: vi.fn(),
-  getSizeOverrides: vi.fn(),
+  getAllSizeOverrides: vi.fn(),
   setStyleAddons: vi.fn(),
   setSizeOverrides: vi.fn(),
   msgSuccess: vi.fn(),
@@ -68,7 +68,7 @@ vi.mock('../../../api/index.js', () => ({
     getProfile: h.getProfile,
     getArtworks: h.getArtworks,
     getAddonTemplates: h.getAddonTemplates,
-    getSizeOverrides: h.getSizeOverrides,
+    getAllSizeOverrides: h.getAllSizeOverrides,
     setStyleAddons: h.setStyleAddons,
     setSizeOverrides: h.setSizeOverrides,
     updateProfile: vi.fn(),
@@ -107,8 +107,10 @@ async function mountManager() {
   h.getProfile.mockResolvedValue({ multi_style_enabled: true })
   h.getArtworks.mockResolvedValue([])
   h.getAddonTemplates.mockResolvedValue([])
-  // 预载尺寸覆盖：a1 在 z1 上隐藏（拖入即启用路径的前提）
-  h.getSizeOverrides.mockResolvedValue([{ style_addon_id: 'a1', price_override: null, is_hidden: true }])
+  // 预载尺寸覆盖（批量端点）：a1 在 z1 上隐藏（拖入即启用路径的前提）
+  h.getAllSizeOverrides.mockResolvedValue([
+    { id: 1, style_size_id: 'z1', style_addon_id: 'a1', price_override: null, is_hidden: 1, style_id: 's1' }
+  ])
   const wrapper = shallowMount(ArtStyleManager, {
     global: {
       mocks: { $t: (key: string) => key, $tm: () => [] },

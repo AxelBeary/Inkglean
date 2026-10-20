@@ -266,6 +266,15 @@ export default async function styleRoutes(fastify: FastifyInstance) {
 
   // ─── 尺寸覆盖 ───
 
+  /**
+   * GET /api/artist/art-styles/overrides — 全量尺寸覆盖（只读）
+   * 画风管理页批量预载：一次拿全本画师所有画风 × 尺寸的覆盖行，替代前端 N×M 次逐对 GET。
+   * 行结构与逐对端点一致，另带 style_id 便于前端按画风归并。
+   */
+  fastify.get('/api/artist/art-styles/overrides', { preHandler: requireAuth }, async (request: FastifyRequest) => {
+    return styleService.getAllSizeOverrides(request.artist.id)
+  })
+
   /** GET /api/artist/art-styles/:id/sizes/:sizeId/overrides — 读取尺寸覆盖列表（只读） */
   fastify.get('/api/artist/art-styles/:id/sizes/:sizeId/overrides', {
     preHandler: [requireAuth, requireOwnStyle]

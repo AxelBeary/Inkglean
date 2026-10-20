@@ -121,6 +121,8 @@ import AddonImportDialog from './AddonImportDialog.vue'
 import StyleCard from './style-manage/StyleCard.vue'
 import type { AddonCreatedPayload, ManagerArtwork, ManagerSa, ManagerSizeRow, ManagerStyleRow } from './style-manage/types'
 import { addonCategory } from './addon-utils'
+import { groupSizeOverrides } from './styleOverrides'
+import type { SizeOverrideGroup } from './styleOverrides'
 
 const { t } = useI18n()
 
@@ -571,27 +573,25 @@ async function onDropToPool(style: ManagerStyleRow, _e: DragEvent) {
   }
 }
 
-/** 预载各尺寸覆盖 → size._overrides = { [styleAddonId]: { price_override, is_hidden } }（GET 只读端点）
+/** 预载各尺寸覆盖 → size._overrides = { [styleAddonId]: { price_override, is_hidden } }
  *  M-12（审计 260830）：写回绑定发起它的那次加载序号——晚到的预载不得写进已被新加载替换的孤儿对象
  *  （报告点名的 _overrides 残缺根因）。
- *  TODO(audit-260830): N×M 覆盖请求待后端批量接口（现逐 画风×尺寸 一个 GET；后端无一次性全量端点——
- *  getArtStyles 不含覆盖，getPublicStyles 为顾客算价端点，不暴露原始覆盖记录，故本批不切换） */
+ *  N×M 消除：原逐 画风×尺寸 各发一个 GET（audit-260830 遗留待办），现改走 GET /artist/art-styles/overrides
+ *  一次取全量，再按 style_size_id 分组回填；失败降级与旧逐尺寸 catch 一致（全部空覆盖，不弹错、不阻塞 load） */
 async function preloadOverrides(styleList: ManagerStyleRow[], seq: number) {
-  await Promise.all(styleList.map(async style => {
-    await Promise.all((style.sizes || []).map(async size => {
-      try {
-        const overrides = await artistApi.getSizeOverrides(style.id, size.id)
-        if (seq !== loadSeq) return // 晚到即丢弃：不写孤儿对象（M-12）
-        size._overrides = {}
-        for (const o of overrides) {
-          size._overrides[o.style_addon_id] = { price_override: o.price_override, is_hidden: !!o.is_hidden }
-        }
-      } catch {
-        if (seq !== loadSeq) return
-        size._overrides = {}
-      }
-    }))
-  }))
+  const allSizes = styleList.flatMap(style => style.sizes || [])
+  let grouped: Map<number, SizeOverrideGroup> = new Map()
+  try {
+    grouped = groupSizeOverrides(await artistApi.getAllSizeOverrides())
+  } catch {
+    // 批量端点失败：所有尺寸按空覆盖处理（弹窗/摘要回落到画风级口径），不打扰用户
+  }
+  if (seq !== loadSeq) return // 晚到即丢弃：不写孤儿对象（M-12）
+  for (const size of allSizes) {
+    size._overrides = {}
+    const group = grouped.get(size.id)
+    if (group) Object.assign(size._overrides, group)
+  }
 }
 
 // ─── 初始化 ───

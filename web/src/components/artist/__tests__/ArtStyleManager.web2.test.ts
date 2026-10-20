@@ -56,12 +56,13 @@ vi.mock('vue-i18n', () => ({
 const h = vi.hoisted(() => ({
   styles: [] as ArtStyle[],
   profile: { multi_style_enabled: false } as Record<string, unknown>,
-  sizeOverrides: [] as Array<{ style_addon_id: string; price_override: number | null; is_hidden: boolean }>,
+  // N×M 批量覆盖批：预载改走一次性全量端点，mock 数据带 style_size_id/style_id（批量项形状）
+  sizeOverrides: [] as Array<{ id: string; style_size_id: string; style_addon_id: string; price_override: number | null; is_hidden: number; style_id: string }>,
   getArtStyles: vi.fn(),
   getProfile: vi.fn(),
   getArtworks: vi.fn(),
   getAddonTemplates: vi.fn(),
-  getSizeOverrides: vi.fn(),
+  getAllSizeOverrides: vi.fn(),
   setStyleAddons: vi.fn(),
   setSizeOverrides: vi.fn(),
   updateArtStyle: vi.fn(),
@@ -82,7 +83,7 @@ vi.mock('../../../api/index.js', () => ({
     getProfile: h.getProfile,
     getArtworks: h.getArtworks,
     getAddonTemplates: h.getAddonTemplates,
-    getSizeOverrides: h.getSizeOverrides,
+    getAllSizeOverrides: h.getAllSizeOverrides,
     setStyleAddons: h.setStyleAddons,
     setSizeOverrides: h.setSizeOverrides,
     updateArtStyle: h.updateArtStyle,
@@ -115,7 +116,7 @@ async function mountManager() {
   h.getProfile.mockImplementation(() => Promise.resolve({ ...h.profile }))
   h.getArtworks.mockResolvedValue([])
   h.getAddonTemplates.mockResolvedValue([])
-  h.getSizeOverrides.mockImplementation(() => Promise.resolve(JSON.parse(JSON.stringify(h.sizeOverrides))))
+  h.getAllSizeOverrides.mockImplementation(() => Promise.resolve(JSON.parse(JSON.stringify(h.sizeOverrides))))
   const wrapper = shallowMount(ArtStyleManager, {
     global: {
       mocks: { $t: (key: string) => key, $tm: () => [] },
@@ -133,6 +134,7 @@ describe('ArtStyleManager WEB-05：多画风关闭 + 停用默认画风后本卡
     h.styles = []
     h.updateArtStyle.mockReset()
     h.updateArtStyle.mockResolvedValue({})
+    h.getAllSizeOverrides.mockClear()
     h.msgSuccess.mockClear()
     h.msgError.mockClear()
     h.msgInfo.mockClear()
@@ -208,6 +210,7 @@ describe('ArtStyleManager WEB-06：onDropToSize 判定/清载荷/画风级启用
     h.setSizeOverrides.mockReset()
     h.setStyleAddons.mockResolvedValue({})
     h.setSizeOverrides.mockResolvedValue({})
+    h.getAllSizeOverrides.mockClear()
     h.msgSuccess.mockClear()
     h.msgError.mockClear()
     h.msgInfo.mockClear()
@@ -341,7 +344,7 @@ describe('ArtStyleManager WEB-06：onDropToSize 判定/清载荷/画风级启用
         buildAddon({ id: 'a2', addon_template_id: 't2', template_category: 'usage', is_enabled: 1 })
       ]
     }]
-    h.sizeOverrides = [{ style_addon_id: 'a1', price_override: null, is_hidden: true }]
+    h.sizeOverrides = [{ id: 'ov1', style_size_id: 'z1', style_addon_id: 'a1', price_override: null, is_hidden: 1, style_id: 's1' }]
 
     const wrapper = await mountManager()
     const vm = wrapper.vm as unknown as ArtStyleManagerVm
@@ -359,5 +362,62 @@ describe('ArtStyleManager WEB-06：onDropToSize 判定/清载荷/画风级启用
     expect(h.setSizeOverrides).toHaveBeenCalled()
     expect(h.msgSuccess).toHaveBeenCalled()
     expect(h.msgInfo).not.toHaveBeenCalled()
+  })
+})
+
+describe('ArtStyleManager 批量覆盖预载（N×M 消除批）', () => {
+  beforeEach(() => {
+    h.profile = { multi_style_enabled: true }
+    h.styles = []
+    h.sizeOverrides = []
+    h.getAllSizeOverrides.mockClear()
+    h.msgError.mockClear()
+  })
+
+  it('load 只发一次 getAllSizeOverrides，两个画风三个尺寸各自填好 _overrides', async () => {
+    h.styles = [
+      {
+        id: 's1', name: 'Q版', is_active: 1, sort_order: 0,
+        sizes: [
+          { id: 'z1', name: '头像', sort_order: 0, base_price: 100 },
+          { id: 'z2', name: '半身', sort_order: 1, base_price: 200 }
+        ],
+        addons: [buildAddon({ id: 'a1' })]
+      },
+      {
+        id: 's2', name: '写实', is_active: 1, sort_order: 1,
+        sizes: [{ id: 'z3', name: '全身', sort_order: 0, base_price: 300 }],
+        addons: [buildAddon({ id: 'a2' })]
+      }
+    ]
+    h.sizeOverrides = [
+      { id: 'ov1', style_size_id: 'z1', style_addon_id: 'a1', price_override: 20, is_hidden: 0, style_id: 's1' },
+      { id: 'ov2', style_size_id: 'z2', style_addon_id: 'a1', price_override: null, is_hidden: 1, style_id: 's1' }
+    ]
+
+    const wrapper = await mountManager()
+    const vm = wrapper.vm as unknown as ArtStyleManagerVm
+
+    // 关键：全量端点只打一次（旧实现为 画风×尺寸 = 3 次 GET）
+    expect(h.getAllSizeOverrides).toHaveBeenCalledTimes(1)
+    expect(vm.styles[0].sizes[0]._overrides).toEqual({ a1: { price_override: 20, is_hidden: false } })
+    expect(vm.styles[0].sizes[1]._overrides).toEqual({ a1: { price_override: null, is_hidden: true } })
+    expect(vm.styles[1].sizes[0]._overrides).toEqual({}) // 该尺寸无覆盖记录 → 空表，不是 undefined
+  })
+
+  it('批量端点失败 → 所有尺寸 _overrides 退化为 {}，不弹错、不阻塞 load', async () => {
+    h.styles = [{
+      id: 's1', name: 'Q版', is_active: 1, sort_order: 0,
+      sizes: [{ id: 'z1', name: '头像', sort_order: 0, base_price: 100 }],
+      addons: [buildAddon({ id: 'a1' })]
+    }]
+    h.getAllSizeOverrides.mockRejectedValueOnce(new Error('batch boom'))
+
+    const wrapper = await mountManager()
+    const vm = wrapper.vm as unknown as ArtStyleManagerVm
+
+    expect(vm.styles).toHaveLength(1) // load 未被预载失败拖垮
+    expect(vm.styles[0].sizes[0]._overrides).toEqual({})
+    expect(h.msgError).not.toHaveBeenCalled()
   })
 })
