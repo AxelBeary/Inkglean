@@ -6,6 +6,25 @@
 > - 滚动分册：活档体积门 `scripts/check-changelog-size.mjs`（≤40KB / ≤450 行，单段 ≤4KB，accept 第 19 道）；撞线即搬 oldest 段入 `docs/changelog-archive/` 新卷（整段零改动 + 逐行哈希校验，禁调高阈值续命）。
 > - v0.x 时代（v0.1~v0.46+）全量台账在 `docs/changelog-archive/changelog-v0-20260927.md`，只读历史。
 
+## U45/U46 修复批：悬浮截稿窗只读开库 + 真 IPC/ACL 防线（2026-10-21，一号自主批）
+
+- **U45（真缺陷）**：截稿悬浮窗在本地模式走读写开库（含 7 条建表 execute），而 `floating.json` 从创建起就没有任何 sql 权限；失败又被 `localLedger` 的 catch 吞成 `unavailable`，组件 catch 打不着 → 渲染「近期无截稿，从容落笔」假空态。修复：新增 `openLocalDbReadOnly()`（不建表、独立单例），截稿窗改走该通道；`FloatDeadline.vue` 消费 `ledger.unavailable`，取不到就说「暂时取不到截稿」。
+- **权限最小化**：`floating.json` 恢复 core+拖动；新建 `floating-deadline.json` 仅授予截稿窗 `sql:default`（close/load/select，无 execute）；timer/today-todo 不授 SQL。
+- **竞态与自愈**：本地模式 `Home.vue` 先等主窗 `loadAll()` 建表再恢复悬浮窗；`localLedger.loadAll` 成功即复位 `unavailable`，一次瞬时失败不会把浮窗永久钉死。
+- **U46 防线**：`desktop/src-tauri/tests/acl.rs` 用 tauri::test mock runtime + `get_ipc_response` 走真 ACL：主窗 execute 通、截稿窗 select 通/execute 拒、计时窗 load 拒。`build.rs` 用 embed-resource 把 tauri-build 生成的 Windows 资源/manifest 也链进测试 exe（否则测试 exe 加载期 STATUS_ENTRYPOINT_NOT_FOUND）；CI desktop job 由 cargo check 改 cargo test。
+- **F-44 顺手清偿**：`Home.vue` 的内联截稿提醒映射抽到 `localGlance.buildLocalDeadlineAlerts`（行为不变，+1 单测），807→800 行；`check-file-size` ALLOWLIST 移除 Home.vue，其余源码按 800 行硬线。
+- **验证**：desktop lint 0 错；test 551→570（40 文件，+19：db-readonly 9 / float-deadline 6 / local-ledger 2 / 失败复位 1 / localGlance 1）；build 绿；cargo test 1 例；`accept.ps1` 十九道全绿 @ `4d6bf0b6`（406s），五端计数 server 1847 / web 982 / desktop 570 / shared 27 / E2E 14。
+- **留痕**：施工 ledger 与门禁完整输出在 `AGENTS/artifacts/U45-U46修复批-20261020/`；U46 测试首次把 ACL 缺口变成可在 CI 复现的断言。
+
+## Dependabot #19/#20 双 PR 同批合入 + 门禁/E2E 工具修（2026-10-21，一号自主批）
+
+- #19（root/server/shared/web，11 项 minor/patch）：`@playwright/test` 1.64.1、`fastify` 5.12.7、`oxlint` 1.88、`vitest` 4.1.12、`@typescript-eslint/*` 8.71.2、`vue` 3.5.44、`vue-tsc` 3.3.13、`dompurify` 3.4.17、`simple-icons` 16.35、`jsdom` 30.1.3。
+- #20（desktop，6 项）：`pinia` 4.1.0（minor）、`vue` 3.5.44、`vue-tsc` 3.3.13、`vitest` 4.1.12、`@typescript-eslint/*` 8.71.2。
+- 两条都含 `vue-tsc` ^3.3.12→^3.3.13，按既定口径同批合，三端口径不分叉；未碰 `@tauri-apps/*` 与 `typescript`，成对规矩不触发。GitHub 已识别为 MERGED（#19 `44efe9b4` / #20 `6838fb14`）。
+- 安装后 `npm install` 顺带补齐 desktop/web 两份 lock 的根 specifier（Dependabot 只改了 package.json 与解析版本）；五目录 `npm audit` 0。
+- 同批顺手：E2E `global-setup` 改为每次重建 `web/dist`（防手工跑测到旧包）；OnboardingCard 三条过期埋点注释订正；`accept.ps1` 大输出改流式落盘，消除 server vitest 12MB 输出偶发管道死锁。
+- **验证**：`accept.ps1` 十九道全绿 @ `04ddfbd1`（433s；server 1847 / web 982 / desktop 570 / shared 27 / E2E 14）；`cargo test` 1 例；五目录 audit 0。
+
 ## 技术债四合一批：changelog 分册 + U25 dompurify 4 + U31 桌面工具链收敛 + U32 权限（2026-10-19，用户拍板全做）
 
 > 三路 worktree 并行（A docs / B server / C desktop，领地零交叉）+ 一号串行收口；`pwsh scripts/accept.ps1` **十九道全绿 @ `01b3fcae`（678s）**，五端计数全不变。
