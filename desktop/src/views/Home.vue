@@ -331,7 +331,6 @@ function onRefresh(): void {
 onMounted(async () => {
   window.addEventListener('online', onOnline)
   window.addEventListener('offline', onOffline)
-  restoreTorn()
   listenFloatClosed()
   // F8 二期自动识别：双模式均启（纯本地采样，不联网，合双模式纪律）
   autoTime.start()
@@ -340,11 +339,14 @@ onMounted(async () => {
   // 排期取数（9/4 波1）：双模式都触发——store 内部守双模式纪律（本地只读记账，一个云端接口都不调）
   void sched.load()
   if (cloud.value) {
+    restoreTorn()
     void loadAll()
     void silentUpdateCheck()
   } else {
-    // 本地模式：读本地记账（概览句/今日要办/订单速览本地变体的数据源，波6）
+    // 本地模式：读本地记账（概览句/今日要办/订单速览本地变体的数据源，波6）；
+    // 先等主窗建表再恢复悬浮窗——只读投影窗无 execute，抢在建表前查询会误报取不到（U45）
     if (!ledger.loaded) await ledger.loadAll()
+    restoreTorn()
     // 截稿提醒（波14）：本地记账未完成单里的逾期/今天/明天，同云端一条链（每日去重）
     void checkDeadlineAlerts(
       ledger.orders

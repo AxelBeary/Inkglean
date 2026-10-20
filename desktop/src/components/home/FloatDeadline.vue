@@ -27,7 +27,13 @@ onMounted(async () => {
   }
   // 本地模式：读本地记账的未完成单截稿（双模式纪律：不调云端接口）
   try {
-    if (!ledger.loaded) await ledger.loadAll()
+    // 只读投影窗无 execute 权限：必须走不建表的只读通道（建表被 ACL 拒只会静默失败）
+    if (!ledger.loaded) await ledger.loadAll(true)
+    // store 的 catch 吞异常只置 unavailable（不外抛），组件须自己说真话——含同窗重挂载的已加载态
+    if (ledger.unavailable) {
+      failed.value = true
+      return
+    }
     items.value = buildLocalDeadlineRows(ledger.orders, 14, 6).map(r => ({
       id: r.id,
       clientName: r.clientName,

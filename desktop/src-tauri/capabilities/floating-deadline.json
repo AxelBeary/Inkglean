@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "floating-deadline-sql",
+  "description": "仅截稿倒计时悬浮窗：只读账目权限 sql:default（close/load/select，不含 execute）。该窗只投影本地记账，不写库；timer/today-todo 两个悬浮窗不授予任何 sql 权限",
+  "windows": ["floating-deadline"],
+  "permissions": ["sql:default"]
+}

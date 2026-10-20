@@ -81,6 +81,7 @@
 | 依赖 | 许可 |
 |------|------|
 | tauri / tauri-build / @tauri-apps/cli / @tauri-apps/api | Apache-2.0 OR MIT 双许可 |
+| embed-resource（Rust build-dependency） | MIT（实测 3.0.11；build.rs 把 Windows 资源与 Common Controls v6 manifest 链进测试 exe，U46 真 IPC/ACL 测试用） |
 | tauri-plugin-opener | Apache-2.0 OR MIT 双许可 |
 | tauri-plugin-dialog / tauri-plugin-updater | Apache-2.0 OR MIT 双许可 |
 | tauri-plugin-window-state | Apache-2.0 OR MIT 双许可（窗口几何记忆：主窗口尺寸/位置重启还原） |
@@ -156,4 +157,4 @@ Get-Content "$env:USERPROFILE\.cargo\registry\src\index.crates.io-*\serde-1.0.22
 
 ---
 
-*最后更新：2026-10-19（技术债四合一批：`isomorphic-dompurify` ^3.22.0 → ^4.6.0，实测 4.6.0、内嵌 `dompurify` 3.4.17、`jsdom` 30.1.3；engines 与许可均未变更，无新增直接依赖。桌面端 `typescript` / `vue-tsc` 属 devDependencies，不入本表）；此前：2026-10-13（PR 与警报治理批：本批为 Dependabot npm 分组 32 项 minor/patch + 桌面端 Tauri JS↔Rust 成对升级，无新增直接依赖、无许可变更；实测回写 @simplewebauthn/server 13.3.2→13.3.3。此前：2026-10-12 依赖警报清零批：前端 HTTP 层拆掉 axios 改浏览器原生 fetch（运行时直接依赖减一项，本表同步删除 axios 行），dompurify 3.4.13→3.4.16 实测复核；本批为四端锁的 PATCH 档定点刷新与一项依赖移除，无新增依赖、无许可变更。此前：2026-09-12 审计第 2 批 F-12：补登 @simplewebauthn/server / isomorphic-dompurify（含其内嵌 dompurify 的双许可）/ ajv / qrcode 前端侧 / serde 与 serde_json，全部许可实测；登记口径改为「五端 manifest 运行时直接依赖 + Rust 直接 crate」并写死实测方法；第六节重新生成命令补齐五端与 Rust；顺带修 simpleIcons 扩展名、幽灵截图目录、pinia 两端版本差异、windows crate 用途漏项。再前：2026-08-26 桌面端本地核心环波1 新增 tauri-plugin-sql 登记；同日正式图标批与 notification / global-shortcut / single-instance；2026-08-20 新增 tesseract.js 依赖与运行时 CDN 说明、chart.js 依赖与 oimimo-scheduler 设计参考致谢）*
+*最后更新：2026-10-21（U45/U46 批：桌面端新增构建依赖 embed-resource 3.0.11（MIT），把 Windows manifest 链进测试 exe 以跑真 IPC/ACL）；此前：2026-10-19（技术债四合一批：`isomorphic-dompurify` ^3.22.0 → ^4.6.0，实测 4.6.0、内嵌 `dompurify` 3.4.17、`jsdom` 30.1.3；engines 与许可均未变更，无新增直接依赖。桌面端 `typescript` / `vue-tsc` 属 devDependencies，不入本表）；此前：2026-10-13（PR 与警报治理批：本批为 Dependabot npm 分组 32 项 minor/patch + 桌面端 Tauri JS↔Rust 成对升级，无新增直接依赖、无许可变更；实测回写 @simplewebauthn/server 13.3.2→13.3.3。此前：2026-10-12 依赖警报清零批：前端 HTTP 层拆掉 axios 改浏览器原生 fetch（运行时直接依赖减一项，本表同步删除 axios 行），dompurify 3.4.13→3.4.16 实测复核；本批为四端锁的 PATCH 档定点刷新与一项依赖移除，无新增依赖、无许可变更。此前：2026-09-12 审计第 2 批 F-12：补登 @simplewebauthn/server / isomorphic-dompurify（含其内嵌 dompurify 的双许可）/ ajv / qrcode 前端侧 / serde 与 serde_json，全部许可实测；登记口径改为「五端 manifest 运行时直接依赖 + Rust 直接 crate」并写死实测方法；第六节重新生成命令补齐五端与 Rust；顺带修 simpleIcons 扩展名、幽灵截图目录、pinia 两端版本差异、windows crate 用途漏项。再前：2026-08-26 桌面端本地核心环波1 新增 tauri-plugin-sql 登记；同日正式图标批与 notification / global-shortcut / single-instance；2026-08-20 新增 tesseract.js 依赖与运行时 CDN 说明、chart.js 依赖与 oimimo-scheduler 设计参考致谢）*
