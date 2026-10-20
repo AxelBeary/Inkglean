@@ -118,15 +118,13 @@ export default async function globalSetup(): Promise<void> {
   if (existsSync(TEST_UPLOADS)) rmSync(TEST_UPLOADS, { recursive: true })
   mkdirSync(TEST_UPLOADS, { recursive: true })
 
-  // 2. 构建前端（服务器 SPA fallback 需要 web/dist）
-  if (!existsSync(resolve(ROOT, 'web/dist/index.html'))) {
-    if (!existsSync(resolve(ROOT, 'web/node_modules/.bin'))) {
-      console.log('📦 E2E: 安装前端依赖...')
-      execSync('npm install', { cwd: resolve(ROOT, 'web'), stdio: 'inherit', timeout: 120_000 })
-    }
-    console.log('📦 E2E: 构建前端...')
-    execSync('npm run build', { cwd: resolve(ROOT, 'web'), stdio: 'inherit', timeout: 120_000 })
+  // 2. 构建前端（服务器 SPA fallback 需要 web/dist；每次重建，防手工跑 E2E 测到旧包）
+  if (!existsSync(resolve(ROOT, 'web/node_modules/.bin'))) {
+    console.log('📦 E2E: 安装前端依赖...')
+    execSync('npm install', { cwd: resolve(ROOT, 'web'), stdio: 'inherit', timeout: 120_000 })
   }
+  console.log('📦 E2E: 构建前端...')
+  execSync('npm run build', { cwd: resolve(ROOT, 'web'), stdio: 'inherit', timeout: 120_000 })
 
   // 3. 初始化 + 种子数据库
   if (!existsSync(resolve(ROOT, 'server/node_modules/.bin'))) {

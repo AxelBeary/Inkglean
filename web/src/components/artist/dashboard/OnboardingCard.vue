@@ -56,7 +56,7 @@ const visible = computed(() => {
 async function load() {
   try {
     state.value = await artistApi.getOnboarding()
-    // REQ-033 埋点：展示（事件名 onboarding_view 待后端 EVENT_WHITELIST 扩容，当前会被 400 丢弃，不阻塞）
+    // REQ-033 埋点：展示（onboarding_view 已在 EVENT_WHITELIST 白名单内）
     if (visible.value) {
       trackEvent('onboarding_view', { page: '/dashboard' })
       maybeAutoStartTour()
@@ -75,13 +75,13 @@ function maybeAutoStartTour() {
 
 /** 主按钮 = 重置入口：已看过也能随时再看一遍 */
 function startTour() {
-  // REQ-033 埋点：导览手动启动（事件名 tour_start 待白名单扩容，同上不阻塞）
+  // REQ-033 埋点：导览手动启动（tour_start 已在 EVENT_WHITELIST 白名单内）
   trackEvent('tour_start')
   tour.start()
 }
 
 async function dismiss() {
-  // REQ-033 埋点：关闭（事件名 onboarding_dismiss 待白名单扩容，同上）
+  // REQ-033 埋点：关闭（onboarding_dismiss 已在 EVENT_WHITELIST 白名单内）
   trackEvent('onboarding_dismiss')
   try {
     await artistApi.dismissOnboarding()
