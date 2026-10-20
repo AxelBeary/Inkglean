@@ -6,6 +6,12 @@
 > - 滚动分册：活档体积门 `scripts/check-changelog-size.mjs`（≤40KB / ≤450 行，单段 ≤4KB，accept 第 19 道）；撞线即搬 oldest 段入 `docs/changelog-archive/` 新卷（整段零改动 + 逐行哈希校验，禁调高阈值续命）。
 > - v0.x 时代（v0.1~v0.46+）全量台账在 `docs/changelog-archive/changelog-v0-20260927.md`，只读历史。
 
+## E2E 定位器规则 3 落地（2026-10-21，test-only）
+
+- `e2e/scripts/check-locators.ts` 新增规则 3：裸 `page.getByRole(role, { name: 动态 })` 未 scope → ERROR；沿用 `// locator-ok` 豁免机制。
+- e1 提交按钮 scope 到 `.step-nav`，e3 推进按钮 scope 到 `.action-bar`；两处均未用豁免。
+- 自证：临时探针（裸动态 getByRole）被脚本捕获 1 ERROR；移除探针后 `npm run check:e2e` 11 spec / ERROR=0 / WARN=2；`npm run test:e2e` 14 passed（36.7s）。
+
 ## 画风管理 N×M 尺寸覆盖批：一次取全、消除请求风暴（2026-10-21，一号自主批）
 
 - **后端**：新增 `GET /api/artist/art-styles/overrides`（`requireAuth` 按 `request.artist.id` 过滤，单条 JOIN `style_sizes` / `art_styles`，返回带 `style_id` 的 `SizeAddonOverrideBatchItem[]`）；+5 测试（跨画师零泄漏 / 401 / 空表 / 同尺寸多增项不串 / 与逐对端点逐字段并轨）。
