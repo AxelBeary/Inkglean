@@ -22,7 +22,8 @@
 
 1. ✅ **本批收口 @ `12adf772`（已 push）**：技术债四合一批四件事（changelog 分册 + U25 + U31 + U32）；两轮十九道全绿（`01b3fcae`/678s、`aaa5164e`/659s）；远端 CI 五 job + E2E + CodeQL 全绿
 2. **本批四项待拍板已裁**：① `overrides.undici` 已提到 ^8.12.1；② U32 冒烟已跑，`sql:allow-execute` 运行时确证（本机 local.db 0→7 张表）；③ 归档卷头注路径照旧留着；④ 溢文归档已单独一批做完
-3. **新销待办（本批顺手发现，详见正文首条）**：U45 悬浮窗能力面完全没有 sql 权限而 `FloatDeadline.vue` 在用本地账目 store；U46 桌面端零真 IPC 测试，ACL 缺口天生测不到
+3. **新销待办（本批顺手发现，已静态定性）**：U45 经一号直读代码定为**真缺陷（条件触发）**：本地模式掰「截稿倒计时」悬浮窗会显示假空态「近期无截稿」；U46 桌面端零真 IPC 测试，ACL 缺口天生测不到
+   - 细则与候选修复面（未拍板、禁止照抄施工）：`AGENTS/artifacts/施工书-U45U46修复批-20261020/施工书.md`
 4. **不紧急 · 下次处理（用户 10-19 裁）**：Dependabot #19 + #20 —— **要合就两条同批合**（两条都含 vue-tsc ^3.3.12→^3.3.13，只合一条三端口径就劈叉）；#20 不含 typescript / @tauri-apps，成对关闸仍有效
 5. **待你拍板的技术债（剩余）**：U26 server 以 tsx 作生产依赖；U33 桌面发版流水线从未跑过（缺 vars/secrets，首版必红）
 6. **待你终验 / 终审**：桌面 UI 真机清单（标题栏拖拽、托盘左键、通知弹窗、原生文件选择器、本地记账；其中 `opener:allow-open-path` 只能真人点「打开」验）；对外文案 W4 下架横幅 / W6 隐私 IP 披露 / U12 主页文案 / U13 安装包署名
@@ -109,8 +110,12 @@
 > - **冒烟顺手捣出两笔（新增待办 U45 / U46，本批未动）**：
 >   - **U45 不是理论风险，是已经坏过的事实**：Rust 侧 `tauri_plugin_sql::Builder::default().build()` **不带 migrations**（`lib.rs:46` 注释自述建表全靠前端），
 >     而本机 `local.db` 创建后（mtime 8/27）一直是空库——即修复前桌面本地记账在本机从未真正建过表，失败被 `localLedger.ts` 的 catch 吞成 `unavailable`。
->   - **同机制怀疑**：`capabilities/floating.json` 权限面只有 `core:default` + `start-dragging`，**连 `sql:default` 都没有**，而 `FloatDeadline.vue:8,13` 在用 `useLocalLedgerStore`；
->     若悬浮窗真走 openLocalDb，撕悬浮的截稿倒计时在本地模式下同样拿不到账目（静态无法定论，需运行时核实）。
+>   - **U45 已静态定性为真缺陷（条件触发；一号 10-20 直读代码复核，未只信侦察报告）**：
+>     `floating.json` 的 `windows` 三串与 Rust `window.rs:57-65` 拼出的 label 逐字匹配（无回落坑），且 `git log -S sql` 对该文件**零命中** → 从创建起就没 sql 权限；
+>     `FloatDeadline.vue:29-40` 本地分支无条件 `await ledger.loadAll()`，而 `localLedger.ts:105-109` 的 catch **吞异常不外抛**只置 `unavailable`，
+>     所以组件 L38 那个 catch 永远打不着 → `failed` 恒为 false → 模板 L47 交出漂亮的假空态「近期无截稿，从容落笔」（比报错更误导人）。
+>   - **一号发现的集成缺口（侦察报里没有）**：`unavailable` 在主窗是有消费的（`schedule.ts:116`、`LedgerPanel.vue:164`、三个工具页），**唯 `FloatDeadline.vue` 没读它**
+>     → 所以修复面不是“加两行权限”那么简单：只补权限会把下一次同类静默仍然藏住；两件事得一起做。细则见施工书-U45U46修复批。
 >   - **U46 测试盲区**：全仓桌面端 **零条真 IPC 测试**——vitest 全部 `vi.mock` bridge 或走 happy-dom 逃生门降级，Rust 侧无 test，无 WebDriver 层；
 >     ACL 缺口在这套门禁下天生测不到（十九道全绿期间本地记账其实一直是坏的）。本批两条新权限只靠静态+本次冒烟兼容。
 > - **收口追加**：拍板项落地后重跑 `pwsh scripts/accept.ps1` **第二轮十九道全绿 @ `aaa5164e`（659s）**，
