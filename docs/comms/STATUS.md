@@ -2,13 +2,14 @@
 
 ## 看板（2026-10-21 刷新：U45/U46 修复批 + Dependabot #19/#20 同批合入；一号自主批）
 
-- **HEAD 与推送**：十九道全绿 @ `04ddfbd1`（433s；U45/U46 @ `4d6bf0b6` / 406s 首验）；U45/U46 + 依赖双 PR 已合入并 push
-- **基线（accept.ps1 十九道全绿 @ `04ddfbd1`）**：server **1847**（159 文件）/ web **982**（143）/ desktop **570**（40）/ shared **27**（4）/ E2E **14**
+- **HEAD 与推送**：十九道全绿 @ `f8258703`（381s；U45/U46 @ `4d6bf0b6` / 406s；依赖 @ `04ddfbd1` / 433s）；三期已合入并 push
+- **基线（accept.ps1 十九道全绿 @ `f8258703`）**：server **1852**（160 文件）/ web **990**（144）/ desktop **570**（40）/ shared **27**（4）/ E2E **14**
   - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；「门禁全绿」口径仍为**十九道**
-  - U45/U46：desktop 551→570（+19）；依赖批五端计数不变
+  - U45/U46：desktop 551→570（+19）；依赖批五端计数不变；N×M 批 server +5 / web +8
 - **U45/U46 已闭合**：悬浮截稿窗只读开库 + 说真话；`floating-deadline.json` 单独授 `sql:default`（无 execute），timer/todo 零 SQL；U46 真 IPC/ACL 测试进 CI desktop job（`cargo test`）
 - **F-44 清偿**：`Home.vue` 807→800，`check-file-size` ALLOWLIST 只剩 PriceCard
 - **依赖双 PR**：#19（root/server/shared/web 11 项）+ #20（desktop 6 项）同批合；vue-tsc 3.3.13 三端对齐；未碰 `@tauri-apps/*`/`typescript`，成对现状不变
+- **N×M 覆盖批**：新增 `GET /api/artist/art-styles/overrides`（单条 JOIN、按画师过滤），画风页预载从 N×M 次 GET 收成 1 次；server +5、web +8 例
 - **门禁工具**：`accept.ps1` 大输出改流式落盘；server vitest 12MB 级输出偶发管道死锁已消
 - **警报/PR**：Dependabot open 0、Code scanning open 0、开放 PR 0（#19/#20 已 MERGED）
 - 公网仍冻结中（停在 v74，本地与远端已到 v76）；默认窗 1200×820、最小窗 1200×600 不变（9/5、826 拍板）
@@ -16,11 +17,11 @@
 
 **下一步（按优先级）**
 
-1. ✅ **本批收口 @ `04ddfbd1`（已 push）**：U45/U46 + Dependabot #19/#20 + 门禁流式落盘；十九道全绿 433s；docs 提交随后
+1. ✅ **本批收口 @ `f8258703`（已 push）**：U45/U46 + Dependabot #19/#20 + N×M 覆盖批 + 门禁流式落盘；十九道全绿 381s；docs 提交随后
 2. **待你拍板的技术债（剩余）**：U26 server 以 tsx 作生产依赖；U33 桌面发版流水线从未跑过（缺 vars/secrets，首版必红）
 3. **待你终验 / 终审**：桌面真机 UI 清单（标题栏/托盘/通知/文件选择器/本地记账；opener 需真人点）；对外文案 W4/W6/U12/U13
 4. **剩红灯需拍板**：U16 板块级下架 / U17 数据服务 / G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度 / U22 改稿上限 / U23 记忆库优先级边界 / U24 视觉判断通道归属
-5. **不需用户、可另批**：E2E `check-locators` 规则 3（动态 getByRole 未 scope）/ ArtStyleManager N×M 批量取数接口
+5. **不需用户、可另批**：E2E `check-locators` 规则 3（动态 getByRole 未 scope）
 
 **常驻纪律（事故换来的，不得退色）**
 
@@ -67,7 +68,7 @@
 
 **起手必读续二**：改桌面 UI 必跑 `huiyue-layout-audit` 自检循环（**宿主级技能**，住 `%USERPROFILE%\.agents\skills\huiyue-layout-audit\`，不在仓库属正常；VL 评审通道不可用，只能 measure.mjs + 人工逐项清单）。
 
->  📌 **2026-10-21 两批收口：U45/U46 修复批 + Dependabot #19/#20（一号自主批）**
+>  📌 **2026-10-21 三批收口：U45/U46 修复批 + Dependabot #19/#20 + N×M 尺寸覆盖（一号自主批）**
 >
 > - **U45 已闭合**：截稿悬浮窗本地模式原会因缺少 `sql:execute` 静默失败，再把失败渲染成「近期无截稿」；现改走 `openLocalDbReadOnly()`（不建表）并消费 `ledger.unavailable`，失败一律说「暂时取不到截稿」。
 > - **权限收窄**：`floating.json` 只保留 core+拖动；新建 `floating-deadline.json` 仅给截稿窗 `sql:default`（close/load/select，无 execute）；timer/today-todo 零 SQL 权限。
@@ -76,8 +77,9 @@
 > - **F-44 清偿**：`Home.vue` 的内联截稿提醒映射抽到 `localGlance.buildLocalDeadlineAlerts`（行为不变，+1 单测），807→800 行；`check-file-size` ALLOWLIST 移除 Home.vue。
 > - **门禁工具**：`accept.ps1` 的 12MB 级测试输出改流式落盘，server vitest 偶发管道死锁已消；门禁数量与口径不变。
 > - **依赖双 PR**：#19 + #20 同批合；`vue-tsc` 3.3.13 三端对齐；`@tauri-apps/*` 与 `typescript` 未动，成对规矩不触发；五目录 `npm audit` 0。
-> - **验证**：十九道全绿 @ `04ddfbd1`（433s；U45/U46 首验 @ `4d6bf0b6` / 406s）；server 1847 / web 982 / desktop 570 / shared 27 / E2E 14；`cargo test` 1 例（真 IPC/ACL）。
-> - **留痕**：`AGENTS/artifacts/U45-U46修复批-20261020/`（ledger-A、门禁原始日志、依赖安装与 cargo 测试日志）；归档：`docs/comms/archive-20261021/`。
+> - **N×M 覆盖批**：新增 `GET /api/artist/art-styles/overrides`（requireAuth 按画师过滤、单条 JOIN），画风页预载从 N×M 次 GET 收成 1 次；`groupSizeOverrides` 纯函数 + `loadSeq` 守卫保留；server +5 / web +8 例。
+> - **验证**：十九道全绿 @ `f8258703`（381s；前两轮 @ `4d6bf0b6` / 406s、`04ddfbd1` / 433s）；server 1852 / web 990 / desktop 570 / shared 27 / E2E 14；`cargo test` 1 例（真 IPC/ACL）。
+> - **留痕**：`AGENTS/artifacts/` 下 `U45-U46修复批-20261020/` 与 `N×M批量覆盖批-20261021/`；归档 `docs/comms/archive-20261021/`。
 
 >  📌 **2026-10-19 技术债四合一批收口（用户拍板全做：changelog 分册 + U25 dompurify 4 + U31 桌面工具链收敛 + U32 权限补齐）**
 >
