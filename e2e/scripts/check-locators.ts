@@ -3,7 +3,7 @@
 // 规则：
 //   1. [ERROR] getByText(动态变量/模板) 未 scope——未来双布局/重复文本必然 strict
 //   2. [WARN]  getByText('静态文本') 未 scope 且无豁免注释——人工确认过唯一的加 // locator-ok
-//   3. [TODO]  getByRole('button', { name: 动态 }) 未 scope——本脚本暂未实现扫描，列为待办
+//   3. [ERROR] getByRole('button', { name: 动态 }) 未 scope——动态名可能匹配多个元素，必 strict
 // 运行：node e2e/scripts/check-locators.js（在 CI e2e.yml 前置步骤跑）
 
 import { readFileSync, readdirSync } from 'fs'
@@ -43,29 +43,41 @@ for (const file of files) {
     // 匹配 getByText(...) 调用；捕获「前缀 + 参数」
     // 前缀识别：page.getByText / drawer.getByText / row.getByText / locator(...).getByText 等
     const m = line.match(/([A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*)\.getByText\(\s*(.+?)\s*\)/)
-    if (!m) continue
-    const prefix = m[1]
-    const arg = m[2]
-    const scoped = !/^page$/.test(prefix) && prefix !== 'page' && !prefix.endsWith('page')
-    // 真正的 scope 判断：page.getByText 是裸调用；其它（drawer./row./tbody 等）算已 scope
-    const isBare = prefix === 'page'
+    if (m) {
+      const prefix = m[1]
+      const arg = m[2]
+      // 真正的 scope 判断：page.getByText 是裸调用；其它（drawer./row./tbody 等）算已 scope
+      const isBare = prefix === 'page'
 
-    if (isDynamicArg(arg)) {
-      if (isBare) {
-        // 动态文本裸调用：高置信风险
-        const p = line.trim().slice(0, 120)
-        console.log(`[ERROR] ${file}:${i + 1} 动态文本 getByText 未 scope（未来双布局/重复必 strict）`)
-        console.log(`        ${p}`)
-        errors++
-      }
-      // 已 scope 的动态文本：允许（E3/E4 模式）
-    } else {
-      if (isBare) {
+      if (isDynamicArg(arg)) {
+        if (isBare) {
+          // 动态文本裸调用：高置信风险
+          const p = line.trim().slice(0, 120)
+          console.log(`[ERROR] ${file}:${i + 1} 动态文本 getByText 未 scope（未来双布局/重复必 strict）`)
+          console.log(`        ${p}`)
+          errors++
+        }
+        // 已 scope 的动态文本：允许（E3/E4 模式）
+      } else if (isBare) {
         // 静态文本裸调用：低置信，需人工确认（可加 // locator-ok 豁免）
         const p = line.trim().slice(0, 120)
         console.log(`[WARN]  ${file}:${i + 1} 静态文本 getByText 裸调用——若页面出现重复文本会 strict；确认唯一可加 // locator-ok`)
         console.log(`        ${p}`)
         warnings++
+      }
+    }
+
+    // 规则 3：getByRole(role, { name: 动态 }) 裸 page 调用——动态名字可能匹配多个
+    const rm = line.match(/\.getByRole\(\s*(['"`][^'"`]*['"`])\s*,\s*\{([^}]*)\}\s*\)/)
+    if (rm) {
+      const pre = line.slice(0, rm.index).trim()
+      const isBareRole = /(^|[^\w$.])page\s*$/.test(pre)
+      const nameMatch = rm[2].match(/\bname\s*:\s*([^,}]+)/)
+      if (isBareRole && nameMatch && isDynamicArg(nameMatch[1])) {
+        const p = line.trim().slice(0, 120)
+        console.log(`[ERROR] ${file}:${i + 1} 动态 name 的 getByRole 未 scope（strict-mode 风险）`)
+        console.log(`        ${p}`)
+        errors++
       }
     }
   }
