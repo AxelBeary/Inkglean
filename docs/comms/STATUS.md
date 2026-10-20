@@ -1,40 +1,34 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-10-19 第二十一次刷新：技术债四合一批收口——changelog 分册 + U25 dompurify 4 + U31 桌面工具链 + U32 权限）
+## 看板（2026-10-21 刷新：U45/U46 修复批 + Dependabot #19/#20 同批合入；一号自主批）
 
-- **HEAD 与推送**：十九道全绿 @ `aaa5164e`（第二轮 659s，已含 undici 提版 + STATUS 溢文归档）；三路 --no-ff 合并零冲突；本看板与 changelog·desktop STATUS 为后续 docs 提交
-- **基线（accept.ps1 十九道全绿 @ `aaa5164e`，659s；首轮 @ `01b3fcae`，678s）**：server **1847**（159 文件）/ web **982**（143）/ desktop **551**（38）/ shared **27**（4）/ E2E **14**
-  - 本批四件事零测试改动，五端计数与 `accept-baseline.json` 逐一吻合，基线文件未动
-  - 上批（可做批 @ `7d9d0f03`）计数不变；desktop 538→551 系 10-18 热力图批新增 `heatmap.test.ts`
+- **HEAD 与推送**：十九道全绿 @ `04ddfbd1`（433s；U45/U46 @ `4d6bf0b6` / 406s 首验）；U45/U46 + 依赖双 PR 已合入并 push
+- **基线（accept.ps1 十九道全绿 @ `04ddfbd1`）**：server **1847**（159 文件）/ web **982**（143）/ desktop **570**（40）/ shared **27**（4）/ E2E **14**
   - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；「门禁全绿」口径仍为**十九道**
-- **警报仍归零，但开放 PR 不再是 0**：Dependabot open 警报 0、Code scanning open 告警 0（REST 实查 @ `12adf772`）；#15/#17 已合入，#83 rustls 随 #16 自动转 fixed（零 dismiss）
-  - Dependabot 新开两条 minor/patch 催更 PR：#19（根/server/shared/web 11 项）与 #20（desktop 6 项），**均非安全驱动**；用户裁「不紧急，下次处理」
-  - 核实留痕：`AGENTS/artifacts/施工书-技术债四合一批-20261019/ci-check-20261019.md`（远端 CI 逐 job + 两 PR 处置口径）
-- **本批动了 Rust**（`desktop/src-tauri/Cargo.lock` 成对升级）：tauri 2.12.2、updater 2.13.2、sql 2.5.0、notification 2.5.1、dialog 2.8.1、opener 2.7.0
-  - 连带 wry 0.57.0 / tao 0.37.1 / muda 0.20.0 / tray-icon 0.25.1 / plugin-fs 2.7.0；四个无 npm 对子的 Rust-only 插件不动
-  - 本地实测：`cargo check` exit=0、`npx tauri info` 无 mismatch 且插件逐条同号、`npm run tauri dev` 起壳成功零 panic
-- **桌面 Tauri 成对规矩（本日拍板并已关闸）**：`@tauri-apps/*` 与桌面 `typescript` 已从 dependabot 自动通道摘出，只许人工成对升；细则见 `desktop/docs/STATUS.md`
-- **web 红的真凶不是 element-plus**：vue-tsc 3.3.12 上游回归（修复 PR #6238）→ 已改写法根治，见正文 10-13 批条
+  - U45/U46：desktop 551→570（+19）；依赖批五端计数不变
+- **U45/U46 已闭合**：悬浮截稿窗只读开库 + 说真话；`floating-deadline.json` 单独授 `sql:default`（无 execute），timer/todo 零 SQL；U46 真 IPC/ACL 测试进 CI desktop job（`cargo test`）
+- **F-44 清偿**：`Home.vue` 807→800，`check-file-size` ALLOWLIST 只剩 PriceCard
+- **依赖双 PR**：#19（root/server/shared/web 11 项）+ #20（desktop 6 项）同批合；vue-tsc 3.3.13 三端对齐；未碰 `@tauri-apps/*`/`typescript`，成对现状不变
+- **门禁工具**：`accept.ps1` 大输出改流式落盘；server vitest 12MB 级输出偶发管道死锁已消
+- **警报/PR**：Dependabot open 0、Code scanning open 0、开放 PR 0（#19/#20 已 MERGED）
 - 公网仍冻结中（停在 v74，本地与远端已到 v76）；默认窗 1200×820、最小窗 1200×600 不变（9/5、826 拍板）
 - 🔴 **上线前置硬警告仍有效**：管理员判定只认库值，公网部署前**必须先确认 `platform_config.admin_qq` 非空**
 
 **下一步（按优先级）**
 
-1. ✅ **本批收口 @ `12adf772`（已 push）**：技术债四合一批四件事（changelog 分册 + U25 + U31 + U32）；两轮十九道全绿（`01b3fcae`/678s、`aaa5164e`/659s）；远端 CI 五 job + E2E + CodeQL 全绿
-2. **本批四项待拍板已裁**：① `overrides.undici` 已提到 ^8.12.1；② U32 冒烟已跑，`sql:allow-execute` 运行时确证（本机 local.db 0→7 张表）；③ 归档卷头注路径照旧留着；④ 溢文归档已单独一批做完
-3. **新销待办（本批顺手发现，已静态定性）**：U45 经一号直读代码定为**真缺陷（条件触发）**：本地模式掰「截稿倒计时」悬浮窗会显示假空态「近期无截稿」；U46 桌面端零真 IPC 测试，ACL 缺口天生测不到
-   - 细则与候选修复面（未拍板、禁止照抄施工）：`AGENTS/artifacts/施工书-U45U46修复批-20261020/施工书.md`
-4. **不紧急 · 下次处理（用户 10-19 裁）**：Dependabot #19 + #20 —— **要合就两条同批合**（两条都含 vue-tsc ^3.3.12→^3.3.13，只合一条三端口径就劈叉）；#20 不含 typescript / @tauri-apps，成对关闸仍有效
-5. **待你拍板的技术债（剩余）**：U26 server 以 tsx 作生产依赖；U33 桌面发版流水线从未跑过（缺 vars/secrets，首版必红）
-6. **待你终验 / 终审**：桌面 UI 真机清单（标题栏拖拽、托盘左键、通知弹窗、原生文件选择器、本地记账；其中 `opener:allow-open-path` 只能真人点「打开」验）；对外文案 W4 下架横幅 / W6 隐私 IP 披露 / U12 主页文案 / U13 安装包署名
-7. **剩红灯需拍板**：U16 板块级下架 / U17 数据服务 / G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度 / U22 改稿上限 / U23 记忆库优先级边界 / U24 视觉判断通道归属
+1. ✅ **本批收口 @ `04ddfbd1`（已 push）**：U45/U46 + Dependabot #19/#20 + 门禁流式落盘；十九道全绿 433s；docs 提交随后
+2. **待你拍板的技术债（剩余）**：U26 server 以 tsx 作生产依赖；U33 桌面发版流水线从未跑过（缺 vars/secrets，首版必红）
+3. **待你终验 / 终审**：桌面真机 UI 清单（标题栏/托盘/通知/文件选择器/本地记账；opener 需真人点）；对外文案 W4/W6/U12/U13
+4. **剩红灯需拍板**：U16 板块级下架 / U17 数据服务 / G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度 / U22 改稿上限 / U23 记忆库优先级边界 / U24 视觉判断通道归属
+5. **不需用户、可另批**：E2E `check-locators` 规则 3（动态 getByRole 未 scope）/ ArtStyleManager N×M 批量取数接口
 
 **常驻纪律（事故换来的，不得退色）**
 
-- 改 `desktop/src-tauri/` 必本地跑 `cargo check`：`tauri-build` 用**严格 JSON 解析器**，9/12 那笔 `//` 注释就是只跑 server/web 就交、CI 单红 desktop job 换来的（本地“全绿”是假全绿）
+- 改 `desktop/src-tauri/` 必本地跑 `cargo test`（含真 IPC/ACL）：`tauri-build` 用**严格 JSON 解析器**，9/12 那笔 `//` 注释就是只跑 server/web 就交、CI 单红 desktop job 换来的（本地“全绿”是假全绿）
 - **动桌面端 `@tauri-apps/*` JS SDK 必同批把 `Cargo.lock` 配到同号**（核心同 minor、插件精确同号），并跑 `npx tauri info` 留证：该比对只在 `tauri build/dev/info` 触发，**CI 四 job 全绿不等于发版流水线不红**（10-13 靠 dependabot 单边跳版换来的）
 - **模板区禁写「内联箭头函数/闭包内访问 import 绑定的属性或元素」**：vue-tsc 3.3.12/3.3.13 有 dotValue 误插 `.value` 的回归（上游 #6238 未合并），须抽成 `<script setup>` 具名 `function`；复发点见 10-13 批条
-- 门禁缺口已清：`check-file-size.mjs` SCOPES 已覆盖 server/web/desktop/shared 四层（F-44），ALLOWLIST 仅剩 F-44 两项存量冻结豁免；禁止用调高冻结值给长胖文件续命
+- 门禁缺口已清：`check-file-size.mjs` SCOPES 已覆盖 server/web/desktop/shared 四层（F-44），ALLOWLIST 仅剩 PriceCard 一项（Home.vue 已于 10-21 清偿）；禁止用调高冻结值给长胖文件续命
+- **悬浮投影窗 SQL 最小权限**：只有截稿窗可授 `sql:default`，永不给 execute；改悬浮窗数据面必跑 `cargo test`（`desktop/src-tauri/tests/acl.rs` 真 ACL）。
 
 **已拍板规则**
 
@@ -67,11 +61,23 @@
   - 既有绕过留痕不变：-Force / -SkipAccept 仍记 WARN（本批顺手补上 -SkipAccept 实际未写的 WARN 行），阻断仍走 Stop-Fail 写告警文件。
   - 验证：沙盒 git 仓八景（纯文档领先→WARN 放行；含代码/离线 SHA/红报告/25h 陈旧→阻断；-Force/-SkipAccept/dirty 景行为不变），取证件 `AGENTS/temp/docdowngrade-20260929/results.md`。详见 changelog 同批条。
 
-**起手必读**：**⚑ 下次开工第一件事**：读顶部看板（HEAD `12adf772`，技术债四合一批已收口并 push）→ 问看板第 4 条两条 Dependabot PR 怎么处置与第 3 条 U45/U46 → 再读 **⚑ 下方正文第一条（2026-10-19 技术债四合一批收口）**。
+**起手必读**：**⚑ 下次开工第一件事**：读顶部看板（HEAD `04ddfbd1`，U45/U46 + Dependabot #19/#20 已收口并 push）→ 再读 **⚑ 下方正文第一条（2026-10-21 两批收口）**；余下待用户项看板第 2~4 条。
 
 **起手必读续**：→ 交接档 `docs/comms/交接-20260912-会话收口与待拍清单.md` → 本节看板 → `AGENTS.md`（含「STATUS 体例与归档纪律」）→ 碰桌面端再读 `desktop/docs/STATUS.md` 顶部。
 
 **起手必读续二**：改桌面 UI 必跑 `huiyue-layout-audit` 自检循环（**宿主级技能**，住 `%USERPROFILE%\.agents\skills\huiyue-layout-audit\`，不在仓库属正常；VL 评审通道不可用，只能 measure.mjs + 人工逐项清单）。
+
+>  📌 **2026-10-21 两批收口：U45/U46 修复批 + Dependabot #19/#20（一号自主批）**
+>
+> - **U45 已闭合**：截稿悬浮窗本地模式原会因缺少 `sql:execute` 静默失败，再把失败渲染成「近期无截稿」；现改走 `openLocalDbReadOnly()`（不建表）并消费 `ledger.unavailable`，失败一律说「暂时取不到截稿」。
+> - **权限收窄**：`floating.json` 只保留 core+拖动；新建 `floating-deadline.json` 仅给截稿窗 `sql:default`（close/load/select，无 execute）；timer/today-todo 零 SQL 权限。
+> - **启动竞态**：本地模式先由主窗 `ledger.loadAll()` 建表，再恢复撕出的悬浮窗；`loadAll` 成功即复位 `unavailable`，瞬时失败可自愈。
+> - **U46 防线**：`tests/acl.rs` 用 tauri::test 走真 IPC/ACL：主窗 execute 通、截稿窗 select 通/execute 拒、计时窗 load 拒；CI desktop job 改跑 `cargo test`（manifest 链测试 exe 见 changelog）。
+> - **F-44 清偿**：`Home.vue` 的内联截稿提醒映射抽到 `localGlance.buildLocalDeadlineAlerts`（行为不变，+1 单测），807→800 行；`check-file-size` ALLOWLIST 移除 Home.vue。
+> - **门禁工具**：`accept.ps1` 的 12MB 级测试输出改流式落盘，server vitest 偶发管道死锁已消；门禁数量与口径不变。
+> - **依赖双 PR**：#19 + #20 同批合；`vue-tsc` 3.3.13 三端对齐；`@tauri-apps/*` 与 `typescript` 未动，成对规矩不触发；五目录 `npm audit` 0。
+> - **验证**：十九道全绿 @ `04ddfbd1`（433s；U45/U46 首验 @ `4d6bf0b6` / 406s）；server 1847 / web 982 / desktop 570 / shared 27 / E2E 14；`cargo test` 1 例（真 IPC/ACL）。
+> - **留痕**：`AGENTS/artifacts/U45-U46修复批-20261020/`（ledger-A、门禁原始日志、依赖安装与 cargo 测试日志）；归档：`docs/comms/archive-20261021/`。
 
 >  📌 **2026-10-19 技术债四合一批收口（用户拍板全做：changelog 分册 + U25 dompurify 4 + U31 桌面工具链收敛 + U32 权限补齐）**
 >
@@ -195,17 +201,7 @@
 > - **入库证据锚**：`docs/comms/evidence/证据-依赖警报根治批-20261012.md`；本机详单 `AGENTS/workspace/temp/deps-zerobatch-20261012/`。
 > - **遗留待拍板**：isomorphic-dompurify 3.22.0→4.5.0（major）；server 以 tsx 作生产依赖使 source-map-js 进生产链路。
 
->  📌 **2026-09-29 记忆库系统性维护批（AI 自决，15 路辩论代理验证；纯记忆平台操作，零代码零业务文档变更）**
->
-> - **触发**：用户要求逐条核查项目记忆/知识/经验/审计中混乱、重复、矛盾、过期、不一致、粒度问题，使用海量子代理辩论式验证防错删。
-> - **方法**：全量盘点 356 条→机械预筛 6 疑集群(37条)→12 路正反方辩论+3 路裁判→执行维护。每集群正反两路各读证据包+仓库只读取证→裁判交叉比对→主代理终裁执行。
-> - **净效果**：删 4 条（三门槛全过+quarantine留档）、改写/修正/压缩/加注 28 条、纯留 5 条（历史裁定锁死/体例保护）。
-> - **P0 事实修正**：SSL 规范卡 `trust_pool` 推荐→实测解析失败禁用，改为 `trusted_ca_cert_file` 唯一写法（OPS.md:360 实测）。
-> - **两项待拍板交用户**：D12（停等 vs 不停等优先级边界，e8f5872f↔任务书条）、D10（视觉判断走宿主 Read 还是外部 VL）。
-> - **真碰撞待治理**：87d53050 与某 common_pitfalls 条逐字同标题（护栏条自身撞碰撞），本轮只扩 keywords 未动——需走四步甄别。
-> - **证据归档**：本机详单 `AGENTS/workspace/temp/mem-audit-20260929/`（SUMMARY.md 总入口、6 证据包、12 辩论书、3 终裁、2 删除快照）。
-> - **入库证据锚**：结论级摘要 `docs/comms/evidence/证据-记忆库维护批-20260929.md`（待办 U23/U24 的入库指针，9/29 证据摘要入库约定首件）。
-> - **STATUS 归档提醒**：正文已达 6 条，第 6 条（9/17 审计缺陷波1+波2）应搬入 archive 子目录——搬动单独一批做，不与本批混。
+> 📦 **9/29 记忆库维护批（D12/D10 待拍板锚）已归档 → `docs/comms/archive-20261021/STATUS-溢文-2026-09-29-记忆库维护批.md`（2026-10-21 原文原样搬迁）。**
 
 
 > 📦 **[9/27 changelog 滚动分册批] 已归档 → `docs/comms/archive-20261019/STATUS-溢文-2026-09-27-changelog滚动分册批.md`（2026-10-19 溢文归档批搬出，原文原样搬迁）。**

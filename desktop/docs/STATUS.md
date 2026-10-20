@@ -1,21 +1,18 @@
 # 桌面端（拾绘桌面版）子项目状态
 
-## 看板（2026-10-19 刷新：技术债四合一批——U31 工具链与 web/shared 对齐 + U32 capabilities 补两权限）
+## 看板（2026-10-21 刷新：U45/U46 修复批 + Dependabot #20；一号自主批）
 
-- **HEAD** 随主仓 `master`（本批收口 `aaa5164e`）；动了 `src-tauri/` 的只有 `capabilities/default.json`（Rust 源码与 Cargo 零改动）
-- **工具链已收敛（U31，10-19）**：`typescript` ~5.9.0（实装 5.9.3）+ `vue-tsc` ^3.3.12（实装 3.3.12），与 web/shared 声明+lock+实装三层逐字对齐；tsconfig 口径对齐未做（另批）
-- **U32 已补且运行时已验（10-19）**：`default.json` 新增 `sql:allow-execute` + `opener:allow-open-path`；冒烟实证建库权限真生效（本机 local.db 0→7 张表）；`opener` 那条仍待人点（失败无痕）
-- 🔴 **U45 疑缺（本批冒烟捣出，未修）**：`capabilities/floating.json` 权限面**连 `sql:default` 都没有**，而 `FloatDeadline.vue` 在用本地账目 store——撕悬浮在本地模式可能拿不到账目，待运行时核实
+- **HEAD** 随主仓 `master`（`04ddfbd1`）；U45/U46 与 #20 已合入推送
+- **基线 570**（40 文件；U45/U46 +19；十九道全绿 @ `04ddfbd1`）；版本 0.1.0，**尚未发布**（无 `desktop-v*` tag）
+- **U45 已闭合**：截稿悬浮窗走 `openLocalDbReadOnly()`（不建表）；`floating-deadline.json` 单独授 `sql:default`（无 execute），timer/todo 零 SQL；失败说「暂时取不到截稿」
+- **U46 防线**：`tests/acl.rs` 用 tauri::test mock runtime 走真 IPC/ACL；`build.rs` 把 Windows manifest 链进测试 exe；CI desktop job 由 `cargo check` 改 `cargo test`
+- **F-44**：`Home.vue` 807→800，ALLOWLIST 移除 Home.vue
+- **依赖**：Dependabot #20 合入（pinia 4.1.0 / vue 3.5.44 / vue-tsc 3.3.13 / vitest 4.1.12 / eslint-plugin 8.71.2）；`@tauri-apps/*` 与 Cargo 未动，成对现状不变
 - **默认窗 1200×820**（9/5 拍板，内滚实测 1px≈零）；最小窗 **1200×600 不动**（826 亲定「不允许放太小」）
-- **基线 551**（38 文件；10-19 工具链换代零测试改动；十九道全绿 @ `aaa5164e`，首轮 `01b3fcae`）；版本 0.1.0，**尚未发布**（无 `desktop-v*` tag）
-- **新近（10-18）**：绘画时间·整年在画热力图进工具箱（RingoTrack 款）——看板原「未提交」**已过时**，实际已提交 `9c2e8d65` 且基线 538→551 已同步；细目见下方 10-18 条
-- 🔴 **Tauri 成对规矩（10-13 拍板）**：`@tauri-apps/*` JS 与 crate 必同批同号；已从 dependabot 自动通道摘出，只许人工成对升——细则见下方 10-13 批条
-- **当前成对现状**：tauri 2.12.2↔api 2.12.2；updater 2.13.2 / sql 2.5.0 / dialog 2.8.1 / opener 2.7.0 / notification 2.5.1 逐条同号；`tauri info` 无 mismatch
-- **波1 已提交推送**（`2e1e6902`）；9/5 审计批**已提交**（`b0d327d2`，看板原「尚未 commit」已过时）；后续波次（826 商业化、9/12-13 波2）均已在主仓 master
 - **待用户终验（两摊）**：波1 终验清单 9 组 37 条（=待办 U6）+ 10-13 成对升级后的窗口行为清单（标题栏/托盘/通知/文件选择器/本地库/悬浮窗）
 - **发布前必查**：`desktop/docs/发布前待办清单-825.md`（第 19/20 项发布流水线缺陷；第 1 项已改 v74→现状 v76）
-- **文档债 F-33 已清（9/13 定时开工 P2 批）**：细目见 `docs/comms/ledgers/ledger_P2.md`
-- 体例提示：保留区 5 块仍为旧式单行超长，待后续新批顺手重排；新条目一律短标题 + 分组要点。
+- 体例提示：保留区仍为旧式单行超长，待后续新批顺手重排；新条目一律短标题 + 分组要点。
+- 细目见主 `docs/changelog.md` 2026-10-21 两条与 `AGENTS/artifacts/U45-U46修复批-20261020/`。
 
 > 📌 **2026-10-19 技术债四合一批桌面侧（U31 工具链收敛 + U32 capabilities 补权限；用户拍板全做）**
 >
