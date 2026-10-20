@@ -1,6 +1,6 @@
 // 本地核心环波6 测试：本地概览句组装与日差纯函数（首页本地变体的口径哨兵）。
 import { describe, it, expect } from 'vitest'
-import { buildLocalGlance, buildLocalDeadlineRows, localDaysLeft } from '../components/home/localGlance'
+import { buildLocalDeadlineAlerts, buildLocalGlance, buildLocalDeadlineRows, localDaysLeft } from '../components/home/localGlance'
 import type { LocalOrder } from '../stores/localLedger'
 
 function order(p: Partial<LocalOrder>): LocalOrder {
@@ -106,5 +106,24 @@ describe('buildLocalDeadlineRows（悬浮截稿窗本地数据源，巡检收尾
     const rows = buildLocalDeadlineRows([order({ client_name: '', deadline: isoDaysFromNow(1) })], 14, 6)
     expect(rows[0].clientName).toBe('头像') // 落 title
     expect(rows[0].orderNo).toBe('头像')
+  })
+})
+
+describe('buildLocalDeadlineAlerts（本地截稿提醒条目）', () => {
+  it('只收未完成+有截稿+逾期/今天/明天；id 前缀与客户名兜底', () => {
+    const alerts = buildLocalDeadlineAlerts([
+      order({ id: 1, client_name: '急单', deadline: isoDaysFromNow(-1), status: 'in_progress' }),
+      order({ id: 2, client_name: '', deadline: isoDaysFromNow(0), status: 'draft' }),
+      order({ id: 3, deadline: isoDaysFromNow(1) }),
+      order({ id: 4, deadline: isoDaysFromNow(2) }),
+      order({ id: 5, deadline: isoDaysFromNow(0), status: 'paid' }),
+      order({ id: 6, deadline: null }),
+      order({ id: 7, deadline: '坏日期' })
+    ])
+    expect(alerts).toEqual([
+      { id: 'local-1', who: '急单', daysLeft: -1 },
+      { id: 'local-2', who: '有一单', daysLeft: 0 },
+      { id: 'local-3', who: '张三', daysLeft: 1 }
+    ])
   })
 })

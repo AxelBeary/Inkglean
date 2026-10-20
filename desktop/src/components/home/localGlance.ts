@@ -2,6 +2,7 @@
 // 与云端概览同构（段落数组 + 语气标记），数据全部来自本地记账，纯函数可测。
 // 纪律：0 笔在账退回一句本地口径（不打扰）；逾期/今日截稿给加重段。
 import type { LocalOrder } from '../../stores/localLedger'
+import type { DeadlineAlertItem } from '../../tools/deadlineAlert'
 
 export interface LocalGlancePart { text: string; tone: 'od' | 'ok' | '' }
 
@@ -77,4 +78,15 @@ export function buildLocalDeadlineRows(
   }
   rows.sort((a, b) => a.daysLeft - b.daysLeft)
   return rows.slice(0, limit)
+}
+
+/** 本地记账 → 截稿提醒条目：未完成 + 有截稿 + 仅逾期/今天/明天（与云端筛选同口径） */
+export function buildLocalDeadlineAlerts(orders: LocalOrder[]): DeadlineAlertItem[] {
+  return orders
+    .filter(o => (o.status === 'draft' || o.status === 'in_progress') && o.deadline)
+    .map(o => {
+      const daysLeft = localDaysLeft(o.deadline)
+      return { id: `local-${o.id}`, who: o.client_name || '有一单', daysLeft: daysLeft ?? 99 }
+    })
+    .filter(i => i.daysLeft <= 1)
 }
