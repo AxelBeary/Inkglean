@@ -6,6 +6,14 @@
 > - 滚动分册：活档体积门 `scripts/check-changelog-size.mjs`（≤40KB / ≤450 行，单段 ≤4KB，accept 第 19 道）；撞线即搬 oldest 段入 `docs/changelog-archive/` 新卷（整段零改动 + 逐行哈希校验，禁调高阈值续命）。
 > - v0.x 时代（v0.1~v0.46+）全量台账在 `docs/changelog-archive/changelog-v0-20260927.md`，只读历史。
 
+## 画风管理 N×M 尺寸覆盖批：一次取全、消除请求风暴（2026-10-21，一号自主批）
+
+- **后端**：新增 `GET /api/artist/art-styles/overrides`（`requireAuth` 按 `request.artist.id` 过滤，单条 JOIN `style_sizes` / `art_styles`，返回带 `style_id` 的 `SizeAddonOverrideBatchItem[]`）；+5 测试（跨画师零泄漏 / 401 / 空表 / 同尺寸多增项不串 / 与逐对端点逐字段并轨）。
+- **前端**：`preloadOverrides` 改为一次 `getAllSizeOverrides()` + `groupSizeOverrides` 分组回填；保留 `loadSeq`（M-12）守卫；批量失败时所有尺寸空覆盖、不弹错；+8 测试（6 纯函数 + 2 组件级一次请求/失败降级）。
+- 删除 `ArtStyleManager` 的 N×M 循环与 `TODO(audit-260830)`；`getSizeOverrides` 逐对端点保留兼容，前端已零调用。
+- **验证**：server 1847→1852（160 文件）、web 982→990（144 文件）；`accept.ps1` 十九道全绿 @ `f8258703`（381s）；五端计数 server 1852 / web 990 / desktop 570 / shared 27 / E2E 14。
+- **留痕**：`AGENTS/artifacts/N×M批量覆盖批-20261021/`（后端/前端 ledger + 原始门禁日志）。
+
 ## U45/U46 修复批：悬浮截稿窗只读开库 + 真 IPC/ACL 防线（2026-10-21，一号自主批）
 
 - **U45（真缺陷）**：截稿悬浮窗在本地模式走读写开库（含 7 条建表 execute），而 `floating.json` 从创建起就没有任何 sql 权限；失败又被 `localLedger` 的 catch 吞成 `unavailable`，组件 catch 打不着 → 渲染「近期无截稿，从容落笔」假空态。修复：新增 `openLocalDbReadOnly()`（不建表、独立单例），截稿窗改走该通道；`FloatDeadline.vue` 消费 `ledger.unavailable`，取不到就说「暂时取不到截稿」。
