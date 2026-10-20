@@ -1,7 +1,7 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import { sanitizeStoredText } from '../../shared/sanitize.js'
-import type { ArtStyle, StyleSize, SizeAddonOverride } from './style.types.js'
+import type { ArtStyle, StyleSize, SizeAddonOverride, SizeAddonOverrideBatchItem } from './style.types.js'
 
 // ============================================
 // 多画风服务 - 增项库 / 画风 / 尺寸 / 覆盖 CRUD + 公开配置
@@ -460,6 +460,22 @@ export function getSizeOverrides(artistId: number, styleId: number, sizeId: numb
   return db.prepare(
     'SELECT * FROM size_addon_overrides WHERE style_size_id = ?'
   ).all(sizeId) as SizeAddonOverride[]
+}
+
+/**
+ * 读取画师全量尺寸覆盖（只读；画风管理页一次性预载用，替代 N 画风 × M 尺寸的逐对 GET）
+ * 归属判定落在 art_styles.artist_id —— 只可能返回本画师数据，跨画师行不出现。
+ * 固定一条 SQL，查询次数不随画风/尺寸/覆盖行数增长（N+1 从源头消掉）。
+ */
+export function getAllSizeOverrides(artistId: number): SizeAddonOverrideBatchItem[] {
+  return db.prepare(`
+    SELECT so.*, ss.art_style_id AS style_id
+    FROM size_addon_overrides so
+    JOIN style_sizes ss ON ss.id = so.style_size_id
+    JOIN art_styles st ON st.id = ss.art_style_id
+    WHERE st.artist_id = ?
+    ORDER BY so.id ASC
+  `).all(artistId) as SizeAddonOverrideBatchItem[]
 }
 
 /** 设置尺寸覆盖（price_override / is_hidden） */

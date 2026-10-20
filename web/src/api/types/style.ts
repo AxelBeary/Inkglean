@@ -57,6 +57,11 @@ export interface SizeAddonOverride {
   is_hidden: number
 }
 
+/** GET /artist/art-styles/overrides 批量项（在原逐尺寸行上多带 style_id，便于前端按画风归档） */
+export interface SizeAddonOverrideBatchItem extends SizeAddonOverride {
+  style_id: number
+}
+
 export interface DeletedResult {
   deleted: boolean
 }

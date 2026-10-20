@@ -38,3 +38,12 @@ export interface SizeAddonOverride {
   price_override: number | null
   is_hidden: number
 }
+
+/**
+ * 全量尺寸覆盖行（画风管理页批量预载用，消前端 N 画风 × M 尺寸的逐对 GET）
+ * = size_addon_overrides 行 + 所属画风 id（JOIN style_sizes 带出的 art_style_id 别名 style_id）
+ * 字段名保持 snake_case，与 getSizeOverrides 逐字段一致，前端可直接并轨消费。
+ */
+export interface SizeAddonOverrideBatchItem extends SizeAddonOverride {
+  style_id: number
+}
