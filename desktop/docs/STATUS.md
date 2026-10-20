@@ -2,7 +2,7 @@
 
 ## 看板（2026-10-21 刷新：U45/U46 修复批 + Dependabot #20；一号自主批）
 
-- **HEAD** 随主仓 `master`（`f8258703`）；U45/U46 / #20 / N×M 批（web+server）已合入推送
+- **HEAD** 随主仓 `master`（`b7d9f442`）；U45/U46 / #20 / N×M（web+server）/ E2E 定位器批（test-only）已合入推送
 - **基线 570**（40 文件；U45/U46 +19；十九道全绿 @ `f8258703`）；版本 0.1.0，**尚未发布**（无 `desktop-v*` tag）
 - **U45 已闭合**：截稿悬浮窗走 `openLocalDbReadOnly()`（不建表）；`floating-deadline.json` 单独授 `sql:default`（无 execute），timer/todo 零 SQL；失败说「暂时取不到截稿」
 - **U46 防线**：`tests/acl.rs` 用 tauri::test mock runtime 走真 IPC/ACL；`build.rs` 把 Windows manifest 链进测试 exe；CI desktop job 由 `cargo check` 改 `cargo test`
