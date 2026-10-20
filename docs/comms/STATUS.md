@@ -7,7 +7,9 @@
   - 本批四件事零测试改动，五端计数与 `accept-baseline.json` 逐一吻合，基线文件未动
   - 上批（可做批 @ `7d9d0f03`）计数不变；desktop 538→551 系 10-18 热力图批新增 `heatmap.test.ts`
   - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；「门禁全绿」口径仍为**十九道**
-- **警报与 PR 归零**：#83 rustls 随 #16 **自动转 fixed（零 dismiss）**；#15/#17 均已合入，现 Dependabot open=0、CodeQL open=0、开放 PR=0（master `601e8947`）
+- **警报仍归零，但开放 PR 不再是 0**：Dependabot open 警报 0、Code scanning open 告警 0（REST 实查 @ `12adf772`）；#15/#17 已合入，#83 rustls 随 #16 自动转 fixed（零 dismiss）
+  - Dependabot 新开两条 minor/patch 催更 PR：#19（根/server/shared/web 11 项）与 #20（desktop 6 项），**均非安全驱动**；用户裁「不紧急，下次处理」
+  - 核实留痕：`AGENTS/artifacts/施工书-技术债四合一批-20261019/ci-check-20261019.md`（远端 CI 逐 job + 两 PR 处置口径）
 - **本批动了 Rust**（`desktop/src-tauri/Cargo.lock` 成对升级）：tauri 2.12.2、updater 2.13.2、sql 2.5.0、notification 2.5.1、dialog 2.8.1、opener 2.7.0
   - 连带 wry 0.57.0 / tao 0.37.1 / muda 0.20.0 / tray-icon 0.25.1 / plugin-fs 2.7.0；四个无 npm 对子的 Rust-only 插件不动
   - 本地实测：`cargo check` exit=0、`npx tauri info` 无 mismatch 且插件逐条同号、`npm run tauri dev` 起壳成功零 panic
@@ -18,12 +20,13 @@
 
 **下一步（按优先级）**
 
-1. ✅ **本批收口 @ `01b3fcae`**：技术债四合一批四件事（changelog 分册 + U25 + U31 + U32），十九道全绿
-2. **本批四项待拍板已裁（用户 10-19 口头拍定）**：① `overrides.undici` 已提到 ^8.12.1；② U32 冒烟已跑，`sql:allow-execute` 运行时确证；③ 归档卷头注路径照旧留着；④ 溢文归档已单独一批做完
+1. ✅ **本批收口 @ `12adf772`（已 push）**：技术债四合一批四件事（changelog 分册 + U25 + U31 + U32）；两轮十九道全绿（`01b3fcae`/678s、`aaa5164e`/659s）；远端 CI 五 job + E2E + CodeQL 全绿
+2. **本批四项待拍板已裁**：① `overrides.undici` 已提到 ^8.12.1；② U32 冒烟已跑，`sql:allow-execute` 运行时确证（本机 local.db 0→7 张表）；③ 归档卷头注路径照旧留着；④ 溢文归档已单独一批做完
 3. **新销待办（本批顺手发现，详见正文首条）**：U45 悬浮窗能力面完全没有 sql 权限而 `FloatDeadline.vue` 在用本地账目 store；U46 桌面端零真 IPC 测试，ACL 缺口天生测不到
-4. **待你拍板的技术债（剩余）**：U26 server 以 tsx 作生产依赖；U33 桌面发版流水线从未跑过（缺 vars/secrets，首版必红）
-5. **待你终验 / 终审**：桌面 UI 真机清单（标题栏拖拽、托盘左键、通知弹窗、原生文件选择器、本地记账）；对外文案 W4 下架横幅 / W6 隐私 IP 披露 / U12 主页文案 / U13 安装包署名
-6. **剩红灯需拍板**：U16 板块级下架 / U17 数据服务 / G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度 / U22 改稿上限 / U23 记忆库优先级边界 / U24 视觉判断通道归属
+4. **不紧急 · 下次处理（用户 10-19 裁）**：Dependabot #19 + #20 —— **要合就两条同批合**（两条都含 vue-tsc ^3.3.12→^3.3.13，只合一条三端口径就劈叉）；#20 不含 typescript / @tauri-apps，成对关闸仍有效
+5. **待你拍板的技术债（剩余）**：U26 server 以 tsx 作生产依赖；U33 桌面发版流水线从未跑过（缺 vars/secrets，首版必红）
+6. **待你终验 / 终审**：桌面 UI 真机清单（标题栏拖拽、托盘左键、通知弹窗、原生文件选择器、本地记账；其中 `opener:allow-open-path` 只能真人点「打开」验）；对外文案 W4 下架横幅 / W6 隐私 IP 披露 / U12 主页文案 / U13 安装包署名
+7. **剩红灯需拍板**：U16 板块级下架 / U17 数据服务 / G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度 / U22 改稿上限 / U23 记忆库优先级边界 / U24 视觉判断通道归属
 
 **常驻纪律（事故换来的，不得退色）**
 
@@ -63,7 +66,7 @@
   - 既有绕过留痕不变：-Force / -SkipAccept 仍记 WARN（本批顺手补上 -SkipAccept 实际未写的 WARN 行），阻断仍走 Stop-Fail 写告警文件。
   - 验证：沙盒 git 仓八景（纯文档领先→WARN 放行；含代码/离线 SHA/红报告/25h 陈旧→阻断；-Force/-SkipAccept/dirty 景行为不变），取证件 `AGENTS/temp/docdowngrade-20260929/results.md`。详见 changelog 同批条。
 
-**起手必读**：**⚑ 下次开工第一件事**：读顶部看板（HEAD `01b3fcae`，技术债四合一批已收口）→ 问看板第 2 条四项拍板 → 再读 **⚑ 下方正文第一条（2026-10-19 技术债四合一批收口）**。
+**起手必读**：**⚑ 下次开工第一件事**：读顶部看板（HEAD `12adf772`，技术债四合一批已收口并 push）→ 问看板第 4 条两条 Dependabot PR 怎么处置与第 3 条 U45/U46 → 再读 **⚑ 下方正文第一条（2026-10-19 技术债四合一批收口）**。
 
 **起手必读续**：→ 交接档 `docs/comms/交接-20260912-会话收口与待拍清单.md` → 本节看板 → `AGENTS.md`（含「STATUS 体例与归档纪律」）→ 碰桌面端再读 `desktop/docs/STATUS.md` 顶部。
 
