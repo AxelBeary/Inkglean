@@ -70,6 +70,8 @@ const SCHEMA_STATEMENTS = [
 ]
 
 let dbPromise: Promise<LocalDatabase> | null = null
+/** 只读投影窗（撕悬浮）专用单例：与读写单例互不污染（U45） */
+let readOnlyDbPromise: Promise<LocalDatabase> | null = null
 
 /** 本地数据库绝对路径（波9 导出用；与 openLocalDb 内部同源命令） */
 export async function localDbPath(): Promise<string> {
@@ -78,18 +80,22 @@ export async function localDbPath(): Promise<string> {
 }
 
 /** 关闭本地库连接并重置单例（波10 导入替换前必调：防开着旧连接覆写文件）。
- *  纯浏览器/未打开过：静默无事。 */
+ *  读写 + 只读投影两条单例一并关闭重置；纯浏览器/未打开过：静默无事。 */
 export async function closeLocalDb(): Promise<void> {
   if (!isDesktop()) return
-  const pending = dbPromise
+  const pending = [dbPromise, readOnlyDbPromise].filter(
+    (p): p is Promise<LocalDatabase> => p !== null
+  )
   dbPromise = null
-  if (!pending) return
-  try {
-    const db = await pending
-    await db.close()
-  } catch {
-    // 关闭失败不阻塞导入（下次 open 重建连接）
-  }
+  readOnlyDbPromise = null
+  await Promise.all(pending.map(async (p) => {
+    try {
+      const db = await p
+      await db.close()
+    } catch {
+      // 关闭失败不阻塞导入（下次 open 重建连接）
+    }
+  }))
 }
 
 /** 打开（单例）本地 SQLite；首启自动建表。失败即重置单例，下次调用重试 */
@@ -107,6 +113,24 @@ export function openLocalDb(): Promise<LocalDatabase> {
     })
   }
   return dbPromise
+}
+
+/** 打开（单例）同库的只读投影通道：**绝不执行 SCHEMA_STATEMENTS**。
+ *  why：只读投影窗（撕悬浮三件）的 capability 只有 sql:default（close/load/select，无 execute），
+ *  建表必被 ACL 拒；只读入口若偷偷建表，权限缺口就会被上层误读成「暂无截稿」（U45）。
+ *  失败即重置单例，下次调用重试（与 openLocalDb 同款）。 */
+export function openLocalDbReadOnly(): Promise<LocalDatabase> {
+  if (!isDesktop()) return Promise.reject(new BridgeUnavailableError('openLocalDbReadOnly'))
+  if (!readOnlyDbPromise) {
+    readOnlyDbPromise = (async () => {
+      const path = await invoke<string>('desktop_local_db_path')
+      return await loadDatabase(path)
+    })().catch((e) => {
+      readOnlyDbPromise = null // 同上：失败不缓存，允许重试
+      throw e
+    })
+  }
+  return readOnlyDbPromise
 }
 
 // ─── 波2 DSK-09：导入整库覆写时的跨窗口连接收口 ───
@@ -142,8 +166,8 @@ export async function deleteDbSidecar(): Promise<void> {
 }
 
 // 模块级自注册监听：任何 import 本模块的 webview（主窗 + 撕悬浮三件，均经 localLedger 等
-// store 间接引入）在桌面壳下自动挂监听——收到广播即关本窗连接，释放 local.db 句柄，
-// 让导入窗能安全整库覆写。纯浏览器/无事件能力静默跳过；模块单例只挂一次。
+// store 间接引入）在桌面壳下自动挂监听——收到广播即关本窗两条连接（读写 + 只读投影），
+// 释放 local.db 句柄，让导入窗能安全整库覆写。纯浏览器/无事件能力静默跳过；模块单例只挂一次。
 let closeListenerArmed = false
 function armCloseListener(): void {
   if (closeListenerArmed || !isDesktop()) return

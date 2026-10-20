@@ -87,9 +87,9 @@ jobs:
 
   # 桌面端门禁进 CI（9/3 批，发布前待办清单第 9 项）：windows runner 覆盖 Windows 专属代码
   # （DPAPI 保险箱 / 窗口枚举等 cfg(windows) 块，ubuntu 上会被跳过留盲区）+ 与 desktop-release.yml 环境一致，
-  # 防「CI 绿但真机构建红」。四道门禁照 824 建齐口径：lint / test（用例数以 desktop/docs/STATUS.md 为准）/ build / cargo check。
+  # 防「CI 绿但真机构建红」。四道门禁照 824 建齐口径：lint / test（用例数以 desktop/docs/STATUS.md 为准）/ build / cargo test（含真 IPC/ACL）。
   # 注：Swatinem/rust-cache 首次引入即令整个 workflow startup failure（#1298/#1299 连挂，YAML 合法但 Actions 解析层拒绝），
-  # 已移除；cargo check 无缓存全量编译（windows runner，timeout 20min 足够）。缓存优化待真凶定位后另议。
+  # 已移除；cargo test 无缓存全量编译（windows runner，timeout 20min 足够）。缓存优化待真凶定位后另议。
   desktop:
     runs-on: windows-latest
     timeout-minutes: 20
@@ -105,7 +105,7 @@ jobs:
           cache-dependency-path: |
             desktop/package-lock.json
             shared/package-lock.json
-      # windows-latest runner 预装 Rust stable + MSVC 构建工具，cargo check 直接可用——
+      # windows-latest runner 预装 Rust stable + MSVC 构建工具，cargo test 直接可用——
       # 移除 dtolnay/rust-toolchain：该 action 引用疑似触发 workflow startup failure（#1298/#1299/#1300 连挂，
       # 移除 Swatinem/rust-cache 后仍挂，dtolnay 为剩余最大嫌疑；desktop-release.yml 虽写了它但 tag 触发从未实际运行过），runner 预装 Rust 已足够
       # 同 web job：desktop 经 file:../shared 直导 shared 源码，file: 链接只带源码不带依赖，
@@ -117,6 +117,6 @@ jobs:
       - run: npm run lint
       - run: npm run test
       - run: npm run build
-      - name: Cargo check
+      - name: Cargo test（真 IPC/ACL）
         working-directory: desktop/src-tauri
-        run: cargo check
+        run: cargo test

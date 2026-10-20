@@ -6,7 +6,7 @@
 // （同 components/home/localGlance.ts 的本地零点归一），不拿 UTC 串前缀比本地月份。
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { openLocalDb } from '../bridge/db'
+import { openLocalDb, openLocalDbReadOnly } from '../bridge/db'
 import { isDesktop } from '../bridge'
 
 /** 状态流转（单向手动，§F2 拍板口径） */
@@ -94,14 +94,17 @@ export const useLocalLedgerStore = defineStore('desktop-local-ledger', () => {
   const unavailable = ref(false)
   const loaded = ref(false)
 
-  async function loadAll(): Promise<void> {
+  /** 读全量账目。readOnly=true 走不建表的只读连接（只读投影窗：撕悬浮，无 execute 权限，U45）；
+   *  默认走读写连接——既有调用点不传参，行为不变。 */
+  async function loadAll(readOnly = false): Promise<void> {
     if (!isDesktop()) { unavailable.value = true; loaded.value = true; return }
     try {
-      const db = await openLocalDb()
+      const db = readOnly ? await openLocalDbReadOnly() : await openLocalDb()
       const rows = await db.select<Record<string, unknown>[]>(
         'SELECT * FROM local_orders ORDER BY id DESC'
       )
       orders.value = rows.map(normalizeRow)
+      unavailable.value = false // 失败后重试成功须复位，防一次瞬时失败把浮窗永久钉在「取不到」
     } catch {
       unavailable.value = true
     } finally {

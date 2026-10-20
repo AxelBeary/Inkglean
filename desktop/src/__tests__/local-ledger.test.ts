@@ -1,5 +1,5 @@
 // 本地核心环波1 测试：F2 本地记账——状态流转纯函数 + 数据桥逃生门 + store 浏览器环境降级。
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { nextStatus, STATUS_LABEL, useLocalLedgerStore } from '../stores/localLedger'
 import { extractFileName, useLocalFilesStore } from '../stores/localFiles'
@@ -66,6 +66,64 @@ describe('记账 store（纯浏览器环境降级）', () => {
     setActivePinia(createPinia())
     const ledger = useLocalLedgerStore()
     expect(ledger.paidThisMonth).toBe(0)
+  })
+})
+
+describe('记账 store 的连接通道选择（U45）', () => {
+  const RO_ROW = {
+    id: 9, client_name: '只读客户', title: '头像', price: 0, deadline: null,
+    status: 'draft', created_at: '', updated_at: ''
+  }
+
+  afterEach(() => {
+    vi.doUnmock('../bridge/db')
+    vi.resetModules()
+  })
+
+  /** 替掉 bridge/db 后重新取一份 store 模块（顶层 import 已被缓存，须 resetModules 才吃 mock） */
+  async function storeWithDbStubs() {
+    const roDb = { select: vi.fn(async () => [RO_ROW]) }
+    const rwDb = { select: vi.fn(async () => [RO_ROW]) }
+    const openLocalDbReadOnly = vi.fn(async () => roDb)
+    const openLocalDb = vi.fn(async () => rwDb)
+    vi.resetModules()
+    vi.doMock('../bridge/db', () => ({
+      openLocalDb,
+      openLocalDbReadOnly,
+      closeLocalDb: vi.fn(async () => {}),
+      localDbPath: vi.fn(async () => '/appdata/local.db'),
+      broadcastCloseAllDb: vi.fn(async () => {}),
+      deleteDbSidecar: vi.fn(async () => {}),
+      DB_CLOSE_ALL_EVENT: 'desktop-db-close-all'
+    }))
+    const mod = await import('../stores/localLedger')
+    win.__TAURI_INTERNALS__ = {} // store 的桌面分支门槛
+    return { ledger: mod.useLocalLedgerStore(createPinia()), openLocalDb, openLocalDbReadOnly, roDb, rwDb }
+  }
+
+  it('loadAll(true) 只调只读入口，读出的行照常归一入账', async () => {
+    const { ledger, openLocalDb, openLocalDbReadOnly, roDb, rwDb } = await storeWithDbStubs()
+
+    await ledger.loadAll(true)
+
+    expect(openLocalDbReadOnly).toHaveBeenCalledTimes(1)
+    expect(openLocalDb).not.toHaveBeenCalled()
+    expect(roDb.select).toHaveBeenCalledWith('SELECT * FROM local_orders ORDER BY id DESC')
+    expect(rwDb.select).not.toHaveBeenCalled()
+    expect(ledger.orders.map(o => o.client_name)).toEqual(['只读客户'])
+    expect(ledger.unavailable).toBe(false)
+    expect(ledger.loaded).toBe(true)
+  })
+
+  it('loadAll() 不传参仍走读写入口（既有调用点行为不变）', async () => {
+    const { ledger, openLocalDb, openLocalDbReadOnly, roDb, rwDb } = await storeWithDbStubs()
+
+    await ledger.loadAll()
+
+    expect(openLocalDb).toHaveBeenCalledTimes(1)
+    expect(openLocalDbReadOnly).not.toHaveBeenCalled()
+    expect(rwDb.select).toHaveBeenCalledTimes(1)
+    expect(roDb.select).not.toHaveBeenCalled()
   })
 })
 
