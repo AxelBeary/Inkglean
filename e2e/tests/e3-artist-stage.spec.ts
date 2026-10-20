@@ -28,7 +28,7 @@ test('E3 画师推进流程节点', async ({ artistPage: page }) => {
   await expect(page.getByText(/进度 \d+\/\d+/)).toBeVisible({ timeout: 10_000 }) // locator-ok: OrderDetail 仅 stage-progress-text 一处
 
   // 点击"推进到"按钮（新订单在第一个节点，推进到第二个）
-  const advanceBtn = page.getByRole('button', { name: /推进到/ })
+  const advanceBtn = page.locator('.action-bar').getByRole('button', { name: /推进到/ })
   await expect(advanceBtn).toBeVisible()
   // 记录推进目标节点名（按钮文案「推进到：X」）与当前进度，供点击后复核状态真实变化
   const targetStageName = (await advanceBtn.textContent())!.replace(/^推进到[:：]\s*/, '').trim()

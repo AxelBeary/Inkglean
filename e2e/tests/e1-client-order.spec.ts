@@ -28,7 +28,7 @@ test('E1 客户下单完整流程', async ({ page }) => {
   // REQ-042: 首单须勾选服务条款/隐私政策（新门禁，未勾不可提交）
   // 点视觉方框而非标签文本（标签内含 router-link，点击链接会跳页）
   await page.locator('.el-checkbox', { hasText: '隐私政策' }).locator('.el-checkbox__inner').click()
-  await page.getByRole('button', { name: /提交约稿/ }).click()
+  await page.locator('.step-nav').getByRole('button', { name: /提交约稿/ }).click()
 
   // ── 小票确认（CSS 类选择器，语言无关） ──
   await expect(page.locator('.receipt')).toBeVisible()
