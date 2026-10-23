@@ -70,6 +70,8 @@ export default {
     INVALID_TRANSITION: '不能进行此状态转换',
     // D-1（R-5）: 订单 version 乐观锁冲突（双标签页/撤销重放）
     ORDER_CONFLICT: '订单已被其他操作更新，请刷新后重试',
+    // 审计 #21 条目 3: 同一幂等键换了请求内容（不是重放）——前端会同时换新键，用户可直接重提
+    IDEMPOTENCY_CONFLICT: '本次提交与此前已受理的提交内容不同，请确认金额等信息后重新提交',
     // R-2: 已收款订单取消需二次确认（Batch A 契约 409 CANCEL_WITH_PAYMENT）
     CANCEL_WITH_PAYMENT: '该订单已收款，请先线下退还后再取消',
     MY_ORDERS_RETIRED: '「我的订单」查询已下线，请使用下单时保存的追踪链接，或联系画师补发',

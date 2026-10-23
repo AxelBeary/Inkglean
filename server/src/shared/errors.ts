@@ -94,6 +94,8 @@ export const E = {
   PAYMENT_STATUS_BLOCKED: 'PAYMENT_STATUS_BLOCKED',
   // D-1（R-5/P3-1）: 订单 version 乐观锁冲突（旧快照写入被拒）
   ORDER_CONFLICT: 'ORDER_CONFLICT',
+  // 审计 #21 条目 3: 同一幂等键携带不同请求载荷（不是重放，是两次不同意图）
+  IDEMPOTENCY_CONFLICT: 'IDEMPOTENCY_CONFLICT',
   DELIVER_WRONG_STATUS: 'DELIVER_WRONG_STATUS',
   TIER_NOT_FOUND: 'TIER_NOT_FOUND',
   ILLEGAL_PATH: 'ILLEGAL_PATH',
@@ -343,6 +345,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   INVALID_TRANSITION: '不允许的状态变更',
   PAYMENT_STATUS_BLOCKED: '当前订单状态不允许该收款操作',
   ORDER_CONFLICT: '订单已被其他操作更新，请刷新后重试',
+  IDEMPOTENCY_CONFLICT: '本次提交与此前已受理的提交内容不同，请确认金额等信息后重新提交',
   DELIVER_WRONG_STATUS: '当前状态不允许交付',
   TIER_NOT_FOUND: '价格档位不存在',
   ORDER_INVALID_STATUS: '无效的订单状态',

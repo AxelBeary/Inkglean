@@ -665,6 +665,9 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
       sessionStorage.removeItem(DRAFT_KEY)
       window.removeEventListener('beforeunload', onBeforeUnload)
     } catch (err) {
+      // 审计 #21 条目 3: 同 key 换内容 → 后端 409（旧行为是回放上一单结果，客户以为改成功了）。
+      // 这里必须换新 key，客户改完文案/尺寸再点一次即受理为新单意图。
+      if ((err as ApiError).code === 'IDEMPOTENCY_CONFLICT') submitIdemKey = null
       ElMessage.error((err as ApiError).message)
     } finally {
       submitting.value = false

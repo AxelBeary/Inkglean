@@ -293,7 +293,7 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
           installments: orderService.getOrderInstallments(request.order.id)
         }
       }
-    })
+    }, { amountCents, note, installmentId })
     return reply.code(result.statusCode).send(result.body)
   })
 

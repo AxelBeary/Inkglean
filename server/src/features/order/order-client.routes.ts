@@ -118,6 +118,17 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
           trackUrl: orderService.buildCustomerTrackUrl(artist.subdomain, order.order_no, order.customerToken)
         }
       }
+    }, {
+      // 审计 #21 条目 3: 指纹只覆盖下单业务内容（画风/尺寸/增项/文案/折扣码/参考图），
+      // 不含 anonId 凭证——同一意图换凭证轮转不该被判成冲突
+      styleSizeId: styleSizeId || null,
+      styleAddons: styleAddons || [],
+      description: clamp(description, 'description'),
+      clientName: clamp(clientName, 'name'),
+      priority: priority || 'medium',
+      clientNotify: clientNotify || false,
+      references: references || [],
+      discountCode: discountCode || null
     })
     return reply.code(result.statusCode).send(result.body)
   })

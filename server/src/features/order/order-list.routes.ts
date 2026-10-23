@@ -158,20 +158,22 @@ export async function orderListRoutes(fastify: FastifyInstance) {
     // I6-d（v75 遗留收尾）: 手动录单消费幂等键 header（前端已携带 idempotency-key；
     // 对齐 R-9 既有模式——同 key 重放原样返回首单结果，不重复建单）
     const idempotencyKey = readIdempotencyKey(request.headers['idempotency-key'])
+    const createInput = {
+      artistId: request.artist.id,
+      clientQq: clamp(clientQq, 'qq')!,
+      clientName: clamp(clientName, 'name'),
+      description: clamp(description, 'description'),
+      priority: priority || 'medium',
+      source: 'manual' as const,
+      clientNotify: clientNotify || false,
+      references: references || [],
+      discountCode: discountCode || null,
+      styleSizeId: styleSizeId || null,
+      styleAddons: styleAddons || []
+    }
+    // 审计 #21 条目 3: 同一幂等键换录单内容 → 409，不静默回放首单（指纹即建单入参）
     const result = withIdempotency(`manual-order:${request.artist.id}`, idempotencyKey, () => {
-      const order = orderService.createOrder({
-        artistId: request.artist.id,
-        clientQq: clamp(clientQq, 'qq')!,
-        clientName: clamp(clientName, 'name'),
-        description: clamp(description, 'description'),
-        priority: priority || 'medium',
-        source: 'manual',
-        clientNotify: clientNotify || false,
-        references: references || [],
-        discountCode: discountCode || null,
-        styleSizeId: styleSizeId || null,
-        styleAddons: styleAddons || []
-      })
+      const order = orderService.createOrder(createInput)
       // F1 围剿：手动录单同样生成令牌；响应一次下发明文 + 完整追踪 URL 片段
       // （画师可立即复制链接发给客户）。customer_token_hash 不外泄（非明文但无需下发）。
       const orderBody = { ...order }
@@ -189,7 +191,7 @@ export async function orderListRoutes(fastify: FastifyInstance) {
           )
         }
       }
-    })
+    }, createInput)
     return reply.code(result.statusCode).send(result.body)
   })
 

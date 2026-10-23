@@ -179,3 +179,61 @@ describe('useOrderPayments WEB-10: add/revoke 幂等键隔离', () => {
     expect(addKey1).toBe(addKey2)
   })
 })
+
+// ─── 审计 #21 条目 3：后端 409 IDEMPOTENCY_CONFLICT（同 key 换载荷）后必须换新 key ───
+describe('useOrderPayments 409 载荷冲突后换新幂等键（#21-3）', () => {
+  beforeEach(() => {
+    h.addPayment.mockReset()
+    h.getPayments.mockReset()
+    h.getPayments.mockResolvedValue({ payments: [] })
+  })
+
+  function conflictError() {
+    return Object.assign(new Error('本次提交与此前已受理的提交内容不同'), { code: 'IDEMPOTENCY_CONFLICT' })
+  }
+
+  it('addPayment 撞 409 后改金额重提 → 使用新 key（不再一直撞同一个 409）', async () => {
+    h.addPayment.mockRejectedValueOnce(conflictError())
+    h.addPayment.mockResolvedValueOnce({})
+    const payments = useOrderPayments()
+
+    await expect(
+      payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金', installmentId: null })
+    ).rejects.toThrow('本次提交与此前已受理的提交内容不同')
+
+    await payments.addPayment('806' as unknown as number, { amountCents: 2000, note: '定金', installmentId: null })
+    const key1 = h.addPayment.mock.calls[0][2].headers['idempotency-key']
+    const key2 = h.addPayment.mock.calls[1][2].headers['idempotency-key']
+    expect(key1).not.toBe(key2)
+  })
+
+  it('revokePayment 撞 409 后重提 → 使用新 key', async () => {
+    h.addPayment.mockRejectedValueOnce(conflictError())
+    h.addPayment.mockResolvedValueOnce({})
+    const payments = useOrderPayments()
+
+    await expect(
+      payments.revokePayment('806' as unknown as number, { id: 7, amount_cents: 1000 } as unknown as PaymentRow)
+    ).rejects.toThrow()
+    await payments.revokePayment('806' as unknown as number, { id: 9, amount_cents: 500 } as unknown as PaymentRow)
+
+    const key1 = h.addPayment.mock.calls[0][2].headers['idempotency-key']
+    const key2 = h.addPayment.mock.calls[1][2].headers['idempotency-key']
+    expect(key1).not.toBe(key2)
+  })
+
+  it('非 409 的失败（网络/其他 4xx）仍复用同 key——同一次意图的重试语义不变', async () => {
+    h.addPayment.mockRejectedValueOnce(Object.assign(new Error('boom'), { code: 'VALIDATION' }))
+    h.addPayment.mockResolvedValueOnce({})
+    const payments = useOrderPayments()
+
+    await expect(
+      payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金', installmentId: null })
+    ).rejects.toThrow('boom')
+    await payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金', installmentId: null })
+
+    const key1 = h.addPayment.mock.calls[0][2].headers['idempotency-key']
+    const key2 = h.addPayment.mock.calls[1][2].headers['idempotency-key']
+    expect(key1).toBe(key2)
+  })
+})

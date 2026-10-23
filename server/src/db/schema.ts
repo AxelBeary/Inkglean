@@ -185,6 +185,8 @@ CREATE TABLE IF NOT EXISTS idempotency_keys (
   key TEXT NOT NULL,
   status_code INTEGER NOT NULL,
   response_json TEXT NOT NULL,
+  -- v78（审计 #21 条目 3, PR #27 重编号）: 请求载荷指纹；NULL = 写入时未提供载荷（存量行/无载荷调用），读侧按旧语义重放
+  request_hash TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (scope, key)
 );

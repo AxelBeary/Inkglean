@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { i18n } from '../i18n/index'
 import { artistApi } from '../api/index'
+import type { ApiError } from '../api/index'
 import type { AddPaymentResult, PaymentRow } from '../api/types'
 import { generateId } from '../utils/id'
 
@@ -58,6 +59,12 @@ export function useOrderPayments() {
       addIdemKey = null
       // 后端返回 { payment, paidTotalCents, finalPriceCents, installments }
       return res
+    } catch (err) {
+      // 审计 #21 条目 3: 同 key 换载荷被后端判成 409（旧行为是静默回放上一笔结果）。
+      // 失败保键的前提是「同一次意图重试」，内容已经变了 → 必须换新 key，否则用户改完
+      // 金额再点会一直撞同一个 409，直到刷新页面。
+      if ((err as ApiError)?.code === 'IDEMPOTENCY_CONFLICT') addIdemKey = null
+      throw err
     } finally {
       submitting.value = false
     }
@@ -78,6 +85,10 @@ export function useOrderPayments() {
       )
       revokeIdemKey = null
       return res
+    } catch (err) {
+      // 同上：撤销换目标行/换原因 = 新意图，409 后必须换新 key
+      if ((err as ApiError)?.code === 'IDEMPOTENCY_CONFLICT') revokeIdemKey = null
+      throw err
     } finally {
       submitting.value = false
     }
