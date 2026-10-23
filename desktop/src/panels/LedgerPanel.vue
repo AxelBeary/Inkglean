@@ -12,6 +12,7 @@ import type { LocalFile } from '../stores/localFiles'
 import { useLocalTemplatesStore } from '../stores/localTemplates'
 import { useAutoTimeStore } from '../stores/autoTime'
 import { formatSeconds } from '../stores/timer'
+import { localDaysLeft as daysLeft } from '../components/home/localGlance'
 import { openWithSystem, isDesktop } from '../bridge'
 
 const ledger = useLocalLedgerStore()
@@ -40,16 +41,7 @@ function fmtPrice(v: number): string {
   return `¥${v.toFixed(2).replace(/\.00$/, '')}`
 }
 
-/** 截稿距今天数（本地日期口径，与网页端排期一致取日差） */
-function daysLeft(deadline: string | null): number | null {
-  if (!deadline) return null
-  const d = new Date(deadline)
-  if (Number.isNaN(d.getTime())) return null
-  const n = new Date()
-  const a = new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime()
-  const b = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
-  return Math.round((b - a) / 86400000)
-}
+/** 截稿距今天数：与首页概览同一实现（#23-2 修正纯日期串的 UTC 零点解析，此处不再各写一份） */
 
 function deadlineText(o: LocalOrder): { text: string; cls: string } {
   const dl = daysLeft(o.deadline)

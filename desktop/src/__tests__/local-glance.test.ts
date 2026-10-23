@@ -1,5 +1,5 @@
 // 本地核心环波6 测试：本地概览句组装与日差纯函数（首页本地变体的口径哨兵）。
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import { buildLocalDeadlineAlerts, buildLocalGlance, buildLocalDeadlineRows, localDaysLeft } from '../components/home/localGlance'
 import type { LocalOrder } from '../stores/localLedger'
 
@@ -125,5 +125,38 @@ describe('buildLocalDeadlineAlerts（本地截稿提醒条目）', () => {
       { id: 'local-2', who: '有一单', daysLeft: 0 },
       { id: 'local-3', who: '张三', daysLeft: 1 }
     ])
+  })
+})
+
+// ─── 审计 #23 条目 2：纯日期串按 UTC 零点解析 ⇒ 负时区整体差一天 ───
+describe('localDaysLeft 跨时区稳定（#23-2）', () => {
+  const ORIGINAL_TZ = process.env.TZ
+
+  /** 用本地分量造 'YYYY-MM-DD'（与画师在日期选择器里看到的形式一致） */
+  function localDateStr(offsetDays: number): string {
+    const base = new Date()
+    const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + offsetDays)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+
+  for (const tz of ['UTC', 'America/New_York', 'Pacific/Kiritimati', 'Asia/Shanghai']) {
+    it(`${tz} 下今天/明天/前天分别算 0 / +1 / -2`, () => {
+      process.env.TZ = tz
+      expect(localDaysLeft(localDateStr(0))).toBe(0)
+      expect(localDaysLeft(localDateStr(1))).toBe(1)
+      expect(localDaysLeft(localDateStr(-2))).toBe(-2)
+    })
+  }
+
+  it('带时间的串仍按该瞬间所属的本地日参与计算（不改既有行为）', () => {
+    expect(localDaysLeft(new Date().toISOString())).toBe(0)
+    const base = new Date()
+    const tomorrowNoon = new Date(base.getFullYear(), base.getMonth(), base.getDate() + 1, 12, 0, 0)
+    expect(localDaysLeft(tomorrowNoon.toISOString())).toBe(1)
+  })
+
+  afterEach(() => {
+    if (ORIGINAL_TZ === undefined) delete process.env.TZ
+    else process.env.TZ = ORIGINAL_TZ
   })
 })
