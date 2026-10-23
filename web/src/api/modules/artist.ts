@@ -128,8 +128,9 @@ export const artistApi = {
   // R46: 备注删除（系统备注后端拒绝 403，带图备注由 GC 清理）
   deleteNote: (id: number, noteId: number): Promise<EnrichedOrderDetail> => deleteJson(`/artist/orders/${id}/notes/${noteId}`),
   // SPEC-003: 附加工作项（添加/删除后返回完整订单，final_price_cents 已重算）
-  addExtraItem: (id: number, data: ExtraItemRequest): Promise<EnrichedOrderDetail> =>
-    postJson(`/artist/orders/${id}/extra-items`, data),
+  // 审计 #21 条目 7: options 透传幂等键 header（同 addPayment 口径，同一次提交意图复用同 key）
+  addExtraItem: (id: number, data: ExtraItemRequest, options: RequestConfig = {}): Promise<EnrichedOrderDetail> =>
+    postJson(`/artist/orders/${id}/extra-items`, data, options),
   deleteExtraItem: (id: number, itemId: number): Promise<EnrichedOrderDetail> =>
     deleteJson(`/artist/orders/${id}/extra-items/${itemId}`),
   // SPEC-004: 递补（buffer → formal，返回完整订单）

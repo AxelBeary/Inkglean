@@ -86,7 +86,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import type { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -95,6 +95,7 @@ import InkEmpty from '../visual/InkEmpty.vue'
 import { artistApi } from '../../../api/index'
 import type { ApiError } from '../../../api/index'
 import { formatCents } from '../../../utils/money'
+import { generateId } from '../../../utils/id'
 
 /** 附加项行（本卡消费字段） */
 interface ExtraItemRow {
@@ -127,13 +128,22 @@ const extraDialogVisible = ref(false)
 const extraSubmitting = ref(false)
 const extraForm = ref({ name: '', description: '', priceYuan: 0 })
 
+// D-2（R-9）同款幂等键（审计 #21 条目 7）：附加项直接抬最终价，此前没有任何去重——
+// 双标签页/慢渲染双击/响应丢失后重投都会真实重复加价。
+// 口径：一次「填好→提交」算同一意图，失败重试复用同 key；表单一改即换新 key（改内容＝新意图）；
+// 成功后置空，下次打开对话框重新生成。
+let extraIdemKey: string | null = null
+watch(extraForm, () => { extraIdemKey = null }, { deep: true })
+
 function openExtraDialog() {
   extraForm.value = { name: '', description: '', priceYuan: 0 }
+  extraIdemKey = null
   extraDialogVisible.value = true
 }
 
 async function submitExtraItem() {
   if (!extraForm.value.name.trim()) return
+  if (!extraIdemKey) extraIdemKey = generateId()
   extraSubmitting.value = true
   try {
     const payload = {
@@ -141,7 +151,10 @@ async function submitExtraItem() {
       description: extraForm.value.description.trim() || null,
       priceCents: Math.round((extraForm.value.priceYuan || 0) * 100)
     }
-    emit('order-updated', await artistApi.addExtraItem(props.routeId as number, payload))
+    emit('order-updated', await artistApi.addExtraItem(props.routeId as number, payload, {
+      headers: { 'idempotency-key': extraIdemKey }
+    }))
+    extraIdemKey = null
     extraDialogVisible.value = false
     ElMessage.success(t('orderDetail.extraAdded'))
   } catch (err) {
