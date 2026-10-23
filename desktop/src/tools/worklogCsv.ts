@@ -20,10 +20,13 @@ export function secsToHours(secs: number): string {
   return v.toFixed(2)
 }
 
-/** CSV 字段转义：含逗号/引号/换行则包双引号，内部引号翻倍 */
+/** CSV 字段转义：先中和公式注入前缀（GHSA-6pf3-g4xq-854w），再做 RFC 4180 引号转义。
+ *  若值以 = + - @ 或 TAB 开头，先加单引号使 Excel 当文本处理（通行做法）；
+ *  然后再检查引号/逗号/换行，按 RFC 4180 决定是否用双引号包裹。*/
 export function csvEscape(v: string): string {
-  if (/[",\r\n]/.test(v)) return `"${v.replace(/"/g, '""')}"`
-  return v
+  const neutralized = /^[=+\-@\t]/.test(v) ? `'${v}` : v
+  if (/[",\r\n]/.test(neutralized)) return `"${neutralized.replace(/"/g, '""')}"`
+  return neutralized
 }
 
 /** 组 CSV 全文（UTF-8 BOM 由调用方编码时带上；此处只管行结构） */
@@ -32,7 +35,7 @@ export function buildWorklogCsv(days: WorklogDayRow[], orders: WorklogOrderRow[]
   lines.push('【按日工时】')
   lines.push('日期,在画小时,其他小时,离开小时')
   for (const d of days) {
-    lines.push([d.date, secsToHours(d.paint_secs), secsToHours(d.other_secs), secsToHours(d.idle_secs)].join(','))
+    lines.push([csvEscape(d.date), secsToHours(d.paint_secs), secsToHours(d.other_secs), secsToHours(d.idle_secs)].join(','))
   }
   lines.push('')
   lines.push('【按单工时】')

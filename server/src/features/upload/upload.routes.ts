@@ -7,6 +7,7 @@ import { nanoid } from 'nanoid'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { signedUrl } from '../../shared/file-sign.js'
 import { AppError, E } from '../../shared/errors.js'
+import { getDiskHeadroom } from '../admin/health.service.js'
 import * as trackingService from '../tracking/tracking.service.js'
 import db from '../../db/connection.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
@@ -37,6 +38,62 @@ const DELIVER_ALLOWED = [
 
 // 交付文件 MIME 黑名单（拒绝可执行/可渲染脚本的类型）
 const DELIVER_BLOCKED_MIME = ['image/svg+xml', 'text/html', 'application/xhtml+xml']
+
+// ─── GHSA-6pf3-g4xq-854w（Wave1·高）参考图囤积守卫 ───
+// 单文件 10MB × 10 次/10 分/IP 的次数限流拦不住囤积：未绑定订单的登记行此前全仓零 DELETE，
+// 孤儿回收又把这些行当「DB 仍引用」→ 磁盘只进不出（实算 14.4GB/天/IP）。三道闸：
+//   ① 写盘前磁盘水位（health.service getDiskHeadroom，见本文件 reference 路由）
+//   ② 写盘前累计字节配额（本段，per-anon 与 per-IP 各算一份，绑定/TTL 清扫后额度自动释放）
+//   ③ 未绑定行的 TTL 清理（app.ts gcDatabaseTtl，REFERENCE_UPLOAD_TTL_DAYS 默认 3 天）
+// 配额阈值 env REFERENCE_UPLOAD_MAX_TOTAL_MB（MB，默认 50；0 = 显式关闭配额）。
+const REFERENCE_UNBOUND_MAX_MB_DEFAULT = 50
+
+/** 未绑定参考图的累计字节上限（每次请求现读 env，运维不改码即可调档） */
+function referenceUnboundMaxBytes(): number {
+  const raw = Number(process.env.REFERENCE_UPLOAD_MAX_TOTAL_MB)
+  const mb = Number.isFinite(raw) && raw >= 0 ? raw : REFERENCE_UNBOUND_MAX_MB_DEFAULT
+  return Math.floor(mb * 1024 * 1024)
+}
+
+/**
+ * 某匿名凭证名下「未绑定」登记行的累计字节。
+ * COALESCE(file_size, MAX_FILE_SIZE)：v77 之前的存量行没有尺寸记录，
+ * 按单文件上限保守计入（宁可早拒，也不逐行 stat 磁盘——把文件系统扫描成本
+ * 挂在公开无鉴权接口上等于换个姿势继续被耗尽）。
+ */
+function unboundBytesByAnon(anonId: number): number {
+  const row = db.prepare(
+    'SELECT COALESCE(SUM(COALESCE(file_size, ?)), 0) AS bytes FROM reference_uploads WHERE anon_id = ? AND order_id IS NULL'
+  ).get(MAX_FILE_SIZE, anonId) as { bytes: number }
+  return row.bytes
+}
+
+/** 某 IP 名下「未绑定」登记行的累计字节（ip 为 v77 新列，存量行 NULL 自然不计入；保守计入口径同上） */
+function unboundBytesByIp(ip: string): number {
+  const row = db.prepare(
+    'SELECT COALESCE(SUM(COALESCE(file_size, ?)), 0) AS bytes FROM reference_uploads WHERE ip = ? AND order_id IS NULL'
+  ).get(MAX_FILE_SIZE, ip) as { bytes: number }
+  return row.bytes
+}
+
+/** 配额拒绝响应（429 + 明确码：未绑定囤积超限，等绑定或 TTL 清扫后可再试） */
+function rejectQuota(reply: FastifyReply, usedBytes: number, maxBytes: number, subject: 'anon' | 'ip') {
+  const toMb = (n: number) => Math.round(n / 1048576 * 10) / 10
+  return reply.code(429).send({
+    code: 'REFERENCE_QUOTA_EXCEEDED',
+    error: '该来源尚未绑定订单的参考图已占满暂存额度，请先完成下单，或等旧参考图被暂存清理后再试',
+    detail: { subject, usedMb: toMb(usedBytes), maxMb: toMb(maxBytes) }
+  })
+}
+
+/** 磁盘水位拒绝响应（507 = 存储不足，非客户端可重试的频控） */
+function rejectDisk(reply: FastifyReply, freeMb: number | null, minFreeMb: number) {
+  return reply.code(507).send({
+    code: 'DISK_WATERMARK_BLOCKED',
+    error: '服务器存储空间紧张，暂时无法接收新的参考图，请稍后再试，或直接把参考图发给画师',
+    detail: { freeMb, minFreeMb }
+  })
+}
 
 /**
  * P0-B: 安全扩展名提取 — basename 剥路径成分 + 正则限字符集
@@ -239,6 +296,8 @@ export default async function uploadRoutes(fastify: FastifyInstance, opts: { upl
    * P0-B: 加限流（10次/10分钟，公开接口需更严格）
    * F-10（P2-13 后端侧）: 要求 x-anon-token（复用匿名凭证机制）——有效则登记
    * (anon_id, file_path) 供下单归属校验；无 token/无效 → 拒绝上传（前端由批 G 接 token，两端同步上线）
+   * GHSA-6pf3-g4xq-854w（Wave1·高）: 写盘前加两道闸——磁盘水位（507）+ 未绑定累计字节配额（429）。
+   * 次数限流只压速率不压总量，磁盘耗尽的根因是「未绑定行永不删除」，故配额按未绑定字节累计。
    */
   fastify.post('/api/upload/reference', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!rateLimit(`upload-ref:${request.ip}`, 10, 10 * 60_000)) {
@@ -250,6 +309,31 @@ export default async function uploadRoutes(fastify: FastifyInstance, opts: { upl
     const anonId = typeof anonToken === 'string' ? trackingService.resolveAnonToken(anonToken) : null
     if (anonId == null) {
       return reply.code(400).send({ code: 'INVALID_ANON_TOKEN', error: '缺少有效匿名凭证（x-anon-token）' })
+    }
+
+    // 闸①：磁盘水位——可用空间低于阈值时拒绝公开上传（此前 checkDisk 只报表不阻断，恒 'ok'）。
+    // statfs 探针自身异常时 getDiskHeadroom 返回 ok=true（开发机/非常规文件系统不吃 statfs），
+    // 只记 warn 不阻断——水位未知不等于水位告急，误伤真实客户上传的代价由配额与 TTL 兜住。
+    const headroom = await getDiskHeadroom(UPLOAD_DIR)
+    if (headroom.probeError) {
+      request.log.warn(`参考图上传前磁盘水位探针不可用（不阻断）: ${headroom.probeError}`)
+    }
+    if (!headroom.ok) {
+      return rejectDisk(reply, headroom.freeMb, headroom.minFreeMb)
+    }
+
+    // 闸②：未绑定累计字节配额（per-anon 与 per-IP 各算一份，任一超限即拒）
+    // 预留本请求的最坏用量（单文件上限 10MB）：写盘前拒，避免「先落盘再回滚」留下半文件与额外 IO
+    const maxBytes = referenceUnboundMaxBytes()
+    if (maxBytes > 0) {
+      const usedByAnon = unboundBytesByAnon(anonId)
+      if (usedByAnon + MAX_FILE_SIZE > maxBytes) {
+        return rejectQuota(reply, usedByAnon, maxBytes, 'anon')
+      }
+      const usedByIp = unboundBytesByIp(request.ip)
+      if (usedByIp + MAX_FILE_SIZE > maxBytes) {
+        return rejectQuota(reply, usedByIp, maxBytes, 'ip')
+      }
     }
 
     const data = await request.file()
@@ -267,8 +351,9 @@ export default async function uploadRoutes(fastify: FastifyInstance, opts: { upl
 
       // F-10: 登记归属（文件名为随机 nanoid，同路径重复登记实际不会发生；
       // file_path UNIQUE 兜底防手写路径投毒，冲突即 500 由全局兜底）
-      db.prepare('INSERT INTO reference_uploads (anon_id, file_path) VALUES (?, ?)')
-        .run(anonId, result.filePath)
+      // v77（GHSA-6pf3-g4xq-854w）：一并登记 request.ip 与落盘真实字节数，供配额 SUM 使用
+      db.prepare('INSERT INTO reference_uploads (anon_id, file_path, ip, file_size) VALUES (?, ?, ?, ?)')
+        .run(anonId, result.filePath, request.ip, result.size)
 
       return {
         filePath: result.filePath,

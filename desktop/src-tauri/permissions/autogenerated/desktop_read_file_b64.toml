@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-desktop-read-file-b64"
+description = "Enables the desktop_read_file_b64 command without any pre-configured scope."
+commands.allow = ["desktop_read_file_b64"]
+
+[[permission]]
+identifier = "deny-desktop-read-file-b64"
+description = "Denies the desktop_read_file_b64 command without any pre-configured scope."
+commands.deny = ["desktop_read_file_b64"]

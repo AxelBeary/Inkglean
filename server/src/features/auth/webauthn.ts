@@ -22,6 +22,64 @@ import type {
 import { AppError, E } from '../../shared/errors.js'
 import type { Artist } from '../../types/entities.js'
 
+// ─── 通用有界 TTL 内存存储 ───
+
+/** TTL 存储条目最小形状：必须携带过期时间戳（惰性清理判据） */
+export interface TtlStoreEntry {
+  expiresAt: number
+}
+
+/** 有界 TTL 存储接口（GHSA-6pf3-854w P1-4 抽公共：challenge 存储与 TOTP 重绑暂存/登录防爆破计数共用同款语义） */
+export interface BoundedTtlStore<K, V extends TtlStoreEntry> {
+  set(key: K, value: V): void
+  get(key: K): V | undefined
+  has(key: K): boolean
+  delete(key: K): boolean
+  clear(): void
+  readonly size: number
+  readonly capacity: number
+  keys(): IterableIterator<K>
+}
+
+/**
+ * 创建「写入时惰性清理过期 + 容量上限淘汰」的内存存储（单实例部署可接受，多实例需迁移 Redis/DB）。
+ * 语义与原 challengeStore 手写版逐字一致：
+ * - 每次 set 先全表扫删过期条目（本轮删除 >100 即停，封顶写路径开销）；
+ * - 达容量上限时淘汰最早插入的一条（Map 迭代序 = 插入序），再写入。
+ */
+export function createBoundedTtlStore<K, V extends TtlStoreEntry>(maxEntries: number): BoundedTtlStore<K, V> {
+  const map = new Map<K, V>()
+  return {
+    set(key: K, value: V): void {
+      const now = Date.now()
+      let cleaned = 0
+      for (const [k, entry] of map) {
+        if (entry.expiresAt <= now) {
+          map.delete(k)
+          cleaned++
+          if (cleaned > 100) break
+        }
+      }
+      if (map.size >= maxEntries) {
+        const oldestKey = map.keys().next().value
+        if (oldestKey !== undefined) map.delete(oldestKey)
+      }
+      map.set(key, value)
+    },
+    get: (key) => map.get(key),
+    has: (key) => map.has(key),
+    delete: (key) => map.delete(key),
+    clear: () => map.clear(),
+    get size() {
+      return map.size
+    },
+    get capacity() {
+      return maxEntries
+    },
+    keys: () => map.keys()
+  }
+}
+
 // ─── Challenge 存储 ───
 
 interface ChallengeEntry {
@@ -36,32 +94,17 @@ interface ChallengeEntry {
 }
 
 /**
- * 内存 Challenge Map（单实例部署可接受）
- * 多实例部署需迁移到 Redis/DB。TTL 5 分钟，惰性清理。
- * 容量上限 10,000 条，超限淘汰最早条目。
+ * 内存 Challenge 存储（单实例部署可接受）
+ * 多实例部署需迁移到 Redis/DB。TTL 5 分钟，惰性清理（写入时）。
+ * 容量上限 10,000 条，超限淘汰最早条目——语义由 createBoundedTtlStore 提供。
  */
-const challengeStore = new Map<string, ChallengeEntry>()
 const CHALLENGE_TTL_MS = 5 * 60 * 1000
 const MAX_CHALLENGES = 10_000
+const challengeStore = createBoundedTtlStore<string, ChallengeEntry>(MAX_CHALLENGES)
 
 /** 存储 challenge（由 @simplewebauthn/server 生成后调用） */
 function storeChallenge(challenge: string, purpose: ChallengeEntry['purpose'], artistId?: number, meta?: Record<string, unknown>): void {
-  // 惰性清理：每次写入前清理一部分过期条目
-  const now = Date.now()
-  let cleaned = 0
-  for (const [key, entry] of challengeStore) {
-    if (entry.expiresAt <= now) {
-      challengeStore.delete(key)
-      cleaned++
-      if (cleaned > 100) break
-    }
-  }
-  // 超限淘汰
-  if (challengeStore.size >= MAX_CHALLENGES) {
-    const oldestKey = challengeStore.keys().next().value
-    if (oldestKey) challengeStore.delete(oldestKey)
-  }
-  challengeStore.set(challenge, { artistId, purpose, expiresAt: now + CHALLENGE_TTL_MS, meta })
+  challengeStore.set(challenge, { artistId, purpose, expiresAt: Date.now() + CHALLENGE_TTL_MS, meta })
 }
 
 /** 验证并消费 challenge（一次性，防重放） */
@@ -114,10 +157,31 @@ export function hasPasskeyCredentials(artistId: number): boolean {
 
 // ─── RP 配置 ───
 
+/**
+ * GHSA-6pf3-854w P1-2：生产环境 fail-fast——WEBAUTHN_RP_ID/WEBAUTHN_ORIGIN 缺省时拒绝启动
+ * （参照 auth.service SESSION_SECRET 生产拒启同款）。二者按请求 Host 推导在攻击面上等价于
+ * 「校验目标由调用方提供」：Host/X-Forwarded-Host 均可被直连方伪造。
+ * 由 authRoutes 注册期调用：抛错 → buildApp/ready 失败 → 进程拒起，不静默降级。
+ */
+export function assertWebauthnConfig(): void {
+  if (process.env.NODE_ENV !== 'production') return
+  const missing: string[] = []
+  if (!process.env.WEBAUTHN_RP_ID) missing.push('WEBAUTHN_RP_ID')
+  if (!process.env.WEBAUTHN_ORIGIN) missing.push('WEBAUTHN_ORIGIN')
+  if (missing.length > 0) {
+    throw new Error(`${missing.join('/')} 未设置——生产环境拒绝启动：WebAuthn rpId/origin 禁止按请求 Host 静默推导（Host/X-Forwarded-Host 可被伪造，凭据校验目标会被污染）。请在 .env 显式设置（见 .env.example）`)
+  }
+}
+
 function getRpId(requestHostname?: string): string {
+  const env = process.env.WEBAUTHN_RP_ID
+  // 纵深防线：即使路由注册期 assert 被绕过（如未来新调用面直入本模块），生产缺省仍拒绝推导
+  if (!env && process.env.NODE_ENV === 'production') {
+    throw new Error('WEBAUTHN_RP_ID 未设置——生产环境禁止按请求 Host 推导 rpId（fail-fast，见 assertWebauthnConfig）')
+  }
   // rpId 必须是裸域名（WebAuthn 规范不允许带端口），入参可能含端口，统一剥掉
   const bare = (requestHostname || 'localhost').replace(/:\d+$/, '')
-  return process.env.WEBAUTHN_RP_ID || bare
+  return env || bare
 }
 
 function getRpName(): string {
@@ -126,7 +190,12 @@ function getRpName(): string {
 }
 
 function getRpOrigin(requestHostname?: string, requestScheme?: string): string {
-  if (process.env.WEBAUTHN_ORIGIN) return process.env.WEBAUTHN_ORIGIN
+  const env = process.env.WEBAUTHN_ORIGIN
+  if (env) return env
+  // 纵深防线（同 getRpId）：生产缺省拒绝按请求推导，不静默降级
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('WEBAUTHN_ORIGIN 未设置——生产环境禁止按请求 scheme+Host 推导期望 Origin（fail-fast，见 assertWebauthnConfig）')
+  }
   const hostname = requestHostname || 'localhost'
   // 812 OOBE 实测修复：生产经 Caddy 反代以 https 提供，旧逻辑把 localhost 硬编码为 http
   // 导致 origin 校验失败（浏览器报 https://localhost）。协议以请求实际 scheme 为准（路由层传入，含 X-Forwarded-Proto）

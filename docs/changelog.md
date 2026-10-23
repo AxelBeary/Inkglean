@@ -6,6 +6,12 @@
 > - 滚动分册：活档体积门 `scripts/check-changelog-size.mjs`（≤40KB / ≤450 行，单段 ≤4KB，accept 第 19 道）；撞线即搬 oldest 段入 `docs/changelog-archive/` 新卷（整段零改动 + 逐行哈希校验，禁调高阈值续命）。
 > - v0.x 时代（v0.1~v0.46+）全量台账在 `docs/changelog-archive/changelog-v0-20260927.md`，只读历史。
 
+## 安全加固批 GHSA-6pf3（2026-10-24）
+
+- 落地一份负责任披露的外部安全审计（私密通告 GHSA-6pf3-g4xq-854w）加固项，覆盖认证、账户、资源配额、桌面端命令授权与本地数据面共 8 项。
+- 细节不在公开变更日志展开（见项目 SECURITY.md 口径）；修复已随本批进入主干，**自托管部署请尽快更新**。修复经 GitHub 私密通告确认后另行公开发布说明并致谢报告者。
+- 附带：docker-compose 以 `${DOMAIN}` 显式注入 WebAuthn RP_ID/ORIGIN；迁移 v76→v77；十九道门禁全绿。
+
 ## E2E 定位器规则 3 落地（2026-10-21，test-only）
 
 - `e2e/scripts/check-locators.ts` 新增规则 3：裸 `page.getByRole(role, { name: 动态 })` 未 scope → ERROR；沿用 `// locator-ok` 豁免机制。

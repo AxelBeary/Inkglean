@@ -2,7 +2,7 @@
 // WebAuthn Passkey 核心功能测试（REQ-040）
 // 测试注册、认证、counter 递增、删除、challenge 过期、防枚举
 // ============================================
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createHash, generateKeyPairSync } from 'crypto'
 import type { FastifyInstance } from 'fastify'
 import { db, cleanDb, seedArtist, type ArtistRow } from './setup.js'
@@ -16,7 +16,9 @@ import {
   deleteCredential,
   hasPasskeyCredentials,
   getExistingCredentialIds,
-  isCounterRegression
+  isCounterRegression,
+  createBoundedTtlStore,
+  assertWebauthnConfig
 } from '../src/features/auth/webauthn.js'
 import { AppError, E, ERROR_MESSAGES } from '../src/shared/errors.js'
 import { buildApp } from '../src/app.js'
@@ -255,8 +257,7 @@ describe('WebAuthn 数据库操作', () => {
 })
 
 // 会话门禁批：动态口令未绑定（totp_verified=0）的画师禁止 Passkey 登录
-describe('会话门禁批：Passkey 登录入口未绑定拦截', () => {
-  /** 构造伪造凭据（签名必败，但未绑定门禁应先于签名校验生效） */
+describe('会话门禁批：Passkey 登录入口未绑定拦截', () => {  /** 构造伪造凭据（签名必败，但未绑定门禁应先于签名校验生效） */
   function fakeCredential(credId: string, challenge: string) {
     return {
       id: credId,
@@ -364,5 +365,157 @@ describe('会话门禁批：Passkey 登录入口未绑定拦截', () => {
     } finally {
       await app.close()
     }
+  })
+})
+
+// ============================================
+// GHSA-6pf3-854w S1 整改批：有界 TTL 存储底座 / WebAuthn 生产 fail-fast / reqHost 信任语义
+// ============================================
+
+describe('createBoundedTtlStore 有界 TTL 存储（GHSA-6pf3 低-4 底座，challengeStore/重绑暂存/登录防爆破共用）', () => {
+  interface Entry {
+    expiresAt: number
+    tag: string
+  }
+
+  it('TC-BTTL-01: 写入时惰性清理过期项（challengeStore 同款语义）', () => {
+    const store = createBoundedTtlStore<string, Entry>(100)
+    store.set('stale', { expiresAt: Date.now() - 1000, tag: '过期' })
+    store.set('fresh', { expiresAt: Date.now() + 60_000, tag: '新鲜' })
+    // 第二次 set 的惰性清理把已过期的 stale 扫掉
+    expect(store.has('stale')).toBe(false)
+    expect(store.has('fresh')).toBe(true)
+    expect(store.size).toBe(1)
+  })
+
+  it('TC-BTTL-02: 容量上限存在，满员按插入序淘汰最旧', () => {
+    const store = createBoundedTtlStore<string, Entry>(3)
+    const future = Date.now() + 600_000
+    store.set('a', { expiresAt: future, tag: 'a' })
+    store.set('b', { expiresAt: future, tag: 'b' })
+    store.set('c', { expiresAt: future, tag: 'c' })
+    store.set('d', { expiresAt: future, tag: 'd' })
+    expect(store.capacity).toBe(3)
+    expect(store.size).toBeLessThanOrEqual(3)
+    expect(store.has('a')).toBe(false) // 最早插入者被淘汰
+    expect(store.has('d')).toBe(true)
+  })
+})
+
+describe('GHSA-6pf3 P1-2: WEBAUTHN_RP_ID/WEBAUTHN_ORIGIN 生产 fail-fast', () => {
+  const saved = {
+    nodeEnv: process.env.NODE_ENV,
+    session: process.env.SESSION_SECRET,
+    cookie: process.env.COOKIE_SECRET,
+    rpId: process.env.WEBAUTHN_RP_ID,
+    origin: process.env.WEBAUTHN_ORIGIN
+  }
+
+  afterEach(() => {
+    process.env.NODE_ENV = saved.nodeEnv
+    if (saved.session === undefined) delete process.env.SESSION_SECRET
+    else process.env.SESSION_SECRET = saved.session
+    if (saved.cookie === undefined) delete process.env.COOKIE_SECRET
+    else process.env.COOKIE_SECRET = saved.cookie
+    if (saved.rpId === undefined) delete process.env.WEBAUTHN_RP_ID
+    else process.env.WEBAUTHN_RP_ID = saved.rpId
+    if (saved.origin === undefined) delete process.env.WEBAUTHN_ORIGIN
+    else process.env.WEBAUTHN_ORIGIN = saved.origin
+  })
+
+  it('TC-WFF-01: 生产两者皆缺 → assertWebauthnConfig 抛错点名两个变量', () => {
+    process.env.NODE_ENV = 'production'
+    delete process.env.WEBAUTHN_RP_ID
+    delete process.env.WEBAUTHN_ORIGIN
+    expect(() => assertWebauthnConfig()).toThrow(/WEBAUTHN_RP_ID\/WEBAUTHN_ORIGIN 未设置/)
+  })
+
+  it('TC-WFF-02: 生产只缺 WEBAUTHN_ORIGIN → 抛错点名 ORIGIN', () => {
+    process.env.NODE_ENV = 'production'
+    process.env.WEBAUTHN_RP_ID = 'example.com'
+    delete process.env.WEBAUTHN_ORIGIN
+    expect(() => assertWebauthnConfig()).toThrow(/WEBAUTHN_ORIGIN 未设置/)
+  })
+
+  it('TC-WFF-03: 生产两者齐备 → 不抛（不误伤正确配置）', () => {
+    process.env.NODE_ENV = 'production'
+    process.env.WEBAUTHN_RP_ID = 'example.com'
+    process.env.WEBAUTHN_ORIGIN = 'https://example.com'
+    expect(() => assertWebauthnConfig()).not.toThrow()
+  })
+
+  it('TC-WFF-04: 非生产缺省 → 不抛（本地开发按 Host 推导的原行为保持）', () => {
+    process.env.NODE_ENV = 'test'
+    delete process.env.WEBAUTHN_RP_ID
+    delete process.env.WEBAUTHN_ORIGIN
+    expect(() => assertWebauthnConfig()).not.toThrow()
+  })
+
+  it('TC-WFF-05: 生产缺省时 getRpId/getRpOrigin 调用面拒绝按 Host 推导（纵深防线）', async () => {
+    process.env.NODE_ENV = 'production'
+    delete process.env.WEBAUTHN_RP_ID
+    delete process.env.WEBAUTHN_ORIGIN
+    await expect(generateLoginOptions('evil.example')).rejects.toThrow(/WEBAUTHN_RP_ID/)
+    process.env.WEBAUTHN_RP_ID = 'good.example'
+    // origin 面同样守住：verifyLogin 在消费 challenge 前即抛，不产出按 Host 拼装的期望 Origin
+    await expect(verifyLogin({ id: 'no-such-cred' }, 'good.example')).rejects.toThrow(/WEBAUTHN_ORIGIN/)
+  })
+
+  it('TC-WFF-06: 生产缺时 buildApp 在 auth 路由注册期拒起（启动 fail-fast，同 SESSION_SECRET 口径）', async () => {
+    process.env.NODE_ENV = 'production'
+    process.env.SESSION_SECRET = 'f'.repeat(64)
+    process.env.COOKIE_SECRET = 'f'.repeat(64)
+    delete process.env.WEBAUTHN_RP_ID
+    delete process.env.WEBAUTHN_ORIGIN
+    await expect(buildApp({ logger: false })).rejects.toThrow(/WEBAUTHN_RP_ID\/WEBAUTHN_ORIGIN 未设置——生产环境拒绝启动/)
+  })
+})
+
+describe('GHSA-6pf3 P1-2: reqHost 走 trustProxy 语义（不再裸读 x-forwarded-host）', () => {
+  let app: FastifyInstance
+  const saved = { rpId: process.env.WEBAUTHN_RP_ID, origin: process.env.WEBAUTHN_ORIGIN }
+
+  beforeEach(async () => {
+    cleanDb()
+    resetRateLimitBuckets()
+    // 本组用例验证「按 Host 推导」路径：显式清除钉死变量，防宿主环境误设改变行为
+    delete process.env.WEBAUTHN_RP_ID
+    delete process.env.WEBAUTHN_ORIGIN
+    app = await buildApp({ logger: false })
+    await app.ready()
+  })
+
+  afterEach(async () => {
+    await app.close()
+    if (saved.rpId === undefined) delete process.env.WEBAUTHN_RP_ID
+    else process.env.WEBAUTHN_RP_ID = saved.rpId
+    if (saved.origin === undefined) delete process.env.WEBAUTHN_ORIGIN
+    else process.env.WEBAUTHN_ORIGIN = saved.origin
+  })
+
+  it('TC-RH-01: 非信任来源伪造 X-Forwarded-Host 被忽略——rpId 不随伪造头走', async () => {
+    // 203.0.113.x 不在默认信任清单（私有网段）：旧实现会直接采纳 → 期望 rpId 被污染
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/webauthn/login-options',
+      remoteAddress: '203.0.113.160',
+      headers: { 'x-forwarded-host': 'evil.example' },
+      payload: { qqNumber: '12345' }
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().rpId).toBe('localhost')
+  })
+
+  it('TC-RH-02: 信任来源透传 X-Forwarded-Host 正常采纳（反代场景不回退）', async () => {
+    // 10.0.0.0/8 在默认信任清单内（Caddy/内网反代链路）
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/webauthn/login-options',
+      remoteAddress: '10.0.0.5',
+      headers: { 'x-forwarded-host': 'trusted.example' },
+      payload: { qqNumber: '12345' }
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().rpId).toBe('trusted.example')
   })
 })

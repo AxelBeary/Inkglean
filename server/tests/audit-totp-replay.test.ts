@@ -18,17 +18,21 @@ describe('TOTP 重放防护 (P1-1)', () => {
     return db.prepare('SELECT * FROM artists WHERE id = ?').get(artist.id) as ArtistRow
   }
 
-  it('TC-REPLAY-01: 同一时间窗口内同一验证码第二次使用被拒', () => {
+  it('TC-REPLAY-01: 同一时间窗口内同一验证码第二次使用被拒（对外文案统一，重放归因走 reason）', () => {
     bindArtist('20001')
     const code = computeTotp(TEST_SECRET, Date.now())
 
     const first = verifyTotpLogin('20001', code)
     expect(first.valid).toBe(true)
 
-    const second = verifyTotpLogin('20001', code) as { valid: boolean; code: string; error: string }
+    // GHSA-6pf3 P1 口径：「已使用」专属文案会泄露「该码对本账号有效」（枚举 oracle），
+    // 对外统一 TOTP_INVALID + 同文案；重放语义仅经内部 reason 保留
+    const second = verifyTotpLogin('20001', code) as { valid: boolean; code: string; error: string; reason?: string }
     expect(second.valid).toBe(false)
     expect(second.code).toBe('TOTP_INVALID')
-    expect(second.error).toContain('已使用')
+    expect(second.error).toBe('QQ号或动态口令错误')
+    expect(second.error).not.toContain('已使用')
+    expect(second.reason).toBe('replay')
   })
 
   it('TC-REPLAY-02: 新时间窗口的新验证码可正常登录（不误伤）', () => {

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-desktop-file-sizes"
+description = "Enables the desktop_file_sizes command without any pre-configured scope."
+commands.allow = ["desktop_file_sizes"]
+
+[[permission]]
+identifier = "deny-desktop-file-sizes"
+description = "Denies the desktop_file_sizes command without any pre-configured scope."
+commands.deny = ["desktop_file_sizes"]

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { db, cleanDb, seedArtist, type ArtistRow } from './setup.js'
 import { initDatabase } from '../src/db/init.js'
 import { isSetupCompleted, getSetupStatus, validateSetupToken, createAdminArtist, confirmTotpAndComplete, seedDefaultAddonTemplates } from '../src/features/setup/setup.service.js'
-import { computeTotp } from '../src/features/auth/totp.js'
+import { computeTotp, generateSecret } from '../src/features/auth/totp.js'
 
 const ORIGINAL_SETUP_TOKEN = process.env.SETUP_TOKEN
 
@@ -246,6 +246,34 @@ describe('REQ-038 开箱设置 (Setup)', () => {
       qqNumber: '10005',
       code: computeTotp(result.totpSecret, Date.now() + 60000)
     })).toThrow('SETUP_ALREADY_DONE')
+  })
+
+  // ─── GHSA-6pf3-g4xq-854w Wave1（S3）：setup 完成只允许管理员本人 QQ 触发 ───
+
+  it('TC-SETUP-14: 非管理员 QQ 携自己正确动态码确认被拒（接管窗口封堵）', () => {
+    // 管理员走正常向导：建号（admin_qq=10007，未确认）
+    createAdminArtist({ qqNumber: '10007', name: '测试管理员' })
+    // 造另一条「手建但未绑定」的画师行（有密钥、TOTP 可验）——修复前它能用自己的码完成 setup 并领取 isAdmin
+    const intruder = seedArtist({ qq_number: '10008', subdomain: 's3-intruder', totp_secret: null, totp_verified: 0 })
+    const secret = generateSecret()
+    db.prepare('UPDATE artists SET totp_secret = ?, totp_verified = 0 WHERE id = ?').run(secret, intruder.id)
+
+    expect(() => confirmTotpAndComplete({
+      qqNumber: '10008',
+      code: computeTotp(secret, Date.now())
+    })).toThrow('SETUP_ADMIN_MISMATCH')
+
+    // 未被接管：setup_completed 未落、入侵画师未验证
+    const done = db.prepare("SELECT value FROM platform_config WHERE key = 'setup_completed'").get() as ConfigRow
+    expect(done.value).not.toBe('1')
+    const row = db.prepare("SELECT totp_verified FROM artists WHERE qq_number = '10008'").get() as { totp_verified: number }
+    expect(row.totp_verified).toBe(0)
+  })
+
+  it('TC-SETUP-15: admin_qq 为空时任何 QQ 确认都被拒（无管理员即无人可完成 setup）', () => {
+    seedArtist({ qq_number: '10009', subdomain: 's3-noadmin', totp_secret: null, totp_verified: 0 })
+    // beforeEach 已将 admin_qq 置空
+    expect(() => confirmTotpAndComplete({ qqNumber: '10009', code: '123456' })).toThrow('SETUP_ADMIN_MISMATCH')
   })
 
   // ─── 812-B B7: 开箱预置基础增项 ───

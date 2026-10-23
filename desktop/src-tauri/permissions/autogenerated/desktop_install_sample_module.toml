@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-desktop-install-sample-module"
+description = "Enables the desktop_install_sample_module command without any pre-configured scope."
+commands.allow = ["desktop_install_sample_module"]
+
+[[permission]]
+identifier = "deny-desktop-install-sample-module"
+description = "Denies the desktop_install_sample_module command without any pre-configured scope."
+commands.deny = ["desktop_install_sample_module"]

@@ -6,7 +6,7 @@ import * as dashboard from '../src/features/artist/dashboard.service.js'
 import * as adminService from '../src/features/admin/admin.service.js'
 import * as toolsService from '../src/features/artist/tools.service.js'
 import * as trackingService from '../src/features/tracking/tracking.service.js'
-import { verifyTotpLogin } from '../src/features/auth/auth.service.js'
+import { verifyTotpLogin, type TotpLoginDenyResult } from '../src/features/auth/auth.service.js'
 import { createSession } from '../src/features/auth/auth.service.js'
 import { deleteArtist } from '../src/features/artist/artist.service.js'
 import { buildApp } from '../src/app.js'
@@ -181,8 +181,8 @@ describe('audit-a P3-11 TOTP 登录枚举 oracle', () => {
     // 会话门禁批：显式造未绑定态（seedArtist 默认已绑定）
     seedArtist({ qq_number: '77041', subdomain: 'unbound', totp_secret: null, totp_verified: 0 })
 
-    const missing = verifyTotpLogin('999999999', '123456')
-    const unbound = verifyTotpLogin('77041', '123456')
+    const missing = verifyTotpLogin('999999999', '123456') as TotpLoginDenyResult
+    const unbound = verifyTotpLogin('77041', '123456') as TotpLoginDenyResult
 
     expect(missing.valid).toBe(false)
     expect(unbound.valid).toBe(false)
@@ -190,6 +190,9 @@ describe('audit-a P3-11 TOTP 登录枚举 oracle', () => {
     expect(unbound.code).toBe('TOTP_INVALID')
     expect(missing.error).toBe('QQ号或动态口令错误')
     expect(unbound.error).toBe('QQ号或动态口令错误')
+    // GHSA-6pf3 P1：五态对外同码同文案，归因仅走内部 reason
+    expect(missing.reason).toBe('not_found')
+    expect(unbound.reason).toBe('unbound')
   })
 })
 

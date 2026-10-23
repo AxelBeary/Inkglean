@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-desktop-input-idle-secs"
+description = "Enables the desktop_input_idle_secs command without any pre-configured scope."
+commands.allow = ["desktop_input_idle_secs"]
+
+[[permission]]
+identifier = "deny-desktop-input-idle-secs"
+description = "Denies the desktop_input_idle_secs command without any pre-configured scope."
+commands.deny = ["desktop_input_idle_secs"]

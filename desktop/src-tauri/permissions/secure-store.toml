@@ -1,0 +1,22 @@
+# GHSA-6pf3-g4xq-854w Claim6 · 凭证保险箱权限分组（最高敏）
+#
+# secure_load 吐出的是 DPAPI 解密后的**登录 token 明文**（REQ-014 安全口径一），故拆读写两组：
+# - secure-store-write（存/删）：只授主窗（登录/登出只发生在主窗）。
+# - secure-store-read（读）：主窗 + 撕悬浮三件。悬浮窗读是**现状必需**——三件加载同一份前端 bundle，
+#   `src/router/index.ts` 守卫每窗都跑 `auth.restore()`（→ secure_load），云端态下悬浮窗还要拿
+#   token 去重新 fetch 待办/截稿；一刀切不授会让悬浮窗被守卫踹回登录页（已验收行为退化）。
+#   收窄靠 Rust 侧两道：key 白名单（只认应用自有的三把键）+ 非主窗只许读会话两把键，
+#   见 `src/bridge/secure_store.rs`。悬浮窗拿不到 secure_save/secure_delete。
+
+[[set]]
+identifier = "secure-store-read"
+description = "读取并 DPAPI 解密保险箱值（secure_load）。Rust 侧另有 key 白名单 + 窗口口径二次收口：非主窗只许读 session-token / session-artist"
+permissions = ["allow-secure-load"]
+
+[[set]]
+identifier = "secure-store-write"
+description = "写入/删除保险箱值（secure_save、secure_delete）：登录与登出专用，仅主窗"
+permissions = [
+  "allow-secure-save",
+  "allow-secure-delete",
+]

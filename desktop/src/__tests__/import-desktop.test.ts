@@ -13,7 +13,10 @@ vi.mock('../bridge', () => ({
   fileSizes: vi.fn(async () => [] as number[]),
   saveFile: vi.fn(async () => {}),
   shihuiHome: vi.fn(async () => 'C:\\Users\\me\\Documents\\拾绘'),
-  closeLocalDb: vi.fn(async () => {})
+  closeLocalDb: vi.fn(async () => {}),
+  // S5B：runImport 内部写仍走 saveFile（白名单根 path-命令）；dialog 两件仅为模块导入补桩
+  exportSaveB64: vi.fn(async () => ({ savedPath: null })),
+  importReadB64: vi.fn(async () => null)
 }))
 
 vi.mock('../bridge/db', () => ({

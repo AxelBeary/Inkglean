@@ -10,11 +10,11 @@ import { useLocalFilesStore } from '../../stores/localFiles'
 import { useLocalProfileStore } from '../../stores/localProfile'
 import { useLocalTemplatesStore } from '../../stores/localTemplates'
 import { runExport } from '../../tools/exportData'
-import { hasLocalData, parseBackup, pickBackupFile, readBackup, runImport } from '../../tools/importData'
+import { hasLocalData, parseBackup, pickAndReadBackup, runImport } from '../../tools/importData'
 import { buildWorklogCsv } from '../../tools/worklogCsv'
 import type { WorklogDayRow, WorklogOrderRow } from '../../tools/worklogCsv'
 import { useToolToast } from '../../tools/host'
-import { isDesktop, saveFile } from '../../bridge'
+import { exportSaveB64, isDesktop } from '../../bridge'
 import { openLocalDb } from '../../bridge/db'
 
 const router = useRouter()
@@ -75,15 +75,11 @@ async function doExportCsv() {
       total_secs: typeof o.total_secs === 'number' ? o.total_secs : 0
     }))
     const csv = buildWorklogCsv(days, orders)
-    const { save } = await import('@tauri-apps/plugin-dialog')
     const now = new Date()
     const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
-    const picked = await save({
-      defaultPath: `拾绘工时-${stamp}.csv`,
-      filters: [{ name: 'CSV 表格', extensions: ['csv'] }]
-    })
-    if (!picked) return // 用户取消，不提示
-    await saveFile(picked, new TextEncoder().encode(csv))
+    // S5B：另存为对话框跑壳侧，渲染层不再持有/传入落点路径
+    const { savedPath } = await exportSaveB64(`拾绘工时-${stamp}.csv`, new TextEncoder().encode(csv))
+    if (!savedPath) return // 用户取消，不提示
     toast.show('工时明细已导出')
   } catch {
     toast.show('导出失败，请重试', 'err')
@@ -109,10 +105,9 @@ async function doImport() {
   if (busy.value || !isDesktop()) return
   busy.value = true
   try {
-    const path = await pickBackupFile()
-    if (!path) return // 用户取消，不提示
-    const b64 = await readBackup(path)
-    const preview = await parseBackup(b64)
+    const picked = await pickAndReadBackup()
+    if (!picked) return // 用户取消，不提示
+    const preview = await parseBackup(picked.dataB64)
     if (!preview.ok) {
       toast.show(preview.reason, 'err')
       return

@@ -14,7 +14,6 @@ import {
 } from '../src/features/invite/invite.service.js'
 import { createSession } from '../src/features/auth/auth.service.js'
 import { computeTotp } from '../src/features/auth/totp.js'
-import { seedArtistStages } from '../src/features/artist/workflow.service.js'
 import { resetRateLimitBuckets } from '../src/shared/middleware/rate-limit.js'
 
 /** invite_codes 表回读行（测试内局部定义） */
@@ -45,6 +44,19 @@ function setAdmin(qqNumber = '10001') {
 /** 管理员 token（d2-3 加固后邀请码管理端点受 step-up 入口闸：需 admin_verified 级会话；非管理员仍由 requireAdmin 403 拦截） */
 function adminToken(artist: ArtistRow) {
   return createSession(artist.id, artist.token_version, { authLevel: 'admin_verified', adminVerifiedAt: Date.now() as unknown as string })
+}
+
+/**
+ * 邀请流程自产的「空壳」：先经 registerWithInvite 建号（写入 invite_code_uses，坐实邀请来源），
+ * 再把 TOTP 密钥/验证态置回「从未生成」（模拟受邀入驻后被管理员 reset、待重新推倒重来）。
+ * GHSA-6pf3 修复②后，只有这类带 invite_code_uses 的空壳才允许被新邀请码覆盖。
+ */
+function seedInviteShell(qqNumber: string, subdomain: string, name: string): ArtistRow {
+  const [c] = generateInviteCodes(1, 3, 1)
+  registerWithInvite({ code: c.code, qqNumber, name, subdomain })
+  const row = db.prepare('SELECT * FROM artists WHERE qq_number = ?').get(qqNumber) as ArtistRow
+  db.prepare('UPDATE artists SET totp_secret = NULL, totp_verified = 0 WHERE id = ?').run(row.id)
+  return db.prepare('SELECT * FROM artists WHERE id = ?').get(row.id) as ArtistRow
 }
 
 describe('REQ-039 邀请码注册（invite）', () => {
@@ -184,13 +196,12 @@ describe('REQ-039 邀请码注册（invite）', () => {
     expect(row.used_by_artist_id).toBeNull()
   })
 
-  // ─── 空壳账号覆盖（P0-1 收紧：totp_secret=NULL 才算空壳）：从未生成过密钥的空壳可被新码推倒重来 ───
+  // ─── 空壳账号覆盖（GHSA-6pf3 修复②：只允许覆盖「邀请流程自产」的空壳——带 invite_code_uses）───
 
-  it('TC-INV-07b: 真空壳（totp_secret=NULL/未绑定/未删除/未封禁）可被新码覆盖重来', async () => {
+  it('TC-INV-07b: 邀请流程自产的空壳（受邀后被 reset）可被新码覆盖重来', async () => {
     setAdmin()
-    // P0-1 修复后空壳语义收紧：totp_secret 必须为 NULL 才算空壳（已生成过密钥的号不可覆盖）
-    const shellRow = seedArtist({ qq_number: '21001', subdomain: 'shell1', name: '首次', totp_secret: null, totp_verified: 0 })
-    seedArtistStages(shellRow.id)
+    // 先邀请建号（写入 invite_code_uses），再置回未生成密钥态 → 邀请来源坐实的合法空壳
+    const shellRow = seedInviteShell('21001', 'shell1', '首次')
     // 模拟壳上已有简介（覆盖后应置空）
     db.prepare("UPDATE artists SET bio = '旧简介' WHERE id = ?").run(shellRow.id)
     const stagesBefore = (db.prepare('SELECT COUNT(*) AS c FROM artist_workflow_stages WHERE artist_id = ?').get(shellRow.id) as { c: number }).c
@@ -234,6 +245,73 @@ describe('REQ-039 邀请码注册（invite）', () => {
     expect(count.c).toBe(1)
   })
 
+  // GHSA-6pf3 修复②核心回归防线：管理员预建号（createArtist 不写 totp_secret → 天然满足空壳三条件）
+  // 若不收紧，攻击者持该号 QQ + 任一新邀请码即可原地覆盖接管。无 invite_code_uses → 拒绝覆盖。
+  it('TC-INV-07b1 (GHSA-6pf3): 管理员预建空壳号（无邀请流程记录）不可被邀请码覆盖 → QQ_TAKEN', async () => {
+    setAdmin()
+    // 模拟管理员 createArtist 预建：totp_secret=NULL / 未验证 / 未删 / 未封禁，但无 invite_code_uses
+    const prebuilt = seedArtist({ qq_number: '21007', subdomain: 'prebuilt', name: '预建受害者', totp_secret: null, totp_verified: 0 })
+    const [invite] = generateInviteCodes(1, 3, 1)
+
+    const attack = await app.inject({
+      method: 'POST',
+      url: '/api/invite/register',
+      payload: { code: invite.code, qqNumber: '21007', name: '攻击者', subdomain: 'hijack1' }
+    })
+    expect(attack.statusCode).toBe(400)
+    // 与「QQ 已被注册」不可区分（同码同文案）
+    expect(attack.json().code).toBe('QQ_TAKEN')
+    expect(attack.json().error).toBe('该QQ号已被注册')
+
+    // 攻击码未消费
+    const row = db.prepare('SELECT * FROM invite_codes WHERE id = ?').get(invite.id) as InviteCodeRowLite
+    expect(row.status).toBe('unused')
+    // 预建号未被篡改
+    const stillIntact = db.prepare("SELECT name, subdomain FROM artists WHERE id = ?").get(prebuilt.id) as { name: string; subdomain: string }
+    expect(stillIntact.name).toBe('预建受害者')
+    expect(stillIntact.subdomain).toBe('prebuilt')
+  })
+
+  // GHSA-6pf3 修复①核心：管理员 QQ 走邀请注册一律拒绝（即便其行已成空壳 / 或库中暂无该行），
+  // 否则覆盖/新建后经 requireAdmin 动态判定拿下全平台。响应与「QQ 已被注册」不可区分。
+  it('TC-INV-07b2a (GHSA-6pf3): 管理员 QQ 邀请注册被拒 → QQ_TAKEN（不可区分，且不消费码）', async () => {
+    const admin = setAdmin('10001')
+    // 把管理员行重置为空壳态（模拟曾自助 reset），旧逻辑下会被覆盖 → 全平台接管
+    db.prepare('UPDATE artists SET totp_secret = NULL, totp_verified = 0 WHERE id = ?').run(admin.id)
+    const [invite] = generateInviteCodes(1, 3, 1)
+
+    const attack = await app.inject({
+      method: 'POST',
+      url: '/api/invite/register',
+      payload: { code: invite.code, qqNumber: '10001', name: '接管者', subdomain: 'adminhijack' }
+    })
+    expect(attack.statusCode).toBe(400)
+    expect(attack.json().code).toBe('QQ_TAKEN')
+    // 管理员行未被篡改
+    const stillAdmin = db.prepare("SELECT name, subdomain, qq_number FROM artists WHERE id = ?").get(admin.id) as { name: string; subdomain: string; qq_number: string }
+    expect(stillAdmin.subdomain).toBe('admin-1')
+    expect(stillAdmin.name).toBe('测试画师')
+    // 攻击码未消费
+    const row = db.prepare('SELECT * FROM invite_codes WHERE id = ?').get(invite.id) as InviteCodeRowLite
+    expect(row.status).toBe('unused')
+  })
+
+  it('TC-INV-07b2b (GHSA-6pf3): 管理员 QQ 即便库中无对应行也不可经邀请注册新建（防注册即接管）', async () => {
+    setAdmin('10001')
+    // 仅设 admin_qq，不建对应画师行（platform_config 有 admin_qq 但 artists 无该 QQ）
+    db.prepare("DELETE FROM artists WHERE qq_number = '10001'").run()
+    const [invite] = generateInviteCodes(1, 3, 1)
+    const attack = await app.inject({
+      method: 'POST',
+      url: '/api/invite/register',
+      payload: { code: invite.code, qqNumber: '10001', name: '抢注', subdomain: 'grabadmin' }
+    })
+    expect(attack.statusCode).toBe(400)
+    expect(attack.json().code).toBe('QQ_TAKEN')
+    const created = db.prepare("SELECT COUNT(*) AS c FROM artists WHERE qq_number = '10001'").get() as { c: number }
+    expect(created.c).toBe(0)
+  })
+
   it('TC-INV-07b2: P0-1 收紧——已生成密钥的未确认账号（totp_secret 非空）不可被覆盖 → QQ_TAKEN', async () => {
     setAdmin()
     // 第一次注册：生成 TOTP 密钥（totp_secret 非空，totp_verified=0）
@@ -264,8 +342,8 @@ describe('REQ-039 邀请码注册（invite）', () => {
 
   it('TC-INV-07c: 覆盖时空壳自身 subdomain/artist_code 复用合法（不报 TAKEN）', async () => {
     setAdmin()
-    // P0-1 后用 seedArtist 建真空壳（totp_secret=NULL）
-    seedArtist({ qq_number: '21002', subdomain: 'shell2', name: '首次', totp_secret: null, totp_verified: 0 })
+    // 邀请流程自产空壳（GHSA-6pf3 修复②后唯一允许覆盖的来源）
+    seedInviteShell('21002', 'shell2', '首次')
 
     const [invite] = generateInviteCodes(1, 3, 1)
     const res2 = await app.inject({
@@ -283,8 +361,8 @@ describe('REQ-039 邀请码注册（invite）', () => {
     setAdmin()
     // 冲突账号：artist_code 故意与 subdomain 解耦，确保只触发 subdomain 碰撞分支
     seedArtist({ qq_number: '29001', subdomain: 'occupied', artist_code: 'OTHERCODE' })
-    // P0-1 后用 seedArtist 建真空壳
-    seedArtist({ qq_number: '21003', subdomain: 'shell3', name: '首次', totp_secret: null, totp_verified: 0 })
+    // 邀请流程自产空壳（须先具备邀请来源，才能走到 subdomain 碰撞判定，而非先被预建拒绝）
+    seedInviteShell('21003', 'shell3', '首次')
 
     const [invite3] = generateInviteCodes(1, 3, 1)
     const res3 = await app.inject({
@@ -429,7 +507,7 @@ describe('REQ-039 邀请码注册（invite）', () => {
     expect(artist.totp_verified).toBe(1)
   })
 
-  it('TC-INV-14: totp-confirm 错误码拒绝，重复使用同一码拒绝（重放防护）', async () => {
+  it('TC-INV-14: totp-confirm 错误码拒绝（统一 TOTP_INVALID），重放同码拒绝', async () => {
     setAdmin()
     const [invite] = generateInviteCodes(1, 3, 1)
     const reg = await app.inject({
@@ -446,7 +524,8 @@ describe('REQ-039 邀请码注册（invite）', () => {
       payload: { qqNumber: '20008', code: '000000' }
     })
     expect(bad.statusCode).toBe(400)
-    expect(bad.json().code).toBe('TOTP_BIND_INVALID')
+    // GHSA-6pf3 修复④：首绑失败对外统一 TOTP_INVALID（旧 TOTP_BIND_INVALID 退役）
+    expect(bad.json().code).toBe('TOTP_INVALID')
 
     const ok = await app.inject({
       method: 'POST',
@@ -455,56 +534,85 @@ describe('REQ-039 邀请码注册（invite）', () => {
     })
     expect(ok.statusCode).toBe(200)
 
-    // 已绑定后再次确认 → TOTP_NOT_BOUND（已首绑完成，拒绝重复确认）
+    // 已绑定后再次确认 → 统一 TOTP_INVALID（旧 TOTP_NOT_BOUND 对外口径已被收敛）
     const again = await app.inject({
       method: 'POST',
       url: '/api/invite/totp-confirm',
       payload: { qqNumber: '20008', code }
     })
     expect(again.statusCode).toBe(400)
-    expect(again.json().code).toBe('TOTP_NOT_BOUND')
+    expect(again.json().code).toBe('TOTP_INVALID')
   })
 
-  it('TC-INV-14b (v126): 错码拒绝携带剩余次数；刚轮换的旧码判 stale（仅文案分流，不放宽校验）', async () => {
+  // GHSA-6pf3 修复④核心：三种首绑失败态（未注册 / 未绑定 / 码错）对外响应逐字相同（断言 body 相等），
+  // 不给剩余次数、不泄露账号存在性/绑定态，堵住枚举口。
+  it('TC-INV-14b (GHSA-6pf3): 未注册/未绑定/码错三种首绑失败态对外响应逐字节相同', async () => {
+    setAdmin()
+
+    // 态①未注册：QQ 从未入库
+    const notRegistered = await app.inject({
+      method: 'POST',
+      url: '/api/invite/totp-confirm',
+      payload: { qqNumber: '77001', code: '123456' }
+    })
+
+    // 态②未绑定：QQ 已入库但无密钥/未验证（管理员预建，非邀请流程）
+    seedArtist({ qq_number: '77002', subdomain: 'unbound', totp_secret: null, totp_verified: 0 })
+    const notBound = await app.inject({
+      method: 'POST',
+      url: '/api/invite/totp-confirm',
+      payload: { qqNumber: '77002', code: '123456' }
+    })
+
+    // 态③码错：邀请流程建好号（有密钥未验证），提交错误 6 位码
+    const [invite] = generateInviteCodes(1, 3, 1)
+    await app.inject({
+      method: 'POST',
+      url: '/api/invite/register',
+      payload: { code: invite.code, qqNumber: '77003', name: '枚举', subdomain: 'enumunif' }
+    })
+    const wrongCode = await app.inject({
+      method: 'POST',
+      url: '/api/invite/totp-confirm',
+      payload: { qqNumber: '77003', code: '000000' }
+    })
+
+    // 三者 status + 整份 body 完全一致（内部 reason 只进日志，绝不进对外体）
+    expect(notRegistered.statusCode).toBe(400)
+    expect(notBound.statusCode).toBe(400)
+    expect(wrongCode.statusCode).toBe(400)
+    expect(notBound.json()).toEqual(notRegistered.json())
+    expect(wrongCode.json()).toEqual(notRegistered.json())
+    expect(notRegistered.json()).toEqual({ code: 'TOTP_INVALID', error: 'QQ号或动态口令错误' })
+  })
+
+  // GHSA-6pf3 修复③：封禁号首绑被拒——即便动态码正确也不签发会话、不改 totp_verified
+  it('TC-INV-14c (GHSA-6pf3): 封禁号首绑被拒，不签发会话/不改 verified', async () => {
     setAdmin()
     const [invite] = generateInviteCodes(1, 3, 1)
     const reg = await app.inject({
       method: 'POST',
       url: '/api/invite/register',
-      payload: { code: invite.code, qqNumber: '20014', name: '分流', subdomain: 'splitmsg' }
+      payload: { code: invite.code, qqNumber: '77004', name: '封禁首绑', subdomain: 'bannedfirst' }
     })
     const secret = secretFromUri(reg.json().otpauthUri)
+    const code = computeTotp(secret, Date.now())
 
-    // 第一错：纯错码（不在 ±3 窗口）→ stale=false，剩余 4 次
-    const wrong = await app.inject({
+    // 首绑前先封禁
+    db.prepare("UPDATE artists SET is_banned = 1 WHERE qq_number = '77004'").run()
+
+    const res = await app.inject({
       method: 'POST',
       url: '/api/invite/totp-confirm',
-      payload: { qqNumber: '20014', code: '000000' }
+      payload: { qqNumber: '77004', code }
     })
-    expect(wrong.statusCode).toBe(400)
-    expect(wrong.json().code).toBe('TOTP_BIND_INVALID')
-    expect(wrong.json().detail).toMatchObject({ stale: false, remainingAttempts: 4 })
-
-    // 第二错：两个时间步前的旧码（不在有效窗 ±1，落在 ±3）→ stale=true，剩余 3 次
-    const staleCode = computeTotp(secret, Date.now() - 2 * 30_000)
-    const stale = await app.inject({
-      method: 'POST',
-      url: '/api/invite/totp-confirm',
-      payload: { qqNumber: '20014', code: staleCode }
-    })
-    expect(stale.statusCode).toBe(400)
-    expect(stale.json().code).toBe('TOTP_BIND_INVALID')
-    expect(stale.json().detail).toMatchObject({ stale: true, remainingAttempts: 3 })
-
-    // 分流仅改文案不改拦截：两次失败后仍未绑定，正确码仍可完成首绑
-    const artist = db.prepare("SELECT * FROM artists WHERE qq_number = '20014'").get() as ArtistRow
+    expect(res.statusCode).toBe(400)
+    expect(res.json().code).toBe('TOTP_INVALID')
+    // 不签发会话 cookie
+    expect(res.headers['set-cookie']).toBeFalsy()
+    // 不改 totp_verified（仍未绑定）
+    const artist = db.prepare("SELECT totp_verified FROM artists WHERE qq_number = '77004'").get() as { totp_verified: number }
     expect(artist.totp_verified).toBe(0)
-    const ok = await app.inject({
-      method: 'POST',
-      url: '/api/invite/totp-confirm',
-      payload: { qqNumber: '20014', code: computeTotp(secret, Date.now()) }
-    })
-    expect(ok.statusCode).toBe(200)
   })
 
   // ─── 管理端 ───

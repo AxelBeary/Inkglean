@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-desktop-check-files"
+description = "Enables the desktop_check_files command without any pre-configured scope."
+commands.allow = ["desktop_check_files"]
+
+[[permission]]
+identifier = "deny-desktop-check-files"
+description = "Denies the desktop_check_files command without any pre-configured scope."
+commands.deny = ["desktop_check_files"]

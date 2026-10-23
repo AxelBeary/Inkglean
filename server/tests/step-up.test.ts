@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import type { Response } from 'light-my-request'
 import { db, cleanDb, seedArtist, type ArtistRow } from './setup.js'
-import { createSession, verifySession, bindTotpInit, confirmTotpBind } from '../src/features/auth/auth.service.js'
+import { createSession, verifySession, bindTotpInit, confirmTotpBind, resetTotpLoginAttemptStore } from '../src/features/auth/auth.service.js'
 import { generateSecret, computeTotp } from '../src/features/auth/totp.js'
 import { verifyLogin, type WebAuthnCredentialRow } from '../src/features/auth/webauthn.js'
 import { STEP_UP_REQUIRED } from '../src/shared/middleware/step-up.js'
@@ -46,8 +46,10 @@ describe('REQ-041 管理后台二次验证（会话升级）', () => {
 
   beforeEach(async () => {
     cleanDb()
-    // 同进程多用例共享限流窗口（step-up:IP 10 次/5min），每例前清零防相互干扰
+    // 同进程多用例共享限流窗口（step-up:IP 10 次/5min），每例前清零防相互干扰；
+    // GHSA-6pf3：(IP,账号) 防爆破态同为进程内存（TC-SU-02 会触发组合锁），一并逐例清空
     resetRateLimitBuckets()
+    resetTotpLoginAttemptStore()
     app = await buildApp({ logger: false })
     await app.ready()
   })

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-desktop-import-read-b64"
+description = "Enables the desktop_import_read_b64 command without any pre-configured scope."
+commands.allow = ["desktop_import_read_b64"]
+
+[[permission]]
+identifier = "deny-desktop-import-read-b64"
+description = "Denies the desktop_import_read_b64 command without any pre-configured scope."
+commands.deny = ["desktop_import_read_b64"]

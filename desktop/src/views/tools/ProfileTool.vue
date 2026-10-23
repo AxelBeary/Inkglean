@@ -6,7 +6,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useLocalProfileStore } from '../../stores/localProfile'
 import { useToolToast } from '../../tools/host'
-import { readFileB64, isDesktop } from '../../bridge'
+import { importReadB64, isDesktop } from '../../bridge'
 
 const router = useRouter()
 const toast = useToolToast()
@@ -43,18 +43,25 @@ function mimeOf(path: string): string {
   return 'image/png'
 }
 
+/** 头像 5MB 产品门槛（原为 Rust 侧 desktop_read_file_b64 的硬闸；S5B 改走壳侧对话框读件后
+ *  在此判——对话框里选什么文件是用户授权行为，限额只是防把整张 PSD 塞进库的顺手误操作） */
+const AVATAR_MAX_BYTES = 5 * 1024 * 1024
+
 async function pickAvatar() {
   if (!isDesktop()) return
   try {
-    const { open } = await import('@tauri-apps/plugin-dialog')
-    const picked = await open({
-      multiple: false,
-      title: '选择头像图片',
-      filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }]
-    })
-    if (typeof picked !== 'string' || !picked) return
-    const b64 = await readFileB64(picked)
-    avatarB64.value = `data:${mimeOf(picked)};base64,${b64}`
+    // S5B：原生「打开文件」跑壳侧，任意位置（如 D:\画材）可选，字节由 Rust 读回
+    const picked = await importReadB64(
+      [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }],
+      '选择头像图片'
+    )
+    if (!picked) return
+    const approxBytes = Math.ceil((picked.dataB64.length * 3) / 4)
+    if (approxBytes > AVATAR_MAX_BYTES) {
+      toast.show('头像图超过 5MB，换一张试试', 'err')
+      return
+    }
+    avatarB64.value = `data:${mimeOf(picked.path)};base64,${picked.dataB64}`
   } catch {
     toast.show('头像读取失败，换一张试试', 'err')
   }

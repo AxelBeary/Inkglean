@@ -1,10 +1,13 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "floating",
-  "description": "撕悬浮三件（计时器/今日待办/截稿倒计时）独立窗口投影的最小权限面：core 基础 + 拖动（题跋条 data-tauri-drag-region 需要）；关闭走自定义命令 desktop_floating_close，不开其余窗口管理/插件权限，亦不参与 window-state 持久化。截稿窗的只读账目权限单独见 floating-deadline.json",
+  "description": "撕悬浮三件（计时器/今日待办/截稿倒计时）独立窗口投影的最小权限面。GHSA-6pf3-g4xq-854w Claim6 起本面才是**真的**生效：build.rs 用 AppManifest::commands 把 31 个应用自有命令纳入 ACL 后，未在此列出的自有命令对悬浮窗一律拒（此前默认全放行）。三件加载与主窗同一份前端 bundle，故只授其路由实际要用的三项：window-float-close（迷你题跋条「贴回」关自己）、secure-store-read（src/router 守卫每窗跑 auth.restore()，云端态悬浮卡还要 token 重新 fetch）、db-path（截稿卡本地模式经 openLocalDbReadOnly 取库路径）。不授：文件读写、模块面、secure_save/secure_delete、主窗窗口控制、造窗、autostart、托盘、活动监测、ping。关闭行为偏好（desktop_close_behavior_set）不授：值是主窗启动时同步的同一个 localStorage，投影窗无权重定义全局关窗口径，前端已 catch 静默",
   "windows": ["floating-timer", "floating-today-todo", "floating-deadline"],
   "permissions": [
     "core:default",
-    "core:window:allow-start-dragging"
+    "core:window:allow-start-dragging",
+    "window-float-close",
+    "secure-store-read",
+    "db-path"
   ]
 }

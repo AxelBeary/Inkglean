@@ -18,6 +18,23 @@
     "autostart:default",
     "notification:default",
     "sql:default",
-    "sql:allow-execute"
+    "sql:allow-execute",
+    "file-write",
+    "file-read",
+    "file-dirs",
+    "file-dialog",
+    "secure-store-read",
+    "secure-store-write",
+    "db-path",
+    "db-sidecar",
+    "activity-monitor",
+    "bridge-diagnostics",
+    "window-controls",
+    "window-float-open",
+    "window-float-close",
+    "window-autostart",
+    "tray",
+    "modules-read",
+    "modules-install"
   ]
 }

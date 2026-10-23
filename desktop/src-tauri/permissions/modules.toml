@@ -1,0 +1,21 @@
+# GHSA-6pf3-g4xq-854w Claim6 · 模块机制权限分组（高敏；对方审计未点名，本席按同口径一并纳入）
+#
+# 模块＝本机透明文件（我的文档\拾绘\modules\<id>\），manifest.json 与 panel.js 都是可被本机
+# 其他程序改写的第三方内容：读它们、往那儿写它们的命令都属高敏面，一律只授主窗，
+# 且 Rust 侧已钉死目录名白名单 + 尺寸上限（见 src/bridge/modules.rs）。
+# 悬浮投影窗不加载模块面板，故不授任何 modules 权限。
+
+[[set]]
+identifier = "modules-read"
+description = "模块扫描与读取：列模块目录（desktop_list_module_dirs）、读 manifest.json（desktop_read_module_manifest）、读入口 panel.js（desktop_read_module_entry）、取模块私有存储路径（desktop_module_storage_path，DSK-13c 历史死代码，仅保注册）"
+permissions = [
+  "allow-desktop-list-module-dirs",
+  "allow-desktop-read-module-manifest",
+  "allow-desktop-read-module-entry",
+  "allow-desktop-module-storage-path",
+]
+
+[[set]]
+identifier = "modules-install"
+description = "一键安装示例模块（desktop_install_sample_module）：往 modules 目录写 manifest.json + panel.js，等于投放将来会被执行的第三方内容，仅主窗"
+permissions = ["allow-desktop-install-sample-module"]

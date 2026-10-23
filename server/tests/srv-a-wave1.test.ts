@@ -66,9 +66,12 @@ describe('P0-1: 邀请注册空壳覆盖防护', () => {
     expect(original.subdomain).toBe('victim1')
   })
 
-  it('TC-P01-02: 真空壳（totp_secret=NULL, totp_verified=0）仍可被覆盖', async () => {
-    // 手动建一个真空壳（模拟管理员建号但未绑 TOTP 的场景）
-    seedArtist({ qq_number: '21002', subdomain: 'shell1', name: '空壳', totp_secret: null, totp_verified: 0 })
+  it('TC-P01-02: 邀请流程自产的真空壳（totp_secret=NULL + 有 invite_code_uses）仍可被覆盖', async () => {
+    // GHSA-6pf3 修复②：空壳覆盖收紧为「只允许覆盖邀请流程自产的行」。
+    // 建一个真空壳并补 invite_code_uses 记录坐实其邀请来源（模拟受邀入驻后被 reset 待重绑）。
+    const shell = seedArtist({ qq_number: '21002', subdomain: 'shell1', name: '空壳', totp_secret: null, totp_verified: 0 })
+    const originCode = db.prepare('INSERT INTO invite_codes (code, status, expires_at) VALUES (?, ?, ?)').run('P0102ORIG', 'used', new Date(Date.now() + 86400000).toISOString())
+    db.prepare('INSERT INTO invite_code_uses (invite_code_id, artist_id, used_at) VALUES (?, ?, ?)').run(originCode.lastInsertRowid, shell.id, new Date().toISOString())
 
     const [invite] = generateInviteCodes(1, 3, 1)
     const res = await app.inject({
@@ -80,6 +83,22 @@ describe('P0-1: 邀请注册空壳覆盖防护', () => {
     const updated = db.prepare("SELECT name, subdomain FROM artists WHERE qq_number = '21002'").get() as { name: string; subdomain: string }
     expect(updated.name).toBe('重来')
     expect(updated.subdomain).toBe('shell1x')
+  })
+
+  // GHSA-6pf3 修复②反向用例：无 invite_code_uses 的预建真空壳（管理员建号未绑 TOTP）不可被覆盖
+  it('TC-P01-02b: 管理员预建真空壳（无邀请流程记录）不可被覆盖 → QQ_TAKEN', async () => {
+    seedArtist({ qq_number: '21002', subdomain: 'prebuilt', name: '预建', totp_secret: null, totp_verified: 0 })
+
+    const [invite] = generateInviteCodes(1, 3, 1)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/invite/register',
+      payload: { code: invite.code, qqNumber: '21002', name: '攻击者', subdomain: 'hijack' }
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().code).toBe('QQ_TAKEN')
+    const stillIntact = db.prepare("SELECT name FROM artists WHERE qq_number = '21002'").get() as { name: string }
+    expect(stillIntact.name).toBe('预建')
   })
 
   it('TC-P01-03: confirmInviteTotp 纵深——非邀请流程产物（无 invite_code_uses 记录）被拒', async () => {
@@ -94,8 +113,10 @@ describe('P0-1: 邀请注册空壳覆盖防护', () => {
       url: '/api/invite/totp-confirm',
       payload: { qqNumber: '21003', code: computeTotp(secret, Date.now()) }
     })
+    // GHSA-6pf3 修复④：首绑失败对外统一 TOTP_INVALID（旧 INVITE_INVALID 对外口径已被收敛，
+    // 拒绝语义不变：非邀请流程产物仍被拒，只是不再区分内部 reason）
     expect(res.statusCode).toBe(400)
-    expect(res.json().code).toBe('INVITE_INVALID')
+    expect(res.json().code).toBe('TOTP_INVALID')
   })
 
   it('TC-P01-04: 正常邀请流程注册后 confirmInviteTotp 可成功', async () => {
