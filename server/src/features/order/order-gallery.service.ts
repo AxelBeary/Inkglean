@@ -1,10 +1,11 @@
 import crypto from 'crypto'
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
-import { getOrder, compactQueue, tryAutoPromote, assertStatusTransition, updateOrderChecked } from './order.service.js'
+import { getOrder, compactQueue, tryAutoPromote, assertStatusTransition, updateOrderChecked, formatCents } from './order.service.js'
 import { logActivity } from './activity-log.service.js'
 import { createArtwork } from '../artist/artist.service.js'
 import type { OrderDetail } from '../../types/entities.js'
+import { resolvePriceCents } from '../../utils/price.js'
 import { copyFileSync, existsSync, mkdirSync, statSync, unlinkSync } from 'fs'
 import { join, resolve, sep, extname, basename } from 'path'
 import { nanoid } from 'nanoid'
@@ -24,6 +25,22 @@ export function addDeliverable(orderId: number, filePath: string, fileName: stri
   if (dup) return
   db.prepare('INSERT INTO deliverables (order_id, file_path, original_name, file_size) VALUES (?, ?, ?, ?)')
     .run(orderId, filePath, fileName || '交付文件', fileSize || 0)
+}
+
+/**
+ * 交付时若本单尚有余款未收，写一条系统备注留痕（审计 #21 条目 1）
+ * 收款侧 P2-F9 规定 delivered 后不再接受正数收款，且状态机 delivered 无后继——
+ * 交付即封死尾款入账路径。未收金额必须落进双方可见的备注时间线成为事实源，
+ * 而不是随「终态不再显示待收横幅」静默消失。
+ * 未定价订单（价格三级回退全为 null）无「应付」口径，不留痕。
+ */
+function noteUnpaidBalanceAtDeliver(order: OrderDetail): void {
+  const finalCents = resolvePriceCents(order)
+  if (finalCents === null) return
+  const pendingCents = finalCents - (order.paid_total_cents ?? 0)
+  if (pendingCents <= 0) return
+  db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
+    .run(order.id, `⚠️ 交付时本单尚有余款 ${formatCents(pendingCents)} 未收（已交付订单不能再记录收款，请线下结清）`)
 }
 
 /**
@@ -56,6 +73,7 @@ export function deliverOrder(orderId: number, filePath: string, fileName: string
       compactQueue(order.artist_id)
       // SPEC-004: 交付释放名额后尝试自动递补
       tryAutoPromote(order.artist_id)
+      noteUnpaidBalanceAtDeliver(order)
       statusChanged = true
     }
 
@@ -91,6 +109,8 @@ export function deliverOrderWithoutFile(orderId: number, expectedVersion?: numbe
     // 系统备注留痕（客户与画师双方可见交付方式）
     db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
       .run(orderId, '📦 画师确认无需交付文件，订单直接完成交付')
+
+    noteUnpaidBalanceAtDeliver(order)
 
     // v0.31 REQ-021 F1: 操作日志（status_change 类型 + noFile 标记，对齐 updateOrderStatus 日志范式）
     logActivity(orderId, 'status_change', 'artist', { from: order.status, to: 'delivered', noFile: true })

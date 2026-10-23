@@ -278,7 +278,10 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     file: 'Upload deliverable',
     noFile: 'No-file delivery',
     noFileHint: 'This order needs no deliverable file (e.g. pure consultation, already delivered offline). Once confirmed, the order is marked "Delivered". This cannot be undone.',
-    noFileConfirm: 'Confirm delivery with no file? The order will be set to "Delivered".'
+    noFileConfirm: 'Confirm delivery with no file? The order will be set to "Delivered".',
+    unpaidWarning: '{amount} of the final payment is still outstanding. Once the order is "Delivered" this payment can no longer be recorded — collect it first.',
+    unpaidFileConfirm: '{amount} of the final payment is still outstanding and cannot be recorded after delivery. Deliver now anyway?',
+    unpaidNoFileConfirm: '{amount} of the final payment is still outstanding and cannot be recorded after a no-file delivery. Complete delivery now anyway?'
   },
   upload: {
     pasteHint: 'Paste images with Ctrl+V',
