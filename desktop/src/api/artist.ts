@@ -88,11 +88,59 @@ export function fetchArtistStats(): Promise<ArtistStats> {
   return getJson('/api/artist/stats')
 }
 
+// ─── 分页累积（#22-4）───
+
+/** 分页累积硬上限：极端数据量下也只为桌面端取这么多行，触顶置 truncated */
+const PAGE_COLLECT_MAX_ITEMS = 1000
+
+/** 服务端分页响应形状（messages/orders 同源：{items,total,page,pageSize}） */
+interface PagedResponse<T> {
+  items?: T[]
+  total?: number
+}
+
+/** 累积结果：items 为已取到的行，total 为服务端口径总数（计数一律用它），
+ *  truncated 表示受硬上限截断（此时 items.length 少于 total） */
+export interface Collected<T> {
+  items: T[]
+  total: number
+  truncated: boolean
+}
+
+/**
+ * 逐页取到 total 为止（审计 #22 条目 4）
+ *
+ * why：桌面端把这些列表**当全量用**——`Home.vue` 的在账数、MsgsPanel 的待审数、
+ * 新留言通知与托盘 tooltip 都从 items 推导。而 `fetchMessages()`/`fetchOrders()`
+ * 原先不传 page/pageSize，吃服务端默认第一页（留言 20 条 / 订单 50 条），
+ * 于是超出首页的部分永远看不到，计数长期低报。
+ *
+ * 停止条件三重：取满 total、某页返回空数组（服务端数据变化/越界）、达到硬上限。
+ * 页大小由各调用方按服务端允许的最大值传入，正常画师量级一两轮即收敛。
+ */
+async function collectPages<T>(
+  fetchPage: (page: number, pageSize: number) => Promise<PagedResponse<T>>,
+  pageSize: number
+): Promise<Collected<T>> {
+  const first = await fetchPage(1, pageSize)
+  const items = [...(first.items ?? [])]
+  const total = first.total ?? items.length
+  while (items.length < Math.min(total, PAGE_COLLECT_MAX_ITEMS)) {
+    const page = Math.floor(items.length / pageSize) + 1
+    const res = await fetchPage(page, pageSize)
+    const batch = res.items ?? []
+    if (batch.length === 0) break // 空页＝没有更多了，防 total 漂移导致死循环
+    items.push(...batch)
+  }
+  return { items, total, truncated: items.length < total }
+}
+
 // ─── msgs 留言 ───
 
-/** 留言审核列表（分页对象 {items,total}，非裸数组——826 实测纠形；本地模式/断网整块隐藏） */
-export function fetchMessages(): Promise<{ items: GuestbookMessage[]; total: number }> {
-  return getJson('/api/artist/messages')
+/** 留言审核列表（分页对象 {items,total}，非裸数组——826 实测纠形；本地模式/断网整块隐藏）
+ *  #22-4：按服务端最大页（100）逐页累积，不再只吃默认 20 条 */
+export function fetchMessages(): Promise<Collected<GuestbookMessage>> {
+  return collectPages((page, pageSize) => getJson(`/api/artist/messages?page=${page}&pageSize=${pageSize}`), 100)
 }
 
 /** 留言通过（追加：同网页端 approveMessage 口径；既有签名一律不动） */
@@ -107,9 +155,10 @@ export function rejectMessage(id: number): Promise<SimpleSuccessResult> {
 
 // ─── orders 订单速览 ───
 
-/** 订单列表（分页对象 {items}，非裸数组——826 实测纠形） */
-export function fetchOrders(): Promise<{ items: ArtistOrderItem[] }> {
-  return getJson('/api/artist/orders')
+/** 订单列表（分页对象 {items}，非裸数组——826 实测纠形）
+ *  #22-4：按服务端最大页（200）逐页累积，「在账数」一类计数改读 total */
+export function fetchOrders(): Promise<Collected<ArtistOrderItem>> {
+  return collectPages((page, pageSize) => getJson(`/api/artist/orders?page=${page}&pageSize=${pageSize}`), 200)
 }
 
 /** 截稿倒计时（含已逾期，按截稿日升序） */
