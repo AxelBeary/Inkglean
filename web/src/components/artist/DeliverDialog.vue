@@ -50,6 +50,12 @@
       </el-alert>
     </template>
 
+    <!-- 审计 #21 条目 1：交付是尾款入账的最后期限——delivered 后服务端拒收正数收款且无撤销交付路径，
+         有未收余额时先显式告知金额，再要求二次确认（文件交付模式此前无任何确认门槛） -->
+    <el-alert v-if="unpaidPendingCents > 0" type="warning" :closable="false" show-icon style="margin-top: 8px">
+      <span>{{ $t('deliverMode.unpaidWarning', { amount: `¥${formatCents(unpaidPendingCents)}` }) }}</span>
+    </el-alert>
+
     <template #footer>
       <el-button @click="$emit('update:modelValue', false)">{{ $t('common.cancel') }}</el-button>
       <el-button
@@ -65,7 +71,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { UploadFile, UploadUserFile } from 'element-plus'
 import { Upload } from '@element-plus/icons-vue'
@@ -75,16 +81,21 @@ import type { ApiError } from '../../api/index'
 import type { DeliverResult } from '../../api/types'
 import { useDropGuard } from '../../composables/useDropGuard'
 import { DELIVER_MAX_BYTES as DELIVER_MAX_SIZE } from '../../constants/upload' // b1: 50MB 上限单源
+import { formatCents } from '../../utils/money'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   orderId: { type: [Number, String], required: true },
   // 815 审计 P1-3：乐观锁接线——交付携带当前订单 version（父组件传入）
-  orderVersion: { type: Number, default: null }
+  orderVersion: { type: Number, default: null },
+  // 审计 #21 条目 1：本单未收余额（分）；null = 调用方未提供收款数据（如看板行），不做提示
+  pendingCents: { type: Number, default: null }
 })
 const emit = defineEmits(['update:modelValue', 'delivered', 'conflict'])
 
 const { t } = useI18n()
+
+const unpaidPendingCents = computed(() => Math.max(0, props.pendingCents ?? 0))
 
 // G1: 页内拖拽守卫（捕获阶段挂在 el-upload 上，抢在 EP dragger 之前拦截）
 const { guardDragEnter, guardDragOver, guardDrop } = useDropGuard()
@@ -133,11 +144,17 @@ function handleDeliverRemove() {
 async function submitDeliver() {
   if (mode.value === 'file' && !deliverFile.value) return
 
-  if (mode.value === 'noFile') {
-    // 无文件交付：二次确认（高代价不可逆操作）
+  if (mode.value === 'noFile' || unpaidPendingCents.value > 0) {
+    // 二次确认（高代价不可逆操作）：无文件交付原本就要确认；
+    // 有未收余额时文件交付同样要确认——交付后服务端不再接受正数收款（审计 #21 条目 1）
+    const amount = `¥${formatCents(unpaidPendingCents.value)}`
+    const message =
+      unpaidPendingCents.value > 0 && mode.value === 'noFile' ? t('deliverMode.unpaidNoFileConfirm', { amount })
+        : unpaidPendingCents.value > 0 ? t('deliverMode.unpaidFileConfirm', { amount })
+          : t('deliverMode.noFileConfirm')
     try {
       await ElMessageBox.confirm(
-        t('deliverMode.noFileConfirm'),
+        message,
         t('orderDetail.deliverTitle'),
         { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
       )

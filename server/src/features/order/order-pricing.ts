@@ -209,7 +209,7 @@ function adjustFinalPrice(orderId: number, deltaCents: number): number {
 /**
  * 金额格式化（分 → 元字符串，用于系统备注）
  */
-function formatCents(cents: number): string {
+export function formatCents(cents: number): string {
   return `¥${(cents / 100).toFixed(2)}`
 }
 

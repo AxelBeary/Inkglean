@@ -278,7 +278,10 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     file: '上传交付文件',
     noFile: '无文件交付',
     noFileHint: '本订单无需交付文件（如纯咨询、已线下交付等）。确认后订单将直接标记为「已交付」，该操作不可撤销。',
-    noFileConfirm: '确定无需交付文件、直接完成交付吗？订单将进入「已交付」状态。'
+    noFileConfirm: '确定无需交付文件、直接完成交付吗？订单将进入「已交付」状态。',
+    unpaidWarning: '本单尚有 {amount} 尾款未收。订单进入「已交付」后将无法再记录这笔收款，建议先收款再交付。',
+    unpaidFileConfirm: '本单尚有 {amount} 尾款未收，交付后将无法再记录这笔收款。仍要现在交付吗？',
+    unpaidNoFileConfirm: '本单尚有 {amount} 尾款未收，无文件交付后将无法再记录这笔收款。仍要直接完成交付吗？'
   },
   upload: {
     pasteHint: '支持 Ctrl+V 粘贴图片',

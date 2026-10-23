@@ -295,8 +295,8 @@
   <!-- REQ-037 F2: 首载骨架（替代白屏） -->
   <HySkeleton v-else count="4" />
 
-  <!-- 交付弹窗（方案 B：含无文件交付，DeliverDialog 复用） -->
-  <DeliverDialog v-model="showDeliver" :order-id="routeId" :order-version="order?.version" @delivered="onOrderUpdated" @conflict="loadOrder" />
+  <!-- 交付弹窗（方案 B：含无文件交付，DeliverDialog 复用；审计 #21 条目 1：携带未收余额做交付前提示与二次确认） -->
+  <DeliverDialog v-model="showDeliver" :order-id="routeId" :order-version="order?.version" :pending-cents="remainingCents" @delivered="onOrderUpdated" @conflict="loadOrder" />
 
   <!-- 815 拍板 #1：取消后 5 秒撤销提示 -->
   <CancelUndoToast

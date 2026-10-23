@@ -40,5 +40,6 @@ export {
   addExtraItem,
   deleteExtraItem,
   addPayment,
-  getPayments
+  getPayments,
+  formatCents
 } from './order-pricing.js'
