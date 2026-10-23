@@ -314,6 +314,18 @@ export function confirmTotpAndComplete(params: TotpConfirmParams): TotpConfirmRe
 
   const { qqNumber, code } = params
 
+  // GHSA-6pf3-g4xq-854w Wave1（S3）：setup 完成只允许管理员本人 QQ 触发。
+  // 此前此处按任意 qqNumber 查行、无 admin_qq 校验，且结尾无条件 isAdmin:true——
+  // 向导窗口内库中任何「有密钥未验证」的画师行（如部署期手建的账号）都能用自己
+  // 的动态码完成 setup 并领取管理员会话（S2 报告的管理员接管窗口）。
+  // 判定键与 isSetupCompleted/createAdminArtist 同源：platform_config.admin_qq（库值唯一真值，
+  // 见 shared/middleware/auth.ts getAdminQq 注释——服务层按既有分层直读 DB，不回import中间件）。
+  const adminQqRow = db.prepare("SELECT value FROM platform_config WHERE key = 'admin_qq'").get() as { value: string | null } | undefined
+  const adminQq = adminQqRow?.value || ''
+  if (!adminQq || qqNumber !== adminQq) {
+    throw new AppError('SETUP_ADMIN_MISMATCH', 403, '开箱设置只能由管理员本人 QQ 完成')
+  }
+
   // 查找管理员画师
   const artist = db.prepare('SELECT * FROM artists WHERE qq_number = ? AND deleted_at IS NULL').get(qqNumber) as Artist | undefined
   if (!artist) {
@@ -361,6 +373,6 @@ export function confirmTotpAndComplete(params: TotpConfirmParams): TotpConfirmRe
       subdomain: artist.subdomain,
       qqNumber: artist.qq_number
     },
-    isAdmin: true // 创建者一定是管理员
+    isAdmin: artist.qq_number === adminQq // 实算（GHSA-6pf3-g4xq-854w Wave1/S3：不再无条件 true）
   }
 }

@@ -1,4 +1,4 @@
-import { requireAdmin } from '../../shared/middleware/auth.js'
+import { requireAdmin, getAdminQq } from '../../shared/middleware/auth.js'
 import * as artistService from '../artist/artist.service.js'
 import * as styleService from '../pricing/style.service.js'
 import * as complianceService from '../compliance/compliance.service.js'
@@ -60,8 +60,24 @@ export async function adminArtistSettingsRoutes(fastify: FastifyInstance) {
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const a = artistService.getArtistById(Number((request.params as { id: string }).id))
     if (!a) return reply.code(404).send({ error: '画师不存在' })
+
+    const body = request.body as Record<string, unknown>
+
+    // GHSA-6pf3-g4xq-854w Wave1（S3）：profile 也能改 status，敏感自改（hidden 自己）守卫与
+    // PUT /:id/status 同口径——P3 默认「不一刀切禁止管理员自助运营资料」，只拦自指 hidden。
+    if (a.qq_number === getAdminQq() && body.status === 'hidden') {
+      return reply.code(403).send({ error: '不能从管理端隐藏管理员账号的主页，如需隐藏请使用画师端自助状态切换' })
+    }
+
     // F1 补全：写路径回显同样走 DTO——updateArtist 内部返回完整行（含 totp_secret）
-    return publicArtistDTO(artistService.updateArtist(a.id, request.body as Record<string, unknown>))
+    const updated = artistService.updateArtist(a.id, body)
+    // GHSA-6pf3-g4xq-854w Wave1（S3）留痕补全：管理端代改资料此前零留痕（对齐 status 端点的
+    // artist_status_set 口径）。reason 记本次改动字段——这条账要回答「改了什么维度」。
+    // 注：action 名 artist_profile_update 尚未进 compliance.routes.ts ADMIN_ACTIONS 筛选白名单
+    //（全量列表可见、?action= 精确筛不到），该文件不属本席领地，已上报主代理另行处理。
+    const changedFields = Object.keys(body).sort().join(',')
+    complianceService.writeAdminAction(request.artist.id, 'artist_profile_update', 'artist', a.id, changedFields ? `更新资料：${changedFields}` : '更新资料：（无字段）', request.ip)
+    return publicArtistDTO(updated)
   })
 
   // SPEC-PRICE-2（v50）：旧档位 CRUD 端点已随 price_tiers 表清退移除（画师价格统一走画风/尺寸/增项模型）

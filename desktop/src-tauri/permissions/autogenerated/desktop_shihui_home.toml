@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-desktop-shihui-home"
+description = "Enables the desktop_shihui_home command without any pre-configured scope."
+commands.allow = ["desktop_shihui_home"]
+
+[[permission]]
+identifier = "deny-desktop-shihui-home"
+description = "Denies the desktop_shihui_home command without any pre-configured scope."
+commands.deny = ["desktop_shihui_home"]

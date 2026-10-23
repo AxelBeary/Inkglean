@@ -25,6 +25,16 @@ import { buildOgMeta, injectOgMeta } from './features/og/og-meta.service.js'  //
 // 应用工厂 - 构建 Fastify 实例
 // ============================================
 
+/**
+ * env 正整数解析（GHSA-6pf3-g4xq-854w 修复批引入）：缺失/非数字/≤0 一律回默认值。
+ * 只用于 TTL 类天数——把 TTL 配成 0 或负数等于「上传即删」或「永不清理」，
+ * 两种误配都比回默认值危险，故不做「0 = 关闭」语义（关闭语义见 health.service 的 MB 阈值解析）。
+ */
+function envPositiveInt(raw: string | undefined, fallback: number): number {
+  const n = Number(raw)
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback
+}
+
 /** logger 入参：省略/布尔 = 默认控制台；stream = 写入指定流（测试捕获用）；对象 = pino 选项透传 */
 export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptions } = {}): Promise<FastifyInstance> {
   // trustProxy：Docker 部署时 Caddy 和 web 在不同容器，需信任 Docker 网段
@@ -89,11 +99,18 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
   // R-20（审计批E）：埋点表 TTL——events/anon_tokens 只进不出，生产代码零清理，慢性膨胀。
   // events 保留 180 天：管理端统计窗口最宽 90 天（tracking.routes 钳制），留一倍余量；
   // anon_tokens 保留 30 天：与凭证 TTL 对齐（tracking.service ANON_TOKEN_TTL_DAYS=30，到期即失效）。
-  // 其余表不动：guestbook_messages / order_activity_logs / order_notes / artworks
+  // 其余业务/审计表不动：guestbook_messages / order_activity_logs / order_notes / artworks
   // 为业务与审计数据，永久保留（v35 操作日志注释明确「永久保留，不清理」）。
   const EVENTS_TTL_DAYS = 180
   const ANON_TOKENS_TTL_DAYS = 30
-  // M-1 拆分动机：这三张表的清理不依赖文件系统，此前挂在 gcUploads 内、排在两处文件类
+  // GHSA-6pf3-g4xq-854w（Wave1·高）：reference_uploads 未绑定行的 TTL——此前全仓零 DELETE，
+  // 而孤儿回收的动态黑名单把登记表里的 file_path（TEXT 列、带路径分隔符）当作「DB 仍引用」，
+  // 于是「公开上传 → 永不绑定 → 行与文件双向永不回收」成立（实算 14.4GB/天/IP）。
+  // 顺序即防线：本函数在 gcUploads 之前调用（见下方启动与定时器），先删行，
+  // 文件才会在同轮的黑名单扫描里失去引用、按 72h 窗口被移入回收站。
+  // 只删未绑定（order_id IS NULL）的行：已绑定的登记是订单归属凭据（F-10/v55），属业务数据。
+  const REFERENCE_UPLOAD_TTL_DAYS = envPositiveInt(process.env.REFERENCE_UPLOAD_TTL_DAYS, 3)
+  // M-1 拆分动机：这几张表的清理不依赖文件系统，此前挂在 gcUploads 内、排在两处文件类
   // 早退（!existsSync(UPLOAD_ROOT) / 画师表为空）之后——首轮启动时甚至早于上传目录创建，
   // 导致开箱前永不清理。拆为独立函数后不受文件早退连坐，各表 try/catch 互不连坐。
   const gcDatabaseTtl = () => {
@@ -116,6 +133,19 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
       }
     } catch (err) {
       app.log.warn(`幂等键 TTL 清理失败: ${(err as Error).message}`)
+    }
+    try {
+      // GHSA-6pf3-g4xq-854w（Wave1·高）：未绑定参考图登记行 TTL。created_at 与埋点表同口径
+      //（SQLite datetime 文本，UTC），故用同款 datetime('now', ?) 比较，不引入 JS ISO 串混比。
+      // 只删未绑定行；已绑定行是订单归属凭据（F-10/v55），属业务数据不清。
+      const refDeleted = db.prepare(
+        "DELETE FROM reference_uploads WHERE order_id IS NULL AND created_at < datetime('now', ?)"
+      ).run(`-${REFERENCE_UPLOAD_TTL_DAYS} days`).changes
+      if (refDeleted > 0) {
+        app.log.info(`参考图 TTL 清理: reference_uploads 删除 ${refDeleted} 条未绑定登记（窗 ${REFERENCE_UPLOAD_TTL_DAYS} 天）`)
+      }
+    } catch (err) {
+      app.log.warn(`参考图 TTL 清理失败: ${(err as Error).message}`)
     }
   }
 

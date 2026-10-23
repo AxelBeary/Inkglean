@@ -1,0 +1,37 @@
+# GHSA-6pf3-g4xq-854w Claim6 · 窗口/托盘类权限分组
+#
+# 主窗自绘标题栏与撕悬浮的生命周期分开授权：悬浮窗只许「贴回」（关自己那件），
+# 不许造窗、不许动主窗、不许改全局关闭行为。
+
+[[set]]
+identifier = "window-controls"
+description = "主窗窗口控制：最小化 / 最大化切换 / 关闭（desktop_window_minimize、desktop_window_toggle_maximize、desktop_window_close）+ 全局关闭行为偏好写入（desktop_close_behavior_set，改的是「关窗=退出还是收托盘」的应用级状态）。仅主窗；悬浮窗调 close_behavior_set 会被拒且前端已 catch 静默，主窗启动时已同步过同值"
+permissions = [
+  "allow-desktop-window-minimize",
+  "allow-desktop-window-toggle-maximize",
+  "allow-desktop-window-close",
+  "allow-desktop-close-behavior-set",
+]
+
+[[set]]
+identifier = "window-float-open"
+description = "撕出悬浮窗（desktop_floating_open，按 kind 新建独立 webview）。造窗面只给主窗，防投影窗自我繁殖"
+permissions = ["allow-desktop-floating-open"]
+
+[[set]]
+identifier = "window-float-close"
+description = "贴回=关闭指定悬浮窗（desktop_floating_close）。主窗与三件悬浮窗都需：悬浮窗迷你题跋条的「贴回」按钮调它关自己"
+permissions = ["allow-desktop-floating-close"]
+
+[[set]]
+identifier = "window-autostart"
+description = "开机自启开关（desktop_autostart_set / desktop_autostart_get，写 Windows 注册表等系统项）。仅主窗。注：标识符带 window- 前缀是为与插件权限 `autostart:default` 在 capability 里肉眼可分——本 set 管的是应用自有命令，不是 tauri-plugin-autostart 的命令面"
+permissions = [
+  "allow-desktop-autostart-set",
+  "allow-desktop-autostart-get",
+]
+
+[[set]]
+identifier = "tray"
+description = "托盘 tooltip 文案（desktop_tray_set_tooltip）。仅主窗"
+permissions = ["allow-desktop-tray-set-tooltip"]

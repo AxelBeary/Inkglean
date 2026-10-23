@@ -1,19 +1,15 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-10-21 刷新：U45/U46 修复批 + Dependabot #19/#20 同批合入；一号自主批）
+## 看板（2026-10-24 刷新：GHSA-6pf3 外部安全审计修复批合入；6 席并行施工 + 一号集成）
 
-- **HEAD 与推送**：代码十九道全绿 @ `f8258703`（381s；U45/U46 @ `4d6bf0b6` / 406s；依赖 @ `04ddfbd1` / 433s）；E2E 定位器批 @ `b7d9f442` 为 test-only；docs 随后
-- **基线（accept.ps1 十九道全绿 @ `f8258703`）**：server **1852**（160 文件）/ web **990**（144）/ desktop **570**（40）/ shared **27**（4）/ E2E **14**
-  - 迁移 **v76**；版本 server·web 1.0.1、桌面 0.1.0；「门禁全绿」口径仍为**十九道**
-  - U45/U46：desktop 551→570（+19）；依赖批五端计数不变；N×M 批 server +5 / web +8
-- **U45/U46 已闭合**：悬浮截稿窗只读开库 + 说真话；`floating-deadline.json` 单独授 `sql:default`（无 execute），timer/todo 零 SQL；U46 真 IPC/ACL 测试进 CI desktop job（`cargo test`）
-- **F-44 清偿**：`Home.vue` 807→800，`check-file-size` ALLOWLIST 只剩 PriceCard
-- **依赖双 PR**：#19（root/server/shared/web 11 项）+ #20（desktop 6 项）同批合；vue-tsc 3.3.13 三端对齐；未碰 `@tauri-apps/*`/`typescript`，成对现状不变
-- **N×M 覆盖批**：新增 `GET /api/artist/art-styles/overrides`（单条 JOIN、按画师过滤），画风页预载从 N×M 次 GET 收成 1 次；server +5、web +8 例
-- **门禁工具**：`accept.ps1` 大输出改流式落盘；server vitest 12MB 级输出偶发管道死锁已消
-- **警报/PR**：Dependabot open 0、Code scanning open 0、开放 PR 0（#19/#20 已 MERGED）
-- 公网仍冻结中（停在 v74，本地与远端已到 v76）；默认窗 1200×820、最小窗 1200×600 不变（9/5、826 拍板）
-- 🔴 **上线前置硬警告仍有效**：管理员判定只认库值，公网部署前**必须先确认 `platform_config.admin_qq` 非空**
+- **HEAD 与推送**：代码十九道全绿 @ `8f40d74a`（GHSA-6pf3 安全批，S1-S5B 六席 + S3撞S1测试修复 + docker-compose WEBAUTHN）
+- **基线（accept.ps1 十九道全绿 @ `8f40d74a`）**：server **1910**（162 文件）/ web **994**（145）/ desktop **585**（42）/ shared **27**（4）/ E2E **14** / cargo test **32**（Rust，不进计数文件）
+  - 迁移 **v76→v77**（S4 reference_uploads ip+file_size 配额列）；「门禁全绿」口径仍为**十九道**
+  - 安全批计数增长：server +58 / web +4 / desktop +15（各席新增安全回归用例）
+- **GHSA-6pf3 安全批已闭合**：外部私密通告 8 项加固全部落地（认证/账户/资源/桌面端命令授权面）；细节见私密通告，公开不展开（SECURITY.md 口径），自托管请尽快更新
+- **警报/PR**：Dependabot open 0、Code scanning open 0；外部私密通告 GHSA-6pf3-g4xq-854w 已修待回；Mistwhisker 功能 PR #24-#38（15 个）待下一批逐个过门禁择优
+- 公网冻结现状不变；管理员判定只认库值
+- 🔴 **上线前置硬警告仍有效**：公网部署前**必须先确认 `platform_config.admin_qq` 非空**
 
 **下一步（按优先级）**
 

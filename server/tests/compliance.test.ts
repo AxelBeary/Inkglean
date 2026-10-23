@@ -341,13 +341,17 @@ describe('REQ-042 合规与内容安全', () => {
     expect(me.json().code).toBe('ARTIST_BANNED')
 
     // 登录拒绝（正确动态码也被拦）
+    // GHSA-6pf3-854w P1 口径（测试同改）：匿名登录五态对外统一 401+TOTP_INVALID+同文案，
+    // 封禁不再对外可辨（reason='banned' 仅内部日志）；登录态门禁（上方 /api/auth/me）仍回 ARTIST_BANNED 不变
     const loginBanned = await app.inject({
       method: 'POST',
       url: '/api/auth/verify',
       payload: { qqNumber: '70005', code: computeTotp(secret, Date.now()) }
     })
     expect(loginBanned.statusCode).toBe(401)
-    expect(loginBanned.json().code).toBe('ARTIST_BANNED')
+    expect(loginBanned.json().code).toBe('TOTP_INVALID')
+    expect(loginBanned.json().error).toBe('QQ号或动态口令错误')
+    expect(loginBanned.json().detail).toBeUndefined()
 
     // 客户端过滤：目录 / 主页 / 作品 / 留言 / 报价全链路不可见
     const dir = await app.inject({ method: 'GET', url: '/api/artists' })

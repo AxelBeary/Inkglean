@@ -2,7 +2,7 @@
 // 数据包（zip）＝SQLite 数据库 + 本地设置 + 文件清单 manifest.json；
 // 不包含：平台缓存图片（登录重新拉）、工程文件本体（画师自行搬运，只记路径）。
 // 触发纯手动，不主动提醒；导入（替换策略）下一波。
-import { localDbPath, readBackupB64, saveFile, fileSizes } from '../bridge'
+import { localDbPath, readBackupB64, exportSaveB64, fileSizes } from '../bridge'
 import { isDesktop } from '../bridge'
 import type { LocalFile } from '../stores/localFiles'
 import type { LocalOrder } from '../stores/localLedger'
@@ -93,19 +93,17 @@ export function importBackupFileName(now = new Date()): string {
   return `拾绘备份-替换前-${d}-${t}.zip`
 }
 
-/** 执行导出：打包 zip → 系统保存对话框 → 落盘。失败口径：抛由页面接住落 toast */
+/** 执行导出：打包 zip → 壳侧原生「另存为」→ 落盘。
+ *  S5B（GHSA Claim6 之后）：对话框跑在 Rust 侧，渲染层只递「建议文件名 + 数据」，
+ *  落点由用户在 OS 对话框选定、不回传渲染层入参——自选目录（如 D:\拾绘导出）恢复可用，
+ *  且渲染层被攻破也伪造不了「用户已选」。失败口径：抛由页面接住落 toast */
 export async function runExport(files: LocalFile[], orders: LocalOrder[]): Promise<ExportResult> {
   if (!isDesktop()) return { ok: false, path: '', counts: { orders: 0, files: 0 } }
 
   const blob = await buildBackupBlob(files, orders)
+  const counts = { orders: orders.length, files: files.length }
 
-  // 保存：系统对话框（默认文件名带日期）
-  const { save } = await import('@tauri-apps/plugin-dialog')
-  const picked = await save({
-    defaultPath: backupFileName(),
-    filters: [{ name: '拾绘备份包', extensions: ['zip'] }]
-  })
-  if (!picked) return { ok: false, path: 'cancelled', counts: { orders: orders.length, files: files.length } }
-  await saveFile(picked, new Uint8Array(await blob.arrayBuffer()))
-  return { ok: true, path: picked, counts: { orders: orders.length, files: files.length } }
+  const { savedPath } = await exportSaveB64(backupFileName(), new Uint8Array(await blob.arrayBuffer()))
+  if (!savedPath) return { ok: false, path: 'cancelled', counts }
+  return { ok: true, path: savedPath, counts }
 }

@@ -1,5 +1,10 @@
 // 文件保存桥（工具箱波2）：导出物落盘。逃生门同既有桥。
-// 路径一律来自系统保存对话框（前端先调 dialog.save 再交本函数），绝不业务自拼。
+// S5B 起的两套口径（GHSA-6pf3 Claim6 之后）：
+//  - path-命令（saveFile/readFileB64/readBackupB64/copyFile…）＝程序化内部写，
+//    路径由 Rust 侧白名单根收敛（app_data / 我的文档\拾绘 / 个人目录），越界即拒；
+//  - dialog-命令（exportSaveB64/importReadB64）＝用户主动导出/导入，原生对话框跑在壳侧，
+//    落点/取点由用户在 OS 对话框选定、不经渲染层传入——渲染层被攻破也伪造不了「用户已选」。
+// 业务侧「用户自选位置」的读写一律走 dialog-命令，不再「JS 对话框选路 → path-命令传 path」。
 import { invoke } from '@tauri-apps/api/core'
 import { isDesktop } from './env'
 import { BridgeUnavailableError } from './errors'
@@ -14,10 +19,54 @@ function uint8ToBase64(bytes: Uint8Array): string {
   return btoa(bin)
 }
 
-/** 保存二进制到用户选定路径；纯浏览器环境抛 BridgeUnavailableError */
+/** 保存二进制到白名单根内选定路径（程序化内部写：自动备份/缓存/local.db 覆写）；
+ *  用户自选位置导出请改用 exportSaveB64（S5B）。纯浏览器环境抛 BridgeUnavailableError */
 export async function saveFile(path: string, data: Uint8Array): Promise<void> {
   if (!isDesktop()) throw new BridgeUnavailableError('saveFile')
   await invoke('desktop_save_file', { path, dataB64: uint8ToBase64(data) })
+}
+
+/** dialog-命令的对话框过滤器（仅文件名/扩展名，类型上不存在 path 字段） */
+export interface FilePickerFilter {
+  name: string
+  extensions: string[]
+}
+
+/** desktop_export_save_b64 返回体：savedPath 为 null＝用户取消（未写盘） */
+export interface ExportSaveOutcome {
+  savedPath: string | null
+}
+
+/** desktop_import_read_b64 返回体（取消时桥返回 null）：path 仅作展示/记库用 */
+export interface ImportReadOutcome {
+  dataB64: string
+  path: string
+}
+
+/** 用户自选位置导出（S5B）：壳侧弹原生「另存为」，只递建议文件名与数据，路径不回传渲染层入参 */
+export async function exportSaveB64(
+  suggestedName: string,
+  data: Uint8Array,
+  title?: string
+): Promise<ExportSaveOutcome> {
+  if (!isDesktop()) throw new BridgeUnavailableError('exportSaveB64')
+  return await invoke<ExportSaveOutcome>('desktop_export_save_b64', {
+    suggestedName,
+    dataB64: uint8ToBase64(data),
+    title: title ?? null
+  })
+}
+
+/** 用户自选位置导入（S5B）：壳侧弹原生「打开文件」并读回字节（Rust 侧限 100MB）；取消返回 null */
+export async function importReadB64(
+  filters?: FilePickerFilter[],
+  title?: string
+): Promise<ImportReadOutcome | null> {
+  if (!isDesktop()) throw new BridgeUnavailableError('importReadB64')
+  return await invoke<ImportReadOutcome | null>('desktop_import_read_b64', {
+    filters: filters ?? null,
+    title: title ?? null
+  })
 }
 
 /** 批量校验文件是否存在（F1 丢失提醒）；入参顺序与返回一致；空入参不走桥 */

@@ -484,6 +484,154 @@ describe('管理员路由 (Admin Routes)', () => {
     expect(row.totp_secret).not.toBeNull()
   })
 
+  // ─── GHSA-6pf3-g4xq-854w Wave1（S3）：管理员自指守卫 + 资料留痕（路由层） ───
+
+  it('TC-AR-SELF-01: 管理员对自己 bind-init 被拒 403，绑定态与 token_version 不动', async () => {
+    const admin = setAdmin('10001')
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/admin/artists/${admin.id}/totp/bind-init`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` }
+    })
+
+    expect(res.statusCode).toBe(403)
+    expect(res.json().code).toBe('ADMIN_TOTP_SELF_FORBIDDEN')
+
+    // 未触库：verified 仍 1、密钥未覆盖、token_version 未 bump（守卫先于任何写操作）
+    const row = db.prepare('SELECT totp_secret, totp_verified, token_version FROM artists WHERE id = ?').get(admin.id) as { totp_secret: string | null; totp_verified: number; token_version: number }
+    expect(row.totp_verified).toBe(1)
+    expect(row.totp_secret).toBe('JBSWY3DPEHPK3PXP')
+    expect(row.token_version).toBe(admin.token_version)
+  })
+
+  it('TC-AR-SELF-02: 管理员对自己 reset 被拒 403，totp_secret 未被清空', async () => {
+    const admin = setAdmin('10001')
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/admin/artists/${admin.id}/totp/reset`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` }
+    })
+
+    expect(res.statusCode).toBe(403)
+    expect(res.json().code).toBe('ADMIN_TOTP_SELF_FORBIDDEN')
+
+    const row = db.prepare('SELECT totp_secret, totp_verified FROM artists WHERE id = ?').get(admin.id) as { totp_secret: string | null; totp_verified: number }
+    expect(row.totp_secret).toBe('JBSWY3DPEHPK3PXP')
+    expect(row.totp_verified).toBe(1)
+  })
+
+  it('TC-AR-SELF-03: bind-init/reset 对非管理员行仍正常（不回归）', async () => {
+    const admin = setAdmin('10001')
+    const target = seedArtist({ qq_number: '77009', subdomain: 'self-nonadmin' })
+
+    const init = await app.inject({
+      method: 'POST',
+      url: `/api/admin/artists/${target.id}/totp/bind-init`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` }
+    })
+    expect(init.statusCode).toBe(200)
+    expect(init.json().otpauthUri).toContain('secret=')
+
+    const reset = await app.inject({
+      method: 'POST',
+      url: `/api/admin/artists/${target.id}/totp/reset`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` }
+    })
+    expect(reset.statusCode).toBe(200)
+    const row = db.prepare('SELECT totp_secret FROM artists WHERE id = ?').get(target.id) as { totp_secret: string | null }
+    expect(row.totp_secret).toBeNull()
+  })
+
+  it('TC-AR-SELF-04: 管理员对自己 status=hidden 被拒，其余状态放行且留痕', async () => {
+    const admin = setAdmin('10001')
+
+    const hidden = await app.inject({
+      method: 'PUT',
+      url: `/api/admin/artists/${admin.id}/status`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { status: 'hidden' }
+    })
+    expect(hidden.statusCode).toBe(403)
+    expect(hidden.json().error).toContain('画师端自助状态切换')
+    const row = db.prepare('SELECT status FROM artists WHERE id = ?').get(admin.id) as { status: string }
+    expect(row.status).toBe('open') // 默认种子态未被改
+
+    // 非敏感自改放行（open/full/break），且照常写 artist_status_set 留痕
+    const full = await app.inject({
+      method: 'PUT',
+      url: `/api/admin/artists/${admin.id}/status`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { status: 'full' }
+    })
+    expect(full.statusCode).toBe(200)
+    const audit = db.prepare("SELECT COUNT(*) AS c FROM admin_actions WHERE action = 'artist_status_set' AND target_id = ?").get(admin.id) as { c: number }
+    expect(audit.c).toBe(1)
+
+    // 对他人 hidden 不受影响（不回归）
+    const target = seedArtist({ qq_number: '77010', subdomain: 'self-hideother' })
+    const otherHidden = await app.inject({
+      method: 'PUT',
+      url: `/api/admin/artists/${target.id}/status`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { status: 'hidden' }
+    })
+    expect(otherHidden.statusCode).toBe(200)
+  })
+
+  it('TC-AR-SELF-05: profile 修改补留痕 artist_profile_update；自指 hidden 被同款守卫拒', async () => {
+    const admin = setAdmin('10001')
+    const target = seedArtist({ qq_number: '77011', subdomain: 'self-profile' })
+
+    // 管理员改自己普通资料：放行 + 留痕（P3 口径：不一刀切禁止，但必须查得到账）
+    const selfBio = await app.inject({
+      method: 'PUT',
+      url: `/api/admin/artists/${admin.id}/profile`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { bio: '管理员自述' }
+    })
+    expect(selfBio.statusCode).toBe(200)
+    const selfAudit = db.prepare("SELECT admin_id, action, target_type, target_id, reason FROM admin_actions WHERE action = 'artist_profile_update' ORDER BY id DESC LIMIT 1").get() as { admin_id: number; action: string; target_type: string; target_id: number; reason: string | null }
+    expect(selfAudit.admin_id).toBe(admin.id)
+    expect(selfAudit.target_type).toBe('artist')
+    expect(selfAudit.target_id).toBe(admin.id)
+    expect(selfAudit.reason).toContain('bio')
+
+    // 代改他人资料同样留痕（对齐 status 端点的 P4-2 §8.5 口径）
+    const other = await app.inject({
+      method: 'PUT',
+      url: `/api/admin/artists/${target.id}/profile`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { name: '代改画师名', contact_qq: '88888' }
+    })
+    expect(other.statusCode).toBe(200)
+    const otherAudit = db.prepare("SELECT target_id, reason FROM admin_actions WHERE action = 'artist_profile_update' ORDER BY id DESC LIMIT 1").get() as { target_id: number; reason: string | null }
+    expect(otherAudit.target_id).toBe(target.id)
+    expect(otherAudit.reason).toContain('name')
+    expect(otherAudit.reason).toContain('contact_qq')
+
+    // 自指 status=hidden 走 profile 通道也被拒（与 PUT /:id/status 同守卫）
+    const selfHidden = await app.inject({
+      method: 'PUT',
+      url: `/api/admin/artists/${admin.id}/profile`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { status: 'hidden' }
+    })
+    expect(selfHidden.statusCode).toBe(403)
+    expect(selfHidden.json().error).toContain('画师端自助状态切换')
+
+    // 他人 hidden 经 profile 放行
+    const otherHidden = await app.inject({
+      method: 'PUT',
+      url: `/api/admin/artists/${target.id}/profile`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { status: 'hidden' }
+    })
+    expect(otherHidden.statusCode).toBe(200)
+    expect(otherHidden.json().status).toBe('hidden')
+  })
+
   // ─── 订单列表付款字段（B7 补字段） ───
 
   it('TC-AR-16: 订单列表含 paidTotalCents / finalPriceCents / installments', async () => {

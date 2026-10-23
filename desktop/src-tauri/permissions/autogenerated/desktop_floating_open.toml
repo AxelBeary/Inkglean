@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-desktop-floating-open"
+description = "Enables the desktop_floating_open command without any pre-configured scope."
+commands.allow = ["desktop_floating_open"]
+
+[[permission]]
+identifier = "deny-desktop-floating-open"
+description = "Denies the desktop_floating_open command without any pre-configured scope."
+commands.deny = ["desktop_floating_open"]

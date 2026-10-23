@@ -1,0 +1,26 @@
+# GHSA-6pf3-g4xq-854w Claim6 · 本地数据与自检类权限分组（中低敏）
+#
+# 拆组原则：只回路径字符串/只读机器态的可以和悬浮投影窗共享；会动库文件、会读活动态的只给主窗。
+
+[[set]]
+identifier = "db-path"
+description = "取本地 SQLite 库绝对路径（desktop_local_db_path，顺带确保 app_data_dir 存在）。撕悬浮三件的只读投影开库也要它，故随 floating.json 授给悬浮窗；本命令不收前端入参，无路径注入面"
+permissions = ["allow-desktop-local-db-path"]
+
+[[set]]
+identifier = "db-sidecar"
+description = "删除本地库 -wal/-shm 边车（desktop_delete_db_sidecar，DSK-09 整库覆写前清场）：改的是账本底座文件，仅主窗"
+permissions = ["allow-desktop-delete-db-sidecar"]
+
+[[set]]
+identifier = "activity-monitor"
+description = "前台窗口标题 / 输入空闲秒数（desktop_foreground_title、desktop_input_idle_secs，F8 在画时长自动识别）。属机器活动态读取，仅主窗（悬浮计时卡走 localStorage，不需此面）"
+permissions = [
+  "allow-desktop-foreground-title",
+  "allow-desktop-input-idle-secs",
+]
+
+[[set]]
+identifier = "bridge-diagnostics"
+description = "前后端通路自检（bridge_ping，返回 CARGO_PKG_VERSION）。仅主窗；诊断面不给投影窗"
+permissions = ["allow-bridge-ping"]

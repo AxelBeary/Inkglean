@@ -1,4 +1,4 @@
-import { verifyTotpLogin, createSession, checkTotpLocked, registerTotpFailure } from './auth.service.js'
+import { verifyTotpLogin, createSession, checkTotpLocked, registerTotpFailure, TOTP_MAX_ATTEMPTS } from './auth.service.js'
 import type { CreateSessionOptions } from './auth.service.js'
 import { registerDesktopDevice } from './devices.service.js'
 import { requireAuth, getAdminQq } from '../../shared/middleware/auth.js'
@@ -6,6 +6,7 @@ import { bumpTokenVersion, recordLastLogin, getArtistById } from '../artist/arti
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { AppError, E } from '../../shared/errors.js'
 import { publicArtistDTO } from '../../shared/dto.js'
+import { createBoundedTtlStore } from './webauthn.js'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import type { Artist } from '../../types/entities.js'
 
@@ -24,15 +25,17 @@ function reqScheme(request: FastifyRequest): string {
 
 /** 812-e2e 修复：带端口的 host（浏览器 origin 非默认端口含端口，request.hostname 会丢）——WebAuthn origin 校验用；
  *  默认端口（http:80/https:443）浏览器 origin 不带，需剥掉；非标端口保留。
- *  rpId 侧由 webauthn.ts 自行剥端口 */
+ *  rpId 侧由 webauthn.ts 自行剥端口。
+ *  GHSA-6pf3-854w P1-2：旧实现裸读 headers['x-forwarded-host'] || headers.host——x-forwarded-host
+ *  不经过 trustProxy 白名单校验，非回源链路直连者可伪造它污染 WebAuthn 期望 rpId/origin。
+ *  改用 request.host：fastify v5 仅在直连来源命中 trustProxy 判定时采纳 X-Forwarded-Host（取末跳），
+ *  否则回落 Host 头；其语义即「trustProxy 派生 host」（含端口）。 */
 function reqHost(request: FastifyRequest): string {
   const scheme = reqScheme(request)
-  let host = request.headers['x-forwarded-host'] || request.headers.host
-  if (typeof host !== 'string' || host.length === 0) return request.hostname
-  host = host.split(',')[0].trim()
+  const host = request.host
   if (host.endsWith(':80') && scheme === 'http') return host.slice(0, -3)
   if (host.endsWith(':443') && scheme === 'https') return host.slice(0, -4)
-  return host
+  return host.length > 0 ? host : request.hostname
 }
 
 /** REQ-040 TOTP 自助重绑：challenge 之外的临时新 secret 暂存（单实例内存） */
@@ -42,13 +45,30 @@ interface TotpRebindEntry {
   expiresAt: number
 }
 
-type TotpRebindStore = Map<string, TotpRebindEntry>
+/**
+ * GHSA-6pf3-854w 低-4：重绑暂存存的是 TOTP 密钥明文，旧实现用无上限、无清理的全局 Map——
+ * 只进不出可无界膨胀（内存 DoS + 明文密钥长期驻留）。改为与 webauthn challengeStore
+ * 同款 createBoundedTtlStore：写入时惰性清理过期项 + 容量上限按插入序淘汰。
+ * （旧 globalThis 挂载是为防模块双实例，现单进程直跑语义下无必要，challengeStore 同款先例即为模块级。）
+ */
+const MAX_TOTP_REBIND_ENTRIES = 10_000
+const totpRebindStore = createBoundedTtlStore<string, TotpRebindEntry>(MAX_TOTP_REBIND_ENTRIES)
 
-/** 读取/创建临时重绑存储（globalThis 扩展，避免 any） */
-function getTotpRebindStore(): TotpRebindStore {
-  const g = globalThis as { __totpRebindStore?: TotpRebindStore }
-  if (!g.__totpRebindStore) g.__totpRebindStore = new Map()
-  return g.__totpRebindStore
+/** 仅供测试：读取重绑暂存存储（容量/惰性清理断言用；生产代码经路由处理器使用同一实例） */
+export function getTotpRebindStore(): typeof totpRebindStore {
+  return totpRebindStore
+}
+
+/**
+ * GHSA-6pf3-854w P1：匿名登录失败的内部留痕（对外一律同码同文案，差异只进日志）。
+ * - reason：五态归因（not_found/banned/locked/unbound/invalid_code/replay），运维/排障专用，绝不出响应体；
+ * - lockTriggered 且命中管理员账号 → 单独落审计级日志（告警订阅面：管理员账号被人定向爆破）。
+ */
+function logLoginDeny(request: FastifyRequest, qqNumber: string, reason: string, lockTriggered?: boolean): void {
+  request.log.warn({ event: 'auth_login_denied', reason, qqNumber, ip: request.ip }, 'TOTP 登录被拒（对外统一响应）')
+  if (lockTriggered && qqNumber === getAdminQq()) {
+    request.log.error({ event: 'audit_admin_totp_bruteforce', qqNumber, ip: request.ip, maxAttempts: TOTP_MAX_ATTEMPTS }, 'AUDIT 管理员账号登录爆破触发锁定')
+  }
 }
 
 /** 限流守卫：不通过则抛 429 */
@@ -57,6 +77,10 @@ function guardRateLimit(key: string, max: number, windowMs: number): void {
 }
 
 export default async function authRoutes(fastify: FastifyInstance) {
+  // GHSA-6pf3-854w P1-2：生产缺 WEBAUTHN_RP_ID/WEBAUTHN_ORIGIN → 注册期即抛
+  // （buildApp/ready 失败 = 拒启，参照 SESSION_SECRET 同款；不静默按请求 Host 推导）
+  const { assertWebauthnConfig } = await import('./webauthn.js')
+  assertWebauthnConfig()
 
   // ─── 签发会话 cookie 辅助函数 ───
   // REQ-041：options.authLevel/adminVerifiedAt 缺省 = basic 会话（既有调用语义不变）；
@@ -126,14 +150,22 @@ export default async function authRoutes(fastify: FastifyInstance) {
     const body = request.body as StepUpBody
 
     if (body.method === 'totp') {
-      // 复用登录校验（verifyTotpWithCounter + 重放防护 + 防爆破计数/锁定），失败语义与登录一致
-      const result = verifyTotpLogin(request.artist.qq_number, body.code)
+      // 复用登录校验（verifyTotpWithCounter + 重放防护 + 防爆破计数/锁定），失败语义与登录一致。
+      // GHSA-6pf3-854w P1 口径：统一五态只约束**匿名**响应；step-up 是登录态特权路径（已过
+      // requireAuth + 管理员身份校验），按内部 reason 保留锁定/重放的区分信息。
+      const result = verifyTotpLogin(request.artist.qq_number, body.code, request.ip)
       if (!result.valid) {
-        return reply.code(401).send({
-          code: result.code,
-          error: result.error,
-          ...(result.remainingLockMs != null ? { detail: { remainingLockMs: result.remainingLockMs } } : {})
-        })
+        if (result.reason === 'locked') {
+          return reply.code(401).send({
+            code: E.TOTP_LOCKED,
+            error: '尝试次数过多，账号已临时锁定，请稍后再试',
+            ...(result.remainingLockMs != null ? { detail: { remainingLockMs: result.remainingLockMs } } : {})
+          })
+        }
+        if (result.reason === 'replay') {
+          return reply.code(401).send({ code: E.TOTP_INVALID, error: '该动态口令已使用，请使用最新动态口令' })
+        }
+        return reply.code(401).send({ code: E.TOTP_INVALID, error: '动态口令错误' })
       }
       if (!result.artist) {
         return reply.code(500).send({ code: 'INTERNAL', error: '登录会话状态异常' })
@@ -199,13 +231,13 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
     const { qqNumber, code } = request.body as { qqNumber: string; code: string }
 
-    const result = verifyTotpLogin(qqNumber, code)
+    const result = verifyTotpLogin(qqNumber, code, request.ip)
     if (!result.valid) {
-      return reply.code(401).send({
-        code: result.code,
-        error: result.error,
-        ...(result.remainingLockMs != null ? { detail: { remainingLockMs: result.remainingLockMs } } : {})
-      })
+      // GHSA-6pf3-854w P1（主代理拍板口径）：五态对外统一 401 + TOTP_INVALID + 同文案；
+      // 不透出剩余次数/锁明细（旧 detail.remainingLockMs 一并移除）。
+      // 差异只进内部日志 reason（封禁/锁定可运维区分，供排障与告警）。
+      logLoginDeny(request, qqNumber, result.reason, result.lockTriggered)
+      return reply.code(401).send({ code: result.code, error: result.error })
     }
 
     if (!result.artist) {
@@ -250,13 +282,12 @@ export default async function authRoutes(fastify: FastifyInstance) {
       qqNumber: string; code: string; deviceUuid: string; deviceName?: string
     }
 
-    const result = verifyTotpLogin(qqNumber, code)
+    const result = verifyTotpLogin(qqNumber, code, request.ip)
     if (!result.valid) {
-      return reply.code(401).send({
-        code: result.code,
-        error: result.error,
-        ...(result.remainingLockMs != null ? { detail: { remainingLockMs: result.remainingLockMs } } : {})
-      })
+      // GHSA-6pf3-854w P1：桌面端登录同为匿名路径，对外响应与网页登录逐字一致
+      // （401 + TOTP_INVALID + 同文案，五态不可区分，无明细）；reason 仅内部日志
+      logLoginDeny(request, qqNumber, result.reason, result.lockTriggered)
+      return reply.code(401).send({ code: result.code, error: result.error })
     }
 
     if (!result.artist) {
@@ -581,7 +612,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
       if (!tempKey || !tempStore.has(tempKey)) {
         throw new AppError(E.WEBAUTHN_CHALLENGE_INVALID, 400)
       }
-      const entry = tempStore.get(tempKey) as TotpRebindEntry | undefined
+      const entry = tempStore.get(tempKey)
       tempStore.delete(tempKey) // 一次性消费
       if (!entry || entry.expiresAt <= Date.now() || entry.artistId !== artist.id) {
         throw new AppError(E.WEBAUTHN_CHALLENGE_INVALID, 400)
@@ -616,11 +647,11 @@ export default async function authRoutes(fastify: FastifyInstance) {
       if (!tempKey || !tempStore.has(tempKey)) {
         throw new AppError(E.WEBAUTHN_CHALLENGE_INVALID, 400)
       }
-      const entry = tempStore.get(tempKey) as TotpRebindEntry | undefined
+      const entry = tempStore.get(tempKey)
       if (!entry) throw new AppError(E.WEBAUTHN_CHALLENGE_INVALID, 400)
       tempStore.delete(tempKey) // 一次性消费
 
-      if (!entry || entry.expiresAt <= Date.now() || entry.artistId !== artist.id) {
+      if (entry.expiresAt <= Date.now() || entry.artistId !== artist.id) {
         throw new AppError(E.WEBAUTHN_CHALLENGE_INVALID, 400)
       }
       newSecret = entry.newSecret

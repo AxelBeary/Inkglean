@@ -2,7 +2,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { zhT, makeT, ZH_DICT_KEYS } from '../tools/i18n-zh'
-import { saveFile, readFileB64, BridgeUnavailableError } from '../bridge'
+import { saveFile, readFileB64, exportSaveB64, importReadB64, BridgeUnavailableError } from '../bridge'
 import { normalizeProfile, splitTags, useLocalProfileStore } from '../stores/localProfile'
 
 const win = window as unknown as Record<string, unknown>
@@ -47,6 +47,14 @@ describe('文件桥逃生门', () => {
 
   it('readFileB64 在浏览器环境抛 BridgeUnavailableError', async () => {
     await expect(readFileB64('C:\\a.jpg')).rejects.toThrow(BridgeUnavailableError)
+  })
+
+  it('S5B exportSaveB64 在浏览器环境抛 BridgeUnavailableError', async () => {
+    await expect(exportSaveB64('拾绘备份.zip', new Uint8Array([1]))).rejects.toThrow(BridgeUnavailableError)
+  })
+
+  it('S5B importReadB64 在浏览器环境抛 BridgeUnavailableError', async () => {
+    await expect(importReadB64([{ name: 'zip', extensions: ['zip'] }])).rejects.toThrow(BridgeUnavailableError)
   })
 })
 

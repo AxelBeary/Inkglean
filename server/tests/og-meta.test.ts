@@ -201,4 +201,55 @@ describe('REQ-043 I1 OG 分享卡片', () => {
     expect(res.body).toContain('https://inkglean.example/artist/ghost')
     expect(res.body).not.toContain('og-placeholder')
   })
+
+  // ─── GHSA-6pf3-g4xq-854w（Wave3·低）：OG 值的 `$` 序列撑破 meta content ───
+  // 根因：injectOgMeta 原用字符串型 replacement（html.replace(re, block)），JS 会把 block 里的
+  //   `` $` `` 展开成「匹配点之前的整段 HTML」、`$&` 展开成「整段匹配文本」、`$$` 折叠成 `$`。
+  //   画师名/简介是用户可控 → 页面片段被复制进分享卡片，属性也被撑破。
+  // 修复：函数替换器（根治）+ escapeHtml 转义 $（第二层）。以下用例对修复前必失败。
+
+  it('TC-OG-13: 画师名含 $` 与 $& —— meta content 不被撑破、不回填页面片段', () => {
+    const artist = seedArtist({ name: 'a$`b$&c', subdomain: 'dollar-bomb', bio: 'x$`y' })
+    const og = buildOgMeta('dollar-bomb')
+    const html = injectOgMeta(OG_INDEX_HTML, og)
+
+    // 1) 锚点区被整段替换掉：匹配前文（`` $` `` 的回填目标）与匹配文本（`$&`）都不许再现
+    expect(html).not.toContain('og-placeholder')
+    // 2) 页面片段没有被复制进卡片：注入块里只应有 5 个 og meta，标题属性只出现一次
+    const titleMetas = html.match(/<meta property="og:title"/g) || []
+    expect(titleMetas).toHaveLength(1)
+    // 3) content 属性由一对双引号闭合，值就是转义后的原文（$ 实体化为 &#36;）
+    const titleAttr = /<meta property="og:title" content="([^"]*)" \/>/.exec(html)
+    expect(titleAttr, 'og:title 应存在且 content 由一对双引号闭合').not.toBeNull()
+    expect(titleAttr![1]).toBe('a&#36;`b&#36;&amp;c｜拾绘')
+    // 反证（修复前的症状）：`` $` `` 会把匹配前文（<!doctype …> 到 <head>）原样拼进属性
+    expect(html).not.toContain('<!doctype html><!doctype')
+    expect(html.match(/<!doctype html>/gi)).toHaveLength(1)
+    expect(artist.id).toBeGreaterThan(0)
+  })
+
+  it('TC-OG-14: 画师名含 $$ —— 不被折叠成单个 $（原样实体化）', () => {
+    seedArtist({ name: 'p$$q', subdomain: 'dollar-double' })
+    const html = injectOgMeta(OG_INDEX_HTML, buildOgMeta('dollar-double'))
+    expect(html).toContain('content="p&#36;&#36;q｜拾绘"')
+    expect(html).not.toContain('content="p$q｜拾绘"')
+  })
+
+  it('TC-OG-15: 路由层——含 $` 的画师名走真实 /artist/:subdomain 注入，返回 HTML 结构完好', async () => {
+    seedArtist({ name: 'z$`', subdomain: 'dollar-route', bio: '简介' })
+    const res = await app.inject({
+      method: 'GET',
+      url: '/artist/dollar-route',
+      headers: { Accept: 'text/html' }
+    })
+    expect(res.statusCode).toBe(200)
+    const body = res.body
+    // 页面骨架没被回填进 head（修复前 `` $` `` 会把 <head> 之前的原文复制进 content 属性）
+    expect(body).not.toContain('og-placeholder')
+    expect((body.match(/<html/g) || [])).toHaveLength(1)
+    expect((body.match(/<head>/g) || [])).toHaveLength(1)
+    expect((body.match(/<div id="app"><\/div>/g) || [])).toHaveLength(1)
+    // 标题属性仍是一对引号闭合的实体串
+    expect(body).toContain('content="z&#36;`｜拾绘"')
+  })
 })

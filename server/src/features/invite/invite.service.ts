@@ -4,7 +4,8 @@ import { AppError, E } from '../../shared/errors.js'
 import { isValidArtistCode } from '../../shared/validate.js'
 import { RESERVED_SUBDOMAINS } from '../../shared/validate.js'
 import { seedArtistStages } from '../artist/workflow.service.js'
-import { bindTotpInit, createSession, checkTotpLocked, registerTotpFailure, TOTP_MAX_ATTEMPTS } from '../auth/auth.service.js'
+import { bindTotpInit, createSession, checkTotpLocked, registerTotpFailure } from '../auth/auth.service.js'
+import { getAdminQq } from '../../shared/middleware/auth.js'
 import { generateSecret, buildOtpAuthUri, verifyTotpWithCounter, hashTotpCode } from '../auth/totp.js'
 import type { Artist } from '../../types/entities.js'
 
@@ -292,8 +293,29 @@ export function registerWithInvite(params: InviteRegisterParams): InviteRegister
     //    防止攻击者持他人 QQ + 新邀请码覆盖已注册但未确认的账号。
     //    其余情况（已验证/已删除/已封禁）维持 QQ_TAKEN。
     const existingQq = db.prepare('SELECT * FROM artists WHERE qq_number = ?').get(qqNumber) as Artist | undefined
-    const shell = existingQq && !existingQq.totp_verified && !existingQq.totp_secret && !existingQq.deleted_at && !existingQq.is_banned
+
+    // GHSA-6pf3 修复①（最高优先·管理员全面接管窗口）：管理员 QQ 一律禁止走邀请注册。
+    //   风险：管理员若曾自助 reset（resetTotp → totp_secret=NULL/verified=0），其行会落入上面的
+    //   「空壳」判定被邀请码原地覆盖（保 artist_id）；覆盖后攻击者完成首绑即持有 qq_number==admin_qq
+    //   的账号，经 requireAdmin 动态判定（shared/middleware/auth.ts）拿下全平台管理接口。
+    //   即便 admin_qq 已配置但库中暂无对应行，也应拒绝（否则会 INSERT 出一个 admin QQ 的新画师，同样接管）。
+    //   对外响应复用 QQ_TAKEN（同码同文案同 detail），与「QQ 已被注册」不可区分，不新增枚举 oracle。
+    //   位置在 validateInviteCode 之后：无效码无论配何 QQ 都先命中 INVITE_INVALID，不泄露管理员 QQ。
+    if (qqNumber === getAdminQq()) {
+      throw new AppError(E.QQ_TAKEN, 400, { qqNumber })
+    }
+
+    // GHSA-6pf3 修复②（高·预建画师号接管）：收紧空壳覆盖语义——只允许覆盖「邀请流程自产」的行。
+    //   artistService.createArtist 不写 totp_secret（artist-account.service.ts），管理员预建号天然满足
+    //   「空壳」三条件，旧逻辑下攻击者持该号 QQ + 任一新邀请码即可原地覆盖（保 artist_id）接管预建画师号。
+    //   判据：invite_code_uses 有该 artist 记录 = 确由 registerWithInvite 事务入库（含「受邀入驻后被 reset
+    //   需重推倒重来」的合法场景，该记录永不删）；无记录 → 属管理员预建/他源，拒绝覆盖，按 QQ_TAKEN
+    //   回（与「QQ 已被注册」不可区分）。合法首次邀请入驻走 INSERT 分支，不受本约束影响。
+    const shellCandidate = existingQq && !existingQq.totp_verified && !existingQq.totp_secret && !existingQq.deleted_at && !existingQq.is_banned
       ? existingQq
+      : undefined
+    const shell = shellCandidate && db.prepare('SELECT id FROM invite_code_uses WHERE artist_id = ?').get(shellCandidate.id)
+      ? shellCandidate
       : undefined
     if (existingQq && !shell) {
       throw new AppError(E.QQ_TAKEN, 400, { qqNumber })
@@ -370,39 +392,57 @@ export interface InviteTotpConfirmResult {
 }
 
 /**
+ * GHSA-6pf3 修复④（中·首绑枚举口口径对齐）：统一首绑失败对外响应。
+ * 未注册 / 未绑定（无密钥或已验证）/ 动态口令错 / 重放 / 封禁 / 锁定——对外一律返回
+ * 同一 status(400) + 同一 code(TOTP_INVALID) + 同一句文案「QQ号或动态口令错误」，不给剩余次数、
+ * 不泄露账号存在性/绑定态/锁定态。此口径与 S1 登录侧共用（auth.service.verifyTotpLogin 的 TOTP_INVALID 分支）。
+ * 仅内部日志区分 reason，便于运维排障；不进入对外响应体。
+ */
+function rejectInviteTotp(reason: string, artistId: number | null): never {
+  console.warn(`[invite/totp-confirm] 首绑拒绝 reason=${reason} artistId=${artistId ?? 'null'}`)
+  throw new AppError(E.TOTP_INVALID, 400)
+}
+
+/**
  * TOTP 首绑确认（对齐 REQ-038 confirmTotpAndComplete 同款模式）：
  * 校验 6 位码 + 重放防护 → totp_verified=1 → 签发会话 token。
  * 仅允许经由邀请码注册流程入库且已生成密钥但未验证的画师（P0-1 纵深：非邀请流程产物拒绝）。
+ * GHSA-6pf3：所有失败态对外统一 TOTP_INVALID（见 rejectInviteTotp），并补 is_banned 拒绝（不签发会话、不改 verified）。
  */
 export function confirmInviteTotp(params: InviteTotpConfirmParams): InviteTotpConfirmResult {
   const { qqNumber, code } = params
   const artist = db.prepare('SELECT * FROM artists WHERE qq_number = ? AND deleted_at IS NULL').get(qqNumber) as Artist | undefined
-  if (!artist) throw new AppError(E.ARTIST_NOT_FOUND, 404)
-  if (!artist.totp_secret || artist.totp_verified) {
-    throw new AppError(E.TOTP_NOT_BOUND, 400)
-  }
+  if (!artist) rejectInviteTotp('artist_not_found', null)
+  // GHSA-6pf3 修复③（低·首绑不查封禁）：封禁画师拒绝首绑——不签发会话、不改 totp_verified；
+  // 对外走同一统一响应（封禁态不得成为枚举 oracle）。
+  if (artist.is_banned) rejectInviteTotp('banned', artist.id)
+  if (!artist.totp_secret || artist.totp_verified) rejectInviteTotp('not_bound', artist.id)
 
   // P0-1 纵深修复（2026-09-17）：确认该画师确实经由邀请码注册流程入库——
   // invite_code_uses 有记录 = registerWithInvite 事务成功提交了该画师；
   // 无记录说明该账号非邀请流程产物（如管理员预绑），拒绝通过此公开端点确认。
   const inviteUse = db.prepare('SELECT id FROM invite_code_uses WHERE artist_id = ?').get(artist.id)
-  if (!inviteUse) {
-    throw new AppError(E.INVITE_INVALID, 400)
-  }
+  if (!inviteUse) rejectInviteTotp('non_invite_flow', artist.id)
 
-  // 815 审计 P1-5：防爆破对齐登录路径——锁定期内任何尝试都拒绝；失败计数达阈值锁定
-  checkTotpLocked(artist)
+  // 815 审计 P1-5：防爆破对齐登录路径——锁定期内任何尝试（含正确码）都拒绝；
+  // checkTotpLocked/registerTotpFailure 内部仍写库维持锁定，对外统一 TOTP_INVALID 不泄露锁定态。
+  try {
+    checkTotpLocked(artist)
+  } catch (err) {
+    if (err instanceof AppError && err.code === E.TOTP_LOCKED) rejectInviteTotp('locked', artist.id)
+    throw err
+  }
 
   const hitCounter = verifyTotpWithCounter(artist.totp_secret, code, Date.now())
   if (hitCounter === null) {
-    registerTotpFailure(artist.id) // 计数 +1，达阈值抛 TOTP_LOCKED
-    // v126②：区分「码刚轮换」（落在 ±3 但不在有效窗 ±1）与「码输错」——只影响提示文案，不放宽校验；
-    // 新手常见因不熟 30 秒轮换机制报旧码，明示「等它转完再试」降低恐慌
-    const stale = verifyTotpWithCounter(artist.totp_secret, code, Date.now(), 3) !== null
-    // v126③：锁定前失败提示携带剩余次数（registerTotpFailure 未达阈值不抛，此处回读计数）
-    const attempts = (db.prepare('SELECT totp_failed_attempts FROM artists WHERE id = ?').get(artist.id) as { totp_failed_attempts: number }).totp_failed_attempts || 0
-    const remainingAttempts = Math.max(0, TOTP_MAX_ATTEMPTS - attempts)
-    throw new AppError(E.TOTP_BIND_INVALID, 400, { stale, remainingAttempts })
+    // 失败计数 +1（达阈值时 registerTotpFailure 落库锁定并抛 TOTP_LOCKED，此处吞掉其对外语义、统一响应）
+    try {
+      registerTotpFailure(artist.id)
+    } catch (err) {
+      if (err instanceof AppError && err.code === E.TOTP_LOCKED) rejectInviteTotp('locked_after_failure', artist.id)
+      throw err
+    }
+    rejectInviteTotp('wrong_code', artist.id)
   }
 
   // 重放防护：同一 (画师, 时间步, 码) 只准成功一次（v48 totp_used_codes 唯一索引）
@@ -410,7 +450,7 @@ export function confirmInviteTotp(params: InviteTotpConfirmParams): InviteTotpCo
   try {
     db.prepare('INSERT INTO totp_used_codes (artist_id, code_hash) VALUES (?, ?)').run(artist.id, codeHash)
   } catch {
-    throw new AppError(E.TOTP_BIND_INVALID, 400, '该动态口令已使用，请使用最新动态口令')
+    rejectInviteTotp('replay', artist.id)
   }
 
   db.prepare('UPDATE artists SET totp_verified = 1, totp_failed_attempts = 0, totp_locked_until = NULL WHERE id = ?').run(artist.id)

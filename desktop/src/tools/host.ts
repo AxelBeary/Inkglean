@@ -3,7 +3,7 @@
 // 纪律：哑组件不碰这些能力，全部经本层；纯浏览器环境一律留降级出口不留死按钮。
 import { ref } from 'vue'
 import { computed } from 'vue'
-import { saveFile } from '../bridge/files'
+import { exportSaveB64 } from '../bridge/files'
 import { isDesktop } from '../bridge'
 import { makeT } from './i18n-zh'
 import type { TFn } from './i18n-zh'
@@ -34,19 +34,13 @@ export async function copyText(text: string): Promise<boolean> {
   }
 }
 
-// ─── 导出 PNG：桌面＝系统保存对话框+落盘；纯浏览器＝anchor 下载（逃生门降级） ───
+// ─── 导出 PNG：桌面＝壳侧原生「另存为」（S5B：落点不经渲染层）；纯浏览器＝anchor 下载（逃生门降级） ───
 /** 返回 'saved' | 'cancelled' | 'failed' */
 export async function savePng(blob: Blob, filename: string): Promise<'saved' | 'cancelled' | 'failed'> {
   if (isDesktop()) {
     try {
-      const { save } = await import('@tauri-apps/plugin-dialog')
-      const picked = await save({
-        defaultPath: filename,
-        filters: [{ name: 'PNG 图片', extensions: ['png'] }]
-      })
-      if (!picked) return 'cancelled'
-      await saveFile(picked, new Uint8Array(await blob.arrayBuffer()))
-      return 'saved'
+      const { savedPath } = await exportSaveB64(filename, new Uint8Array(await blob.arrayBuffer()))
+      return savedPath ? 'saved' : 'cancelled'
     } catch {
       return 'failed'
     }

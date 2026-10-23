@@ -42,6 +42,11 @@ services:
       - UPLOAD_DIR=/app/uploads
       - TRUST_PROXY=172.16.0.0/12,10.0.0.0/8,192.168.0.0/16  # 仅信任 Docker 内网段，防 X-Forwarded-For 伪造
       - TZ=Asia/Shanghai          # SQLite CURRENT_TIMESTAMP 恒为 UTC，时区换算由应用层 date.ts 处理（此注释原为误导）
+      # GHSA-6pf3-g4xq-854w（S1）：生产 WebAuthn 必须显式钉死 RP_ID/ORIGIN，禁止按请求 Host 推导。
+      # 全站单源（Caddy 只服务 {$DOMAIN}，画师主页走 {$DOMAIN}/artist/:sub 路径非子域），故 origin 钉 apex 正确。
+      # 值取自 .env 的 DOMAIN（gitignored，真实域名不入公开仓）；未设 DOMAIN 时 S1 fail-fast 拒启。
+      - WEBAUTHN_RP_ID=${DOMAIN}
+      - WEBAUTHN_ORIGIN=https://${DOMAIN}
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 30s

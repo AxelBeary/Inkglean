@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-desktop-module-storage-path"
+description = "Enables the desktop_module_storage_path command without any pre-configured scope."
+commands.allow = ["desktop_module_storage_path"]
+
+[[permission]]
+identifier = "deny-desktop-module-storage-path"
+description = "Denies the desktop_module_storage_path command without any pre-configured scope."
+commands.deny = ["desktop_module_storage_path"]

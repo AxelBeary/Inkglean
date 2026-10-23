@@ -1,4 +1,4 @@
-import { requireAdmin } from '../../shared/middleware/auth.js'
+import { requireAdmin, getAdminQq } from '../../shared/middleware/auth.js'
 import * as artistService from '../artist/artist.service.js'
 import { bindTotpInit, confirmTotpBind, resetTotp, isDevAuth } from '../auth/auth.service.js'
 import { listDesktopDevices, revokeDesktopDevice } from '../auth/devices.service.js'
@@ -25,6 +25,16 @@ export async function adminArtistSecurityRoutes(fastify: FastifyInstance) {
     const artist = artistService.getArtistById(Number((request.params as { id: string }).id))
     if (!artist) return reply.code(404).send({ error: '画师不存在' })
     if (artist.deleted_at) return reply.code(400).send({ error: '画师已移除，无法绑定' })
+
+    // GHSA-6pf3-g4xq-854w Wave1（S3）自指守卫：管理员的 TOTP 是「平台是否已初始化」的判据本体
+    //（isSetupCompleted 看 admin 行 totp_verified，setup.service.ts）——bind-init 置 verified=0 并
+    // bump token_version，管理员若对自己行调用，isSetupCompleted() 即刻 false，生产环境 REQ-038
+    // 守门（app.ts）全站 503；且管理员未绑定会话被 requireAdmin 先行 401，连 bind-confirm 都调不了
+    // → 只能改库的死锁。守卫口径对齐删除/封禁自守卫（admin-artist.routes.ts / compliance.routes.ts），
+    // 管理员换绑自己的验证器请走画师端自助重绑入口（/api/auth/totp/rebind-init|rebind-confirm）。
+    if (artist.qq_number === getAdminQq()) {
+      return reply.code(403).send({ code: 'ADMIN_TOTP_SELF_FORBIDDEN', error: '不能对管理员账号执行此操作，请走自助换绑入口' })
+    }
 
     const secret = generateSecret()
     const otpauthUri = buildOtpAuthUri(secret, artist.qq_number)
@@ -88,6 +98,13 @@ export async function adminArtistSecurityRoutes(fastify: FastifyInstance) {
     if (!artist) return reply.code(404).send({ error: '画师不存在' })
     // L-12（审计 九#5）: 与 bind-init 同款软删除检查——已移除画师不得重置 TOTP
     if (artist.deleted_at) return reply.code(400).send({ error: '画师已移除，无法绑定' })
+
+    // GHSA-6pf3-g4xq-854w Wave1（S3）自指守卫：与 bind-init 同款。resetTotp 把 totp_secret 清 NULL
+    // 且 verified=0——管理员对自己行调用是「先全站 503、后无法自助恢复」的双杀（reset 后连
+    // rebind-init 的前置态都没有密钥可校验），只能改库。管理员自助通道一律禁用此端点。
+    if (artist.qq_number === getAdminQq()) {
+      return reply.code(403).send({ code: 'ADMIN_TOTP_SELF_FORBIDDEN', error: '不能对管理员账号执行此操作，请走自助换绑入口' })
+    }
 
     resetTotp(artist.id)
     return { success: true, message: `已重置画师「${artist.name}」的动态口令绑定，画师需重新绑定才能登录` }

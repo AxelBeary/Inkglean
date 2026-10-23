@@ -192,12 +192,19 @@ CREATE TABLE IF NOT EXISTS idempotency_keys (
 -- 参考图归属登记表（v55，审计批 F-10/P2-13 后端侧）
 -- 客户上传参考图时按匿名凭证登记 (anon_id, file_path)；下单校验归属后绑定 order_id，
 -- 绑定后不可再被他人使用；存量未登记路径由存在性校验兜底
+-- v77（GHSA-6pf3-g4xq-854w Wave1·磁盘耗尽）：补 ip + file_size 两列，承载「未绑定参考图的
+-- 累计字节配额」——原表只有路径没有尺寸，配额只能靠逐行 stat 磁盘文件核算，等于把文件系统
+-- 扫描成本挂在公开无鉴权接口上；ip 取 request.ip（口径同 v75 取证 IP，真实 IP 由反代换算）。
+-- 两列均可空：v77 之前的存量行无从追溯，配额按单文件上限保守计入（见 upload.routes）。
+-- 未绑定行的 TTL 在 app.ts gcDatabaseTtl（默认 3 天），删行后文件才会被孤儿 GC 回收。
 CREATE TABLE IF NOT EXISTS reference_uploads (
   id INTEGER PRIMARY KEY,
   anon_id INTEGER NOT NULL,
   file_path TEXT NOT NULL UNIQUE,
   order_id INTEGER,
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  ip TEXT,
+  file_size INTEGER
 );
 
 -- 订单参考图表
@@ -588,4 +595,9 @@ CREATE INDEX IF NOT EXISTS idx_price_entries_order ON order_price_entries(order_
 CREATE INDEX IF NOT EXISTS idx_totp_used_artist ON totp_used_codes(artist_id);
 CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at);
 CREATE INDEX IF NOT EXISTS idx_admin_actions_target ON admin_actions(target_type, target_id);
+-- v77（GHSA-6pf3-g4xq-854w）：参考图上传配额核算的两个维度求和（anon_id / ip + order_id IS NULL）。
+-- 索引只登记在 schemaIndexes 一处：initDatabase 每次启动都会在迁移之后 exec 本段，
+-- 老库升级与新装同径拿到（对照 v44 把索引写进迁移的做法，此处按「索引属查询侧优化」归口本段）。
+CREATE INDEX IF NOT EXISTS idx_reference_uploads_anon ON reference_uploads(anon_id);
+CREATE INDEX IF NOT EXISTS idx_reference_uploads_ip ON reference_uploads(ip);
 `

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-desktop-foreground-title"
+description = "Enables the desktop_foreground_title command without any pre-configured scope."
+commands.allow = ["desktop_foreground_title"]
+
+[[permission]]
+identifier = "deny-desktop-foreground-title"
+description = "Denies the desktop_foreground_title command without any pre-configured scope."
+commands.deny = ["desktop_foreground_title"]

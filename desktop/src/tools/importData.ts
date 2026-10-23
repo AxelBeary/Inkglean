@@ -1,7 +1,8 @@
 // 数据导入（本地核心环波10）：REQ-014「数据迁移与备份」进口件——
 // 策略＝替换（不合并、不逐条核对）；有本地数据时先自动备份为「拾绘备份-替换前-日期-时分秒.zip」；
 // 工程文件关联恢复复用 F1 既有机制：原路径还在即直接可用，不在了走「重新指路」。
-import { closeLocalDb, localDbPath, readBackupB64, saveFile, shihuiHome } from '../bridge'
+import { closeLocalDb, localDbPath, saveFile, shihuiHome, importReadB64 } from '../bridge'
+import type { ImportReadOutcome } from '../bridge'
 import { isDesktop } from '../bridge'
 import { broadcastCloseAllDb, deleteDbSidecar } from '../bridge/db'
 import type { LocalFile } from '../stores/localFiles'
@@ -141,19 +142,12 @@ export async function runImport(
   return { ok: true, reason: '', backupPath }
 }
 
-/** 选备份包（系统单选对话框）：返回路径或空（取消） */
-export async function pickBackupFile(): Promise<string> {
-  if (!isDesktop()) return ''
-  const { open } = await import('@tauri-apps/plugin-dialog')
-  const picked = await open({
-    multiple: false,
-    title: '选择拾绘备份包',
-    filters: [{ name: '拾绘备份包', extensions: ['zip'] }]
-  })
-  return typeof picked === 'string' ? picked : ''
-}
-
-/** 读备份包（走 100MB 限额桥） */
-export async function readBackup(path: string): Promise<string> {
-  return await readBackupB64(path)
+/** 选备份包并读回字节（S5B 合并件）：壳侧原生「打开文件」对话框选任意位置文件 →
+ *  Rust 侧读字节回传（100MB 限额在 Rust 判定），取消返回 null。
+ *  旧口径「JS 对话框选路 → readBackupB64(path)」把用户手选的任意路径交回 path-命令，
+ *  会被 S5 白名单根拒掉个人目录之外的落点，且路径绕渲染层一圈——两头都是问题，废弃。
+ *  返回的 path 仅供展示与预检（parseBackup 不依赖路径；导入校验在 SQLite 头那条属 #33 轨）。 */
+export async function pickAndReadBackup(): Promise<ImportReadOutcome | null> {
+  if (!isDesktop()) return null
+  return await importReadB64([{ name: '拾绘备份包', extensions: ['zip'] }], '选择拾绘备份包')
 }

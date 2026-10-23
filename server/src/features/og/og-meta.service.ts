@@ -50,6 +50,11 @@ export function escapeHtml(value: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
+    // GHSA-6pf3-g4xq-854w（Wave3·低）第二层保险：$ 是字符串型 replacement 的特殊序列前缀
+    //（$& 回填整段匹配、$` 回填匹配前文、$$ 折叠成 $）。主防阀在 injectOgMeta 的函数替换器，
+    // 这里转义是为了今后任何人再拿这些值做字符串 replace 时不再复现同一个洞。
+    // 必须排在 & 之后：否则本行产出的实体里的 & 会被自己二次转义。
+    .replace(/\$/g, '&#36;')
 }
 
 /** 截断到指定字符数（按码点，避免截断代理对；超长补省略号） */
@@ -169,6 +174,12 @@ const OG_ANCHOR_RE = /<meta\s+name="og-placeholder"[^>]*>[\s\S]*?<meta\s+propert
 /**
  * 注入 OG meta：只替换 index.html 预留的占位锚点区（不粗暴整页替换）
  * 结构变化导致锚点缺失时原样返回（fail-open，静态默认 meta 兜底）
+ *
+ * GHSA-6pf3-g4xq-854w（Wave3·低）：必须用函数替换器。字符串型 replacement 会把 block 里的
+ * `$` 序列当模式解释——画师名/简介含 `` $` `` 时会被替换成「匹配点之前的整段 HTML」，
+ * 含 `$&` 时被替换成「整段匹配（锚点区原文）」，含 `$$` 时少掉一个 $：
+ * 结果既是 meta content 属性被撑破，又是页面片段泄漏到攻击者可控的分享卡片里。
+ * 函数替换器不解释返回串，一处根治。
  */
 export function injectOgMeta(html: string, og: OgData): string {
   const block = [
@@ -180,6 +191,6 @@ export function injectOgMeta(html: string, og: OgData): string {
   ].join('\n  ')
 
   return OG_ANCHOR_RE.test(html)
-    ? html.replace(OG_ANCHOR_RE, block)
+    ? html.replace(OG_ANCHOR_RE, () => block)
     : html
 }

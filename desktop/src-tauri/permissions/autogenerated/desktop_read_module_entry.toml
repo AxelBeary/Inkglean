@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-desktop-read-module-entry"
+description = "Enables the desktop_read_module_entry command without any pre-configured scope."
+commands.allow = ["desktop_read_module_entry"]
+
+[[permission]]
+identifier = "deny-desktop-read-module-entry"
+description = "Denies the desktop_read_module_entry command without any pre-configured scope."
+commands.deny = ["desktop_read_module_entry"]

@@ -93,8 +93,10 @@
               <template v-if="compactActions">
                 <el-button size="small" circle :icon="View" :title="$t('admin.manage')" :aria-label="$t('admin.manage')" @click="openDetail(row)" />
                 <el-button size="small" circle :icon="Tickets" :title="$t('admin.artistOrders')" :aria-label="$t('admin.artistOrders')" @click="viewOrders(row)" />
-                <!-- REQ-027: TOTP 绑定入口 -->
+                <!-- GHSA-6pf3-g4xq-854w 纵深：管理员行不显示管理端「绑定/重绑 TOTP」按钮，
+                     避免误触即发 bind-init 覆盖当前密钥（服务端 S3 已加 403，前端这层避免危险按钮可见） -->
                 <el-button
+                  v-if="!row.isAdmin"
                   size="small" circle type="success" plain :icon="Key"
                   :title="row.totp_verified ? $t('admin.totpRebind') : $t('admin.totpBind')"
                   :aria-label="row.totp_verified ? $t('admin.totpRebind') : $t('admin.totpBind')"
@@ -136,8 +138,8 @@
               <template v-else>
                 <el-button size="small" type="primary" @click="openDetail(row)">{{ $t('admin.manage') }}</el-button>
                 <el-button size="small" @click="viewOrders(row)">{{ $t('admin.artistOrders') }}</el-button>
-                <!-- REQ-027: TOTP 绑定入口 -->
-                <el-button size="small" type="success" plain @click="openTotpBind(row)">
+                <!-- REQ-027: TOTP 绑定入口（GHSA-6pf3-g4xq-854w 纵深：管理员行不显示，避免误发 bind-init 覆盖密钥） -->
+                <el-button v-if="!row.isAdmin" size="small" type="success" plain @click="openTotpBind(row)">
                   {{ row.totp_verified ? $t('admin.totpRebind') : $t('admin.totpBind') }}
                 </el-button>
                 <!-- 817-B2：封禁/解封/移除统一操作区（分隔片后三键相邻；封禁两步确认） -->

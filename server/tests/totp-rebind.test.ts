@@ -12,6 +12,7 @@ import { generateSecret, computeTotp, verifyTotp } from '../src/features/auth/to
 import { afterEach } from 'vitest'
 import { hasPasskeyCredentials } from '../src/features/auth/webauthn.js'
 import { resetRateLimitBuckets } from '../src/shared/middleware/rate-limit.js'
+import { getTotpRebindStore } from '../src/features/auth/auth.routes.js'
 
 describe('TOTP 自助重绑 (REQ-040)', () => {
   let artist: ArtistRow
@@ -407,5 +408,52 @@ describe('P1-1 回归：Passkey 用户重绑 init 下发新密钥', () => {
     })
     // 伪造 credential 过不了 verifyLogin；关键是不得 200（旧实现会现场生成密钥继续往下走）
     expect(res.statusCode).not.toBe(200)
+  })
+})
+
+// ============================================
+// GHSA-6pf3-854w 低-4：重绑暂存存储（明文密钥驻留内存）必须有容量上限 + 惰性清理过期项
+// ============================================
+describe('GHSA-6pf3 低-4：重绑暂存存储有界与惰性清理', () => {
+  let app: FastifyInstance
+
+  beforeEach(async () => {
+    cleanDb()
+    resetRateLimitBuckets()
+    getTotpRebindStore().clear()
+    app = await buildApp({ logger: false })
+    await app.ready()
+  })
+
+  afterEach(async () => {
+    await app.close()
+    getTotpRebindStore().clear()
+  })
+
+  it('TC-RS-01: 暂存存储声明容量上限（不再是无界 Map——明文密钥不可能无限驻留）', () => {
+    expect(getTotpRebindStore().capacity).toBe(10_000)
+  })
+
+  it('TC-RS-02: rebind-init 新写入把过期暂存项惰性扫出，新项按 5 分钟 TTL 入库', async () => {
+    const artist = seedArtist({ qq_number: '99920', subdomain: 'rs-02' })
+    const token = createSession(artist.id, artist.token_version)
+    const store = getTotpRebindStore()
+    store.set('rebind:stale', { newSecret: 'STALESECRETAAAAAAAA', artistId: artist.id, expiresAt: Date.now() - 1000 })
+    expect(store.has('rebind:stale')).toBe(true)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/totp/rebind-init',
+      headers: { Authorization: 'Bearer ' + token }
+    })
+    expect(res.statusCode).toBe(200)
+    const tempKey = res.json().tempKey as string
+    expect(typeof tempKey).toBe('string')
+    // 新一次 set 的惰性清理扫掉过期项（明文旧密钥不再驻留）
+    expect(store.has('rebind:stale')).toBe(false)
+    const entry = store.get(tempKey)
+    expect(entry?.newSecret).toBeTruthy()
+    expect(entry!.expiresAt).toBeGreaterThan(Date.now())
+    expect(entry!.expiresAt).toBeLessThanOrEqual(Date.now() + 5 * 60_000 + 5000)
   })
 })

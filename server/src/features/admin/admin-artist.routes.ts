@@ -191,6 +191,14 @@ export async function adminArtistRoutes(fastify: FastifyInstance) {
 
     const { status } = (request.body as { status?: string }) || {}
 
+    // GHSA-6pf3-g4xq-854w Wave1（S3）敏感自改守卫：管理端把管理员自己的主页置 hidden 会被
+    // 误当「平台对外不存在」的处置动作。与删除/封禁自守卫同级（本文件 DELETE 与
+    // compliance.routes.ts ban）：只禁自指方向的 hidden；open/full/break 属管理员对自己店铺的
+    // 正常自助运营，放行且照常留痕。想隐藏自己的主页请走画师端自助状态切换（requireAuth 口径）。
+    if (artist.qq_number === getAdminQq() && status === 'hidden') {
+      return reply.code(403).send({ error: '不能从管理端隐藏管理员账号的主页，如需隐藏请使用画师端自助状态切换' })
+    }
+
     const updated = artistService.updateArtist(artist.id, { status: status! })
     // P4-2 §8.5 留痕补全：管理员代改画师主页状态（含设 hidden）原本是零留痕动作。
     // reason 记新状态（不是原因文本）——这条账要回答的是「把它改成了什么」；

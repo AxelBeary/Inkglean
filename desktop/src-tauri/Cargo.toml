@@ -44,6 +44,11 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # 工具箱导出落盘（波2）：PNG base64 解码写文件，避绕 URL 下载链在 WebView2 的不确定性
 base64 = "0.22"
+# GHSA-6pf3-g4xq-854w Claim6：文件命令白名单根 containment 需 canonicalize（解符号链接/8.3 短名）
+# 后再比前缀；dunce 在不必要时去掉 \\?\ 扩展长度前缀，中文/长路径下比对更稳。
+# 注：dunce 1.0.5 早已在 Cargo.lock 内（tauri-utils / tauri-plugin-fs 的传递依赖），本行只是把它
+# 提为本 crate 的直接依赖，不新增 vendored 包，也不改 lock 里任何版本。
+dunce = "1"
 
 # 凭证保险箱走 Windows DPAPI（仅 Windows 首发；macOS 二期时改 target 条件分支）
 # F8 二期（波8）：前台窗口标题（WindowsAndMessaging）+ 输入空闲（KeyboardAndMouse + SystemInformation 取时基）
