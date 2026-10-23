@@ -35,6 +35,7 @@
             </div>
             <!-- 815 拍板 #4：一次性下载——已锁定显示提示，需画师再许可 -->
             <el-tag v-if="d.downloadLocked" type="info" size="small">{{ $t('delivery.downloadLocked') }}</el-tag>
+            <el-button v-else-if="pendingConfirmId === d.id" type="warning" size="small" :loading="downloadingId === d.id" :disabled="downloadingId !== null && downloadingId !== d.id" @click="retryConfirm(d)">{{ $t('delivery.retryConfirm') }}</el-button>
             <el-button v-else type="primary" size="small" :loading="downloadingId === d.id" :disabled="downloadingId !== null && downloadingId !== d.id" @click="downloadFile(d)">{{ $t('delivery.download') }}</el-button>
           </div>
         </div>
@@ -58,7 +59,7 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { usePalette } from '../../composables/usePalette'
 import { formatBytes } from '../../utils/image-resize'
-import { downloadAsset } from '../../utils/download'
+import { confirmOneTimeDownload, downloadOneTimeFile } from '../../composables/useOneTimeDownload'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -80,22 +81,48 @@ const delivery = ref<OrderDeliveryResult | null>(null)
 const verifyError = ref(false)
 // 815 拍板 #4：一次性下载进行中文件 id（防连点）
 const downloadingId = ref<number | null>(null)
+// 文件已收到但服务端确认失败：保留该状态供单独重试，禁止再次 download-start 消耗半途尝试
+const pendingConfirmId = ref<number | null>(null)
 
 async function downloadFile(d: OrderDeliveryResult['deliverables'][number]) {
   if (downloadingId.value !== null) return
   downloadingId.value = d.id
   try {
     // 一次性下载链路：start 签发 → fetch 全量接收 → confirm 锁定（IP/时间留痕）
-    const { url } = await orderApi.deliveryDownloadStart(delivery.value!.orderNo, d.id, token.value)
-    await downloadAsset(url, d.fileName ?? undefined)
-    await orderApi.deliveryDownloadConfirm(delivery.value!.orderNo, d.id, token.value)
-    d.downloadLocked = true
+    const result = await downloadOneTimeFile(
+      delivery.value!.orderNo, d.id, token.value, d.fileName,
+      () => { d.downloadLocked = true }
+    )
+    if (result === 'confirm-failed') {
+      pendingConfirmId.value = d.id
+      ElMessage.warning(t('delivery.confirmFailed'))
+    }
   } catch (err) {
     if ((err as ApiError)?.code === 'DOWNLOAD_LOCKED') {
       d.downloadLocked = true
+      pendingConfirmId.value = null
       ElMessage.warning(t('delivery.downloadLockedMsg'))
     } else {
       ElMessage.error(t('delivery.downloadFailed'))
+    }
+  } finally {
+    downloadingId.value = null
+  }
+}
+
+async function retryConfirm(d: OrderDeliveryResult['deliverables'][number]) {
+  if (downloadingId.value !== null) return
+  downloadingId.value = d.id
+  try {
+    const result = await confirmOneTimeDownload(
+      delivery.value!.orderNo, d.id, token.value,
+      () => { d.downloadLocked = true }
+    )
+    if (result === 'confirmed') {
+      pendingConfirmId.value = null
+      ElMessage.success(t('delivery.confirmSuccess'))
+    } else {
+      ElMessage.warning(t('delivery.confirmFailed'))
     }
   } finally {
     downloadingId.value = null
