@@ -70,6 +70,8 @@ export default {
     INVALID_TRANSITION: 'Invalid status transition',
     // D-1（R-5）: order version optimistic-lock conflict (stale snapshot writes)
     ORDER_CONFLICT: 'The order was updated by another action. Please refresh and retry',
+    // Audit #21 item 3: same idempotency key with a different payload (not a replay) — the client rotates the key so the user can resubmit
+    IDEMPOTENCY_CONFLICT: 'This submission differs from the one already accepted under the same attempt. Please review the amount/details and submit again',
     // R-2: cancelling a paid order needs explicit confirmation (Batch A contract 409 CANCEL_WITH_PAYMENT)
     CANCEL_WITH_PAYMENT: 'This order has received payment. Please refund offline before cancelling',
     MY_ORDERS_RETIRED: '"My orders" lookup has been retired. Please use the tracking link saved when ordering, or ask the artist to resend one',
