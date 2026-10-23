@@ -220,6 +220,7 @@
 import { ref, computed, watch, onUnmounted } from 'vue'
 import type { PropType } from 'vue'
 import { artistApi } from '../../../api/index'
+import type { ApiError } from '../../../api/index'
 import type { PublicArtStyle, OrderPriority } from '../../../api/types'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -448,6 +449,9 @@ async function submit() {
     emit('submit-success', { order, postCreateFailed })
     submitIdemKey = null
   } catch (err) {
+    // 审计 #21 条目 3（PR #27 补口）: 同 key 换载荷 → 后端 409（口径对齐 useOrderForm/useOrderPayments）。
+    // 不换 key 的话用户改完文案再点会一直撞同一个 409，直到刷新页面。
+    if ((err as ApiError).code === 'IDEMPOTENCY_CONFLICT') submitIdemKey = null
     ElMessage.error((err as Error).message)
   } finally {
     submitting.value = false
