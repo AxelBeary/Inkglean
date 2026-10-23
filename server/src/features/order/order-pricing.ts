@@ -293,9 +293,13 @@ function getCompletedPaymentStageIndex(order: { id: number; artist_id: number; c
   if (installmentsCount === 0) return -1
 
   const stages = db.prepare(
-    'SELECT id, sort_order, takes_payment FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC'
-  ).all(order.artist_id) as Array<{ id: number; sort_order: number; takes_payment: number }>
-  const paymentStages = stages.filter(s => s.takes_payment === 1)
+    'SELECT id, sort_order, takes_payment, basis_points FROM artist_workflow_stages WHERE artist_id = ? ORDER BY sort_order ASC'
+  ).all(order.artist_id) as Array<{ id: number; sort_order: number; takes_payment: number; basis_points: number | null }>
+  // SRV-16 口径对齐（审计 #21 条目 5）：分期节点由 takes_payment=1 AND basis_points>0 的阶段生成
+  //（order-create.ts / generateInstallmentsForOrder 两处同口径），本处的「已完成收款节点」计数
+  // 必须用同一谓词——否则旧库/脏工作流里 bp=0 或 NULL 的收款阶段会让计数比实际节点数多，
+  // 中期被提前判定完成并锁定，后续加价全摊到尾款
+  const paymentStages = stages.filter(s => s.takes_payment === 1 && (s.basis_points ?? 0) > 0)
   if (paymentStages.length === 0) return -1
 
   let index: number
