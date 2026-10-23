@@ -3,13 +3,16 @@
 // 波2 DSK-09：跨窗广播关连接 + 边车清理桥的纯浏览器逃生门。
 import { describe, it, expect, beforeEach } from 'vitest'
 import JSZip from 'jszip'
-import { b64ToBytes, hasLocalData, parseBackup, restorePrefs, runImport } from '../tools/importData'
+import { b64ToBytes, hasLocalData, hasSqliteHeader, parseBackup, restorePrefs, runImport } from '../tools/importData'
 import type { LocalDataParts } from '../tools/importData'
 import { backupFileName } from '../tools/exportData'
 import { broadcastCloseAllDb, deleteDbSidecar, DB_CLOSE_ALL_EVENT } from '../bridge/db'
 import { BridgeUnavailableError } from '../bridge'
 
 beforeEach(() => localStorage.clear())
+
+/** #22-2：预检开始校验文件头，夹具必须是真 SQLite 主库前 16 字节 + 填充 */
+const SQLITE_DB_TEXT = 'SQLite format 3\0' + 'pad'.repeat(32)
 
 describe('b64ToBytes / backupFileName（纯函数）', () => {
   it('base64 往返一致', () => {
@@ -80,9 +83,20 @@ describe('parseBackup（解包预检）', () => {
     expect(r.reason.length).toBeGreaterThan(0)
   })
 
+  it('包内 local.db 不是 SQLite 主库 → 预检即拒（#22-2 防覆写坏库）', async () => {
+    const zip = new JSZip()
+    zip.file('local.db', '这张图片被我改名成了 local.db')
+    const b64 = await zip.generateAsync({ type: 'base64' })
+
+    const r = await parseBackup(b64)
+    expect(r.ok).toBe(false)
+    expect(r.reason).toContain('文件头不符')
+    expect(r.dbB64).toBeNull()
+  })
+
   it('有效包：取出 db/设置/清单条数', async () => {
     const zip = new JSZip()
-    zip.file('local.db', 'sqlite-bytes')
+    zip.file('local.db', SQLITE_DB_TEXT)
     zip.file('prefs.json', JSON.stringify({ 'shihui-desktop-prefs-v1': '{}' }))
     zip.file('manifest.json', JSON.stringify([{ path: 'a' }, { path: 'b' }]))
     const b64 = await zip.generateAsync({ type: 'base64' })
@@ -102,9 +116,42 @@ describe('runImport（校验顺序与纯浏览器环境降级）', () => {
   })
 
   it('合法预览但浏览器环境报壳层限制', async () => {
-    const r = await runImport([], [], { ok: true, reason: '', dbB64: 'x', prefs: null, manifestCount: null })
+    // 夹具改用真文件头：#22-2 后坏包原因会先于壳层检查返回，这里要测的是壳层那一层
+    const r = await runImport([], [], { ok: true, reason: '', dbB64: btoa(SQLITE_DB_TEXT), prefs: null, manifestCount: null })
     expect(r.ok).toBe(false)
     expect(r.reason).toBe('导入仅在桌面壳内可用')
+  })
+
+  it('合法预览但载荷不是 SQLite 主库 → 先于壳层检查拒（#22-2）', async () => {
+    const r = await runImport([], [], { ok: true, reason: '', dbB64: btoa('not-a-database-at-all'), prefs: null, manifestCount: null })
+    expect(r.ok).toBe(false)
+    expect(r.reason).toContain('文件头不符')
+    expect(r.backupPath).toBe('')
+  })
+})
+
+describe('hasSqliteHeader（#22-2 文件头校验纯函数）', () => {
+  it('前 16 字节为 SQLite format 3\\0 → 合法', () => {
+    expect(hasSqliteHeader(btoa(SQLITE_DB_TEXT))).toBe(true)
+  })
+
+  it('空串 / 短于 16 字节 / 非 base64 → 一律非法且不抛', () => {
+    expect(hasSqliteHeader('')).toBe(false)
+    expect(hasSqliteHeader(btoa('too-short'))).toBe(false)
+    expect(hasSqliteHeader('@@@@不是base64@@@@@@@@@@@@')).toBe(false)
+  })
+
+  it('长度够但魔数不符 → 非法（只看前 16 字节）', () => {
+    expect(hasSqliteHeader(btoa('PNG\r\n\x1a\n' + 'x'.repeat(40)))).toBe(false)
+  })
+
+  it('0 字节库按非法处理：作为备份必然意味着丢数据', () => {
+    expect(hasSqliteHeader('')).toBe(false)
+  })
+
+  it('大文件只解前 24 字符：超长载荷同样判得快', () => {
+    const huge = btoa(SQLITE_DB_TEXT) + 'A'.repeat(2_000_000)
+    expect(hasSqliteHeader(huge)).toBe(true)
   })
 })
 
