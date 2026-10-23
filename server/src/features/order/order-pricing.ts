@@ -134,10 +134,13 @@ export function getOrdersInstallments(orderIds: number[]): Map<number, OrderInst
 
   for (const [orderId, list] of rowsByOrder) {
     // 2-1（审计 二#1）: 已收封顶到 Σ节点价，逐节点 take 钳制到 [0, amt]——
-    // 与 readInstallmentState（引擎视图）同口径；负价/零价节点视为已结清，
-    // 杜绝大幅降价至已收之下时出现负「已付」/「待付」展示错乱
-    const sumAmounts = list.reduce((s, r) => s + (r.amountCents || 0), 0)
-    let covered = Math.min(coveredByOrder.get(orderId) ?? 0, sumAmounts)
+    // 负价/零价节点视为已结清，杜绝大幅降价至已收之下时出现负「已付」/「待付」展示错乱
+    // 审计 #21 条目 2: 封顶口径取**正节点之和**，不是含负节点的 Σ——R8 的负尾款是「应退额度」，
+    // 不是前面收款节点的欠款缺口。按含负 Σ 封顶时，30/70 节点降价成 [15000, -5000] 且已收 30000，
+    // 首节点仍显示 locked=true + 待收 5000，与订单级待收（终价−已收 ≤ 0）互相矛盾，
+    // 画师端快捷收款按该待收预填就能继续收一笔本不该收的钱
+    const sumPayableAmounts = list.reduce((s, r) => s + Math.max(0, r.amountCents || 0), 0)
+    let covered = Math.min(coveredByOrder.get(orderId) ?? 0, sumPayableAmounts)
     const installments: OrderInstallment[] = []
     for (const r of list) {
       const amt = r.amountCents || 0
