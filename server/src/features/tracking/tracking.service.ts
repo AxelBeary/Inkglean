@@ -112,7 +112,10 @@ export function insertEvents(events: TrackedEvent[], artistId: number | null, an
     delete payload.ts
     delete payload.version
     const payloadJson = JSON.stringify(payload)
-    if (payloadJson.length > MAX_EVENT_PAYLOAD_BYTES) {
+    // 审计 #23 条目 3：上限按**字节**计，不是 UTF-16 码元长度——
+    // payloadJson.length 对中文/emoji 偏小 2~3 倍，「≤2KB」实际可写到 ~6KB。
+    // 存库与上报口径都按 UTF-8 字节，故用 Buffer.byteLength 判定（同一次序列化，不重复 stringify）。
+    if (Buffer.byteLength(payloadJson, 'utf8') > MAX_EVENT_PAYLOAD_BYTES) {
       throw new AppError(E.INVALID_EVENT_PAYLOAD, 400, { maxBytes: MAX_EVENT_PAYLOAD_BYTES })
     }
     payloadJsonList.push(payloadJson)
