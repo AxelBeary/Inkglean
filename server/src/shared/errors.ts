@@ -92,6 +92,8 @@ export const E = {
   INVALID_TRANSITION: 'INVALID_TRANSITION',
   // P2-F9: 终态订单收款状态守卫（cancelled 仅冲正 / delivered 拒正收款）
   PAYMENT_STATUS_BLOCKED: 'PAYMENT_STATUS_BLOCKED',
+  // 审计 #21 条目 4: 单笔收款的关联撤销超上限（含撤到 0 后再撤、撤负数行）
+  PAYMENT_REVOKE_LIMIT: 'PAYMENT_REVOKE_LIMIT',
   // D-1（R-5/P3-1）: 订单 version 乐观锁冲突（旧快照写入被拒）
   ORDER_CONFLICT: 'ORDER_CONFLICT',
   DELIVER_WRONG_STATUS: 'DELIVER_WRONG_STATUS',
@@ -342,6 +344,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   LOOKUP_RETIRED: '「订单查询」已下线，请使用下单时保存的追踪链接，或联系画师补发',
   INVALID_TRANSITION: '不允许的状态变更',
   PAYMENT_STATUS_BLOCKED: '当前订单状态不允许该收款操作',
+  PAYMENT_REVOKE_LIMIT: '该笔收款已撤销到上限，不能重复撤销',
   ORDER_CONFLICT: '订单已被其他操作更新，请刷新后重试',
   DELIVER_WRONG_STATUS: '当前状态不允许交付',
   TIER_NOT_FOUND: '价格档位不存在',

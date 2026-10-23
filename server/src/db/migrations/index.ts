@@ -79,6 +79,8 @@ import { migration as v73 } from './v73-desktop-devices.js'
 import { migration as v74 } from './v74-deliverables-download-nonce.js'
 import { migration as v75 } from './v75-forensic-ip.js'
 import { migration as v76 } from './v76-content-takedown.js'
+// 注：v77 已由 #27（幂等键载荷指纹）占用；本迁移按 #27 先落地的顺序编号
+import { migration as v78 } from './v78-payment-revoke-link.js'
 
 export const MIGRATIONS: Migration[] = [
   v01, v02, v03, v04, v05, v06, v07, v08, v09, v10,
@@ -108,6 +110,7 @@ export const MIGRATIONS: Migration[] = [
   v74,
   v75,
   v76,
+  v78,
 ]
 
 // 升序唯一性断言（构建期简单校验）：version 必须严格递增，重复/乱序直接抛错

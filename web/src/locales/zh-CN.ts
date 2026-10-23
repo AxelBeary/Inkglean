@@ -75,6 +75,8 @@ export default {
     MY_ORDERS_RETIRED: '「我的订单」查询已下线，请使用下单时保存的追踪链接，或联系画师补发',
     LOOKUP_RETIRED: '「订单查询」已下线，请使用下单时保存的追踪链接，或联系画师补发',
     PAYMENT_STATUS_BLOCKED: '当前订单状态不允许该收款操作',
+    // 审计 #21 条目 4: 同一笔收款重复撤销超上限
+    PAYMENT_REVOKE_LIMIT: '该笔收款已撤销到上限，不能重复撤销',
     // 815 拍板 #1：取消后 5 秒撤销窗口
     CANCEL_UNDO_EXPIRED: '撤销窗口已过（取消后 5 秒内可撤销）',
     DELIVER_WRONG_STATUS: '当前状态不能上传交付文件',
@@ -1374,6 +1376,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     payRefundNoteLabel: '退款原因（必填）',
     paySuccess: '收款已记录', payRevokeConfirm: '确认撤销 {amount} 的收款记录？', payRevokeSuccess: '已撤销',
     paymentRevertNote: '撤销 #{id}',
+    // 审计 #21 条目 4: 单笔收款的撤销有上限（累计不得超过该笔金额）
+    payRevokedTag: '已撤销', payAlreadyRevoked: '该笔收款已撤销到上限，不能重复撤销',
     // 收款金额前端范围校验（后端 addPayment 规则一致；负数=退款/撤销路径）
     payAmountInvalid: '收款金额须大于 0',
     payAmountZero: '金额不能为 0', payRefundNoteRequired: '退款或撤销时请填写原因', payRefundExceed: '退款金额不能超出已收金额 ¥{amount}',

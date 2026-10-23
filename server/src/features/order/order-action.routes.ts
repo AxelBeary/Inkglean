@@ -271,18 +271,20 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
         properties: {
           amountCents: { type: 'integer', minimum: -MAX_MONEY_CENTS, maximum: MAX_MONEY_CENTS },
           note: { type: ['string', 'null'], maxLength: 200 },
-          installmentId: { type: ['integer', 'null'] }
+          installmentId: { type: ['integer', 'null'] },
+          // 审计 #21 条目 4: 负数撤销指向被撤的那笔收款 id
+          revokeOfPaymentId: { type: ['integer', 'null'] }
         },
         additionalProperties: false
       }
     }
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { amountCents, note, installmentId } = request.body as { amountCents: number; note?: string | null; installmentId?: number | null }
+    const { amountCents, note, installmentId, revokeOfPaymentId } = request.body as { amountCents: number; note?: string | null; installmentId?: number | null; revokeOfPaymentId?: number | null }
     // D-2（R-9）: 收款幂等键——scope 含 orderId（跨订单不串），双标签页/脚本双击同 key
     // 只入账一笔；金额/撤销校验错误不缓存（同 key 修正后重试可成功）
     const idempotencyKey = readIdempotencyKey(request.headers['idempotency-key'])
     const result = withIdempotency(`payment:${request.order.id}`, idempotencyKey, () => {
-      const payment = orderService.addPayment(request.order.id, { amountCents, note, createdBy: 'artist', installmentId: installmentId || null })
+      const payment = orderService.addPayment(request.order.id, { amountCents, note, createdBy: 'artist', installmentId: installmentId || null, revokeOfPaymentId: revokeOfPaymentId ?? null })
       const order = orderService.getOrder(request.order.id)
       return {
         statusCode: 200,

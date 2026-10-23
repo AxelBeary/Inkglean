@@ -75,6 +75,8 @@ export default {
     MY_ORDERS_RETIRED: '"My orders" lookup has been retired. Please use the tracking link saved when ordering, or ask the artist to resend one',
     LOOKUP_RETIRED: '"Order lookup" has been retired. Please use the tracking link saved when ordering, or ask the artist to resend one',
     PAYMENT_STATUS_BLOCKED: 'The current order status does not allow this payment action',
+    // Audit #21 item 4: revoking the same payment beyond its own amount
+    PAYMENT_REVOKE_LIMIT: 'This payment has already been revoked up to its limit',
     // Decision 815 #1: 5-second undo window after cancellation
     CANCEL_UNDO_EXPIRED: 'The undo window has expired (you can undo within 5 seconds of cancelling)',
     DELIVER_WRONG_STATUS: 'Cannot upload deliverable in current status',
@@ -1375,6 +1377,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     payRefundNoteLabel: 'Refund reason (required)',
     paySuccess: 'Payment recorded', payRevokeConfirm: 'Revoke the {amount} payment record?', payRevokeSuccess: 'Revoked',
     paymentRevertNote: 'Revoke #{id}',
+    // Audit #21 item 4: revoking one payment is capped at its own amount
+    payRevokedTag: 'Revoked', payAlreadyRevoked: 'This payment has already been fully revoked and cannot be revoked again',
     // Payment amount frontend validation (mirrors backend addPayment rules; negative = refund/revocation)
     payAmountInvalid: 'Payment amount must be greater than 0',
     payAmountZero: 'Amount cannot be zero', payRefundNoteRequired: 'Please enter a reason when refunding or revoking a payment.', payRefundExceed: 'Refund cannot exceed the amount already paid ¥{amount}',

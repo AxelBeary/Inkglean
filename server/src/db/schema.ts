@@ -299,6 +299,10 @@ CREATE TABLE IF NOT EXISTS order_payments (
   note TEXT DEFAULT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   created_by TEXT DEFAULT 'artist',
+  -- v78（审计 #21 条目 4）: 负数撤销流水指向被撤的那笔正数收款 id（可空，不加 DEFAULT NULL
+  -- 以便与 ALTER TABLE ADD COLUMN 的存量库形态完全一致）；
+  -- NULL = 未关联（历史退款/手工负数），不计入某笔收款的已撤额度
+  revoke_of_payment_id INTEGER,
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
 
