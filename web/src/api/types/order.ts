@@ -90,6 +90,10 @@ export interface PaymentRow {
   note: string | null
   created_at: string
   created_by: string
+  /** 审计 #21 条目 4: 负数撤销行指向被撤的正数收款 id */
+  revoke_of_payment_id?: number | null
+  /** 审计 #21 条目 4: 已挂在本行上的撤销合计（正数行才有意义） */
+  revoked_cents?: number
 }
 
 /** 客户可见收款明细（track 页用） */
@@ -338,6 +342,8 @@ export interface AddPaymentRequest {
   amountCents: number
   note?: string | null
   installmentId?: number | null
+  /** 审计 #21 条目 4: 负数撤销时指向被撤的那笔收款 id（服务端按单笔上限校验） */
+  revokeOfPaymentId?: number | null
 }
 
 /** POST /artist/orders/:id/deliver 请求体（version 可选） */

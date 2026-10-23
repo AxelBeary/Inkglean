@@ -128,9 +128,11 @@ export function useOrderPaymentPanel({ order, routeId, onRefresh }: {
 
   /** 撤销收款（二次确认） */
   async function handleRevokePayment(payment: PaymentRow) {
+    // 审计 #21 条目 4: 二次确认金额取「尚未被撤的余额」（部分撤销后二次进入要看得到剩余）
+    const remainingCents = Math.max(0, Math.abs(payment.amount_cents) - (payment.revoked_cents ?? 0))
     try {
       await ElMessageBox.confirm(
-        t('orderDetail.payRevokeConfirm', { amount: `¥${formatCents(payment.amount_cents)}` }),
+        t('orderDetail.payRevokeConfirm', { amount: `¥${formatCents(remainingCents)}` }),
         t('orderDetail.confirmTitle'),
         { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
       )

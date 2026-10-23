@@ -237,3 +237,49 @@ describe('useOrderPayments 409 载荷冲突后换新幂等键（#21-3）', () =>
     expect(key1).toBe(key2)
   })
 })
+
+// ─── 审计 #21 条目 4：撤销带被撤行 id，且只撤「该笔尚未被撤的余额」 ───
+describe('useOrderPayments 撤销关联与剩余额度（#21-4）', () => {
+  beforeEach(() => {
+    h.addPayment.mockReset()
+    h.getPayments.mockReset()
+    h.getPayments.mockResolvedValue({ payments: [] })
+  })
+
+  it('revokePayment 携带 revokeOfPaymentId，金额取剩余（1000 已撤 400 → 撤 600）', async () => {
+    h.addPayment.mockResolvedValue({})
+    const payments = useOrderPayments()
+
+    await payments.revokePayment('806' as unknown as number, {
+      id: 7, amount_cents: 1000, revoked_cents: 400
+    } as unknown as PaymentRow)
+
+    const body = h.addPayment.mock.calls[0][1]
+    expect(body.amountCents).toBe(-600)
+    expect(body.revokeOfPaymentId).toBe(7)
+  })
+
+  it('未提供 revoked_cents 时按全额撤（旧服务端响应的兼容路径）', async () => {
+    h.addPayment.mockResolvedValue({})
+    const payments = useOrderPayments()
+
+    await payments.revokePayment('806' as unknown as number, { id: 8, amount_cents: 2000 } as unknown as PaymentRow)
+
+    const body = h.addPayment.mock.calls[0][1]
+    expect(body.amountCents).toBe(-2000)
+    expect(body.revokeOfPaymentId).toBe(8)
+  })
+
+  it('已撤满的行不再发请求，直接报错（前端按钮已收起，这里是兜底）', async () => {
+    const payments = useOrderPayments()
+
+    await expect(
+      payments.revokePayment('806' as unknown as number, {
+        id: 9, amount_cents: 1000, revoked_cents: 1000
+      } as unknown as PaymentRow)
+    ).rejects.toThrow()
+
+    expect(h.addPayment).not.toHaveBeenCalled()
+    expect(payments.submitting.value).toBe(false)
+  })
+})

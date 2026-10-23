@@ -38,8 +38,13 @@
               {{ p.amount_cents < 0 ? '-' : '+' }}¥{{ formatCents(Math.abs(p.amount_cents)) }}
             </span>
             <span class="pool-flow-note">{{ p.note || '' }}</span>
+            <!-- 审计 #21 条目 4: 已撤满的正数行不再挂「撤销」，改为「已撤销」标记 -->
+            <span
+              v-if="isFullyRevoked(p)"
+              class="pool-flow-revoked"
+            >{{ $t('orderDetail.payRevokedTag') }}</span>
             <el-button
-              v-if="p.amount_cents > 0"
+              v-if="canRevoke(p)"
               text size="small" type="danger"
               :loading="revokeSubmitting"
               :disabled="revokeSubmitting"
@@ -95,7 +100,15 @@ interface PaymentRow {
   created_at: string
   amount_cents: number
   note?: string | null
+  /** 审计 #21 条目 4: 该笔正数收款已被关联撤销的合计（分） */
+  revoked_cents?: number
 }
+
+// 审计 #21 条目 4: 单笔收款的撤销按 revoked_cents 封顶——撤满就不再给「撤销」入口。
+// 判断写成函数而非模板表达式：模板属性里的 < / > 会被 check-i18n 的文本节点正则误判。
+const revokedCentsOf = (p: PaymentRow) => p.revoked_cents ?? 0
+const canRevoke = (p: PaymentRow) => p.amount_cents > 0 && revokedCentsOf(p) < p.amount_cents
+const isFullyRevoked = (p: PaymentRow) => p.amount_cents > 0 && revokedCentsOf(p) >= p.amount_cents
 
 /** 节点收款参照行（本卡消费字段） */
 interface InstallmentRefRow {
@@ -150,6 +163,7 @@ function formatDate(str: string) {
 .pool-flow-amount.is-positive { color: var(--sl); }
 .pool-flow-amount.is-negative { color: var(--zs); }
 .pool-flow-note { flex: 1; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pool-flow-revoked { color: var(--ink3); font-size: calc(var(--font-scale, 1) * 12px); white-space: nowrap; }
 .pool-ref { margin-top: 16px; }
 .pool-ref-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: calc(var(--font-scale, 1) * 13px); }
 .pool-ref-icon { width: 18px; text-align: center; flex-shrink: 0; }

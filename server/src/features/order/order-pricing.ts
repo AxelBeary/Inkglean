@@ -616,6 +616,42 @@ interface PaymentRow {
   note: string | null
   created_at: string
   created_by: string
+  revoke_of_payment_id: number | null
+}
+
+/**
+ * 关联撤销校验（审计 #21 条目 4）
+ * 负数流水带 revokeOfPaymentId 时，被撤行必须：属于本单、是正数收款、
+ * 且「已挂在该行上的撤销合计 + 本次」不超过该笔金额——否则同一笔可连撤两次。
+ * 历史未关联（revoke_of_payment_id IS NULL）的负数行不追溯计入。
+ */
+function assertRevokeAllowed(orderId: number, revokeOfPaymentId: number, amountCents: number): void {
+  const target = db.prepare(
+    'SELECT id, order_id, amount_cents FROM order_payments WHERE id = ?'
+  ).get(revokeOfPaymentId) as { id: number; order_id: number; amount_cents: number } | undefined
+  if (!target || target.order_id !== orderId) {
+    throw new AppError(E.NOT_FOUND, 404, { revokeOfPaymentId })
+  }
+  if (target.amount_cents <= 0) {
+    throw new AppError(E.PAYMENT_REVOKE_LIMIT, 400, {
+      revokeOfPaymentId,
+      reason: 'not_a_credit',
+      message: '只能撤销正数收款流水'
+    })
+  }
+  const revokedCents = (db.prepare(
+    'SELECT COALESCE(SUM(-amount_cents), 0) AS s FROM order_payments WHERE revoke_of_payment_id = ?'
+  ).get(target.id) as { s: number }).s
+  if (revokedCents + Math.abs(amountCents) > target.amount_cents) {
+    throw new AppError(E.PAYMENT_REVOKE_LIMIT, 400, {
+      revokeOfPaymentId,
+      reason: 'over_limit',
+      paymentCents: target.amount_cents,
+      revokedCents,
+      remainingCents: target.amount_cents - revokedCents,
+      message: '该笔收款已撤销到上限，不能重复撤销'
+    })
+  }
 }
 
 /**
@@ -623,7 +659,7 @@ interface PaymentRow {
  * 事务原子：INSERT 流水 + UPDATE paid_total_cents；节点已收一律从 paid_total 推导（R7）
  * v0.31 F4: 可选 installmentId 关联到具体节点
  */
-export function addPayment(orderId: number, { amountCents, note, createdBy, installmentId }: { amountCents: number; note?: string | null; createdBy?: string; installmentId?: number | null }): PaymentRow {
+export function addPayment(orderId: number, { amountCents, note, createdBy, installmentId, revokeOfPaymentId }: { amountCents: number; note?: string | null; createdBy?: string; installmentId?: number | null; revokeOfPaymentId?: number | null }): PaymentRow {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
@@ -658,10 +694,18 @@ export function addPayment(orderId: number, { amountCents, note, createdBy, inst
     if (!inst) throw new AppError(E.NOT_FOUND, 404, { installmentId })
   }
 
+  // 审计 #21 条目 4: 撤销关联只允许挂在负数流水上
+  if (amountCents > 0 && revokeOfPaymentId != null) {
+    throw new AppError(E.VALIDATION, 400, { field: 'revokeOfPaymentId', message: '正数收款不能携带撤销关联' })
+  }
+  if (amountCents < 0 && revokeOfPaymentId != null) {
+    assertRevokeAllowed(orderId, revokeOfPaymentId, amountCents)
+  }
+
   return db.transaction(() => {
     const result = db.prepare(
-      'INSERT INTO order_payments (order_id, installment_id, amount_cents, note, created_by) VALUES (?, ?, ?, ?, ?)'
-    ).run(orderId, installmentId || null, amountCents, note || null, createdBy || 'artist')
+      'INSERT INTO order_payments (order_id, installment_id, amount_cents, note, created_by, revoke_of_payment_id) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(orderId, installmentId || null, amountCents, note || null, createdBy || 'artist', amountCents < 0 ? revokeOfPaymentId ?? null : null)
 
     // P2-F4: 退款下限校验移入事务内，并改为原子条件更新——
     // 防止基于事务外快照判定（并发撤销可把 paid_total_cents 推到负数）；
@@ -687,13 +731,26 @@ export function addPayment(orderId: number, { amountCents, note, createdBy, inst
   })()
 }
 
+/** 画师端收款流水行：附「已挂在该行上的撤销合计」，前端据此判定还能不能继续撤 */
+export type PaymentListItem = PaymentRow & { revoked_cents: number }
+
 /**
- * 获取订单收款流水列表
+ * 获取订单收款流水列表（画师端）
+ * 审计 #21 条目 4: 一并给出每行被撤销的合计，撤销按钮不再对「已撤满」的行恒亮
  */
-export function getPayments(orderId: number): PaymentRow[] {
-  return db.prepare(
-    'SELECT * FROM order_payments WHERE order_id = ? ORDER BY created_at ASC'
-  ).all(orderId) as PaymentRow[]
+export function getPayments(orderId: number): PaymentListItem[] {
+  return db.prepare(`
+    SELECT p.*, COALESCE(r.revoked_cents, 0) AS revoked_cents
+    FROM order_payments p
+    LEFT JOIN (
+      SELECT revoke_of_payment_id AS target_id, SUM(-amount_cents) AS revoked_cents
+      FROM order_payments
+      WHERE revoke_of_payment_id IS NOT NULL
+      GROUP BY revoke_of_payment_id
+    ) r ON r.target_id = p.id
+    WHERE p.order_id = ?
+    ORDER BY p.created_at ASC
+  `).all(orderId) as PaymentListItem[]
 }
 
 // REQ-025 第二阶段（R12 不留双轨）：recalcInstallmentAmounts 已退役删除——
