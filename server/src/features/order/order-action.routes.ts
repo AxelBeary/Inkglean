@@ -239,9 +239,17 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
         additionalProperties: false
       }
     }
-  }, async (request: FastifyRequest) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { name, description, priceCents } = request.body as { name: string; description?: string | null; priceCents?: number }
-    return enrichOrderForArtist(orderService.addExtraItem(request.order.id, { name, description, priceCents }), request.artist.id)
+    // D-2（R-9）同款幂等键（审计 #21 条目 7）：附加项直接改最终价，此前既无幂等键也无版本守卫，
+    // 双标签页/响应丢失后重投会真实重复加价。scope 含 orderId（跨单不串），
+    // 服务端错误不写缓存 ⇒ 校验失败后同 key 修正重试仍可成功。
+    const idempotencyKey = readIdempotencyKey(request.headers['idempotency-key'])
+    const result = withIdempotency(`extra-item:${request.order.id}`, idempotencyKey, () => ({
+      statusCode: 200,
+      body: enrichOrderForArtist(orderService.addExtraItem(request.order.id, { name, description, priceCents }), request.artist.id)
+    }))
+    return reply.code(result.statusCode).send(result.body)
   })
 
   /**
