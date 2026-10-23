@@ -3,7 +3,7 @@
 // ============================================
 import { getSetupStatus, createAdminArtist, confirmTotpAndComplete, isSetupCompleted, setOnboardingMode } from './setup.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
-import { AppError, E } from '../../shared/errors.js'
+import { AppError, E, ERROR_MESSAGES } from '../../shared/errors.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 
 // 限流守卫
@@ -11,11 +11,28 @@ function guardRateLimit(key: string, max: number, windowMs: number): void {
   if (!rateLimit(key, max, windowMs)) throw new AppError(E.RATE_LIMITED, 429)
 }
 
+/**
+ * setup 三条写端点各自的 AppError 落点（审计 #23 条目 1）
+ * 此前直接 send({ error: err.message })，而 AppError 的 message 就是码名本身（super(code)），
+ * 于是首次部署者在屏幕上看到 SETUP_TOKEN_INVALID / SETUP_ALREADY_DONE 这类机器码。
+ * 这里与全局错误处理器（app.ts）同口径：先查 ERROR_MESSAGES 文案表，再回落到 message，
+ * 并按 detail 插值 {key} 占位符——两条路径不再各说各话。
+ */
+function sendSetupError(reply: FastifyReply, error: AppError): FastifyReply {
+  const template = ERROR_MESSAGES[error.code] || error.message
+  const detail = error.detail
+  const message = detail && typeof detail === 'object' && typeof template === 'string'
+    ? template.replace(/\{([^}]+)\}/g, (raw: string, key: string) =>
+        Object.prototype.hasOwnProperty.call(detail, key) ? String((detail as Record<string, unknown>)[key]) : raw)
+    : template
+  return reply.code(error.statusCode).send({ code: error.code, error: message, detail: detail || undefined })
+}
+
 // 815 拍板 #6（A2 物理销毁）：向导完成后写端点永久 410 Gone，不再只是 403；
 // status 保留为只读探测（前端路由守卫靠它判初始化状态）
 function guardSetupGone(): void {
   if (isSetupCompleted()) {
-    throw new AppError('SETUP_GONE', 410, '开箱向导已销毁（系统已完成初始化）')
+    throw new AppError(E.SETUP_GONE, 410, '开箱向导已销毁（系统已完成初始化）')
   }
 }
 
@@ -86,7 +103,7 @@ export default async function setupRoutes(fastify: FastifyInstance) {
       })
     } catch (err) {
       if (err instanceof AppError) {
-        return reply.code(err.statusCode).send({ code: err.code, error: err.message, detail: err.detail || undefined })
+        return sendSetupError(reply, err)
       }
       throw err
     }
@@ -133,7 +150,7 @@ export default async function setupRoutes(fastify: FastifyInstance) {
       })
     } catch (err) {
       if (err instanceof AppError) {
-        return reply.code(err.statusCode).send({ code: err.code, error: err.message, detail: err.detail || undefined })
+        return sendSetupError(reply, err)
       }
       throw err
     }
@@ -168,7 +185,7 @@ export default async function setupRoutes(fastify: FastifyInstance) {
       return reply.code(200).send({ ok: true, mode: saved })
     } catch (err) {
       if (err instanceof AppError) {
-        return reply.code(err.statusCode).send({ code: err.code, error: err.message, detail: err.detail || undefined })
+        return sendSetupError(reply, err)
       }
       throw err
     }

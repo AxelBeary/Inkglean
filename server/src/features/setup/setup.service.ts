@@ -53,7 +53,7 @@ export function seedDefaultAddonTemplates(): number {
     'SELECT name, category, control_type, price_mode, default_price, sort_order FROM addon_templates ORDER BY sort_order ASC, id ASC'
   ).all() as Array<{ name: string; category: string; control_type: string; price_mode: string; default_price: number; sort_order: number }>
   if (rows.length !== DEFAULT_ADDON_TEMPLATES.length) {
-    throw new AppError('DEFAULT_ADDONS_SEED_FAILED', 500, `默认增项预置失败：回读行数 ${rows.length}，应为 ${DEFAULT_ADDON_TEMPLATES.length}`)
+    throw new AppError(E.DEFAULT_ADDONS_SEED_FAILED, 500, `默认增项预置失败：回读行数 ${rows.length}，应为 ${DEFAULT_ADDON_TEMPLATES.length}`)
   }
   for (let i = 0; i < DEFAULT_ADDON_TEMPLATES.length; i++) {
     const expected = DEFAULT_ADDON_TEMPLATES[i]
@@ -65,7 +65,7 @@ export function seedDefaultAddonTemplates(): number {
       && row.default_price === expected.default_price
       && row.sort_order === expected.sort_order
     if (!ok) {
-      throw new AppError('DEFAULT_ADDONS_SEED_FAILED', 500, `默认增项预置失败：第 ${i + 1} 条字段不符（${row.name}）`)
+      throw new AppError(E.DEFAULT_ADDONS_SEED_FAILED, 500, `默认增项预置失败：第 ${i + 1} 条字段不符（${row.name}）`)
     }
   }
   return rows.length
@@ -148,7 +148,7 @@ function isOnboardingMode(value: string): value is OnboardingMode {
  */
 export function setOnboardingMode(mode: string): OnboardingMode {
   if (!isOnboardingMode(mode)) {
-    throw new AppError('SETUP_ONBOARDING_MODE_INVALID', 400, { mode, allowed: [...ONBOARDING_MODES] })
+    throw new AppError(E.SETUP_ONBOARDING_MODE_INVALID, 400, { mode, allowed: [...ONBOARDING_MODES] })
   }
   db.prepare("UPDATE platform_config SET value = ? WHERE key = 'onboarding_mode'").run(mode)
   return mode
@@ -185,19 +185,19 @@ export interface CreateAdminResult {
  */
 export function createAdminArtist(params: CreateAdminParams): CreateAdminResult {
   if (isSetupCompleted()) {
-    throw new AppError('SETUP_ALREADY_DONE', 403, '系统已完成初始化，开箱设置已禁用')
+    throw new AppError(E.SETUP_ALREADY_DONE, 403, '系统已完成初始化，开箱设置已禁用')
   }
 
   // d2 猎杀修复（2026-08-13）：admin_qq 已写入即拒重建——堵住「已建管理员但 TOTP 未确认」窗口的劫持重试；
   // 此前仅靠下游 subdomain='admin' 占用偶然拦截，脆弱；丢失密钥的恢复走 DB 级重置（见维护说明书）
   const existingAdminQq = db.prepare("SELECT value FROM platform_config WHERE key = 'admin_qq'").get() as { value: string } | undefined
   if (existingAdminQq?.value) {
-    throw new AppError('SETUP_ALREADY_DONE', 403, '')
+    throw new AppError(E.SETUP_ALREADY_DONE, 403, '')
   }
 
   // 校验口令
   if (!validateSetupToken(params.token)) {
-    throw new AppError('SETUP_TOKEN_INVALID', 403, '安装口令错误')
+    throw new AppError(E.SETUP_TOKEN_INVALID, 403, '安装口令错误')
   }
 
   const { qqNumber, name, studio } = params
@@ -309,7 +309,7 @@ export interface TotpConfirmResult {
  */
 export function confirmTotpAndComplete(params: TotpConfirmParams): TotpConfirmResult {
   if (isSetupCompleted()) {
-    throw new AppError('SETUP_ALREADY_DONE', 403, '系统已完成初始化')
+    throw new AppError(E.SETUP_ALREADY_DONE, 403, '系统已完成初始化')
   }
 
   const { qqNumber, code } = params

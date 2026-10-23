@@ -281,6 +281,33 @@ describe('REQ-033 业务埋点后端 (Tracking)', () => {
     expect((db.prepare('SELECT COUNT(*) AS c FROM events').get() as { c: number }).c).toBe(0)
   })
 
+  it('TC-TR-20b: 审计 #23 条目 3 上限按 UTF-8 字节而非 UTF-16 码元——多字节中文同样被拒', async () => {
+    const token = await fetchToken()
+
+    // 700 个汉字：码元长度 700（旧口径 <2040 放行），UTF-8 字节 2100（>2048 应拒）
+    const multibyte = '画'.repeat(700)
+    expect(multibyte.length).toBeLessThan(2048)
+    expect(Buffer.byteLength(JSON.stringify({ payload: multibyte }), 'utf8')).toBeGreaterThan(2048)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/events',
+      payload: { token, events: [{ name: 'order_form_start', ts: Date.now(), payload: multibyte }] }
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().code).toBe('INVALID_EVENT_PAYLOAD')
+    expect((db.prepare('SELECT COUNT(*) AS c FROM events').get() as { c: number }).c).toBe(0)
+
+    // 未超字节上限的多字节事件照常入库（修复没有把门槛收紧过头）
+    const ok = await app.inject({
+      method: 'POST',
+      url: '/api/events',
+      payload: { token, events: [{ name: 'order_form_start', ts: Date.now(), payload: '画'.repeat(500) }] }
+    })
+    expect(ok.statusCode).toBe(200)
+    expect((db.prepare('SELECT COUNT(*) AS c FROM events').get() as { c: number }).c).toBe(1)
+  })
+
   it('TC-TR-21: P2-10 正常小 payload 照常落库', async () => {
     const token = await fetchToken()
     const res = await app.inject({
