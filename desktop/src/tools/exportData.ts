@@ -2,7 +2,7 @@
 // 数据包（zip）＝SQLite 数据库 + 本地设置 + 文件清单 manifest.json；
 // 不包含：平台缓存图片（登录重新拉）、工程文件本体（画师自行搬运，只记路径）。
 // 触发纯手动，不主动提醒；导入（替换策略）下一波。
-import { localDbPath, readBackupB64, exportSaveB64, fileSizes } from '../bridge'
+import { localDbPath, readBackupB64, exportSaveB64, fileSizes, checkpointWalForBackup } from '../bridge'
 import { isDesktop } from '../bridge'
 import type { LocalFile } from '../stores/localFiles'
 import type { LocalOrder } from '../stores/localLedger'
@@ -55,11 +55,25 @@ export interface ExportResult {
   counts: { orders: number; files: number }
 }
 
+/** 快照自足性断言（纯函数可测，审计 #22 条目 1）：
+ *  包内只装 local.db 本体、不含 -wal/-shm 边车，因此折叠后边车仍非 0 字节就意味着
+ *  有已提交内容留在边车里进不了备份——宁可中止让用户重试，也不出「成功但缺最近数据」的包。 */
+export function assertBackupSnapshotSelfContained(walBytesAfterCheckpoint: number): void {
+  if (walBytesAfterCheckpoint > 0) {
+    throw new Error(
+      `本地数据库仍有 ${walBytesAfterCheckpoint} 字节未并入主库文件（其他窗口占用着写入日志），` +
+      '备份已中止以免产出缺最近数据的快照；请先收起悬浮窗后重试'
+    )
+  }
+}
+
 /** 打数据包（波10 抽出）：返回 zip Blob，供导出（对话框）与导入前自动备份（静默）共用。
  *  波2 DSK-02：库文件改走 readBackupB64（100MB 通道）——本地库含头像 base64 可超 5MB，
  *  旧的 readFileB64（5MB 上限，本为头像单件设）撑大后导出/备份双双失效。 */
 export async function buildBackupBlob(files: LocalFile[], orders: LocalOrder[]): Promise<Blob> {
   const dbPath = await localDbPath()
+  // 审计 #22 条目 1：读文件前先做 WAL checkpoint，并校验边车确已归零
+  assertBackupSnapshotSelfContained(await checkpointWalForBackup())
   const dbB64 = await readBackupB64(dbPath)
   const sizes = await fileSizes(files.map(f => f.file_path))
   const manifest = buildManifest(files, orders, sizes)
