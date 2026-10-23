@@ -185,7 +185,8 @@
           <div v-for="d in order.deliverables" :key="d.id" class="file-item">
             <span>{{ d.fileName }}</span>
             <!-- 260830 审计 H-4：下载统一走一次性下载链路（服务端不再下发列表直链） -->
-            <el-button size="small" type="primary" :loading="downloadingId === d.id" @click="downloadDeliverable(d.id, d.fileName)">{{ $t('common.download') }}</el-button>
+            <el-button v-if="pendingConfirmId === d.id" size="small" type="warning" :loading="downloadingId === d.id" @click="retryDeliverableConfirm(d)">{{ $t('delivery.retryConfirm') }}</el-button>
+            <el-button v-else size="small" type="primary" :loading="downloadingId === d.id" @click="downloadDeliverable(d.id, d.fileName)">{{ $t('common.download') }}</el-button>
           </div>
         </div>
 
@@ -240,7 +241,7 @@ import { useI18n } from 'vue-i18n'
 import { formatDateTime } from '../../utils/datetime'
 import { formatCents } from '../../utils/money'
 import { ORDER_STATUS_TYPE } from '../../constants/order'
-import { downloadAsset } from '../../utils/download'
+import { confirmOneTimeDownload, downloadOneTimeFile } from '../../composables/useOneTimeDownload'
 import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
 import OrderTimeline from '../../components/shared/OrderTimeline.vue'
 import { usePalette } from '../../composables/usePalette'
@@ -365,19 +366,39 @@ const trackNextDueCents = computed(() => {
 // 260830 审计 H-4：追踪页下载收敛到一次性下载链路——start 签发 → fetch 全量接收 → confirm 锁定，
 // 与交付页（DeliveryPage）同口径；旧式「列表直链直接下载」已下架（可转发，架空一次性语义）。
 const downloadingId = ref<number | null>(null)
+const pendingConfirmId = ref<number | null>(null)
 
 async function downloadDeliverable(id: number, fileName: string | null | undefined) {
   if (downloadingId.value !== null || !order.value) return
   downloadingId.value = id
   try {
-    const { url } = await orderApi.deliveryDownloadStart(order.value.orderNo, id, token.value)
-    await downloadAsset(url, fileName ?? undefined)
-    await orderApi.deliveryDownloadConfirm(order.value.orderNo, id, token.value)
+    const result = await downloadOneTimeFile(order.value.orderNo, id, token.value, fileName, () => {})
+    if (result === 'confirm-failed') {
+      pendingConfirmId.value = id
+      ElMessage.warning(t('delivery.confirmFailed'))
+    }
   } catch (err) {
     if ((err as { code?: string })?.code === 'DOWNLOAD_LOCKED') {
+      pendingConfirmId.value = null
       ElMessage.warning(t('delivery.downloadLockedMsg'))
     } else {
       ElMessage.error(t('delivery.downloadFailed'))
+    }
+  } finally {
+    downloadingId.value = null
+  }
+}
+
+async function retryDeliverableConfirm(d: { id: number }) {
+  if (downloadingId.value !== null || !order.value) return
+  downloadingId.value = d.id
+  try {
+    const result = await confirmOneTimeDownload(order.value.orderNo, d.id, token.value, () => {})
+    if (result === 'confirmed') {
+      pendingConfirmId.value = null
+      ElMessage.success(t('delivery.confirmSuccess'))
+    } else {
+      ElMessage.warning(t('delivery.confirmFailed'))
     }
   } finally {
     downloadingId.value = null

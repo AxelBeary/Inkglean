@@ -1057,7 +1057,10 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     downloadFailed: 'Download failed, please retry or contact the artist', verifyFailed: 'Verification failed, please try again later',
     // 815 decision #4: one-time download
     downloadLocked: 'Downloaded',
-    downloadLockedMsg: 'This file has already been downloaded and locked. Please contact the artist for re-permission'
+    downloadLockedMsg: 'This file has already been downloaded and locked. Please contact the artist for re-permission',
+    confirmFailed: 'The file started saving, but the completion confirmation failed. Retry the confirmation instead of downloading again.',
+    retryConfirm: 'Retry confirmation',
+    confirmSuccess: 'Download confirmation completed'
   },
   login: {
     // REQ-040: Passkey login button
