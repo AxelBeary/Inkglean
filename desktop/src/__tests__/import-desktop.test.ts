@@ -11,6 +11,8 @@ vi.mock('../bridge', () => ({
   // DSK-02 哨兵：旧 5MB 通道一旦被调用即让测试炸（导出/备份不应再走它）
   readFileB64: vi.fn(async () => { throw new Error('DSK-02：不应再走 5MB readFileB64 通道') }),
   fileSizes: vi.fn(async () => [] as number[]),
+  // #22-1：buildBackupBlob 读库前先折叠 WAL；返回 0 字节＝边车已并入主库，快照自足
+  checkpointWalForBackup: vi.fn(async () => 0),
   saveFile: vi.fn(async () => {}),
   shihuiHome: vi.fn(async () => 'C:\\Users\\me\\Documents\\拾绘'),
   closeLocalDb: vi.fn(async () => {})
@@ -24,7 +26,7 @@ vi.mock('../bridge/db', () => ({
 
 import { runImport } from '../tools/importData'
 import type { BackupPreview } from '../tools/importData'
-import { readBackupB64, readFileB64, saveFile, closeLocalDb } from '../bridge'
+import { readBackupB64, readFileB64, saveFile, closeLocalDb, checkpointWalForBackup } from '../bridge'
 import { broadcastCloseAllDb, deleteDbSidecar } from '../bridge/db'
 
 const DB_PATH = '/appdata/local.db'
@@ -48,6 +50,12 @@ describe('runImport 桌面路径 · DSK-02（备份走 100MB 通道）', () => {
     const r = await runImport([], [], validPreview(), true)
     expect(r.ok).toBe(true)
     expect(readBackupB64).toHaveBeenCalledWith(DB_PATH)
+    // #22-1：导入前的「替换自动备份」同样必须先折叠 WAL 再读库——
+    // 包内只有 local.db 本体，边车里留着未折叠的提交就等于备份缺最近数据
+    expect(checkpointWalForBackup).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(checkpointWalForBackup).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(readBackupB64).mock.invocationCallOrder[0]
+    )
     expect(readFileB64).not.toHaveBeenCalled()
   })
 })
