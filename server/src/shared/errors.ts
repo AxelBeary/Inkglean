@@ -141,6 +141,14 @@ export const E = {
 
   // 埋点（REQ-033）
   INVALID_EVENT_PAYLOAD: 'INVALID_EVENT_PAYLOAD',
+  // 审计 #23 条目 1: 开箱设置（首次部署）错误码——此前散落在 setup 里用裸字符串抛出，
+  // 不在本表内 ⇒ 全局处理器回落 error.message（AppError 的 message 就是码名本身），
+  // 首次部署者屏幕上直接出现 SETUP_TOKEN_INVALID 这类机器码
+  SETUP_TOKEN_INVALID: 'SETUP_TOKEN_INVALID',
+  SETUP_ALREADY_DONE: 'SETUP_ALREADY_DONE',
+  SETUP_GONE: 'SETUP_GONE',
+  SETUP_ONBOARDING_MODE_INVALID: 'SETUP_ONBOARDING_MODE_INVALID',
+  DEFAULT_ADDONS_SEED_FAILED: 'DEFAULT_ADDONS_SEED_FAILED',
 
   // 管理员
   ADMIN_VERIFY_FAILED: 'ADMIN_VERIFY_FAILED',
@@ -370,6 +378,11 @@ export const ERROR_MESSAGES: Record<string, string> = {
 
   // 埋点（REQ-033）
   INVALID_EVENT_PAYLOAD: '事件扩展数据过大（单事件序列化 ≤2KB）',
+  SETUP_TOKEN_INVALID: '安装口令不正确，请核对环境变量 SETUP_TOKEN 后重试',
+  SETUP_ALREADY_DONE: '系统已完成初始化，开箱设置入口已关闭，请使用普通登录',
+  SETUP_GONE: '开箱设置入口已关闭（系统已完成初始化或部署环境未开启），请使用普通登录',
+  SETUP_ONBOARDING_MODE_INVALID: '初始化模式不合法，请选择个人画师或工作室',
+  DEFAULT_ADDONS_SEED_FAILED: '默认增项预置失败，请重试；若持续失败请查看服务端日志中的 DEFAULT_ADDONS_SEED_FAILED',
 
   // 通用
   NOT_FOUND: '资源不存在',
