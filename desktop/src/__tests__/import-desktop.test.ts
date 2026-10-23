@@ -30,7 +30,14 @@ import { broadcastCloseAllDb, deleteDbSidecar } from '../bridge/db'
 const DB_PATH = '/appdata/local.db'
 
 function validPreview(): BackupPreview {
-  return { ok: true, reason: '', dbB64: btoa('new-db-bytes'), prefs: null, manifestCount: null }
+  // #22-2：runImport 现在先验 SQLite 文件头，夹具得带真的 16 字节主库魔数
+  return {
+    ok: true,
+    reason: '',
+    dbB64: btoa('SQLite format 3\0' + 'pad'.repeat(32)),
+    prefs: null,
+    manifestCount: null
+  }
 }
 
 /** saveFile 调用中「覆写本地库」那一次的 path（区别于备份包落盘） */
@@ -110,5 +117,33 @@ describe('runImport 桌面路径 · DSK-09（覆写前跨窗关连接 + 清边�
     expect(dbWriteIndex()).toBeGreaterThanOrEqual(0) // 库仍被覆写
     expect(warn).toHaveBeenCalled()
     warn.mockRestore()
+  })
+})
+
+describe('runImport 桌面路径 · #22-2（非 SQLite 载荷在动手之前即拒）', () => {
+  it('坏文件头：不备份、不广播关连接、不清边车、更不覆写本地库', async () => {
+    const bad: BackupPreview = {
+      ok: true,
+      reason: '',
+      dbB64: btoa('PNG\r\n\x1a\nnot-a-sqlite-file-at-all-0123456789'),
+      prefs: null,
+      manifestCount: null
+    }
+
+    const r = await runImport([], [], bad, true)
+
+    expect(r.ok).toBe(false)
+    expect(r.reason).toContain('文件头不符')
+    expect(r.backupPath).toBe('')
+    expect(saveFile).not.toHaveBeenCalled()
+    expect(closeLocalDb).not.toHaveBeenCalled()
+    expect(broadcastCloseAllDb).not.toHaveBeenCalled()
+    expect(deleteDbSidecar).not.toHaveBeenCalled()
+  })
+
+  it('好文件头照常走到覆写那一步（校验不误伤正常导入）', async () => {
+    const r = await runImport([], [], validPreview(), false)
+    expect(r.ok).toBe(true)
+    expect(dbWriteIndex()).toBeGreaterThanOrEqual(0)
   })
 })

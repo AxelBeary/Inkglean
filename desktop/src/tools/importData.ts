@@ -16,6 +16,33 @@ export function b64ToBytes(b64: string): Uint8Array {
   return bytes
 }
 
+/** SQLite 主库第一页头 16 字节魔数（合法库必然以它开头） */
+const SQLITE_HEADER_MAGIC = 'SQLite format 3\0'
+
+/**
+ * 校验 base64 载荷确为 SQLite 主库（审计 #22 条目 2）
+ *
+ * 导入是「替换」策略：`saveFile(dbPath, ...)` 走 Rust `fs::write`，先 truncate 再写，
+ * 一旦包里的 `local.db` 其实不是 SQLite（导出中断/被改后缀/传错文件/截断），
+ * 本地账本会被一份打不开的文件原地换掉——而替换前那份自动备份本身也可能不可靠。
+ * 所以坏包必须在**动手之前**判出来，这与本文件既有的「入参校验先行」纪律一致。
+ *
+ * 只解前 24 个 base64 字符（=16 字节），不把整库（上限 100MB）解码进内存。
+ * 空文件/短文件按非法处理：0 字节虽被 SQLite 视作「新库」，但作为备份它一定意味着丢数据。
+ */
+export function hasSqliteHeader(dbB64: string): boolean {
+  if (!dbB64) return false
+  let bytes: Uint8Array
+  try {
+    bytes = b64ToBytes(dbB64.slice(0, 24))
+  } catch {
+    // 非法 base64（atob 抛 InvalidCharacterError）＝载荷不可用，按坏包处理
+    return false
+  }
+  if (bytes.length < 16) return false
+  return String.fromCharCode(...bytes.slice(0, 16)) === SQLITE_HEADER_MAGIC
+}
+
 export interface BackupPreview {
   ok: boolean
   /** 不合法时的原因（页面展示） */
@@ -37,6 +64,9 @@ export async function parseBackup(zipB64: string): Promise<BackupPreview> {
     const dbFile = zip.file('local.db')
     if (!dbFile) return fail('不是有效的拾绘备份包（缺少 local.db）')
     const dbB64 = await dbFile.async('base64')
+    // 审计 #22 条目 2：包里有 local.db 不等于那是数据库——文件头不符就在预检阶段拒掉，
+    // 别让「替换」策略把本地账本原地换成一份打不开的文件
+    if (!hasSqliteHeader(dbB64)) return fail('包内 local.db 不是有效的 SQLite 数据库（文件头不符），已拒绝导入')
     let prefs: Record<string, string> | null = null
     const prefsFile = zip.file('prefs.json')
     if (prefsFile) {
@@ -106,6 +136,11 @@ export async function runImport(
 ): Promise<ImportResult> {
   // 入参校验先行（坏包在哪都报坏包，不被环境检查吞原因）
   if (!preview.ok || !preview.dbB64) return { ok: false, reason: preview.reason || '备份包无效', backupPath: '' }
+  // 审计 #22 条目 2：runImport 可被直接调用（preview 由调用方构造），覆写前再自证一次文件头——
+  // 校验必须在「自动备份 + 关连接 + 清边车 + 覆写」之前，坏包一个字节都不该碰本地库
+  if (!hasSqliteHeader(preview.dbB64)) {
+    return { ok: false, reason: '包内 local.db 不是有效的 SQLite 数据库（文件头不符），已拒绝导入', backupPath: '' }
+  }
   if (!isDesktop()) return { ok: false, reason: '导入仅在桌面壳内可用', backupPath: '' }
 
   // ① 有本地数据 → 先自动备份（REQ：万一后悔可恢复；静默落「我的文档\拾绘\backups\」）
