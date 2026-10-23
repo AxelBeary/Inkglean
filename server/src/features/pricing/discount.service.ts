@@ -124,6 +124,26 @@ export function deleteDiscountCode(artistId: number, codeId: number): { deleted:
 // ─── 客户端验证 + 应用 ───
 
 /**
+ * 归一化折扣码过期时刻（毫秒）——审计 #21 条目 9
+ *
+ * 前端日期选择器 `value-format="YYYY-MM-DD"` 只传日期串，而 `new Date('YYYY-MM-DD')`
+ * 按 **UTC 零点**解析：部署在 UTC+8 时它等于本地当天 08:00，于是「有效期到 10-31」的码
+ * 在 10-31 早上 8 点就报 DISCOUNT_CODE_EXPIRED，客户和画师都看不懂。
+ * 口径对齐公告过期的既有拍板（#8，2026-08-15：到期日当天仍有效，过今天才算过期）。
+ *
+ * - 纯日期串 `YYYY-MM-DD` → 本地当天 23:59:59.999（覆盖画师选的整个到期日）
+ * - 带时间的完整串 → 维持原值精确比较（存量 DATETIME 行、程序写入的整点时间戳不受影响）
+ * - 不可解析 → 返回 NaN，由调用侧 fail-closed 当已过期处理
+ */
+function resolveExpiryInstant(expiresAt: string): number {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(expiresAt)) {
+    const [y, m, d] = expiresAt.split('-').map(Number)
+    return new Date(y, m - 1, d, 23, 59, 59, 999).getTime()
+  }
+  return new Date(expiresAt).getTime()
+}
+
+/**
  * 验证折扣码有效性（客户端下单时调用）
  * 返回折扣码行（有效）或抛错（无效）
  */
@@ -138,8 +158,11 @@ export function validateDiscountCode(artistId: number, codeStr: string): Discoun
 
   // 过期检查（audit-a P2-4 fail-closed）：存量脏数据 expires_at 不可解析时按已过期处理，
   // 杜绝「非法日期 NaN 恒 false」导致永不过期
-  if (code.expires_at && (isNaN(new Date(code.expires_at).getTime()) || new Date(code.expires_at) < new Date())) {
-    throw new AppError(E.DISCOUNT_CODE_EXPIRED)
+  if (code.expires_at) {
+    const expiryMs = resolveExpiryInstant(code.expires_at)
+    if (isNaN(expiryMs) || expiryMs < Date.now()) {
+      throw new AppError(E.DISCOUNT_CODE_EXPIRED)
+    }
   }
 
   // 次数检查
