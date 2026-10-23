@@ -131,6 +131,12 @@ export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
   const heatDays = ref<HeatDay[]>([])
   const loaded = ref(false)
   const unavailable = ref(false)
+  /** 环境性不可用（非桌面壳，本就不该有本地工时）：粘滞，永不自动重试。
+   *  与「一次瞬时读库失败」区分开——后者交给下面的重试节奏自愈（审计 #22 条目 5） */
+  const envBlocked = ref(false)
+  /** 瞬时失败后的重试节奏（票数）：unavailable 期间每这么多票试读一次库，成功即恢复采集 */
+  const TRANSIENT_RETRY_TICKS = 10
+  let retryCountdown = 0
   let timer: ReturnType<typeof setInterval> | null = null
   /** 上次采样时刻（毫秒，DSK-12）：start/stop 一律清空——没在采样的时间段不计票 */
   let lastSampleAt: number | null = null
@@ -140,7 +146,7 @@ export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
   /** 读今日累计（跨天自然换行：表按 date 分行） */
   async function loadToday(): Promise<void> {
     const key = todayKey()
-    if (!isDesktop()) { unavailable.value = true; loaded.value = true; return }
+    if (!isDesktop()) { envBlocked.value = true; unavailable.value = true; loaded.value = true; return }
     try {
       const db = await openLocalDb()
       const rows = await db.select<{ paint_secs: number; idle_secs: number; other_secs: number }[]>(
@@ -154,6 +160,9 @@ export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
         other: typeof r?.other_secs === 'number' ? r.other_secs : 0
       }
       todayDate.value = key // 内存与归属日同行（DSK-06）
+      // #22-5：读成功即解除瞬时不可用，否则一次抖动之后 UI 与采集都停在「不可用」上
+      unavailable.value = false
+      retryCountdown = 0
     } catch {
       unavailable.value = true
     } finally {
@@ -265,7 +274,15 @@ export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
   /** 采样一票：跨午夜先滚日（DSK-06）→ 按真实流逝秒数计票（DSK-12）→ 读前台+空闲 → 归属 →
    *  内存与库同步累加；在画票再归单（失败静默，下一票自愈） */
   async function tick(): Promise<void> {
-    if (unavailable.value) return
+    if (envBlocked.value) return // 非桌面壳：本就没有本地工时，不重试也不计票
+    if (unavailable.value) {
+      // 审计 #22 条目 5：一次瞬时读库失败（桥抖动/连接未就绪/文件被占）此前会永久停采——
+      // tick 首行 return 而 start() 又不复位 unavailable，只能重启应用才恢复。
+      // 改为按节奏重试：每 TRANSIENT_RETRY_TICKS 票试读一次，读成功即继续正常采样。
+      if (retryCountdown > 0) { retryCountdown--; return }
+      await loadToday()
+      if (unavailable.value) { retryCountdown = TRANSIENT_RETRY_TICKS - 1; return }
+    }
     const n = Date.now()
     const key = todayKey(new Date(n))
     let rolled = false

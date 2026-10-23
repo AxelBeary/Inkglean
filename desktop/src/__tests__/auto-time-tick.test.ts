@@ -16,9 +16,13 @@ const h = vi.hoisted(() => {
   const timeLog = new Map<string, TimeLogRow>()
   const orderTime = new Map<number, number>()
   const monitor = { title: '头像.clip – CLIP STUDIO PAINT', idle: 10 }
+  /** 故障注入开关（#22-5）：ctrl.failSelect=true 时 select 抛错，模拟一次瞬时读库失败 */
+  const ctrl = { failSelect: false, selectCalls: 0 }
 
   const db = {
     async select<T>(sql: string, args: unknown[] = []): Promise<T> {
+      ctrl.selectCalls++
+      if (ctrl.failSelect) throw new Error('桥抖动：本地库暂时读不到')
       // 今日累计（按 date 取单行）
       if (sql.includes('WHERE date = $1')) {
         const row = timeLog.get(String(args[0]))
@@ -69,7 +73,7 @@ const h = vi.hoisted(() => {
     async close(): Promise<void> { /* 桩无需真关 */ }
   }
 
-  return { timeLog, orderTime, monitor, db }
+  return { timeLog, orderTime, monitor, db, ctrl }
 })
 
 // 桥桩：本地库与监听桥都走内存实现（isDesktop 仍用真探测——靠 window.__TAURI_INTERNALS__ 开关）
@@ -116,6 +120,8 @@ beforeEach(() => {
   h.orderTime.clear()
   h.monitor.title = '头像.clip – CLIP STUDIO PAINT'
   h.monitor.idle = 10
+  h.ctrl.failSelect = false
+  h.ctrl.selectCalls = 0
   win.__TAURI_INTERNALS__ = {} // 装成桌面壳：否则 start() 直接短路
   setActivePinia(createPinia())
   vi.useFakeTimers()
@@ -314,6 +320,43 @@ describe('DSK-12　归单工时同样不白送（波11 归属连带）', () => {
     expect(store.today.paint).toBe(POLL_SECS)
     expect(h.orderTime.get(7)).toBe(POLL_SECS)
     expect(store.orderSeconds[7]).toBe(POLL_SECS)
+    store.stop()
+  })
+})
+
+// ─── 审计 #22 条目 5：一次瞬时读库失败不得永久停采 ───
+describe('#22-5　瞬时读库失败自愈（不再只能靠重启应用）', () => {
+  it('开页即失败 ⇒ 标不可用且不计工时；故障解除后下一票即恢复，不需重启应用', async () => {
+    const store = useAutoTimeStore()
+    h.ctrl.failSelect = true
+    store.start()
+    await flush()
+    expect(store.unavailable).toBe(true)
+    expect(store.today.paint).toBe(0)
+
+    h.ctrl.failSelect = false
+    // 试读成功 ⇒ 解除不可用；DSK-12「断档那一票计 0」仍成立，故工时从恢复后的正常票起算
+    await vi.advanceTimersByTimeAsync(30_000 * 2)
+    expect(store.unavailable).toBe(false)
+    await vi.advanceTimersByTimeAsync(30_000 * 2)
+    expect(store.today.paint).toBeGreaterThan(0)
+    store.stop()
+  })
+
+  it('故障一直在 ⇒ 退避重试而非每票狂试，且不伪造工时、不写库', async () => {
+    const store = useAutoTimeStore()
+    h.ctrl.failSelect = true
+    store.start()
+    await flush()
+    const callsAfterStart = h.ctrl.selectCalls
+
+    await vi.advanceTimersByTimeAsync(30_000 * 20)
+
+    expect(store.unavailable).toBe(true)
+    expect(store.today.paint).toBe(0)
+    expect(h.timeLog.size).toBe(0) // 停采期间不落任何工时行
+    // 20 票里重试次数远少于票数（退避生效），不是每票都去敲一次库
+    expect(h.ctrl.selectCalls - callsAfterStart).toBeLessThan(20 / 2)
     store.stop()
   })
 })
