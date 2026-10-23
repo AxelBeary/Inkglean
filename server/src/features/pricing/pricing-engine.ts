@@ -155,7 +155,13 @@ export function allocateInitial(installments: EngineInstallment[], totalCents: n
     if (i === n - 1) {
       amounts[i] = ratioTotal - allocated
     } else {
-      amounts[i] = Math.round((totalCents * sorted[i].basisPoints) / 10000)
+      // 审计 #21 条目 6: 前 N-1 个节点的 round 结果钳到剩余额度，不得累出 ratioTotal 之外。
+      // 节点多而总价极小时（20 个 500bp 节点 × 10 分）每个 round(0.5)=1，前 19 个就吃掉 19 分，
+      // 末节点 = 10 − 19 = −9：一笔未收款的订单在「初始分期计划」里就出现负待收，
+      // 而 R8 只拦非尾款为负、Σ 级守恒 A1 仍成立，所以断言拦不住。
+      // 钳制后 Σ 仍 ≡ ratioTotal（守恒不变），只是舍入溢出不再转嫁成负尾款。
+      const rounded = Math.round((totalCents * sorted[i].basisPoints) / 10000)
+      amounts[i] = Math.min(rounded, ratioTotal - allocated)
       allocated += amounts[i]
     }
   }
