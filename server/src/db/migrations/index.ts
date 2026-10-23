@@ -81,6 +81,7 @@ import { migration as v75 } from './v75-forensic-ip.js'
 import { migration as v76 } from './v76-content-takedown.js'
 import { migration as v77 } from './v77-reference-uploads-quota-columns.js'
 import { migration as v78 } from './v78-idempotency-request-hash.js'
+import { migration as v79 } from './v79-payment-revoke-link.js'
 
 export const MIGRATIONS: Migration[] = [
   v01, v02, v03, v04, v05, v06, v07, v08, v09, v10,
@@ -112,6 +113,7 @@ export const MIGRATIONS: Migration[] = [
   v76,
   v77,
   v78,
+  v79,
 ]
 
 // 升序唯一性断言（构建期简单校验）：version 必须严格递增，重复/乱序直接抛错

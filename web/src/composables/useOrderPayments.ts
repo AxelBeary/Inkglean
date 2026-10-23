@@ -70,16 +70,24 @@ export function useOrderPayments() {
     }
   }
 
-  /** 撤销一笔收款（以负数记录冲抵） */
+  /** 撤销一笔收款（以负数记录冲抵）
+   * 审计 #21 条目 4: 撤销行关联被撤的 payment id，金额取「该笔尚未被撤的余额」——
+   * 此前固定撤全额且不关联，同一笔刷新后可连撤两次
+   */
   async function revokePayment(orderId: number, payment: PaymentRow): Promise<AddPaymentResult> {
+    const remainingCents = Math.abs(payment.amount_cents) - (payment.revoked_cents ?? 0)
+    if (remainingCents <= 0) {
+      throw new Error(i18n.global.t('orderDetail.payAlreadyRevoked'))
+    }
     if (!revokeIdemKey) revokeIdemKey = generateId()
     submitting.value = true
     try {
       const res = await artistApi.addPayment(
         orderId,
         {
-          amountCents: -Math.abs(payment.amount_cents),
-          note: i18n.global.t('orderDetail.paymentRevertNote', { id: payment.id })
+          amountCents: -remainingCents,
+          note: i18n.global.t('orderDetail.paymentRevertNote', { id: payment.id }),
+          revokeOfPaymentId: payment.id
         },
         { headers: { 'idempotency-key': revokeIdemKey } }
       )
