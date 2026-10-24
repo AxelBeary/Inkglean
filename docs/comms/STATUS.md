@@ -2,12 +2,12 @@
 
 ## 看板（2026-10-24 刷新：GHSA-6pf3 外部安全审计修复批合入；6 席并行施工 + 一号集成）
 
-- **HEAD 与推送**：代码十九道全绿 @ `8f40d74a`（GHSA-6pf3 安全批，S1-S5B 六席 + S3撞S1测试修复 + docker-compose WEBAUTHN）
-- **基线（accept.ps1 十九道全绿 @ `8f40d74a`）**：server **1910**（162 文件）/ web **994**（145）/ desktop **585**（42）/ shared **27**（4）/ E2E **14** / cargo test **32**（Rust，不进计数文件）
-  - 迁移 **v76→v77**（S4 reference_uploads ip+file_size 配额列）；「门禁全绿」口径仍为**十九道**
+- **HEAD 与推送**：`e619baed` = GHSA-6pf3 安全批 + 全部 14 个功能 PR（#24-38，#26 挂起）；十九道全绿（server 1972/web 1014/desktop 616/shared 27/E2E 14）
+- **基线（accept.ps1 十九道全绿 @ `e619baed`）**：server **1972** / web **1014**（149 文件）/ desktop **616**（44）/ shared **27** / E2E **14** / cargo test 32（Rust 另计）
+  - 迁移 **v76→v79**（v77 参考图配额列 S4 / v78 幂等 request_hash #27 / v79 撤销关联 #28）；「门禁全绿」口径仍为**十九道**
   - 安全批计数增长：server +58 / web +4 / desktop +15（各席新增安全回归用例）
 - **GHSA-6pf3 安全批已闭合**：外部私密通告 8 项加固全部落地（认证/账户/资源/桌面端命令授权面）；细节见私密通告，公开不展开（SECURITY.md 口径），自托管请尽快更新
-- **警报/PR**：Dependabot open 0、Code scanning open 0；外部私密通告 GHSA-6pf3-g4xq-854w 已修待回；Mistwhisker 功能 PR #24-#38（15 个）待下一批逐个过门禁择优
+- **警报/PR**：Dependabot open 0、Code scanning open 0；GHSA-6pf3 已修待回；Mistwhisker 功能 PR #24-38 已全接收（14 关、#26 挂起）；剩 #39/#40/#41 Dependabot minor/patch 待依赖批
 - 公网冻结现状不变；管理员判定只认库值
 - 🔴 **上线前置硬警告仍有效**：公网部署前**必须先确认 `platform_config.admin_qq` 非空**
 
