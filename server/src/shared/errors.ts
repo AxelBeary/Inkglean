@@ -149,6 +149,10 @@ export const E = {
   SETUP_GONE: 'SETUP_GONE',
   SETUP_ONBOARDING_MODE_INVALID: 'SETUP_ONBOARDING_MODE_INVALID',
   DEFAULT_ADDONS_SEED_FAILED: 'DEFAULT_ADDONS_SEED_FAILED',
+  // S3（GHSA-6pf3-g4xq-854w）新增两条：同在 setup 落点抛出，须进本表才吃得到 #23-1 的可读文案
+  // （否则 sendSetupError / 全局处理器回落 err.message＝码名本身，正是 #37 要治的病）
+  SETUP_ADMIN_MISMATCH: 'SETUP_ADMIN_MISMATCH',
+  ADMIN_TOTP_SELF_FORBIDDEN: 'ADMIN_TOTP_SELF_FORBIDDEN',
 
   // 管理员
   ADMIN_VERIFY_FAILED: 'ADMIN_VERIFY_FAILED',
@@ -383,6 +387,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
   SETUP_GONE: '开箱设置入口已关闭（系统已完成初始化或部署环境未开启），请使用普通登录',
   SETUP_ONBOARDING_MODE_INVALID: '初始化模式不合法，请选择个人画师或工作室',
   DEFAULT_ADDONS_SEED_FAILED: '默认增项预置失败，请重试；若持续失败请查看服务端日志中的 DEFAULT_ADDONS_SEED_FAILED',
+  SETUP_ADMIN_MISMATCH: '开箱设置只能由管理员本人 QQ 完成',
+  ADMIN_TOTP_SELF_FORBIDDEN: '不能对管理员账号执行此操作，请走自助换绑入口',
 
   // 通用
   NOT_FOUND: '资源不存在',

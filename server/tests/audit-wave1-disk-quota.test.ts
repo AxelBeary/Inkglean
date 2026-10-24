@@ -147,7 +147,7 @@ describe('GHSA-6pf3 闸④：迁移 v77 — reference_uploads.ip / .file_size', 
     const cols = db.prepare('PRAGMA table_info(reference_uploads)').all() as Array<{ name: string }>
     expect(cols.filter(c => c.name === 'ip')).toHaveLength(1)
     expect(cols.filter(c => c.name === 'file_size')).toHaveLength(1)
-    expect(MIGRATIONS[MIGRATIONS.length - 1].version).toBe(77)
+    expect(MIGRATIONS[MIGRATIONS.length - 1].version > 77).toBe(true) // 链尾随新迁移右移（PR #27/#28 重编号 v78/v79 后不再锁死 77）；v77 落库由上方 applied.version=77 锁定
   })
 
   it('TC-W1-02b: 老库升级（v55 形态无两列）——加列后存量行不丢、新列为 NULL', () => {

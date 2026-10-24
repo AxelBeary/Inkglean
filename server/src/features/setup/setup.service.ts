@@ -323,7 +323,7 @@ export function confirmTotpAndComplete(params: TotpConfirmParams): TotpConfirmRe
   const adminQqRow = db.prepare("SELECT value FROM platform_config WHERE key = 'admin_qq'").get() as { value: string | null } | undefined
   const adminQq = adminQqRow?.value || ''
   if (!adminQq || qqNumber !== adminQq) {
-    throw new AppError('SETUP_ADMIN_MISMATCH', 403, '开箱设置只能由管理员本人 QQ 完成')
+    throw new AppError(E.SETUP_ADMIN_MISMATCH, 403, '开箱设置只能由管理员本人 QQ 完成')
   }
 
   // 查找管理员画师
