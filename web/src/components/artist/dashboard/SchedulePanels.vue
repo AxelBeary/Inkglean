@@ -62,7 +62,7 @@
         </div>
       </div>
 
-      <!-- 款式 C · 纸签（线上卷轴同款：米色纸签+状态左边线，不铺色块；全局限 8 签） -->
+      <!-- 款式 C · 纸签（米色纸签+状态左边线，不铺色块；全局限 8 签） -->
       <div v-else-if="kind === 'ptags'" class="pt-strip">
         <div class="pt-tags">
           <button
@@ -359,7 +359,7 @@ watch(kind, ensureLoad)
 .led-st { display: block; color: var(--ink3); font-size: calc(var(--font-scale, 1) * 10px); }
 .led-row.tone-done { opacity: .72; }
 
-/* ─── 款式 C · 纸签（线上卷轴同款：米色纸签+状态左边线，不铺色块） ─── */
+/* ─── 款式 C · 纸签（米色纸签+状态左边线，不铺色块） ─── */
 .pt-strip {
   background: var(--paper2); border: 1px solid var(--line);
   border-radius: 4px 9px 5px 8px / 8px 5px 9px 4px; padding: 12px;
