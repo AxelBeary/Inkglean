@@ -7,7 +7,9 @@
        批二消费：prefs.scheduleStyle → 排期四款式；prefs.greetStyle → 问候卡四款式。
        系统控制优先（拍板纪律）：820-L 留言总闸、announcement 无数据不渲染——用户自定义压不过。 -->
   <div class="dashboard">
-    <div class="dash-grid">
+    <!-- 偏好未就绪前不首渲：否则先按默认布局（含 bars 卷轴）渲染一轮，
+         偏好到达后再卸载换款——用户可见闪动，且排期数据白拉两次 -->
+    <div v-if="prefsReady" class="dash-grid">
       <div
         v-for="(panel, i) in layout"
         :key="panel.id"
@@ -30,11 +32,11 @@
           <template #header>
             <CardHead :title="t('dashboard.guestbookTitle')">
               <template #extra>
-                <StatusChip v-if="guestbookCardRef?.pendingCount && guestbookCardRef.pendingCount > 0" type="pend">{{ guestbookCardRef.pendingCount }}</StatusChip>
+                <StatusChip v-if="guestbookCard?.pendingCount" type="pend">{{ guestbookCard.pendingCount }}</StatusChip>
               </template>
             </CardHead>
           </template>
-          <GuestbookReviewCard ref="guestbookCardRef" :max-rows="panel.maxRows" />
+          <GuestbookReviewCard :ref="setGuestbookCard" :max-rows="panel.maxRows" />
         </el-card>
         <ActivityFeed v-else-if="panel.id === 'activity'" :max-rows="panel.maxRows" />
         <!-- 无公告数据时整块不渲染（v-show 按卡内 hasContent，不管用户怎么排） -->
@@ -48,11 +50,18 @@
         <QuickActions v-else />
       </div>
     </div>
+
+    <!-- 偏好首拉期间的占位：形状沿用纸卡，避免空屏与二次入场动画 -->
+    <div v-else class="dash-skeleton" aria-hidden="true">
+      <div class="dash-skeleton-row"></div>
+      <div class="dash-skeleton-row"></div>
+      <div class="dash-skeleton-row"></div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, shallowRef, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useArtistStore } from '../../stores/artist'
@@ -105,11 +114,15 @@ const stats = ref<ArtistStats | null>(null)
 
 // ─── 自定义首页批一：布局偏好（失败静默回落默认布局，不破坏页面） ───
 const prefs = ref<DashboardPrefs | null>(null)
+/** 首拉是否已出结果（成功或失败都算）——模板以此为准，避免默认布局先闪一轮 */
+const prefsReady = ref(false)
 async function loadPrefs(): Promise<void> {
   try {
     prefs.value = await artistApi.getDashboardPrefs()
   } catch {
     prefs.value = null // 回落默认布局（resolveDashboardLayout(null) = 默认基础 10 块）
+  } finally {
+    prefsReady.value = true
   }
 }
 
@@ -124,13 +137,21 @@ const layout = computed(() =>
 )
 
 // F4: 留言审核（pendingCount 徽标 + 重连重拉）
-const guestbookCardRef = ref<{ pendingCount?: number; load: () => void } | null>(null)
+// 函数 ref：板块在 v-for 内，字符串 ref 会被 Vue 收成数组，取 .load 恒为 undefined
+interface GuestbookCardApi { pendingCount?: number; load: () => void }
+const guestbookCard = shallowRef<GuestbookCardApi | null>(null)
+function setGuestbookCard(el: unknown): void {
+  const api = el as Partial<GuestbookCardApi> | null
+  guestbookCard.value = typeof api?.load === 'function' ? (api as GuestbookCardApi) : null
+}
 // 公告板块：无公告数据时整个板块不渲染（系统控制优先于用户排序/显隐）
 const annCardRef = ref<InstanceType<typeof DashboardAnnouncementCard> | null>(null)
 const annHasContent = computed(() => annCardRef.value?.hasContent ?? false)
 
 /** 仪表盘关键数据重拉 */
 async function refreshAll() {
+  // 偏好与 profile/stats 并行首拉：串行会让默认布局（含 bars 卷轴）多等两轮 RTT
+  const prefsTask = loadPrefs()
   try {
     await store.fetchProfile()
   } catch (err) {
@@ -139,9 +160,9 @@ async function refreshAll() {
   }
   try { stats.value = await artistApi.getStats() } catch { /* 各模块自带错误态，此处静默 */ }
   // 批一：偏好重拉（失败静默回落，与首载同口径）
-  await loadPrefs()
+  await prefsTask
   // F4: 留言审核（独立失败，不阻塞其他模块）
-  guestbookCardRef.value?.load()
+  guestbookCard.value?.load()
 }
 
 let unsubscribeReconnect: (() => void) | null = null
@@ -190,6 +211,19 @@ onUnmounted(() => {
 /* 812 追修（用户二次报障"全部挤在一起"）：竖屏模块间节奏加大，给呼吸感 */
 @media (max-width: 600px) {
   .dash-grid { gap: 20px; }
+}
+
+/* 偏好首拉占位（与纸卡同圆角族；形状稳定，出结果后直接换真板块） */
+.dash-skeleton { display: flex; flex-direction: column; gap: 16px; }
+.dash-skeleton-row {
+  height: 120px;
+  border-radius: 6px 14px 7px 15px / 13px 7px 15px 6px;
+  background: var(--paper2);
+  animation: dash-pulse 1.2s ease-in-out infinite;
+}
+@keyframes dash-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) {
+  .dash-skeleton-row { animation: none; }
 }
 
 @keyframes dash-enter {
