@@ -11,6 +11,8 @@ vi.mock('../bridge', () => ({
   // DSK-02 哨兵：旧 5MB 通道一旦被调用即让测试炸（导出/备份不应再走它）
   readFileB64: vi.fn(async () => { throw new Error('DSK-02：不应再走 5MB readFileB64 通道') }),
   fileSizes: vi.fn(async () => [] as number[]),
+  // #22-1：buildBackupBlob 读库前先折叠 WAL；返回 0 字节＝边车已并入主库，快照自足
+  checkpointWalForBackup: vi.fn(async () => 0),
   saveFile: vi.fn(async () => {}),
   shihuiHome: vi.fn(async () => 'C:\\Users\\me\\Documents\\拾绘'),
   closeLocalDb: vi.fn(async () => {}),
@@ -27,13 +29,20 @@ vi.mock('../bridge/db', () => ({
 
 import { runImport } from '../tools/importData'
 import type { BackupPreview } from '../tools/importData'
-import { readBackupB64, readFileB64, saveFile, closeLocalDb } from '../bridge'
+import { readBackupB64, readFileB64, saveFile, closeLocalDb, checkpointWalForBackup } from '../bridge'
 import { broadcastCloseAllDb, deleteDbSidecar } from '../bridge/db'
 
 const DB_PATH = '/appdata/local.db'
 
 function validPreview(): BackupPreview {
-  return { ok: true, reason: '', dbB64: btoa('new-db-bytes'), prefs: null, manifestCount: null }
+  // #22-2：runImport 现在先验 SQLite 文件头，夹具得带真的 16 字节主库魔数
+  return {
+    ok: true,
+    reason: '',
+    dbB64: btoa('SQLite format 3\0' + 'pad'.repeat(32)),
+    prefs: null,
+    manifestCount: null
+  }
 }
 
 /** saveFile 调用中「覆写本地库」那一次的 path（区别于备份包落盘） */
@@ -51,6 +60,12 @@ describe('runImport 桌面路径 · DSK-02（备份走 100MB 通道）', () => {
     const r = await runImport([], [], validPreview(), true)
     expect(r.ok).toBe(true)
     expect(readBackupB64).toHaveBeenCalledWith(DB_PATH)
+    // #22-1：导入前的「替换自动备份」同样必须先折叠 WAL 再读库——
+    // 包内只有 local.db 本体，边车里留着未折叠的提交就等于备份缺最近数据
+    expect(checkpointWalForBackup).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(checkpointWalForBackup).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(readBackupB64).mock.invocationCallOrder[0]
+    )
     expect(readFileB64).not.toHaveBeenCalled()
   })
 })
@@ -113,5 +128,33 @@ describe('runImport 桌面路径 · DSK-09（覆写前跨窗关连接 + 清边�
     expect(dbWriteIndex()).toBeGreaterThanOrEqual(0) // 库仍被覆写
     expect(warn).toHaveBeenCalled()
     warn.mockRestore()
+  })
+})
+
+describe('runImport 桌面路径 · #22-2（非 SQLite 载荷在动手之前即拒）', () => {
+  it('坏文件头：不备份、不广播关连接、不清边车、更不覆写本地库', async () => {
+    const bad: BackupPreview = {
+      ok: true,
+      reason: '',
+      dbB64: btoa('PNG\r\n\x1a\nnot-a-sqlite-file-at-all-0123456789'),
+      prefs: null,
+      manifestCount: null
+    }
+
+    const r = await runImport([], [], bad, true)
+
+    expect(r.ok).toBe(false)
+    expect(r.reason).toContain('文件头不符')
+    expect(r.backupPath).toBe('')
+    expect(saveFile).not.toHaveBeenCalled()
+    expect(closeLocalDb).not.toHaveBeenCalled()
+    expect(broadcastCloseAllDb).not.toHaveBeenCalled()
+    expect(deleteDbSidecar).not.toHaveBeenCalled()
+  })
+
+  it('好文件头照常走到覆写那一步（校验不误伤正常导入）', async () => {
+    const r = await runImport([], [], validPreview(), false)
+    expect(r.ok).toBe(true)
+    expect(dbWriteIndex()).toBeGreaterThanOrEqual(0)
   })
 })

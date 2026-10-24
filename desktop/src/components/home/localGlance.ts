@@ -6,11 +6,26 @@ import type { DeadlineAlertItem } from '../../tools/deadlineAlert'
 
 export interface LocalGlancePart { text: string; tone: 'od' | 'ok' | '' }
 
+/**
+ * 把截稿日解析成「本地日历日」的 Date（审计 #23 条目 2）
+ *
+ * `new Date('2026-10-24')` 这种纯日期串按 **UTC 零点**解析（ECMAScript 规定 date-only 形式走 UTC），
+ * 而下面取的是本地分量 `getFullYear/Month/Date`——部署在 UTC-x 时那个瞬间落在本地的前一天，
+ * 「今天截稿」会被算成逾期 1 天。国内 UTC+8 恰好不显形，所以一直没被发现。
+ * 纯日期串改为按本地分量构造；带时间的串维持原解析（写了 `Z`/偏移就该按那个瞬间读）。
+ */
+function parseLocalDay(value: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim())
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  const d = new Date(value)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
 /** 截稿日与今天零点差几天（负数=已逾期）；无效日期返回 null */
 export function localDaysLeft(deadline: string | null): number | null {
   if (!deadline) return null
-  const d = new Date(deadline)
-  if (Number.isNaN(d.getTime())) return null
+  const d = parseLocalDay(deadline)
+  if (!d) return null
   const n = new Date()
   const a = new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime()
   const b = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
