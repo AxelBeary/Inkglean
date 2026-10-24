@@ -20,6 +20,9 @@
  * - 订单提交（API 调用 + 错误 toast + loading + 成功弹窗状态）
  * - R57 表单防丢失（sessionStorage 草稿 + beforeunload 拦截 + 恢复询问）
  *
+ * 巨型文件防阀（800 行硬上限）拆分口径：R57 草稿单元（落盘节流/恢复过滤/离开拦截）
+ * 本体在 ./orderFormHelpers.ts，本文件把自有状态的引用交过去，读写仍指向同一份数据，行为不变。
+ *
  * 用法：
  *   const formRef = ref(null)          // 模板中 el-form 的 ref
  *   const of = useOrderForm(subdomain, formRef)
@@ -41,30 +44,13 @@ import { getAnonToken } from '../utils/track'
 import { generateId } from '../utils/id'
 import { uploadReferenceWithAnonToken, AnonTokenUnavailableError } from '../utils/anonUpload'
 import { MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../constants/upload'
+import { useOrderFormDraft } from './orderFormHelpers'
+import type { AddonSelRecord } from './orderFormHelpers'
 import type {
   ArtistPublicProfile, PublicArtStyle, PublicStyleAddon, PublicPricingResult,
   StylePriceResult, StyleAddonSelection, WorkflowStageDTO
 } from '../api/types'
 import type { DiscountResult, RefFileItem, InstallmentItem } from '../views/client/order-form/types'
-
-/** 普通增项选择状态记录（{ [styleAddonId]: { toggled, quantity } }） */
-interface AddonSelRecord {
-  toggled: boolean
-  quantity: number
-  optionLabel?: string | undefined
-}
-
-/** sessionStorage 草稿形状（JSON.parse 产物，字段全部宽松） */
-interface OrderFormDraft {
-  form?: { description?: unknown; clientQq?: unknown; clientName?: unknown; notifyEnabled?: unknown }
-  styleState?: {
-    styleId?: number | null
-    sizeId?: number | null
-    addonSelections?: Record<string, { toggled?: boolean; quantity?: number }>
-    usageId?: number | null
-    rushId?: number | null
-  }
-}
 
 /** el-form ref 最小结构（提交时只做 validate） */
 interface OrderFormRefLike {
@@ -423,121 +409,16 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
   })
 
   // ─── R57: 表单防丢失（beforeunload 拦截 + sessionStorage 草稿） ───
-  const DRAFT_KEY = `orderForm_draft_${subdomain}`
-
-  /** 表单是否有内容（任一字段非空）——决定 beforeunload 拦截与草稿保存 */
-  const hasDraftContent = computed(() =>
-    // 多画风下"用户主动选了画风"即算；单画风自动选中不算（否则刚进页面就拦截离开+弹恢复框）
-    (isMultiStyle.value && selectedStyleId.value != null)
-    || selectedSizeId.value != null
-    || !!form.description.trim()
-    || !!form.clientQq.trim()
-    || !!form.clientName.trim()
-    || selectedUsageId.value != null
-    || selectedRushId.value != null
-    || Object.values(styleAddonSelections).some(s => s && (s.toggled || s.quantity > 0))
-  )
-
-  function saveDraft() {
-    if (!hasDraftContent.value) {
-      sessionStorage.removeItem(DRAFT_KEY)
-      return
-    }
-    try {
-      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
-        form: {
-          description: form.description,
-          clientQq: form.clientQq,
-          clientName: form.clientName,
-          notifyEnabled: form.notifyEnabled
-        },
-        // SPEC-PRICE-2: 三步走状态（画风/尺寸/普通增项勾选/用途/加急）
-        styleState: {
-          styleId: selectedStyleId.value,
-          sizeId: selectedSizeId.value,
-          addonSelections: { ...styleAddonSelections },
-          usageId: selectedUsageId.value,
-          rushId: selectedRushId.value
-        }
-      }))
-    } catch { /* Ignore when sessionStorage is unavailable (private mode, etc.) */ }
-  }
-
-  let draftTimer: number | null = null
-  function scheduleDraftSave() {
-    if (draftTimer) clearTimeout(draftTimer)
-    draftTimer = setTimeout(saveDraft, 500)
-  }
-
-  watch(
-    [() => form.description, () => form.clientQq, () => form.clientName, () => form.notifyEnabled],
-    scheduleDraftSave
-  )
-  watch(selectedStyleId, scheduleDraftSave)
-  watch(selectedSizeId, scheduleDraftSave)
-  watch(styleAddonSelections, scheduleDraftSave, { deep: true })
-  watch([selectedUsageId, selectedRushId], scheduleDraftSave)
-
-  /**
-   * 恢复草稿（styles 加载后调用）
-   * 画风/尺寸/增项若已被画师删除或尺寸转展示态则逐项丢弃。
-   * 旧版本草稿（含 tierId 等字段）静默忽略过时字段。
-   */
-  function restoreDraft(draft: OrderFormDraft) {
-    const f = draft.form || {}
-    const ss = draft.styleState || {}
-
-    // v0.34 任务B：URL query 预选 > 草稿恢复——query 已预选的项不被草稿覆盖
-    if (!queryPreselect.styleId && ss.styleId != null) {
-      // 与单画风自动选中相同值时幂等（ref 等值赋值不触发 watcher）
-      const style = styles.value.find(s => s.id === ss.styleId)
-      if (style) selectedStyleId.value = ss.styleId
-    }
-    const currentStyle = styles.value.find(s => s.id === selectedStyleId.value)
-    if (!queryPreselect.sizeId) {
-      const size = currentStyle && ss.sizeId != null
-        ? (currentStyle.sizes || []).find(sz => sz.id === ss.sizeId && sz.display_status !== 'showcase')
-        : null
-      if (size) selectedSizeId.value = ss.sizeId!
-    }
-    // a2 猎杀修复：增项/用途/加急恢复独立于尺寸恢复块——query 只预选画风+尺寸，
-    // 增项不在预选范围，不该随尺寸块整体跳过（此前带 query 刷新后已填增项全部丢失）；
-    // 按当前选中尺寸的可用增项过滤恢复（validIds/usageIds/rushIds 同原口径）
-    if (selectedSizeId.value) {
-      // 普通增项勾选只恢复当前尺寸可用普通增项中存在的键（其余可能已删/已隐藏）
-      const validIds = new Set(regularAddons.value.map(a => a.id))
-      const saved = ss.addonSelections || {}
-      for (const key of Object.keys(saved)) {
-        const id = Number(key)
-        if (validIds.has(id)) {
-          styleAddonSelections[id] = { toggled: false, quantity: 0, ...saved[key], optionLabel: undefined }
-        }
-      }
-      // 补齐其余可用增项默认值（模板 v-model 不接受 undefined）
-      initStyleAddonDefaults()
-      // 用途/加急单选只恢复仍在可选项中的 ID
-      const usageIds = new Set(usageAddons.value.map(a => a.id))
-      const rushIds = new Set(rushAddons.value.map(a => a.id))
-      selectedUsageId.value = typeof ss.usageId === 'number' && usageIds.has(ss.usageId) ? ss.usageId : null
-      selectedRushId.value = typeof ss.rushId === 'number' && rushIds.has(ss.rushId) ? ss.rushId : null
-    }
-    // 尺寸有效 → 重算价格预览（防抖，多次触发合并为一次）
-    if (selectedSizeId.value) scheduleStyleCalc()
-
-    // ── 文本字段（a2 猎杀修复：形状校验——sessionStorage 被旧版本/篡改写入非字符串时不再致下游 .trim() 崩溃） ──
-    form.description = typeof f.description === 'string' ? f.description : ''
-    form.clientQq = typeof f.clientQq === 'string' ? f.clientQq : ''
-    form.clientName = typeof f.clientName === 'string' ? f.clientName : ''
-    // REQ-028 过渡期：本项灰置不可勾，旧草稿里存的 true 一律不再回填（原写法会把缺省当勾选）
-    form.notifyEnabled = false
-  }
-
-  /** beforeunload：表单有内容时拦截（浏览器原生确认弹窗） */
-  function onBeforeUnload(e: BeforeUnloadEvent) {
-    if (!hasDraftContent.value) return
-    e.preventDefault()
-    e.returnValue = ''
-  }
+  // 草稿的落盘节流/恢复过滤/离开拦截本体在 orderFormHelpers（巨型文件防阀拆分），
+  // 状态仍全部归本 composable 所有：这里只把引用交出去，读写指向同一份数据。
+  const {
+    hasDraftContent, restoreDraft, loadStoredDraft, discardDraft, onBeforeUnload, clearDraftTimers
+  } = useOrderFormDraft(subdomain, {
+    form, styles, selectedStyleId, selectedSizeId, isMultiStyle,
+    regularAddons, usageAddons, rushAddons, styleAddonSelections,
+    selectedUsageId, selectedRushId, queryPreselect,
+    initStyleAddonDefaults, scheduleStyleCalc
+  })
 
   // ─── 参考图上传（文件选择） ───
   async function handleRefUpload({ file }: { file: File & { uid: string | number } }) {
@@ -662,7 +543,7 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
       trackUrl.value = order.trackUrl || ''
       showSuccess.value = true
       // R57: 提交成功清除草稿 + 解除离开拦截
-      sessionStorage.removeItem(DRAFT_KEY)
+      discardDraft()
       window.removeEventListener('beforeunload', onBeforeUnload)
     } catch (err) {
       // 审计 #21 条目 3: 同 key 换内容 → 后端 409（旧行为是回放上一单结果，客户以为改成功了）。
@@ -717,11 +598,7 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
       // R57: 草稿恢复（styles 加载后校验有效性；仅首次成功初始化时执行）
       if (!draftHandled) {
         draftHandled = true
-        let draft: OrderFormDraft | null = null
-        try {
-          const raw = sessionStorage.getItem(DRAFT_KEY)
-          if (raw) draft = JSON.parse(raw) as OrderFormDraft
-        } catch { /* 损坏的草稿直接丢弃 */ }
+        const draft = loadStoredDraft()
         if (draft) {
           try {
             await ElMessageBox.confirm(
@@ -736,7 +613,7 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
             restoreDraft(draft)
             ElMessage.success(t('orderForm.draftRestored'))
           } catch {
-            sessionStorage.removeItem(DRAFT_KEY)
+            discardDraft()
           }
         }
       }
@@ -763,7 +640,7 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
 
   onUnmounted(() => {
     window.removeEventListener('beforeunload', onBeforeUnload)
-    if (draftTimer) clearTimeout(draftTimer)
+    clearDraftTimers()
     if (styleCalcTimer) clearTimeout(styleCalcTimer)
     discountValidationSeq++ // a3: 卸载后在途验证响应作废
   })
