@@ -1,6 +1,7 @@
 // 审计 #22 条目 4：分页首页被当全量用 ⇒ 待审数/在账数/托盘计数长期低报
 // 钉住：fetchMessages / fetchOrders 按服务端最大页逐页累积、请求 URL 带 page/pageSize、
 //       total 原样上报（计数侧读它）、硬上限与空页两条停止条件都真的停。
+// 补口（#22-4 追加）：短页即停 + 页号按服务端**实用**页长推进（数据变动/夹页都不重抓同页）。
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { fetchMessages, fetchOrders } from '../api/artist'
@@ -13,7 +14,23 @@ interface Recorded { path: string }
 
 let requests: Recorded[] = []
 
-function stubPages(responder: (page: number, pageSize: number) => { items: unknown[]; total: number }): void {
+interface StubBody {
+  items: unknown[]
+  total: number
+  /** 服务端实用页长（可小于请求值＝被夹小）；undefined 时按请求值回显 */
+  pageSize?: number
+}
+
+interface StubOptions {
+  /** false＝模拟不回显 pageSize 的服务端：走累积步长的首页实测退路 */
+  echoPageSize?: boolean
+}
+
+function stubPages(
+  responder: (page: number, pageSize: number) => StubBody,
+  options: StubOptions = {}
+): void {
+  const echo = options.echoPageSize ?? true
   requests = []
   vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input)
@@ -23,7 +40,8 @@ function stubPages(responder: (page: number, pageSize: number) => { items: unkno
     const page = Number(qs.get('page') ?? '1')
     const pageSize = Number(qs.get('pageSize') ?? '0')
     const body = responder(page, pageSize)
-    return new Response(JSON.stringify({ ...body, page, pageSize }), { status: 200 })
+    const echoed = echo ? (body.pageSize ?? pageSize) : undefined
+    return new Response(JSON.stringify({ ...body, page, ...(echoed === undefined ? {} : { pageSize: echoed }) }), { status: 200 })
   }))
 }
 
@@ -117,5 +135,73 @@ describe('fetchOrders 逐页累积（#22-4）', () => {
     expect(r.truncated).toBe(false)
     // 默认口径下首页只有 50 条——这正是修复前「在账数封顶 50」的根因
     expect(paths().some(p => !p.includes('pageSize='))).toBe(false)
+  })
+})
+
+// ─── 补口（#22-4 追加）：短页即停 + 页号按服务端实用页长推进 ───
+
+describe('collectPages 短页与夹页（#22-4 补口）', () => {
+  it('翻页中数据变动致短页 → 立刻停，不把同一页重抓成重复行', async () => {
+    // total 报 250，第 2 页实际只剩 60 条（翻页途中被删了一批）。少了「短页即停」这一刀时，
+    // 页号会按已取行数推成 floor(160/100)+1=2 —— 算回第 2 页，那 60 条被再灌一遍，
+    // 结果是行重复 + 在账数虚高 + Vue 重复 key 告警，比原来的低报更难查。
+    stubPages((page, pageSize) => ({
+      items: page === 1 ? rows('m', pageSize) : page === 2 ? rows('m', 60, pageSize) : rows('m', pageSize, 160),
+      total: 250
+    }))
+
+    const r = await fetchMessages()
+
+    expect(paths()).toEqual([
+      '/api/artist/messages?page=1&pageSize=100',
+      '/api/artist/messages?page=2&pageSize=100'
+    ])
+    expect(r.items).toHaveLength(160)
+    expect(new Set(r.items.map(m => m.id)).size).toBe(160)
+    expect(r.total).toBe(250)
+    expect(r.truncated).toBe(true) // 短页即停＝有界，计数侧仍读 total，不受影响
+  })
+
+  it('服务端把 pageSize 夹小（请求 200 实用 100）→ 按实用页长推进，不重抓第 1 页', async () => {
+    const total = 320
+    stubPages((page, requested) => {
+      const step = Math.min(requested, 100) // 服务端自带上限：给不了 200
+      const remaining = Math.max(0, total - (page - 1) * step)
+      return { items: rows('o', Math.min(step, remaining), (page - 1) * step), total, pageSize: step }
+    })
+
+    const r = await fetchOrders()
+
+    expect(paths()).toEqual([
+      '/api/artist/orders?page=1&pageSize=200',
+      '/api/artist/orders?page=2&pageSize=100',
+      '/api/artist/orders?page=3&pageSize=100',
+      '/api/artist/orders?page=4&pageSize=100'
+    ])
+    expect(r.items).toHaveLength(320)
+    expect(new Set(r.items.map(o => o.id)).size).toBe(320)
+    expect(r.truncated).toBe(false)
+  })
+
+  it('服务端不回显 pageSize 时退回首页实测页长，夹页同样不重抓', async () => {
+    const total = 250
+    stubPages((page, requested) => {
+      const step = Math.min(requested, 50) // 留言侧夹到 50
+      const remaining = Math.max(0, total - (page - 1) * step)
+      return { items: rows('m', Math.min(step, remaining), (page - 1) * step), total }
+    }, { echoPageSize: false })
+
+    const r = await fetchMessages()
+
+    expect(paths()).toEqual([
+      '/api/artist/messages?page=1&pageSize=100',
+      '/api/artist/messages?page=2&pageSize=50',
+      '/api/artist/messages?page=3&pageSize=50',
+      '/api/artist/messages?page=4&pageSize=50',
+      '/api/artist/messages?page=5&pageSize=50'
+    ])
+    expect(r.items).toHaveLength(250)
+    expect(new Set(r.items.map(m => m.id)).size).toBe(250)
+    expect(r.truncated).toBe(false)
   })
 })
