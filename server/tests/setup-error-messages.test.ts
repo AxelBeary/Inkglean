@@ -12,7 +12,11 @@ const SETUP_CODES = [
   'SETUP_ALREADY_DONE',
   'SETUP_GONE',
   'SETUP_ONBOARDING_MODE_INVALID',
-  'DEFAULT_ADDONS_SEED_FAILED'
+  'DEFAULT_ADDONS_SEED_FAILED',
+  // S3（GHSA-6pf3-g4xq-854w）新增：SETUP_ADMIN_MISMATCH 经 sendSetupError 回落，
+  // 不在表内就会把码名打回首次部署者屏幕；ADMIN_TOTP_SELF_FORBIDDEN 同批登记保持表全覆盖
+  'SETUP_ADMIN_MISMATCH',
+  'ADMIN_TOTP_SELF_FORBIDDEN'
 ] as const
 
 const ORIGINAL_TOKEN = process.env.SETUP_TOKEN
@@ -85,6 +89,35 @@ describe('setup 错误码文案登记（#23-1）', () => {
     const body = res.json() as { code: string; error: string }
     expect(body.code).toBe('SETUP_GONE')
     expect(body.error).toBe(ERROR_MESSAGES.SETUP_GONE)
+    await app.close()
+  })
+
+  it('TC-SEM-04: 非管理员 QQ 确认 TOTP → 403 SETUP_ADMIN_MISMATCH，文案可读（S3 守卫 + #37 治的病同点验证）', async () => {
+    // 真实窗口形态：createAdminArtist 已落库（admin_qq 有值）但管理员 TOTP 尚未验证
+    // → isSetupCompleted() 判 false（totp_verified=0），向导未销毁，guardSetupGone 放行。
+    // 此窗内若用别的 QQ 去确认，S3 守卫须拒绝（接管攻击面）。
+    const adminQq = '100200300'
+    seedArtist({ qq_number: adminQq, subdomain: 'setup-totp-admin', totp_verified: 0 })
+    db.prepare("UPDATE platform_config SET value = ? WHERE key = 'admin_qq'").run(adminQq)
+    // setup_completed 保持 ''（beforeEach 已清空）→ 向导未销毁
+    // 另建一个非管理员画师行，用它自己的 QQ 去确认 → 触发「只能管理员本人 QQ」守卫
+    seedArtist({ qq_number: '999888777', subdomain: 'not-admin' })
+
+    const app = await buildApp({ logger: false })
+    await app.ready()
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/setup/totp-confirm',
+      payload: { qqNumber: '999888777', code: '123456' }
+    })
+
+    expect(res.statusCode).toBe(403)
+    const body = res.json() as { code: string; error: string }
+    expect(body.code).toBe('SETUP_ADMIN_MISMATCH')
+    expect(body.error).toBe(ERROR_MESSAGES.SETUP_ADMIN_MISMATCH)
+    // 不再把码名打回用户屏幕——正是 #37 要治的病
+    expect(body.error).not.toContain('SETUP_ADMIN_MISMATCH')
     await app.close()
   })
 })

@@ -248,7 +248,7 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
     const result = withIdempotency(`extra-item:${request.order.id}`, idempotencyKey, () => ({
       statusCode: 200,
       body: enrichOrderForArtist(orderService.addExtraItem(request.order.id, { name, description, priceCents }), request.artist.id)
-    }))
+    }), { name, description, priceCents })
     return reply.code(result.statusCode).send(result.body)
   })
 
