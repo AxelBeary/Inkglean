@@ -1146,6 +1146,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     scheduleTitle: 'Upcoming',
     scheduleExpand: 'Open board →',
     scheduleEmpty: 'Nothing scheduled in the next 7 days',
+    scheduleWindowMeta: '7-day window · {n}',
     scheduleSummaryTitle: 'Order summary',
     scheduleSummaryClient: 'Client',
     scheduleSummaryStage: 'Current stage',
