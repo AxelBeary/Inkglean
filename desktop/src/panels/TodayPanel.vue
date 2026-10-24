@@ -6,6 +6,7 @@ import { computed } from 'vue'
 import type { ScheduleBar, TodoItem } from '../api/types'
 import type { LocalOrder } from '../stores/localLedger'
 import { deadlineLevel } from '../components/home/deadline'
+import { localDaysLeft as daysLeft } from '../components/home/localGlance'
 import TornPlaceholder from '../components/home/TornPlaceholder.vue'
 
 const props = defineProps<{
@@ -21,16 +22,7 @@ const props = defineProps<{
   localOrders?: LocalOrder[] | null
 }>()
 
-/** 截稿日与今天零点差几天（负数=已逾期）；无效日期返回 null */
-function daysLeft(deadline: string | null): number | null {
-  if (!deadline) return null
-  const d = new Date(deadline)
-  if (Number.isNaN(d.getTime())) return null
-  const today = new Date()
-  const a = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
-  const b = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
-  return Math.round((b - a) / 86400000)
-}
+/** 截稿距今天数：与首页概览同一实现（#23-2 修正纯日期串的 UTC 零点解析，此处不再各写一份） */
 
 interface TodoRow {
   t: TodoItem

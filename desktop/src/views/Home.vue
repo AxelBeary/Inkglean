@@ -126,6 +126,8 @@ const income = ref<IncomeOverview | null>(null)
 const revenue = ref<RevenueResult | null>(null)
 const messages = ref<GuestbookMessage[] | null>(null)
 const orders = ref<ArtistOrderItem[] | null>(null)
+// #22-4：托盘「在账数」读服务端口径 total，不再读已截断的首页长度
+const ordersTotal = ref(0)
 const deadlines = ref<DeadlineSoonItem[] | null>(null)
 const plaqueStatus = ref<ArtistStatus | null>(null)
 const slotDisplay = ref<string | null>(null)
@@ -170,7 +172,10 @@ async function loadAll() {
     prevPending.value = pending
   }
   ordersFailed.value = ord.status === 'rejected' || dl.status === 'rejected'
-  if (ord.status === 'fulfilled') orders.value = ord.value.items
+  if (ord.status === 'fulfilled') {
+    orders.value = ord.value.items
+    ordersTotal.value = ord.value.total
+  }
   if (dl.status === 'fulfilled') deadlines.value = dl.value.items
   if (pf.status === 'fulfilled') {
     if (isArtistStatus(pf.value.status)) plaqueStatus.value = pf.value.status
@@ -204,7 +209,7 @@ watchEffect(() => {
   let dueToday = 0
   let openCount: number
   if (cloud.value) {
-    openCount = orders.value?.length ?? 0
+    openCount = ordersTotal.value
     for (const d of deadlines.value ?? []) {
       if (d.daysLeft < 0) overdue++
       else if (d.daysLeft === 0) dueToday++

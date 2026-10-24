@@ -4,6 +4,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import { isDesktop } from './env'
 import { BridgeUnavailableError } from './errors'
+import { fileSizes } from './files'
 
 /** @tauri-apps/plugin-sql 的 Database 类型（动态 import，避免纯浏览器环境解析失败） */
 export type LocalDatabase = Awaited<ReturnType<typeof loadDatabase>>
@@ -163,6 +164,24 @@ export async function broadcastCloseAllDb(): Promise<void> {
 export async function deleteDbSidecar(): Promise<void> {
   if (!isDesktop()) throw new BridgeUnavailableError('deleteDbSidecar')
   await invoke('desktop_delete_db_sidecar')
+}
+
+/** 备份前置：把 WAL 里已提交的页折叠回主库并清空 -wal，返回折叠后边车字节数（审计 #22 条目 1）。
+ *
+ * why：数据包里只装 `local.db` 本体，**不含 -wal/-shm 边车**（导入侧 DSK-09 还要显式删边车）。
+ * sqlx 默认以 WAL 打开 SQLite，未 checkpoint 的提交只存在于边车里——直接读主库文件出的快照
+ * 会「导出成功却缺最近几笔」，且缺哪些毫无痕迹。
+ *
+ * 返回字节数而不是 void：TRUNCATE 在边车被其他连接的空闲读事务挡住时会 busy 并部分失败
+ * （撕裂的悬浮三件走 openLocalDbReadOnly，各自持连接），调用方据此拒绝出包，
+ * 宁可让用户重试也不产出一份看着完整、实际缺数据的备份。 */
+export async function checkpointWalForBackup(): Promise<number> {
+  if (!isDesktop()) throw new BridgeUnavailableError('checkpointWalForBackup')
+  const db = await openLocalDb()
+  await db.execute('PRAGMA wal_checkpoint(TRUNCATE)')
+  const path = await localDbPath()
+  const [walSize] = await fileSizes([`${path}-wal`])
+  return walSize ?? 0
 }
 
 // 模块级自注册监听：任何 import 本模块的 webview（主窗 + 撕悬浮三件，均经 localLedger 等

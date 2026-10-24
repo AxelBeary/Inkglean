@@ -8,6 +8,8 @@ vi.mock('../bridge', () => ({
   localDbPath: vi.fn(async () => '/appdata/local.db'),
   readBackupB64: vi.fn(async () => btoa('backup-db-bytes')),
   fileSizes: vi.fn(async () => [] as number[]),
+  // #22-1（S5B 联动补口）：buildBackupBlob 读库前先折叠 WAL，返回 0 字节＝边车已并入主库
+  checkpointWalForBackup: vi.fn(async () => 0),
   saveFile: vi.fn(async () => {}),
   shihuiHome: vi.fn(async () => 'C:\\Users\\me\\Documents\\拾绘'),
   closeLocalDb: vi.fn(async () => {}),
@@ -16,7 +18,7 @@ vi.mock('../bridge', () => ({
 }))
 
 import { runExport } from '../tools/exportData'
-import { exportSaveB64, saveFile } from '../bridge'
+import { exportSaveB64, saveFile, checkpointWalForBackup } from '../bridge'
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -42,6 +44,22 @@ describe('runExport 桌面路径 · S5B dialog 命令', () => {
   it('全程零调用 saveFile（path-命令）：导出不再「JS 对话框选路 → 传 path 落盘」', async () => {
     await runExport([], [])
     expect(saveFile).not.toHaveBeenCalled()
+  })
+
+  // #22-1 × S5B 联动：用户主动导出同样必须先折叠 WAL 再交字节给对话框——
+  // 包内只有 local.db 本体，边车里留着未折叠的提交＝弹给用户的是份缺最近数据的「另存为」
+  it('折叠 WAL 先于 exportSaveB64：对话框拿到的已是自足快照', async () => {
+    await runExport([], [])
+    expect(checkpointWalForBackup).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(checkpointWalForBackup).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(exportSaveB64).mock.invocationCallOrder[0]
+    )
+  })
+
+  it('边车折叠不干净（仍非 0 字节）→ 在弹对话框之前中止，不诱导用户另存坏包', async () => {
+    vi.mocked(checkpointWalForBackup).mockResolvedValueOnce(32_768)
+    await expect(runExport([], [])).rejects.toThrow('备份已中止')
+    expect(exportSaveB64).not.toHaveBeenCalled()
   })
 
   it('用户取消（savedPath=null）→ ok=false、path=cancelled、不报错', async () => {
