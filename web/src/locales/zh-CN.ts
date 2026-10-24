@@ -1145,6 +1145,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     scheduleTitle: '近期排期',
     scheduleExpand: '展开看板 →',
     scheduleEmpty: '近 7 日暂无排期',
+    scheduleWindowMeta: '近 7 日 · {n} 单',
     scheduleSummaryTitle: '订单摘要',
     scheduleSummaryClient: '客户',
     scheduleSummaryStage: '当前节点',
