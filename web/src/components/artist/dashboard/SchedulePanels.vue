@@ -1,6 +1,6 @@
 <template>
   <!-- 排期块四款式切换（自定义首页批二·子代理 F）：
-       bars=时间条（内嵌复用 ScheduleScroll 原画法）/ ledger=台账 / ptags=纸签（线上卷轴同款）/ waybill=运单。
+       bars=案头横格（内嵌 ScheduleScroll）/ ledger=台账 / ptags=纸签 / waybill=运单。
        四款均多单兼容：超限折 +N 胶囊，点 +N 跳排期看板（/queue）不做就地展开；
        点条目弹订单摘要浮层（照搬 ScheduleScroll 的数据与浮层实现）。
        注意：Vue 保留 style/class 为 attribute、不可声明为同名 prop，
