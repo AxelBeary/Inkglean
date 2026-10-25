@@ -191,8 +191,10 @@ export function useOrderActions({ order, routeId, statusAction, prevPriority, lo
   async function confirmCancelOrder() {
     if (cancelSubmitting.value) return
     cancelSubmitting.value = true
+    // 815 审计口径：取消同样带 version，双开标签页旧快照不得静默覆盖新状态
+    const vOpt = order.value?.version != null ? { version: order.value.version } : {}
     try {
-      const res = await artistApi.cancelOrder(Number(routeId))
+      const res = await artistApi.cancelOrder(Number(routeId), vOpt)
       applyOrder(res) // M-9: 统一写入口（旧快照拒收）
       showCancelUndo(res, res.undoWindowMs)
       ElMessage.success(t('orderDetail.statusUpdated'))
@@ -211,7 +213,7 @@ export function useOrderActions({ order, routeId, statusAction, prevPriority, lo
           return // 用户取消二次确认：不取消订单
         }
         try {
-          const res = await artistApi.cancelOrder(Number(routeId), { confirmPaidCancel: true })
+          const res = await artistApi.cancelOrder(Number(routeId), { ...vOpt, confirmPaidCancel: true })
           applyOrder(res) // M-9: 统一写入口（旧快照拒收）
           showCancelUndo(res, res.undoWindowMs)
           ElMessage.success(t('orderDetail.statusUpdated'))

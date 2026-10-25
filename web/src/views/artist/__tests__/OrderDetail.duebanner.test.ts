@@ -142,6 +142,7 @@ import OrderDetail from '../OrderDetail.vue'
 function buildOrder(overrides: Record<string, unknown> = {}) {
   return {
     id: 806,
+    version: 12,
     order_no: 'ALICE-006',
     status: 'wip',
     priority: 'medium',
@@ -340,7 +341,7 @@ describe('OrderDetail 取消已收款订单确认流（R-2）', () => {
     await flushPromises()
 
     expect(h.cancelOrder).toHaveBeenCalledTimes(1)
-    expect(h.cancelOrder).toHaveBeenCalledWith(806)
+    expect(h.cancelOrder).toHaveBeenCalledWith(806, { version: 12 })
     expect(h.confirm).not.toHaveBeenCalled()
     expect(h.msgSuccess).toHaveBeenCalled()
   })
@@ -367,7 +368,7 @@ describe('OrderDetail 取消已收款订单确认流（R-2）', () => {
 
     // 用户点确认 → 第二次带 confirmPaidCancel
     expect(h.cancelOrder).toHaveBeenCalledTimes(2)
-    expect(h.cancelOrder).toHaveBeenLastCalledWith(806, { confirmPaidCancel: true })
+    expect(h.cancelOrder).toHaveBeenLastCalledWith(806, { version: 12, confirmPaidCancel: true })
     expect(vm.order.status).toBe('cancelled')
     expect(h.msgSuccess).toHaveBeenCalled()
   })
