@@ -508,7 +508,7 @@ const {
   guardDragEnter, guardDragOver, guardDrop, selectFocusImage, uploadGalleryFiles, validateImageFile
 } = useOrderGallery({ routeId, onRefresh: loadOrder, applyOrder })
 const { deadlineChip, deadlinePicker, disableDeadlineDate, disableStartDateDate, changeDeadline, startDatePicker, changeStartDate } =
-  useOrderDeadline({ order, routeId, applyOrder })
+  useOrderDeadline({ order, routeId, applyOrder, onConflict: loadOrder })
 const {
   payments, paymentsLoading, paymentsError, paymentSubmitting, loadPayments,
   payDialogVisible, payForm, submitPayment, nodePayDialogVisible, nodePayTarget, nodePayForm,

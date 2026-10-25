@@ -72,15 +72,7 @@
                 style="width: 112px"
                 @change="(val: number | undefined) => setAddon(a.id, { quantity: val ?? 0 })"
               />
-              <el-radio-group
-                v-else-if="a.control_type === 'radio'" size="small"
-                :model-value="addonSel[a.id]?.optionLabel || null"
-                @change="(val: string | number | boolean | undefined) => setAddon(a.id, { optionLabel: val as string | null })"
-              >
-                <el-radio-button v-for="opt in parseOptions(a.options)" :key="opt.label" :value="opt.label">
-                  {{ opt.label }} {{ formatYuanValue(opt.price) }}
-                </el-radio-button>
-              </el-radio-group>
+              <!-- radio/options 与上方 multiplier 同批退役（SPEC-PRICE-2）：契约只认 styleAddonId/quantity，附选项字段必被 400 -->
             </div>
           </div>
         </div>
@@ -93,15 +85,15 @@
       <div v-if="preview" class="group calc-group calc-result">
         <div class="calc-result-head">
           <span class="calc-result-title">{{ preview.styleName }} · {{ preview.sizeName }}</span>
-          <span class="calc-result-total">{{ formatYuanValue(preview.totalCents / 100) }}</span>
+          <span class="calc-result-total">{{ formatYuanTrimmed(preview.totalCents) }}</span>
         </div>
-        <div class="calc-line"><span>{{ $t('priceCalc.basePrice') }}</span><span>{{ formatYuanValue(preview.baseCents / 100) }}</span></div>
+        <div class="calc-line"><span>{{ $t('priceCalc.basePrice') }}</span><span>{{ formatYuanTrimmed(preview.baseCents) }}</span></div>
         <div v-for="item in addonLines" :key="item.key" class="calc-line">
           <span>
             {{ item.name }}<template v-if="item.qty > 1"> ×{{ item.qty }}</template>
             <span v-if="item.pct != null" class="calc-addon-pct">+{{ item.pct }}%</span>
           </span>
-          <span>{{ formatYuanValue(item.amountCents / 100) }}</span>
+          <span>{{ formatYuanTrimmed(item.amountCents) }}</span>
         </div>
         <div v-if="preview.usage || preview.rush" class="calc-line calc-line--dim">
           <span>
@@ -109,7 +101,7 @@
             <template v-if="preview.usage">{{ preview.usage.name }} +{{ preview.usage.percent }}%</template>
             <template v-if="preview.rush">{{ preview.rush.name }} +{{ preview.rush.percent }}%</template>
           </span>
-          <span>{{ formatYuanValue(multiplierCents / 100) }}</span>
+          <span>{{ formatYuanTrimmed(multiplierCents) }}</span>
         </div>
         <p class="calc-disclaimer">{{ $t('priceCalc.disclaimer') }}</p>
       </div>
@@ -126,27 +118,16 @@ import { useI18n } from 'vue-i18n'
 import { artistPublicApi, artistApi } from '../../api/index'
 import { useArtistStore } from '../../stores/artist'
 import { ElMessage } from 'element-plus'
-import { formatYuanValue } from '../../utils/money'
+import { formatYuanTrimmed, formatYuanValue } from '../../utils/money'
 
 // 数据：画风（含尺寸+增项）+ 倍率
 const store = useArtistStore()
 const { t } = useI18n()
 
-/** 公开增项运行时附带 radio 选项 JSON（类型库未声明 options），局部扩展 */
-interface CalcAddon extends PublicStyleAddon {
-  options?: string | null
-}
-
 /** 增项选择态（每个增项一条，按 id 索引） */
 interface AddonSelState {
   toggled: boolean
   quantity: number
-  optionLabel: string | null
-}
-
-/** 算价请求增项载荷（radio 附 optionLabel，运行时随请求下发） */
-interface AddonSelectionPayload extends StyleAddonSelection {
-  optionLabel?: string | null
 }
 
 /** 算价结果统一消费 API DTO（此前自行声明了一份字段名全错的本地形状，金额恒渲染 ¥0） */
@@ -188,7 +169,7 @@ const multiplierCents = computed(() =>
 
 const selectedStyle = computed(() => styles.value.find(s => s.id === selectedStyleId.value) || null)
 /** 当前尺寸下可用增项（后端已按尺寸覆盖过滤 hidden） */
-const availableAddons = computed(() => (selectedSize.value?.addons || []) as CalcAddon[])
+const availableAddons = computed(() => selectedSize.value?.addons || [])
 const selectedSize = computed(() => selectedStyle.value?.sizes.find(sz => sz.id === selectedSizeId.value) || null)
 
 function selectStyle(id: number) {
@@ -212,25 +193,24 @@ function clearAddons() {
 
 function initAddonDefaults() {
   for (const a of availableAddons.value) {
-    if (!addonSel[a.id]) addonSel[a.id] = { toggled: false, quantity: 0, optionLabel: null }
+    if (!addonSel[a.id]) addonSel[a.id] = { toggled: false, quantity: 0 }
   }
 }
 
 function setAddon(id: number, patch: Partial<AddonSelState>) {
-  if (!addonSel[id]) addonSel[id] = { toggled: false, quantity: 0, optionLabel: null }
+  if (!addonSel[id]) addonSel[id] = { toggled: false, quantity: 0 }
   Object.assign(addonSel[id], patch)
   scheduleCalc()
 }
 
 /** 构建已选增项（与后端 calculate-style-price 契约一致） */
-function buildAddons(): AddonSelectionPayload[] {
-  const list: AddonSelectionPayload[] = []
+function buildAddons(): StyleAddonSelection[] {
+  const list: StyleAddonSelection[] = []
   for (const a of availableAddons.value) {
     const sel = addonSel[a.id]
     if (!sel) continue
     if (a.control_type === 'switch' && sel.toggled) list.push({ styleAddonId: a.id })
     else if (a.control_type === 'quantity' && sel.quantity > 0) list.push({ styleAddonId: a.id, quantity: sel.quantity })
-    else if (a.control_type === 'radio' && sel.optionLabel) list.push({ styleAddonId: a.id, optionLabel: sel.optionLabel })
   }
   return list
 }
@@ -261,20 +241,8 @@ async function doCalc() {
   }
 }
 
-/** radio 选项 JSON 解析（安全回退） */
-function parseOptions(optionsJson: string | null | undefined): Array<{ label: string; price: number }> {
-  if (!optionsJson) return []
-  try {
-    const parsed: unknown = JSON.parse(optionsJson)
-    return Array.isArray(parsed) ? (parsed as Array<{ label: string; price: number }>) : []
-  } catch {
-    return []
-  }
-}
-
-/** 增项价格文案：radio 按选项计价，其余显示单价（quantity 带单位） */
-function formatAddonPrice(a: CalcAddon) {
-  if (a.control_type === 'radio') return t('priceCalc.optionPrice')
+/** 增项价格文案（quantity 带单位） */
+function formatAddonPrice(a: PublicStyleAddon) {
   return formatYuanValue(a.price ?? 0) + (a.control_type === 'quantity' && a.unit_label ? '/' + a.unit_label : '')
 }
 

@@ -12,11 +12,13 @@ import type { EnrichedOrderDetail } from '../api/types'
  * @param ctx.routeId - 订单 id（route.params.id）
  * @param ctx.applyOrder - M-9（审计 260830）：统一写入口——响应 version 单调不回退，
  *        防本处写回与 loadOrder 并发时晚到旧快照覆盖新状态（诱发 409 误报）
+ * @param ctx.onConflict - 409 ORDER_CONFLICT 后重拉服务端真相（与 useOrderWorkflow 同口径）
  */
-export function useOrderDeadline({ order, routeId, applyOrder }: {
+export function useOrderDeadline({ order, routeId, applyOrder, onConflict }: {
   order: Ref<EnrichedOrderDetail | null>
   routeId: number
   applyOrder: (next: EnrichedOrderDetail | null) => void
+  onConflict?: () => Promise<unknown> | void
 }) {
   const { t } = useI18n()
 
@@ -74,9 +76,16 @@ export function useOrderDeadline({ order, routeId, applyOrder }: {
       applyOrder(await artistApi.updateDeadline(routeId, val || null, versionOpt())) // M-9: 统一写入口（旧快照拒收）
       ElMessage.success(t('orderDetail.deadlineSavedSync'))
     } catch (err) {
+      const e = err as ApiError
+      if (e?.code === 'ORDER_CONFLICT') {
+        // 409：另一路已改过这单——提示后重拉服务端真相，picker 由 watcher 跟新值
+        ElMessage.warning(t('common.orderConflict'))
+        await onConflict?.()
+        return
+      }
       // T1: 保存失败时回弹 picker 显示值为 order 原值（watcher 同款截取逻辑，避免界面与数据不一致）
       deadlinePicker.value = order.value?.deadline ? order.value.deadline.slice(0, 10) : null
-      ElMessage.error((err as ApiError).message)
+      ElMessage.error(e.message)
     }
   }
 
@@ -105,10 +114,17 @@ export function useOrderDeadline({ order, routeId, applyOrder }: {
         ElMessage.success(t('orderDetail.deadlineAutoSet'))
       }
     } catch (err) {
+      const e = err as ApiError
+      if (e?.code === 'ORDER_CONFLICT') {
+        // 409：开工日已入库但自动回填截稿日撞上并发——重拉真相，不让旧 version 留在快照里反复撞
+        ElMessage.warning(t('common.orderConflict'))
+        await onConflict?.()
+        return
+      }
       // T1: 保存失败时回弹显示值。第一个 PUT 可能已成功（开工日已入库），两个 picker 都从 order 同步
       startDatePicker.value = order.value?.startDate ?? order.value?.start_date ?? null
       deadlinePicker.value = order.value?.deadline ? order.value.deadline.slice(0, 10) : null
-      ElMessage.error((err as ApiError).message)
+      ElMessage.error(e.message)
     }
   }
 

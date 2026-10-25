@@ -202,7 +202,11 @@ export function useOrderActions({ order, routeId, statusAction, prevPriority, lo
       // R-2: 已收款订单取消被后端拦截（409 CANCEL_WITH_PAYMENT，Batch A 契约）——
       // 二次确认「已收 ¥X、资金需线下退还」，确认后带 confirmPaidCancel 重发
       const e = err as ApiErrShape
-      if (e.code === 'CANCEL_WITH_PAYMENT' && e.detail?.paidCents != null) {
+      if (e?.code === 'ORDER_CONFLICT') {
+        // 815 审计口径：携带 version 的写路径必须判 409，否则旧 version 留在快照里，同页后续每次写都撞
+        ElMessage.warning(t('common.orderConflict'))
+        await loadOrder()
+      } else if (e.code === 'CANCEL_WITH_PAYMENT' && e.detail?.paidCents != null) {
         try {
           await ElMessageBox.confirm(
             t('orderDetail.cancelPaidConfirm', { amount: formatCents(e.detail.paidCents) }),
@@ -217,8 +221,14 @@ export function useOrderActions({ order, routeId, statusAction, prevPriority, lo
           applyOrder(res) // M-9: 统一写入口（旧快照拒收）
           showCancelUndo(res, res.undoWindowMs)
           ElMessage.success(t('orderDetail.statusUpdated'))
-        } catch (err) {
-          ElMessage.error((err as ApiErrShape).message)
+        } catch (err2) {
+          const e2 = err2 as ApiErrShape
+          if (e2?.code === 'ORDER_CONFLICT') {
+            ElMessage.warning(t('common.orderConflict'))
+            await loadOrder()
+          } else {
+            ElMessage.error(e2.message)
+          }
         }
       } else {
         ElMessage.error((err as ApiErrShape).message)
