@@ -10,6 +10,7 @@
 
 - 接收外部 PR #55/#58（两份「返工七条」逐条对撞代码后接收）：暗色滚动条对比度从 1.00:1 提到 3.11:1 以上、空串 src 隐形请求改 v-if 整颗不渲染、白字覆写补齐、token 硬编码清零、`.status-tag` 摘掉颜色插值、补 `viewport-fit=cover`、换图空一帧改叠放交叉淡入；骨架与内容同形同高（宽屏 6 卡 / 窄屏行式共用同一容器查询条件）、排期中窄屏保底宽、收入环图改吃主题色板、换肤重建不再重放入场动画。
 - 接收外部 PR #26：节点待收改走引擎进度原语，展示与锁定推导同源，消除上轮反对的待收口径分叉；负尾款封顶只喂账本、不参与锁定。
+- #26 合入后两处跟进：节点快捷收款的按钮与预填金额钳到订单级待收（负尾款「带内」场景下节点差额会大于订单级待收，只看节点差额就会在已收足的订单上递一个超收默认值）；修正 `TrackOrder.vue` 一处已失实注释——客户端自算的「Σ正节点封顶」与服务端 `forwardFill` 行为等价但已非同一份实现，改服务端填充规则时必须回头核对。
 - 依赖：Dependabot #59/#60 合入（eslint 10.13.0、ts-eslint 8.72.0、vite 6.4.5、@fastify/static 10.1.7、chart.js 4.6.1、vue-i18n 11.4.16、oxlint 1.89.0）；另校正 web/desktop 两个 lockfile **根镜像**的陈旧 devDependencies 声明（happy-dom 仍写 ^20.14.6，自 PR #40/#44 起漏更——Dependabot 只重写已解析条目）。
 - 下单链路诚实性：报价脏 / 在途 / 失败 / 无结果四态一律不得提交；**取消「未计价回退尺寸基础价」**——那个数漏掉全部增项与用途加急，是会被截图当承诺的低价；展示价改整数分单源，下单成功后以服务端回执 `totalPriceCents` 校正复制文案。
 - 折扣码：未验证通过的码既不随算价下发（此前逐字输入时每敲一个字符都会让整次算价 400、报价塌空，合法码也要敲完才恢复），也不许提交（否则算价按无折扣报价、服务端却可能真扣，同一分叉换位置复发）。
@@ -18,7 +19,7 @@
 - shared：PriceCard 1094→692 行（拆出 `pricecard/{types,tiers,draw}.ts` 与 `ArtworkPickerModal.vue`，对外签名不变、web/desktop 调用方零跟改）；挑作品弹窗补 aria-modal / Escape / Tab 焦点陷阱 / 关闭归还焦点；档位价格 0 元判非法（min 0.01 + 行内提示）；小票里非赠品 0 元行维持不进导出并给出行内提示。F-44 唯一遗留豁免清偿，`check-file-size` ALLOWLIST 现为空表。
 - 视觉射程：用户复确认「拟物收敛只限排期块」；本批实测 ScheduleScroll 之外的五个拟物面（印章墨迹 / 登录纸艺 / 纸卡 / 问候洇墨 / 挂牌 3D）diff 全空。
 - 盘面：11 个 agent worktree 注册摘除、33 个已并入本地分支删除（末端 SHA 留恢复表）；7 份席位交回台账归档进安全批 artifacts。
-- 门禁：十九道全绿 @ `81ea7dc3`（335s；server 1981 / web 1069 / desktop 616 / shared 44 / E2E 14，与前一轮 353s 复跑计数一致），日志 `AGENTS/artifacts/mistwhisker-wave3-20261026/logs/accept-wave3.log`。
+- 门禁：十九道全绿 @ `b4d22c6d`（server 1981 / web 1073 / desktop 616 / shared 44 / E2E 14；三轮复跑计数零漂移，耗时见留痕日志），日志 `AGENTS/artifacts/mistwhisker-wave3-20261026/logs/accept-wave3.log`。
 
 ## 外部反馈吸纳批（2026-10-25）
 
