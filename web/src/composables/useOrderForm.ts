@@ -542,6 +542,12 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
       ElMessage.warning(t('orderForm.priceNotReady'))
       return
     }
+    // issue #50-6：填了码却没验证 → 算价按无折扣报价、服务端却可能真扣，
+    // 看到的价与成交价又会分叉。拦在提交前，让折扣行的行内错误态说话。
+    if (form.discountCode.trim() && !discountResult.value) {
+      ElMessage.warning(t('orderForm.discountNotValidated'))
+      return
+    }
     submitting.value = true
     submittedTotalCents.value = null
     const valid = await formRef.value!.validate().catch(() => false)

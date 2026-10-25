@@ -929,6 +929,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     // v0.31 F3: discount code
     discountLabel: 'Discount code', discountPlaceholder: 'Have a code?', discountValidate: 'Apply',
     discountEstimate: 'Est. discount',
+    // issue #50-6: code typed but never verified — the quote excludes it, so block submit
+    discountNotValidated: 'Discount code not verified — the quote does not include it',
     // v0.32 REQ-023 Phase2: multi-style three-step flow
     styleStep: 'Style', sizeStep: 'Size', addonStep: 'Add-ons',
     styleStepTitle: 'Pick a style', sizeStepTitle: 'Pick a size', addonStepTitle: 'Add-ons & options',

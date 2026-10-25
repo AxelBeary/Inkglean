@@ -928,6 +928,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // v0.31 F3: 折扣码
     discountLabel: '折扣码', discountPlaceholder: '有折扣码？输入试试', discountValidate: '验证',
     discountEstimate: '预估折扣',
+    // issue #50-6：填了码但没验证 → 报价不含折扣，提交前拦下
+    discountNotValidated: '折扣码还没验证，报价里不含折扣',
     // v0.32 REQ-023 Phase2: 多画风三步走
     styleStep: '选画风', sizeStep: '选尺寸', addonStep: '选增项',
     styleStepTitle: '选择画风', sizeStepTitle: '选择尺寸', addonStepTitle: '增项与加急',

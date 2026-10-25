@@ -783,6 +783,26 @@ describe('提交', () => {
     expect(of.priceStatusText.value).toBe('orderForm.pricePending')
     expect(of.priceBlocking.value).toBe(true)
   })
+
+  it('issue #50-6：填了折扣码但未验证 → 拦下提交；验证通过后带码放行', async () => {
+    const { of } = await createForm()
+    of.selectStyle(11)
+    of.selectSize(111)
+    of.form.discountCode = 'SAVE10'
+    await settlePrice()
+    of.form.clientQq = '12345678'
+    of.form.agreed = true
+
+    await of.submit()
+    expect(orderApi.create).not.toHaveBeenCalled()
+    expect(ElMessage.warning).toHaveBeenCalledWith('orderForm.discountNotValidated')
+    expect(of.submitting.value).toBe(false)
+
+    ;(of.discountResult as { value: unknown }).value = { discountType: 'percent', discountValue: 10 }
+    await of.submit()
+    expect(orderApi.create).toHaveBeenCalledTimes(1)
+    expect(orderCreateMock.mock.calls[0][0].discountCode).toBe('SAVE10')
+  })
 })
 
 // ─── 参考图上传 ───
