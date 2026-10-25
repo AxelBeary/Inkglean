@@ -28,7 +28,7 @@
       <!-- 波 M：查询失败页内错误态 + 重试（不再只弹 toast） -->
       <div v-if="searchError" class="search-error" role="alert">
         <p>{{ $t('track.searchFailed') }}</p>
-        <el-button type="primary" size="small" :disabled="searching" @click="search">{{ $t('common.loadRetry') }}</el-button>
+        <el-button type="primary" size="small" :disabled="searching" @click="search()">{{ $t('common.loadRetry') }}</el-button>
       </div>
 
       <!-- F1 围剿：已保存的追踪链接清单（多单可存多条，每行一键查询） -->

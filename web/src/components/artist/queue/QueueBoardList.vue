@@ -545,8 +545,10 @@ const cancelUndo = ref<CancelUndoState>({ visible: false, orderId: null, label: 
 async function doCancelWithUndo(order: QueueRow) {
   if (cancellingBusyId.value === order.id) return
   cancellingBusyId.value = order.id
+  // 815 审计 P1-3：取消同为订单写路径——携带 version，冲突时提示并重拉队列
+  const vOpt = order.version != null ? { version: order.version } : {}
   try {
-    const res = await artistApi.cancelOrder(order.id)
+    const res = await artistApi.cancelOrder(order.id, vOpt)
     cancelUndo.value = {
       visible: true,
       orderId: order.id,
@@ -558,7 +560,10 @@ async function doCancelWithUndo(order: QueueRow) {
   } catch (err) {
     // 已收款取消：后端 409 CANCEL_WITH_PAYMENT + detail.paidCents → 二次确认后带 confirmPaidCancel 重发
     const apiErr = err as ApiError
-    if (apiErr.code === 'CANCEL_WITH_PAYMENT' && apiErr.detail?.paidCents != null) {
+    if (apiErr.code === 'ORDER_CONFLICT') {
+      ElMessage.warning(t('common.orderConflict'))
+      emit('refresh-queue')
+    } else if (apiErr.code === 'CANCEL_WITH_PAYMENT' && apiErr.detail?.paidCents != null) {
       try {
         await ElMessageBox.confirm(
           t('orderDetail.cancelPaidConfirm', { amount: formatCents(apiErr.detail.paidCents as number) }),
@@ -569,7 +574,7 @@ async function doCancelWithUndo(order: QueueRow) {
         return // 用户取消二次确认：不取消订单
       }
       try {
-        const res = await artistApi.cancelOrder(order.id, { confirmPaidCancel: true })
+        const res = await artistApi.cancelOrder(order.id, { ...vOpt, confirmPaidCancel: true })
         cancelUndo.value = {
           visible: true,
           orderId: order.id,
@@ -578,8 +583,14 @@ async function doCancelWithUndo(order: QueueRow) {
         }
         ElMessage.success(t('queue.statusUpdated'))
         emit('refresh-queue')
-      } catch (err) {
-        ElMessage.error((err as Error).message)
+      } catch (err2) {
+        const apiErr2 = err2 as ApiError
+        if (apiErr2.code === 'ORDER_CONFLICT') {
+          ElMessage.warning(t('common.orderConflict'))
+          emit('refresh-queue')
+        } else {
+          ElMessage.error((err2 as Error).message)
+        }
       }
     } else {
       ElMessage.error((err as Error).message)

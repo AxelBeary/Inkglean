@@ -21,6 +21,12 @@ vi.mock('../../../../utils/datetime.js', () => ({ formatDateTime: (s: string) =>
 
 import ScheduleScroll from '../ScheduleScroll.vue'
 
+/** 相对今天偏移 days 天的 SQLite 存值形态（空格 + 00:00:00，与 orders.deadline 同形）
+ * 裸日期串 'YYYY-MM-DD' 会被 JS 按 UTC 零点解析，负偏移时区机器上本地日历日退一天 → 落格断言假红 */
+function localDeadlineStr(days: number): string {
+  return localDateStr(days) + ' 00:00:00'
+}
+
 /** 相对今天偏移 days 天的本地日历日（与 start_date 存储口径一致） */
 function localDateStr(days: number) {
   const now = new Date()
@@ -63,8 +69,8 @@ describe('ScheduleScroll 案头横格', () => {
 
   it('表头副文案带出窗内单量', async () => {
     await mountScroll([
-      { id: 1, orderNo: 'A', status: 'wip', startDate: localDateStr(1), deadline: localDateStr(2) },
-      { id: 2, orderNo: 'B', status: 'wip', startDate: localDateStr(1), deadline: localDateStr(2) }
+      { id: 1, orderNo: 'A', status: 'wip', startDate: localDateStr(1), deadline: localDeadlineStr(2) },
+      { id: 2, orderNo: 'B', status: 'wip', startDate: localDateStr(1), deadline: localDeadlineStr(2) }
     ])
 
     expect(wrapper!.find('.sched-meta').text()).toBe('dashboard.scheduleWindowMeta:{"n":2}')
@@ -74,9 +80,9 @@ describe('ScheduleScroll 案头横格', () => {
     // 窗口起点 = 昨日，故「今日+N」的索引 = N + 1
     await mountScroll([
       // 索引 2 → 4（今日+1 到今日+3），应占第 3/4/5 列 → grid-column: 3/6
-      { id: 1, orderNo: 'SPAN3', status: 'wip', startDate: localDateStr(1), deadline: localDateStr(3) },
+      { id: 1, orderNo: 'SPAN3', status: 'wip', startDate: localDateStr(1), deadline: localDeadlineStr(3) },
       // 索引 5 单日 → 第 6 列
-      { id: 2, orderNo: 'ONE', status: 'wip', startDate: localDateStr(4), deadline: localDateStr(4) }
+      { id: 2, orderNo: 'ONE', status: 'wip', startDate: localDateStr(4), deadline: localDeadlineStr(4) }
     ])
 
     const bars = wrapper!.findAll('.tl-bar')
@@ -88,10 +94,10 @@ describe('ScheduleScroll 案头横格', () => {
 
   it('状态色语义：逾期 / 待确认 / 已确认 / 进行中', async () => {
     await mountScroll([
-      { id: 1, orderNo: 'OVER', status: 'wip', startDate: localDateStr(-1), deadline: localDateStr(-1) },
-      { id: 2, orderNo: 'PEND', status: 'pending', startDate: localDateStr(1), deadline: localDateStr(2) },
-      { id: 3, orderNo: 'CONF', status: 'confirmed', startDate: localDateStr(2), deadline: localDateStr(3) },
-      { id: 4, orderNo: 'WIP', status: 'wip', startDate: localDateStr(3), deadline: localDateStr(4) }
+      { id: 1, orderNo: 'OVER', status: 'wip', startDate: localDateStr(-1), deadline: localDeadlineStr(-1) },
+      { id: 2, orderNo: 'PEND', status: 'pending', startDate: localDateStr(1), deadline: localDeadlineStr(2) },
+      { id: 3, orderNo: 'CONF', status: 'confirmed', startDate: localDateStr(2), deadline: localDeadlineStr(3) },
+      { id: 4, orderNo: 'WIP', status: 'wip', startDate: localDateStr(3), deadline: localDeadlineStr(4) }
     ])
 
     const cls = (no: string) => wrapper!.findAll('.tl-bar').find(b => b.text().includes(no))!.classes()
