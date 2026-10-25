@@ -6,6 +6,12 @@
 > - 滚动分册：活档体积门 `scripts/check-changelog-size.mjs`（≤40KB / ≤450 行，单段 ≤4KB，accept 第 19 道）；撞线即搬 oldest 段入 `docs/changelog-archive/` 新卷（整段零改动 + 逐行哈希校验，禁调高阈值续命）。
 > - v0.x 时代（v0.1~v0.46+）全量台账在 `docs/changelog-archive/changelog-v0-20260927.md`，只读历史。
 
+## 接收外部 PR #42：仪表盘首渲门控（2026-10-25）
+
+- 偏好未就绪前不渲染板块（成功/失败都算就绪），消除默认卷轴款抢闪与排期数据二次拉取；占位沿用纸卡圆角族并尊重 `prefers-reduced-motion`。
+- 顺带修一个潜在缺陷：`v-for` 内字符串 ref 被 Vue 收成数组，导致留言卡 `load()` 与待审徽标在重连后不更新；改为函数 ref + shallowRef。偏好拉取与 profile/stats 并行。
+- 新增 7 条行为测试；十九道全绿 @ `86b160dc`（web 1021）。
+
 ## 安全加固批 GHSA-6pf3（2026-10-24）
 
 - 落地一份负责任披露的外部安全审计（私密通告 GHSA-6pf3-g4xq-854w）加固项，覆盖认证、账户、资源配额、桌面端命令授权与本地数据面共 8 项。
