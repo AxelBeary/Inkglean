@@ -100,7 +100,10 @@ export function useOrderPaymentPanel({ order, routeId, onRefresh }: {
 
   function openNodePayDialog(inst: OrderInstallment) {
     nodePayTarget.value = inst
-    nodePayForm.value = { amountYuan: inst.remainingCents > 0 ? inst.remainingCents / 100 : null, note: '' }
+    // PR #26 后节点待收走 forwardFill，负尾款带内场景下节点差额可能大于订单级待收：
+    // 预填钳到订单级，不递一个「一点就变多收」的默认值。真要超额仍可手输（后端支持多收）。
+    const prefillCents = Math.min(inst.remainingCents, poolRemainingCents.value)
+    nodePayForm.value = { amountYuan: prefillCents > 0 ? prefillCents / 100 : null, note: '' }
     nodePayDialogVisible.value = true
   }
 

@@ -96,4 +96,21 @@ describe('节点快捷收款校验（审计 🔴-3）', () => {
     await panel.submitNodePayment()
     expect(h.addPayment).not.toHaveBeenCalled()
   })
+
+  // PR #26 后节点待收走 forwardFill：负尾款带内场景（Σ含负 < paid < Σ正）节点差额会大于订单级待收
+  it('TC-NP-04: 订单级已收足 → 节点预填为空，不递「一点就变多收」的默认值', () => {
+    const panel = setup({ paidTotalCents: 12000, finalPriceCents: 10000, remainingCents: 0 })
+
+    panel.openNodePayDialog({ id: 7, name: '线稿', remainingCents: 3000 } as unknown as OrderInstallment)
+
+    expect(panel.nodePayForm.value.amountYuan).toBeNull()
+  })
+
+  it('TC-NP-05: 节点差额大于订单级待收 → 预填钳到订单级（仍可手输超额）', () => {
+    const panel = setup({ paidTotalCents: 9000, finalPriceCents: 10000, remainingCents: 1000 })
+
+    panel.openNodePayDialog({ id: 7, name: '线稿', remainingCents: 3000 } as unknown as OrderInstallment)
+
+    expect(panel.nodePayForm.value.amountYuan).toBe(10)
+  })
 })

@@ -91,3 +91,30 @@ describe('PaymentPanel 撤销防连击（R-4）', () => {
     expect(emitted![0][0]).toMatchObject({ id: 1, amount_cents: 5000 })
   })
 })
+
+// PR #26 跟进：节点待收改走 forwardFill 后，负尾款带内场景（Σ含负 < paid < Σ正）
+// 节点级差额会大于订单级待收。快捷收款只看节点差额就会在已收足的订单上递超收默认值。
+describe('PaymentPanel 节点快捷收款按钮门控', () => {
+  const NODE = [{ id: 7, name: '线稿', amountCents: 15000, paidCents: 12000, remainingCents: 3000, status: 'partial' }]
+
+  function collectBtns(wrapper: ReturnType<typeof mountPanel>) {
+    return wrapper.findAllComponents({ name: 'ElButtonStub' })
+      .filter(b => b.text() === 'orderDetail.payNodeCollect')
+  }
+
+  it('订单级仍有待收 → 显示快捷收款', () => {
+    const wrapper = mountPanel({ installmentRefs: NODE, poolRemainingCents: 1000 })
+    expect(collectBtns(wrapper)).toHaveLength(1)
+  })
+
+  it('订单级已收足 → 不显示快捷收款（哪怕节点差额仍 > 0）', () => {
+    const wrapper = mountPanel({
+      installmentRefs: NODE,
+      poolPaidCents: 12000,
+      poolFinalCents: 10000,
+      poolRemainingCents: 0,
+      poolOverpaidCents: 2000
+    })
+    expect(collectBtns(wrapper)).toHaveLength(0)
+  })
+})
