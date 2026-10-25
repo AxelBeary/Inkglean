@@ -201,3 +201,24 @@ body .dialog-fade-leave-active .el-overlay-dialog { animation: huiyue-dialog-out
   from { opacity: 1; transform: scale(1); }
   to { opacity: 0; transform: scale(0.97); }
 }
+
+
+/* ===== 2026-10-25：全站滚动条统一（Windows 默认灰条压在宣纸上最破坏质感） =====
+   轨道透明，滑块半透明墨色，8px 视觉宽度（含 2px 透明边）。
+   色源只用 --text-primary：theme.css 的 :root/html.dark 与 artist-tokens.css 的两套
+   「旧变量兼容映射」四层都已定义，公开页与后台两套作用域都取得到，故不写任何十六进制
+   （此前写死 var(--ink, #262520)：--ink 只活在 html[data-artist-theme] 作用域，
+    客户路由取不到 → 恒落 #262520，压在暗底上实测 1.00~1.03:1）。
+   56% 是压住非文本 UI 3:1 线的最低档（实测八处主题底最弱 3.29:1，在公开页亮色 page 底；
+   最强 5.46:1；退到 52% 即塌到 2.96:1）。hover 档 68% → 最弱 4.55:1。 */
+* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--text-primary) 56%, transparent) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text-primary) 56%, transparent);
+  border-radius: 6px; border: 2px solid transparent; background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text-primary) 68%, transparent);
+  background-clip: padding-box;
+}

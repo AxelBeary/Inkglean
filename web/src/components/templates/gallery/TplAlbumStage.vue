@@ -23,13 +23,16 @@
     >
       <!-- v0.36: 侧露页（peek，Gallery 模板启用）——相邻页缩小露出，点击翻到该页 -->
       <button
-        v-if="peek && prevArt"
+        v-if="peek"
         type="button"
         class="tpl-album-peek tpl-album-peek--prev"
         :aria-label="$t('gallery.prev')"
+        :disabled="!prevArt"
         @click="goPrev"
       >
+        <!-- 无相邻页时整颗 el-image 不渲染：空串 src 会被浏览器解析成文档 URL，每次渲染各发一次整页请求 -->
         <el-image
+          v-if="prevArt"
           :src="imgUrl(prevArt.image_path)"
           fit="cover"
           class="tpl-album-peek-img"
@@ -70,13 +73,15 @@
       </Transition>
 
       <button
-        v-if="peek && nextArt"
+        v-if="peek"
         type="button"
         class="tpl-album-peek tpl-album-peek--next"
         :aria-label="$t('gallery.next')"
+        :disabled="!nextArt"
         @click="goNext"
       >
         <el-image
+          v-if="nextArt"
           :src="imgUrl(nextArt.image_path)"
           fit="cover"
           class="tpl-album-peek-img"
@@ -294,7 +299,7 @@ function onFrameClick() {
   overflow: hidden;
   transition: opacity var(--dur-mid) var(--ease-out);
 }
-.tpl-album-peek:hover { opacity: 0.85; }
+.tpl-album-peek:hover:not(:disabled) { opacity: 0.85; }
 .tpl-album-peek-img {
   width: 100%;
   height: 100%;
@@ -302,6 +307,9 @@ function onFrameClick() {
 .tpl-album-peek-img :deep(img) {
   object-fit: cover;
 }
+/* 无相邻页时按钮仍渲染：flex-shrink:0 + width 11% 自带占位，摘掉整颗会让当前页宽度硬跳。
+   空壳按钮 background:none 本就不可见，不需要 visibility 遮罩（遮现象不遮请求）。 */
+.tpl-album-peek:disabled { cursor: default; }
 
 /* 切页过渡：淡入 + 微位移（克制，不做翻页翻转） */
 .tpl-album-swap-enter-active,

@@ -371,6 +371,9 @@ function onTogglePay(s: StageRow, val: boolean | string | number) {
 .stage-desc:hover { background: var(--hq-t); }
 .stage-desc.empty { color: var(--ink3); opacity: 0; transition: opacity var(--dur-fast); font-style: italic; }
 .stage-row:hover .stage-desc.empty { opacity: 0.7; }
+@media (hover: none) {
+  .stage-desc.empty { opacity: 0.7; }
+}
 .desc-input { flex: 1; min-width: 0; }
 .stage-pay {
   display: flex; align-items: center; gap: 6px;

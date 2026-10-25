@@ -468,8 +468,11 @@ async function saveDateEdit() {
   display: flex; align-items: center;
   padding: 0 6px; overflow: hidden;
   transition: filter var(--dur-fast);
+  color: var(--card); /* 实心色带上的前景色；缓冲/未设截稿在下方单独回墨色 */
   touch-action: none; /* 重做：移动端拖拽改期不被浏览器滚动接管 */
 }
+.tl-bar.cal-band--buffer,
+.tl-bar.cal-band--nodeadline { color: var(--ink); }
 .tl-bar:hover { filter: brightness(1.1); }
 .tl-bar-text {
   font-size: calc(var(--font-scale, 1) * 11px); white-space: nowrap;
@@ -510,7 +513,7 @@ async function saveDateEdit() {
   position: fixed;
   transform: translate(-50%, calc(-100% - 10px));
   background: var(--hq);
-  color: #fff;
+  color: var(--paper); /* 实心 --hq 上的反色前景，与 817 B测实心按钮同口径：宣纸档 6.58:1，墨黑档 8.16:1（白字在墨黑档只有 2.22:1） */
   font-size: calc(var(--font-scale, 1) * 12px); font-weight: 600;
   line-height: 1;
   padding: 5px 9px; border-radius: 4px;

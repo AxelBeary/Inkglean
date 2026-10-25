@@ -1,6 +1,6 @@
 // utils/animSpeed 后台动画速度 + 减少动效共享模块测试（819-G）
 // 覆盖：档位常量 / 归一化（旧值、无值、非法回落默认 1）/ 读写应用清理 / dataset 契约
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   ANIM_SPEED_KEY,
   ANIM_SPEED_MIN,
@@ -17,7 +17,9 @@ import {
   readReduceMotion,
   writeReduceMotion,
   applyReduceMotion,
-  clearReduceMotion
+  clearReduceMotion,
+  isReducedMotion,
+  motionScrollBehavior
 } from '../animSpeed'
 
 beforeEach(() => {
@@ -127,5 +129,43 @@ describe('减少动效开关', () => {
     clearReduceMotion()
     expect(localStorage.getItem(REDUCE_MOTION_KEY)).toBeNull()
     expect(document.documentElement.dataset.reduceMotion).toBeUndefined()
+  })
+})
+
+describe('isReducedMotion / motionScrollBehavior（#56：JS 侧动效统一判据）', () => {
+  let systemReduce = false
+
+  beforeEach(() => {
+    systemReduce = false
+    vi.spyOn(window, 'matchMedia').mockImplementation(((query: string) => ({
+      media: query,
+      matches: query.includes('prefers-reduced-motion') && systemReduce
+    })) as unknown as typeof window.matchMedia)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('应用内开关（dataset）与系统偏好任一为真即为真——此前 JS 侧只读得到系统偏好', () => {
+    expect(isReducedMotion()).toBe(false)
+    systemReduce = true
+    expect(isReducedMotion()).toBe(true)
+    systemReduce = false
+    applyReduceMotion(true)
+    expect(isReducedMotion()).toBe(true)
+  })
+
+  it('开关摘掉后立刻回到系统口径：调用时读，不缓存初值', () => {
+    applyReduceMotion(true)
+    expect(isReducedMotion()).toBe(true)
+    applyReduceMotion(false)
+    expect(isReducedMotion()).toBe(false)
+  })
+
+  it('motionScrollBehavior：减少动效走 auto，正常走 smooth', () => {
+    expect(motionScrollBehavior()).toBe('smooth')
+    applyReduceMotion(true)
+    expect(motionScrollBehavior()).toBe('auto')
   })
 })

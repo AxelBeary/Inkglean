@@ -57,6 +57,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useArtistStore } from '../../../stores/artist'
 import { artistApi } from '../../../api/index'
+import { isReducedMotion } from '../../../utils/animSpeed'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -86,9 +87,6 @@ const plaque3d = ref<HTMLElement | null>(null)
 const ropeL = ref<HTMLElement | null>(null)
 const ropeR = ref<HTMLElement | null>(null)
 let syncRaf = 0
-
-const reducedMotion = typeof window !== 'undefined'
-  && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 // ─── 名额（口径同 SlotOverview：正式+候补 / batch_limit+buffer_limit） ───
 const formalCount = ref(0)
@@ -148,7 +146,9 @@ function syncRopes() {
   ropeR.value.style.transform = `translateX(-50%) rotate(${-ang}deg)`
 }
 function animateRopes() {
-  if (reducedMotion) { syncRopes(); return }
+  // 必须调用时读：应用内开关由 ArtistLayout 挂载后写入 html[data-reduce-motion]，
+  // 任何 setup/模块级常量都在它之前求值，只会读到系统偏好且恒为初值
+  if (isReducedMotion()) { syncRopes(); return }
   cancelAnimationFrame(syncRaf)
   const t0 = performance.now()
   const frame = () => {
@@ -228,7 +228,7 @@ onMounted(() => {
   filter: drop-shadow(0 13px 11px rgba(38, 37, 30, .2));
 }
 .plaque:disabled { cursor: default; }
-[data-theme="ink"] .plaque { filter: drop-shadow(0 13px 13px rgba(0, 0, 0, .5)); }
+html[data-artist-theme="ink"] .plaque { filter: drop-shadow(0 13px 13px rgba(0, 0, 0, .5)); }
 .plaque-3d {
   width: 100%; height: 100%; position: relative; display: block;
   transform-style: preserve-3d; transition: transform .72s cubic-bezier(.45, .05, .3, 1);
