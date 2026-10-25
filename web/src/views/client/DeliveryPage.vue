@@ -152,6 +152,8 @@ async function verify() {
   verifyError.value = false
   try {
     delivery.value = await orderApi.delivery(no, tok)
+    // 一次性下载的 start/confirm 都要带同一枚令牌；此前只写进局部变量，token.value 恒为空串
+    token.value = tok
     verified.value = true
   } catch (err) {
     ElMessage.error((err as Error).message)
