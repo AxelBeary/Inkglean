@@ -91,4 +91,27 @@ describe('节点待收展示口径（#21-2 负尾款）', () => {
     expect(batch).toEqual(getOrderInstallments(order.id))
     expect(batch.map(r => r.remainingCents)).toEqual([0, 0])
   })
+
+  // 审查追问条：展示侧与引擎锁定推导不得分叉（「展示说已收满、引擎仍认为欠收」）
+  it('引擎侧同源：锁定推导判首节点付清，展示侧同一笔也报已收满', async () => {
+    const order = seedInstallments(artist, [['定金', 15000], ['尾款', -5000]], 10000, 30000)
+    const { computeLockedState } = await import('../src/features/pricing/pricing-engine.js')
+
+    const rows = getOrderInstallments(order.id)
+    // 与展示侧同一份节点价 + 同一笔已收，锁定推导不带完成阶段（-1），首节点此前已锁
+    const state = computeLockedState(
+      rows.map((r, i) => ({ sortOrder: i, basisPoints: 0, amountCents: r.amountCents })),
+      30000,
+      -1,
+      [true, false]
+    )
+
+    // forwardFill 把首节点算成付清：paidOff + 已收 15000 ≡ 展示侧 paidCents 15000 / 待收 0
+    expect(state.reasons[0]).toBe('paidOff')
+    expect(state.paidCents[0]).toBe(rows[0].paidCents)
+    expect(rows[0].status).toBe('paid')
+    expect(rows[0].remainingCents).toBe(0)
+    // 展示侧节点待收合计 ≡ 订单级待收（终价−已收，钳非负）——两端不可能再相反
+    expect(rows.reduce((s, r) => s + r.remainingCents, 0)).toBe(Math.max(0, 10000 - 30000))
+  })
 })
