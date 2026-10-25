@@ -345,9 +345,13 @@ export function allocateDelta(
 /**
  * 推导每节点已收/待收（R7 顺序填充 + 超付抵扣，R8 下限）。
  * 非尾款节点待收最低 0；尾款节点待收可为负（多收可退）。
+ *
+ * 入参只需「顺序 + 节点价」两项（Pick 自 EngineInstallment，不另开形状）：
+ * 展示路径 order-pricing.getOrdersInstallments 也走本原语，使「节点已收/待收」
+ * 与 computeLockedState 的「付清即锁」判定共用同一个 forwardFill，杜绝双口径漂移。
  */
 export function deriveInstallmentProgress(
-  installments: EngineInstallment[],
+  installments: ReadonlyArray<Pick<EngineInstallment, 'sortOrder' | 'amountCents'>>,
   paidTotalCents: number
 ): ProgressRow[] {
   const sorted = [...installments].sort((a, b) => a.sortOrder - b.sortOrder)

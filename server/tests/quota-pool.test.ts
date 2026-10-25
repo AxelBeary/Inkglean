@@ -305,10 +305,13 @@ describe('B7 额度池（v0.23）', () => {
 
     const insts = orderService.getOrderInstallments(order.id)
     expect(insts.map(i => i.amountCents)).toEqual([15000, -5000])
-    // 已收封顶到 Σ节点价（10000）后顺序填充：定金收满 10000（partial）、负价尾款视为已结清
-    expect(insts.map(i => i.paidCents)).toEqual([10000, 0])
-    expect(insts.map(i => i.remainingCents)).toEqual([5000, 0])
-    expect(insts.map(i => i.status)).toEqual(['partial', 'paid'])
+    // 审计 #21 条目 2 修正原期望：封顶口径取正节点之和（15000）而非含负 Σ（10000）——
+    // 负尾款是「应退额度」不是定金节点的欠款缺口，已收 30000 ≥ 15000 时定金应视为收满，
+    // 否则节点级待收 5000 与订单级待收 max(0, 10000−30000)=0 相互矛盾。
+    // 2-1 的原始约束（不出现负已付/负待付）保持不变。
+    expect(insts.map(i => i.paidCents)).toEqual([15000, 0])
+    expect(insts.map(i => i.remainingCents)).toEqual([0, 0])
+    expect(insts.map(i => i.status)).toEqual(['paid', 'paid'])
     expect(insts.every(i => i.paidCents >= 0 && i.remainingCents >= 0)).toBe(true)
   })
 
