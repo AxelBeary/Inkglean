@@ -83,6 +83,18 @@ export function applyReduceMotion(on: unknown): boolean {
   return !!on
 }
 
+/** 是否应减少动效：应用内开关（dataset）或系统偏好任一为真。
+ *  CSS 侧由 artist-tokens.css 的 [data-reduce-motion] 兜底；JS 侧（计数动画/平滑滚动等）必须走这里。 */
+export function isReducedMotion(): boolean {
+  if (document.documentElement.dataset.reduceMotion === 'on') return true
+  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+/** 程序化滚动行为：减少动效时直接跳转（ScrollBehavior） */
+export function motionScrollBehavior(): ScrollBehavior {
+  return isReducedMotion() ? 'auto' : 'smooth'
+}
+
 /** 清理：移除存储并摘掉 dataset */
 export function clearReduceMotion(): void {
   safeRemoveItem(REDUCE_MOTION_KEY)

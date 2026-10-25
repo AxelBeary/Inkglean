@@ -62,10 +62,10 @@ const totalCompleted = useCountUp(computed(() => props.stats?.totalCompleted ?? 
   cursor: pointer;
   text-align: center;
   /* K1（波2，灰沼教训）：卡片底色随主题即时切换，不插值（hover/按压只动阴影/位移） */
-  transition: transform 0.18s ease-out, box-shadow var(--dur-mid);
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-mid);
 }
 .stat-card:hover { box-shadow: var(--sh-2); }
-.stat-card:active { transform: translateY(-2px) scale(0.98); }
+.stat-card:active { transform: translateY(1px) scale(0.99); }
 /* 顶部 3px 状态色条（色只标状态，数字保持墨色） */
 .stat-card::after {
   content: '';

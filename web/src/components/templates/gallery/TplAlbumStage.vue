@@ -23,17 +23,19 @@
     >
       <!-- v0.36: 侧露页（peek，Gallery 模板启用）——相邻页缩小露出，点击翻到该页 -->
       <button
-        v-if="peek && prevArt"
+        v-if="peek"
         type="button"
         class="tpl-album-peek tpl-album-peek--prev"
         :aria-label="$t('gallery.prev')"
+        :disabled="!prevArt"
+        :class="{ 'is-empty': !prevArt }"
         @click="goPrev"
       >
         <el-image
-          :src="imgUrl(prevArt.image_path)"
+          :src="prevArt ? imgUrl(prevArt.image_path) : ''"
           fit="cover"
           class="tpl-album-peek-img"
-          :alt="prevArt.title || $t('artistHome.artworks')"
+          :alt="prevArt?.title || $t('artistHome.artworks')"
         />
       </button>
 
@@ -70,17 +72,19 @@
       </Transition>
 
       <button
-        v-if="peek && nextArt"
+        v-if="peek"
         type="button"
         class="tpl-album-peek tpl-album-peek--next"
         :aria-label="$t('gallery.next')"
+        :disabled="!nextArt"
+        :class="{ 'is-empty': !nextArt }"
         @click="goNext"
       >
         <el-image
-          :src="imgUrl(nextArt.image_path)"
+          :src="nextArt ? imgUrl(nextArt.image_path) : ''"
           fit="cover"
           class="tpl-album-peek-img"
-          :alt="nextArt.title || $t('artistHome.artworks')"
+          :alt="nextArt?.title || $t('artistHome.artworks')"
         />
       </button>
     </div>
@@ -302,6 +306,8 @@ function onFrameClick() {
 .tpl-album-peek-img :deep(img) {
   object-fit: cover;
 }
+/* 无相邻页时保留占位（只隐形不塌陷）：否则翻到首/末页时当前页宽度会硬跳 */
+.tpl-album-peek.is-empty { visibility: hidden; pointer-events: none; }
 
 /* 切页过渡：淡入 + 微位移（克制，不做翻页翻转） */
 .tpl-album-swap-enter-active,

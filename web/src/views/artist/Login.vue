@@ -343,7 +343,7 @@ async function login() {
    ① 按 JS 算出的 data-daypart 定色温起点（偏移仅 ±2 级亮度，不破坏七色锁死的纸色家族）
    ② 停留期间一次性超慢漂移（240s，如天光缓缓西沉，不循环=宪法动效纪律）
    ③ 仅纸白主题参与；墨黑主题底色仍走 --paper */
-@property --lg-drift { syntax: '<color>'; inherits: true; initial-value: #F0E6CF; }
+@property --lg-drift { syntax: '<color>'; inherits: false; initial-value: #F0E6CF; }
 
 .login-page { --lg-drift: #F0E6CF; }
 .login-page[data-daypart='morning'] { --lg-drift: #F2E9D4; }

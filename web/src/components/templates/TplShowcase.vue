@@ -496,6 +496,8 @@ function goOrder() {
 .tpl-style-img-fade-leave-to {
   opacity: 0;
 }
+/* 换画风是高频浏览动作：out-in 下旧图淡出 150ms 会先空一块，这里让旧图瞬切、新图再淡入 */
+.tpl-style-img-fade-leave-active { transition-duration: 0s; }
 
 /* 尺寸价格列表（多画风/单画风共用） */
 .tpl-style-sizes {

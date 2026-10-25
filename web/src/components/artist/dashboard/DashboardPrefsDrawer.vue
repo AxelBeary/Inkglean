@@ -132,6 +132,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { motionScrollBehavior } from '../../../utils/animSpeed'
 import {
   DASHBOARD_PREFS_KEY,
   useDashboardPrefs,
@@ -273,7 +274,7 @@ const highlightId = ref<string | null>(null)
 let hlTimer: ReturnType<typeof setTimeout> | null = null
 function locateItem(id: string) {
   const el = document.querySelector(`[data-ditem="${id}"]`)
-  if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  if (el) el.scrollIntoView({ block: 'nearest', behavior: motionScrollBehavior() })
   highlightId.value = id
   if (hlTimer) clearTimeout(hlTimer)
   hlTimer = setTimeout(() => { highlightId.value = null }, 1200)

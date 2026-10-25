@@ -167,6 +167,7 @@ useScrollReveal(rootEl)
 }
 .classic-side-name {
   font-family: var(--font-display);
+  overflow-wrap: anywhere;
   font-size: 22px;
   font-weight: 700;
   color: var(--pal-text);

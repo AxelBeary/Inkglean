@@ -468,8 +468,11 @@ async function saveDateEdit() {
   display: flex; align-items: center;
   padding: 0 6px; overflow: hidden;
   transition: filter var(--dur-fast);
+  color: var(--card); /* 实心色带上的前景色；缓冲/未设截稿在下方单独回墨色 */
   touch-action: none; /* 重做：移动端拖拽改期不被浏览器滚动接管 */
 }
+.tl-bar.cal-band--buffer,
+.tl-bar.cal-band--nodeadline { color: var(--ink); }
 .tl-bar:hover { filter: brightness(1.1); }
 .tl-bar-text {
   font-size: calc(var(--font-scale, 1) * 11px); white-space: nowrap;

@@ -371,6 +371,25 @@ html[data-artist-theme="ink"] .band-doing { background: #3E6285; color: #DCE9F5;
 html[data-artist-theme="ink"] .band-over { background: #9E4437; color: #F6DDD7; }
 html[data-artist-theme="ink"] .band-done { background: #38735A; color: #D9EFE3; }
 
+/* 2026-10-25：临期/未设截稿/缓冲位漏了墨黑覆写（白字压浅藤黄 1.98:1；缓冲位复用 band-doing 被抢成实心蓝） */
+html[data-artist-theme="ink"] .band-soon { background: #D9B36A; color: #3A2A05; }
+html[data-artist-theme="ink"] .band-nd { color: #D8D2C2; }
+html[data-artist-theme="ink"] .cal-band--buffer {
+  background: color-mix(in srgb, var(--buf) 18%, transparent);
+  border-color: var(--buf);
+  color: #DCE9F5;
+}
+
+/* 2026-10-25：订单列表自绘标签在墨黑主题下白字压浅色底（1.98~3.49:1），改深墨 */
+html[data-artist-theme="ink"] .status-tag--pending,
+html[data-artist-theme="ink"] .status-tag--confirmed,
+html[data-artist-theme="ink"] .status-tag--wip,
+html[data-artist-theme="ink"] .status-tag--revision,
+html[data-artist-theme="ink"] .status-tag--done,
+html[data-artist-theme="ink"] .status-tag--delivered,
+html[data-artist-theme="ink"] .status-tag--cancelled,
+html[data-artist-theme="ink"] .source-tag--manual { color: #1B1A15; }
+
 /* 817 B测反馈5：墨黑主题实心主按钮白字对比度不足（--hq #8FB2D1/#fff ≈ 2.1:1，不达 4.5:1）。
    只调文字对比度不改色相——文字改深墨（--paper #171611），与浅色纸墨颜料达成 AA/AAA。
    仅覆盖实心按钮；plain/text/link 形态本就用主色文字，不误伤。 */
@@ -544,7 +563,7 @@ html[data-artist-theme] .artist-scope .btn-primary {
   border: 1px solid var(--hq);
   border-radius: var(--r-m);
   background: var(--hq);
-  color: #fff;
+  color: var(--paper);
   font-size: calc(var(--font-scale, 1) * 13px);
   cursor: pointer;
   transition: background-color var(--dur-fast), transform var(--dur-fast) ease-out;
