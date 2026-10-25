@@ -2,8 +2,8 @@
 
 ## 看板（2026-10-26 二次刷新：wave3 —— PR #55/#58/#26/#59/#60 全数合入 + 上批 7 项待拍板全部落地）
 
-- **HEAD 与推送**：`a8fe3f1d` = `ef96183a` 之上叠 2 笔本批代码 + 5 笔 PR 合并 + 1 笔 lockfile 根镜像校正；十九道全绿 @ a8fe3f1d（353s）
-- **基线（accept.ps1 十九道全绿 @ `a8fe3f1d`）**：server **1981** / web **1069**（159 文件）/ desktop **616**（44）/ shared **44** / E2E **14** / cargo test 32（Rust 另计）
+- **HEAD 与推送**：`81ea7dc3` = `ef96183a` 之上叠 3 笔本批代码 + 5 笔 PR 合并 + 1 笔 lockfile 根镜像校正 + 文档；十九道全绿 @ 81ea7dc3（335s）
+- **基线（accept.ps1 十九道全绿 @ `81ea7dc3`）**：server **1981** / web **1069**（159 文件）/ desktop **616**（44）/ shared **44** / E2E **14** / cargo test 32（Rust 另计）
   - 迁移仍 **v79**（本批零新迁移；v77 参考图配额列 / v78 幂等 request_hash / v79 撤销关联）
   - 本批计数增长：server +7（#26 自带回归）/ web +26（本批 10 例 + PR #55/#58 自带）/ shared +15（PriceCard 拆分 + 弹窗可达性）
 - **拟物收敛射程已定案**：只限排期块（ScheduleScroll）；挂牌 3D / 墨迹动画 / 登录纸艺山水**不动**，wave3 实测零外扩
@@ -15,7 +15,7 @@
 
 **下一步（按优先级）**
 
-1. ✅ **wave3 收口 @ `a8fe3f1d`**：PR #55/#58/#26/#59/#60 五路合入 + 上批 7 项待拍板全部落地；十九道全绿 353s
+1. ✅ **wave3 收口 @ `81ea7dc3`**：PR #55/#58/#26/#59/#60 五路合入 + 上批 7 项待拍板全部落地；十九道全绿 335s
    - 留痕：`AGENTS/artifacts/mistwhisker-wave3-20261026/`（review-W1/W2 评审、seat-C 交回、logs/accept-wave3.log、deleted-branches.txt）
 2. **登记未施工（下批候选；均已逐条核实成立，无安全口子）**
    - #52 其余六条：登出先清态后发请求、`resetSession` 收编 401 清理、签名刷新按 50 分片、路由守卫 fetch 去重与超时、setup 先判 ok 后 json
@@ -83,7 +83,7 @@
   - 既有绕过留痕不变：-Force / -SkipAccept 仍记 WARN（本批顺手补上 -SkipAccept 实际未写的 WARN 行），阻断仍走 Stop-Fail 写告警文件。
   - 验证：沙盒 git 仓八景（纯文档领先→WARN 放行；含代码/离线 SHA/红报告/25h 陈旧→阻断；-Force/-SkipAccept/dirty 景行为不变），取证件 `AGENTS/temp/docdowngrade-20260929/results.md`。详见 changelog 同批条。
 
-**起手必读**：**⚑ 下次开工第一件事**：读顶部看板（wave3：PR #55/#58/#26/#59/#60 五路合入 + 上批 7 项待拍板全部落地，十九道全绿 @ `a8fe3f1d`）→ 再读 **⚑ 下方正文第一条（2026-10-26 wave3 收口）**；余下待用户项看看板「下一步」第 2~3 条。
+**起手必读**：**⚑ 下次开工第一件事**：读顶部看板（wave3：PR #55/#58/#26/#59/#60 五路合入 + 上批 7 项待拍板全部落地，十九道全绿 @ `81ea7dc3`）→ 再读 **⚑ 下方正文第一条（2026-10-26 wave3 收口）**；余下待用户项看看板「下一步」第 2~3 条。
 
 **起手必读续**：→ 交接档 `docs/comms/交接-20260912-会话收口与待拍清单.md` → 本节看板 → `AGENTS.md`（含「STATUS 体例与归档纪律」）→ 碰桌面端再读 `desktop/docs/STATUS.md` 顶部。
 
@@ -110,7 +110,7 @@
 > - **本批代码（C 席，shared）**：PriceCard.vue 1094→692（拆出 `pricecard/{types,tiers,draw}.ts` + `ArtworkPickerModal.vue`，对外签名不变、两端调用方零跟改）；
 >   弹窗补 aria-modal/Escape/焦点陷阱/焦点归还；档位 `min` 0→0.01 + 行内提示；小票排除行补提示（`receipt/totals.ts` 一行未动）。
 >   **F-44 唯一遗留豁免就此清偿，ALLOWLIST 现为空表。**
-> - **验证**：十九道全绿 @ `a8fe3f1d`（353s）；server 1981 / web 1069（159 文件）/ desktop 616（44）/ shared 44 / E2E 14；基线已同步。
+> - **验证**：十九道全绿 @ `81ea7dc3`（335s）；server 1981 / web 1069（159 文件）/ desktop 616（44）/ shared 44 / E2E 14；基线已同步、复跑零掉数。
 >   业务+测试同改走 `-TestTamperAck`（三处有意的行为标准变更：基础价回落取消、I6-e 修订、0 元非法）。
 > - **盘面清理**：11 个 `.qoder/worktrees/agent-huiyue-*` 注册全部摘除、33 个已并入本地分支删除（末端 SHA 存 `deleted-branches.txt` 可恢复）；
 >   7 份席位交回台账归档进 `AGENTS/artifacts/inkglean-sec-audit-20261024/seat-ledgers/`；三个残目录只剩 node_modules，删除被本机设置规则拦，候用户手动。

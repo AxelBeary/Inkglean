@@ -18,7 +18,7 @@
 - shared：PriceCard 1094→692 行（拆出 `pricecard/{types,tiers,draw}.ts` 与 `ArtworkPickerModal.vue`，对外签名不变、web/desktop 调用方零跟改）；挑作品弹窗补 aria-modal / Escape / Tab 焦点陷阱 / 关闭归还焦点；档位价格 0 元判非法（min 0.01 + 行内提示）；小票里非赠品 0 元行维持不进导出并给出行内提示。F-44 唯一遗留豁免清偿，`check-file-size` ALLOWLIST 现为空表。
 - 视觉射程：用户复确认「拟物收敛只限排期块」；本批实测 ScheduleScroll 之外的五个拟物面（印章墨迹 / 登录纸艺 / 纸卡 / 问候洇墨 / 挂牌 3D）diff 全空。
 - 盘面：11 个 agent worktree 注册摘除、33 个已并入本地分支删除（末端 SHA 留恢复表）；7 份席位交回台账归档进安全批 artifacts。
-- 门禁：十九道全绿 @ `a8fe3f1d`（353s；server 1981 / web 1069 / desktop 616 / shared 44 / E2E 14），日志 `AGENTS/artifacts/mistwhisker-wave3-20261026/logs/accept-wave3.log`。
+- 门禁：十九道全绿 @ `81ea7dc3`（335s；server 1981 / web 1069 / desktop 616 / shared 44 / E2E 14，与前一轮 353s 复跑计数一致），日志 `AGENTS/artifacts/mistwhisker-wave3-20261026/logs/accept-wave3.log`。
 
 ## 外部反馈吸纳批（2026-10-25）
 
