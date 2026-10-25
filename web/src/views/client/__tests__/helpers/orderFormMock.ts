@@ -85,7 +85,10 @@ export function buildMockComposable(mode: 'single' | 'multi' | 'empty') {
     toggleRush: vi.fn(),
     styleAddonPriceText: (a: StyleAddon) => `¥${a.price}`,
     stylePricePreview: ref(null as StylePricePreview | null),
-    styleDisplayPrice: ref(0),
+    styleDisplayCents: ref(null as number | null),
+    priceBlocking: ref(false),
+    priceStatusText: ref(null as string | null),
+    submittedTotalCents: ref(null as number | null),
     installmentPreview: ref([] as InstallmentItem[]),
     queryPreselect: reactive({ styleId: null as number | null, sizeId: null as number | null }),
     preselectBannerText: computed(() => '')

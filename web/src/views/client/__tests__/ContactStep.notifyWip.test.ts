@@ -22,7 +22,8 @@ function mountStep() {
       notifyVisible: true,
       hasRules: false,
       sanitizedRules: '',
-      submitPriceText: null
+      submitPriceText: null,
+      submitDisabled: false
     },
     global: { plugins: [ElementPlus, i18n] }
   })
@@ -59,7 +60,7 @@ describe('ContactStep QQ 排队提醒过渡处理（REQ-028）', () => {
 
   it('画师未开启通知时整块不渲染（原 notifyVisible 语义不变）', () => {
     const wrapper = mount(ContactStep, {
-      props: { notifyVisible: false, hasRules: false, sanitizedRules: '', submitPriceText: null },
+      props: { notifyVisible: false, hasRules: false, sanitizedRules: '', submitPriceText: null, submitDisabled: false },
       global: { plugins: [ElementPlus, i18n] }
     })
     expect(wrapper.find('.notify-block').exists()).toBe(false)

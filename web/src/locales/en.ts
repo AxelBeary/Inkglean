@@ -945,6 +945,12 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     sizeShowcaseBlocked: 'This size is on display and not bookable right now',
     pctOfBase: 'of base price',
     priceCalcFailed: 'Price calculation failed — please try again later',
+    // issue #50-1/#50-2: no number while the quote is not settled (base-price fallback removed)
+    pricePending: 'Quote pending',
+    priceUpdating: 'Updating quote',
+    priceNotReady: 'The quote is still updating — please try again in a moment',
+    // issue #50-4: exit when every size is showcase-only
+    sizeNoneAvailable: 'No bookable size in this style — you can skip and continue',
     priceSubtotal: 'Subtotal (base + add-ons)',
     previewBaseLine: 'Base price ({size})',
     // v0.35 F4: Entry A preselection banner (coming from the showcase with a choice)
@@ -2737,6 +2743,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     copyFailed: 'Copy failed, please copy manually',
     titleRequired: 'Enter a card title first',
     tiersMinRequired: 'Fill in at least 3 complete tiers (name + price)',
+    // issue #51-3 (ruling A: zero price is invalid)
+    zeroPriceHint: 'Price must be greater than 0',
     exportFailed: 'Generation failed, please try again later',
     fileTypeError: 'Please choose an image file',
     contactLine: 'Contact: {contact}',
@@ -2755,6 +2763,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     itemsLabel: 'Items',
     itemsDesc: 'Name + quantity + unit price; check “gift” to strike through and count as 0',
     itemsRequired: 'Fill in at least one complete item (name + unit price)',
+    // issue #51-4 (ruling A: non-gift zero-price rows stay out of the export)
+    exportExcludedHint: 'This row will not appear in the export: price must be greater than 0',
     itemNamePlaceholder: 'Item name, e.g. Avatar',
     qtyLabel: 'Quantity',
     pricePlaceholder: 'Unit price (CNY)',

@@ -60,7 +60,9 @@
       </div>
       <div class="summary-total">
         <span>{{ t('orderForm.receiptTotal') }}</span>
-        <span class="summary-total-amt">{{ formatYuanValue(displayPrice) }}</span>
+        <span class="summary-total-amt">{{
+          displayCents == null ? t('orderForm.pricePending') : formatYuanTrimmed(displayCents)
+        }}</span>
       </div>
       <div v-if="installments.length > 1" class="summary-installments">
         <span v-for="inst in installments" :key="inst.label" class="summary-inst">
@@ -75,7 +77,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { formatYuan, formatYuanValue } from '../../../utils/money'
+import { formatYuan, formatYuanTrimmed, formatYuanValue } from '../../../utils/money'
 // E13: 尺寸图路径解析复用客户端先例（artwork_image_path > image，见 useArtistData 三号契约）
 import { resolveSizeImagePath } from '../../../composables/useArtistData'
 import type { ArtistStyle, InstallmentItem, StylePricePreview, StyleSize } from './types'
@@ -91,8 +93,8 @@ const props = defineProps<{
   /** 画风价格预览（未计价为 null，明细区不渲染） */
   preview: StylePricePreview | null
   installments: InstallmentItem[]
-  /** 展示价（元；SPEC-PRICE-2 唯一引擎总价，未计价回退尺寸基础价） */
-  displayPrice: number
+  /** 展示价（整数分；SPEC-PRICE-2 唯一引擎总价。issue #50-2 拍板 A：无报价为 null，⛔ 回退基础价） */
+  displayCents: number | null
 }>()
 
 // ─── E13: 档位描述/工期/示意图（字段为空则摘要卡对应块不渲染） ───

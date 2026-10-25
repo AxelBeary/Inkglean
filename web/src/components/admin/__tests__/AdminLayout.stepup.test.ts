@@ -9,13 +9,19 @@ const h = vi.hoisted(() => ({
   status: vi.fn(),
   push: vi.fn(),
   validateSession: vi.fn(),
-  enterArtistScope: vi.fn()
+  enterArtistScope: vi.fn(),
+  // issue #49-1：路由必须是响应式的，才能验「子路由切换即重探」
+  routePath: null as unknown as { value: string }
 }))
 
-vi.mock('vue-router', () => ({
-  useRoute: () => ({ path: '/admin' }),
-  useRouter: () => ({ push: h.push })
-}))
+vi.mock('vue-router', async () => {
+  const { ref } = await import('vue')
+  h.routePath = ref('/admin')
+  return {
+    useRoute: () => ({ get path() { return h.routePath.value } }),
+    useRouter: () => ({ push: h.push })
+  }
+})
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string) => key })
@@ -84,6 +90,7 @@ beforeEach(() => {
   h.push.mockReset()
   h.validateSession.mockReset()
   h.enterArtistScope.mockReset()
+  h.routePath.value = '/admin'
 })
 
 afterEach(() => {
@@ -136,5 +143,42 @@ describe('AdminLayout 入口级 step-up 守卫（REQ-041）', () => {
 
     expect(wrapper.find('.stepup-stub').exists()).toBe(false)
     expect(h.push).toHaveBeenCalledWith('/dashboard')
+  })
+
+  it('issue #49-1：子路由切换即重探（窗口过期后不必整页刷新才有恢复出口）', async () => {
+    h.status.mockResolvedValue({ upgraded: true })
+    mountLayout()
+    await flushPromises()
+    expect(h.status).toHaveBeenCalledTimes(1)
+
+    h.routePath.value = '/admin/actions'
+    await flushPromises()
+
+    expect(h.status).toHaveBeenCalledTimes(2)
+  })
+
+  it('issue #49-1：验证框已弹出时切路由不重复探测', async () => {
+    h.status.mockRejectedValue(stepUpRequiredError())
+    const wrapper = mountLayout()
+    await flushPromises()
+    expect(wrapper.find('.stepup-stub').exists()).toBe(true)
+
+    h.routePath.value = '/admin/actions'
+    await flushPromises()
+
+    expect(h.status).toHaveBeenCalledTimes(1)
+  })
+
+  it('issue #49-1：切路由撞上窗口过期 → 补弹验证框', async () => {
+    h.status.mockResolvedValue({ upgraded: true })
+    const wrapper = mountLayout()
+    await flushPromises()
+    expect(wrapper.find('.stepup-stub').exists()).toBe(false)
+
+    h.status.mockRejectedValue(stepUpRequiredError())
+    h.routePath.value = '/admin/invite'
+    await flushPromises()
+
+    expect(wrapper.find('.stepup-stub').exists()).toBe(true)
   })
 })

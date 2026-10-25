@@ -110,7 +110,8 @@
                 :notify-visible="!!artist?.notifyEnabled"
                 :has-rules="!!rulesContent"
                 :sanitized-rules="sanitizedRules"
-                :submit-price-text="submitPriceText"
+                :submit-price-text="priceStatusText"
+                :submit-disabled="priceBlocking"
                 @prev="step = detailStep"
                 @submit="openReceipt"
               />
@@ -126,7 +127,7 @@
             :selected-size="selectedSize"
             :preview="stylePricePreview"
             :installments="installmentPreview"
-            :display-price="styleDisplayPrice"
+            :display-cents="styleDisplayCents"
           />
         </div>
 
@@ -136,7 +137,7 @@
         <div class="mobile-cta-bar" v-if="artist && isStyleMode">
           <div class="mobile-cta-price">
             <span class="mobile-cta-label">{{ $t('orderForm.receiptTotal') }}</span>
-            <span class="mobile-cta-amt">{{ formatYuanValue(styleDisplayPrice) }}</span>
+            <span class="mobile-cta-amt">{{ priceStatusText || '—' }}</span>
           </div>
           <el-button type="primary" class="mobile-cta-btn" @click="onMobileNext">
             {{ step === contactStep ? $t('orderForm.submit') : $t('orderForm.nextStep') }}
@@ -189,7 +190,7 @@
         <div class="receipt-dashed"></div>
         <div class="receipt-total">
           <span>{{ $t('orderForm.receiptTotal') }}</span>
-          <span>{{ formatYuanValue(styleDisplayPrice) }}</span>
+          <span>{{ priceStatusText || '—' }}</span>
         </div>
         <div v-if="installmentPreview.length > 1" class="receipt-installments">
           <span v-for="inst in installmentPreview" :key="inst.label" class="receipt-inst">
@@ -199,7 +200,7 @@
         <div class="receipt-barcode" aria-hidden="true"></div>
         <div class="receipt-actions">
           <button type="button" class="receipt-btn" @click="receiptVisible = false">{{ $t('common.cancel') }}</button>
-          <button type="button" class="receipt-btn receipt-btn--primary" :disabled="submitting" @click="confirmSubmit">
+          <button type="button" class="receipt-btn receipt-btn--primary" :disabled="submitting || priceBlocking" @click="confirmSubmit">
             {{ submitting ? $t('orderForm.submitting') : $t('orderForm.receiptConfirm') }}
           </button>
         </div>
@@ -267,7 +268,7 @@ import OrderSummaryCard from './order-form/OrderSummaryCard.vue'
 import { useOrderForm } from '../../composables/useOrderForm'
 import type { StyleAddon } from './order-form/types'
 import { usePalette } from '../../composables/usePalette'
-import { formatYuan, formatYuanValue } from '../../utils/money'
+import { formatYuan, formatYuanTrimmed } from '../../utils/money'
 import { trackEvent, flushNow } from '../../utils/track'
 
 const { t } = useI18n()
@@ -298,7 +299,8 @@ const {
   availableStyleAddons, regularAddons, usageAddons, rushAddons,
   styleAddonSelections, selectedUsageId, selectedRushId,
   selectStyle, selectSize, toggleUsage, toggleRush, styleAddonPriceText: rawStyleAddonPriceText,
-  stylePricePreview, styleCalcError, styleDisplayPrice, installmentPreview,
+  stylePricePreview, styleCalcError, styleDisplayCents, installmentPreview,
+  priceBlocking, priceStatusText, submittedTotalCents,
   // v0.34 任务B：URL query 预选命中记录
   queryPreselect,
   // v0.35 F4: 预选摘要横幅文案（入口 A 预选可见，可回上一步改）
@@ -488,11 +490,6 @@ watch(loading, (v) => {
   }
 }, { once: true })
 
-/** 联系方式步提交按钮价格后缀（已选画风+尺寸时显示，否则不拼） */
-const submitPriceText = computed(() =>
-  (isStyleMode.value && selectedSize.value) ? formatYuanValue(styleDisplayPrice.value) : null
-)
-
 // ─── R58-4: 灵感标签快捷注入（R58-8: 从 API 读取画师自定义标签，未设置时不显示，不 fallback 硬编码） ───
 const inspireTags = computed(() => artist.value?.inspirationTags || [])
 
@@ -545,7 +542,9 @@ async function copyOrderSummary() {
     if (p.rush) lines.push(`- ${p.rush.name} +${p.rush.percent}%: +${formatYuan(p.rush.incrementCents)}`)
     if (p.discount) lines.push(`- ${t('orderForm.discountEstimate')}: -${formatYuan(p.discount.amountCents)}`)
   }
-  lines.push(`${t('orderForm.receiptTotal')}: ${formatYuanValue(styleDisplayPrice.value)}`)
+  // issue #50-1：复制出去的总价以服务端回执为准，预估价只作兜底
+  const totalCents = submittedTotalCents.value ?? styleDisplayCents.value
+  lines.push(`${t('orderForm.receiptTotal')}: ${totalCents == null ? t('orderForm.pricePending') : formatYuanTrimmed(totalCents)}`)
   const text = lines.join('\n')
   try {
     await navigator.clipboard.writeText(text)

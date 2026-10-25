@@ -39,7 +39,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { sanitizeHtml } from '../utils/sanitize'
 import { usePasteUpload } from './usePasteUpload'
-import { formatAddonPrice, yuanToCents } from '../utils/money'
+import { formatAddonPrice, formatYuanTrimmed, yuanToCents } from '../utils/money'
 import { getAnonToken } from '../utils/track'
 import { generateId } from '../utils/id'
 import { uploadReferenceWithAnonToken, AnonTokenUnavailableError } from '../utils/anonUpload'
@@ -102,6 +102,12 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
   /** K1-3：计价失败错误文案（走 discountError 同款页内错误态，禁止静默消失） */
   const styleCalcError = ref('')
   const stylePricingExpanded = ref(false)
+  /** issue #50-1：计价请求在途 */
+  const styleCalcInFlight = ref(false)
+  /** issue #50-1：选择已变、新报价还没回来（此刻屏上的价属于旧选择） */
+  const priceStale = ref(false)
+  /** issue #50-1：下单成功后服务端权威总价（分），用于校正展示与复制文案 */
+  const submittedTotalCents = ref<number | null>(null)
 
   // ─── v0.34 任务B：URL query 预选（主页选画风+尺寸后跳转带入） ───
   /** query 预选命中记录（restoreDraft 跳过依据 + OrderForm 初始步骤依据） */
@@ -353,27 +359,42 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
   let styleCalcSeq = 0
   function scheduleStyleCalc() {
     if (styleCalcTimer) clearTimeout(styleCalcTimer)
+    // issue #50-1：从这一刻起屏上的报价属于旧选择，直到新报价回来
+    priceStale.value = true
     styleCalcTimer = setTimeout(doStyleCalc, 300)
   }
 
   async function doStyleCalc() {
     const mySeq = ++styleCalcSeq
     const sizeId = selectedSizeId.value
-    if (!sizeId) { stylePricePreview.value = null; styleCalcError.value = ''; return }
+    if (!sizeId) {
+      stylePricePreview.value = null
+      styleCalcError.value = ''
+      styleCalcInFlight.value = false
+      priceStale.value = false
+      return
+    }
     styleCalcError.value = ''
+    styleCalcInFlight.value = true
     try {
       const res = await artistPublicApi.calculateStylePrice({
         subdomain,
         styleSizeId: sizeId,
         addons: buildStyleAddons(),
-        discountCode: form.discountCode.trim() || null
+        // issue #50-6：只带验证通过的折扣码。逐字输入时把未验证码原样送去算价，
+        // 服务端 DISCOUNT_CODE_INVALID 会让整次算价 400 → 报价塌空，合法码也得敲完才恢复。
+        discountCode: discountResult.value ? (form.discountCode.trim() || null) : null
       })
       if (mySeq !== styleCalcSeq) return
       stylePricePreview.value = res
+      priceStale.value = false
     } catch (err) {
       if (mySeq !== styleCalcSeq) return
       stylePricePreview.value = null
       styleCalcError.value = (err as Error)?.message || t('orderForm.priceCalcFailed')
+      priceStale.value = false
+    } finally {
+      if (mySeq === styleCalcSeq) styleCalcInFlight.value = false
     }
   }
 
@@ -383,10 +404,28 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
     if (selectedSizeId.value) scheduleStyleCalc()
   })
 
-  /** 展示价（元）：优先后端计价结果总价，未计价时回退尺寸基础价 */
-  const styleDisplayPrice = computed(() => {
-    if (stylePricePreview.value?.totalCents != null) return stylePricePreview.value.totalCents / 100
-    return selectedSize.value?.base_price ?? 0
+  /**
+   * 展示价（整数分）。issue #50-2 拍板 A：取消「未计价回退尺寸基础价」——
+   * 那个数漏掉全部增项/用途/加急，是个会被截图当承诺的低价。无报价一律 null，
+   * 展示层出「报价待确认」空态。口径统一为分，⛔ 不再跨层传「元」中转值。
+   */
+  const styleDisplayCents = computed<number | null>(() => stylePricePreview.value?.totalCents ?? null)
+
+  /**
+   * issue #50-1 拍板 A：报价非最新态（脏 / 在途 / 失败 / 尚无结果）不得提交。
+   * 服务端价始终由唯一引擎推导，这里拦的是「客户看到的价 ≠ 成交的价」。
+   */
+  const priceBlocking = computed(() => {
+    if (!isStyleMode.value || !selectedSizeId.value) return false
+    return priceStale.value || styleCalcInFlight.value || !!styleCalcError.value || stylePricePreview.value == null
+  })
+
+  /** 提交按钮上的价格后缀：报价未就绪时显示状态文案而不是数字 */
+  const priceStatusText = computed(() => {
+    if (!isStyleMode.value || !selectedSizeId.value) return null
+    if (styleCalcInFlight.value || priceStale.value) return t('orderForm.priceUpdating')
+    if (styleDisplayCents.value == null) return t('orderForm.pricePending')
+    return formatYuanTrimmed(styleDisplayCents.value)
   })
 
   /** 是否有可选增项/用途/加急（控制增项步骤内容展示） */
@@ -497,7 +536,14 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
     // L-9: 上锁提前到校验之前——原「先 validate 后才上锁」留双击并发窗口（两次提交同时进入，
     // 幂等键虽兜住重复下单，仍会重复报错）。入口即锁 + 在途直接返回；各失败路径分别复位。
     if (submitting.value) return
+    // issue #50-1：报价非最新态不得提交。按钮已按 priceBlocking 禁用，这里兜住
+    // 程序化调用与「点击瞬间选择又变了」的竞态窗口。
+    if (priceBlocking.value) {
+      ElMessage.warning(t('orderForm.priceNotReady'))
+      return
+    }
     submitting.value = true
+    submittedTotalCents.value = null
     const valid = await formRef.value!.validate().catch(() => false)
     if (!valid) {
       submitting.value = false
@@ -538,6 +584,8 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
         }
       })
       submitIdemKey = null
+      // issue #50-1：展示价以服务端权威总价收口（客户复制出去的约稿信息不再带预估价）
+      submittedTotalCents.value = order.totalPriceCents ?? null
       resultNo.value = order.orderNo
       customerToken.value = order.customerToken || ''
       trackUrl.value = order.trackUrl || ''
@@ -668,7 +716,8 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
     styleAddonSelections, selectedUsageId, selectedRushId,
     selectStyle, selectSize, toggleUsage, toggleRush,
     buildStyleAddons, styleAddonPriceText,
-    stylePricePreview, styleCalcError, stylePricingExpanded, styleDisplayPrice, hasStylePricingExtras,
+    stylePricePreview, styleCalcError, stylePricingExpanded, styleDisplayCents, hasStylePricingExtras,
+    priceBlocking, priceStatusText, submittedTotalCents,
     installmentPreview,
     // v0.34 任务B：URL query 预选命中记录
     queryPreselect,

@@ -8,8 +8,10 @@ import type { AuthVerifyResult, ArtistProfileResult, ArtistStats } from '../api/
 // 画师状态管理
 // token 存 httpOnly cookie（JS 不可读），localStorage 只保留非敏感标记
 // REQ-043 I6-e: 单一数据源 = Pinia store；localStorage 仅在 store 初始化时作
-// 快速路径引导读取（刷新后免等 /auth/me），写入一律走 store action（applySession/logout），
-// 路由守卫只读 store，不再各自读写 localStorage
+// 快速路径引导读取（刷新后免等 /auth/me），写入一律走 store action
+// （applySession/logout/setAdminFlag），路由守卫只读 store，不再各自读写 localStorage。
+// issue #52-3 修订：/auth/me 对 isAdmin 的修正也必须回写持久标记，否则被降级的管理员
+// 每次刷新都拿旧标记过守卫、进管理 UI，直到 /auth/me 返回才纠正（UI 反复误判）。
 // ============================================
 
 /** 登录会话画像（authApi.verify 返回的 artist 子集） */
@@ -66,6 +68,15 @@ export const useArtistStore = defineStore('artist', {
       // WEB-12: 新会话重置 loading（旧在途请求的 finally 不再负责熄灭）
       this.loading = false
       safeSetItem('artist_logged_in', '1')
+      safeSetItem('artist_is_admin', this.isAdmin ? '1' : '0')
+    },
+
+    /**
+     * issue #52-3: 服务端 /auth/me 修正 isAdmin 的唯一写入口。
+     * 内存与 localStorage 快速路径标记必须同步，否则被降级者下次刷新又拿旧标记过守卫。
+     */
+    setAdminFlag(isAdmin: boolean): void {
+      this.isAdmin = !!isAdmin
       safeSetItem('artist_is_admin', this.isAdmin ? '1' : '0')
     },
 
