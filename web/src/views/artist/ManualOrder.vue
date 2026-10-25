@@ -690,9 +690,10 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   // issue #53-1: 路由切走也要落防抖窗口内最后一笔。必须 onBeforeUnmount——那时右栏子组件仍在，
-  // getDraftState() 取得到内容；放 onUnmounted 会报「无内容」，反向把草稿 removeItem 抹掉
+  // getDraftState() 取得到内容；放 onUnmounted 会报「无内容」，反向把草稿 removeItem 抹掉。
+  // 同样只在有内容时写：saveDraft 无内容即删键，卸载不该拿它去抹掉上一轮的草稿
   if (draftTimer) { clearTimeout(draftTimer); draftTimer = null }
-  saveDraft()
+  if (hasDraftContent()) saveDraft()
 })
 
 onUnmounted(() => {
