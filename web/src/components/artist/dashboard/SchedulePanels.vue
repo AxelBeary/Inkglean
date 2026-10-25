@@ -339,7 +339,7 @@ watch(kind, ensureLoad)
 
 /* ─── 款式 B · 台账（一天一栏一事一行小纸条） ─── */
 .led-cols {
-  display: grid; grid-template-columns: repeat(7, 1fr);
+  display: grid; grid-template-columns: repeat(7, minmax(72px, 1fr)); overflow-x: auto;
   border: 1px solid var(--line2); background: var(--paper2);
   border-radius: 4px 9px 5px 8px / 8px 5px 9px 4px; overflow: hidden;
 }
@@ -375,7 +375,7 @@ watch(kind, ensureLoad)
 .ptag.tone-done { opacity: .75; }
 
 /* ─── 款式 D · 运单（一天一叠小单据带圆戳） ─── */
-.way-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+.way-days { display: grid; grid-template-columns: repeat(7, minmax(72px, 1fr)); gap: 8px; overflow-x: auto; }
 .way-day { text-align: center; }
 .way-d { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); margin-bottom: 8px; font-variant-numeric: tabular-nums; }
 .way-today .way-d { color: var(--zs); font-weight: 700; }
