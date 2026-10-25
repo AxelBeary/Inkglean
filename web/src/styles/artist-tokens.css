@@ -371,16 +371,20 @@ html[data-artist-theme="ink"] .band-doing { background: #3E6285; color: #DCE9F5;
 html[data-artist-theme="ink"] .band-over { background: #9E4437; color: #F6DDD7; }
 html[data-artist-theme="ink"] .band-done { background: #38735A; color: #D9EFE3; }
 
-/* 2026-10-25：临期/未设截稿/缓冲位漏了墨黑覆写（白字压浅藤黄 1.98:1；缓冲位复用 band-doing 被抢成实心蓝） */
-html[data-artist-theme="ink"] .band-soon { background: #D9B36A; color: #3A2A05; }
-html[data-artist-theme="ink"] .band-nd { color: #D8D2C2; }
+/* 2026-10-25：临期/未设截稿/缓冲位漏了墨黑覆写（白字压浅藤黄 1.98:1；缓冲位复用 band-doing 被抢成实心蓝）
+   色值一律引用同文件既有 token，不写十六进制：--paper 在墨黑档是深墨 #171611（817 B测口径的
+   「实心浅底反色前景」单源），--ink 是浅墨 #ECE8DC。实测 --paper 压六支提亮颜料 5.19~9.15:1。 */
+html[data-artist-theme="ink"] .band-soon { background: var(--th); color: var(--paper); }
+html[data-artist-theme="ink"] .band-nd { color: var(--ink); }
 html[data-artist-theme="ink"] .cal-band--buffer {
   background: color-mix(in srgb, var(--buf) 18%, transparent);
   border-color: var(--buf);
-  color: #DCE9F5;
+  color: var(--ink);
 }
 
-/* 2026-10-25：订单列表自绘标签在墨黑主题下白字压浅色底（1.98~3.49:1），改深墨 */
+/* 2026-10-25：订单列表自绘标签在墨黑主题下白字压浅色底（1.98~3.49:1），改深墨 var(--paper)。
+   覆盖面=全部实心颜料底标签：状态 7 支 + 来源 2 支 + 优先级高/中；
+   .prio-tag--low 的底是 --ink4 #726D5D，改深墨反而掉到 3.5:1（白字 5.17:1），故不入本组。 */
 html[data-artist-theme="ink"] .status-tag--pending,
 html[data-artist-theme="ink"] .status-tag--confirmed,
 html[data-artist-theme="ink"] .status-tag--wip,
@@ -388,7 +392,10 @@ html[data-artist-theme="ink"] .status-tag--revision,
 html[data-artist-theme="ink"] .status-tag--done,
 html[data-artist-theme="ink"] .status-tag--delivered,
 html[data-artist-theme="ink"] .status-tag--cancelled,
-html[data-artist-theme="ink"] .source-tag--manual { color: #1B1A15; }
+html[data-artist-theme="ink"] .source-tag--manual,
+html[data-artist-theme="ink"] .source-tag--self,
+html[data-artist-theme="ink"] .prio-tag--high,
+html[data-artist-theme="ink"] .prio-tag--medium { color: var(--paper); }
 
 /* 817 B测反馈5：墨黑主题实心主按钮白字对比度不足（--hq #8FB2D1/#fff ≈ 2.1:1，不达 4.5:1）。
    只调文字对比度不改色相——文字改深墨（--paper #171611），与浅色纸墨颜料达成 AA/AAA。
@@ -406,12 +413,15 @@ html[data-artist-theme="ink"] .artist-scope .el-button--danger:not(.is-plain):no
    的 background-color/border-color/color/box-shadow .35s），前景/背景不同步插值会
    产生不可读中间态；日常 hover/按压微交互不受影响（各自保留短过渡 token）。 */
 /* 点名1: 关键切换态统一快动效（订单状态/筛选项/侧边栏激活项）——background .2s ease-out + transform .15s；
-   与克制动效批按钮按压(0.15s)互补：按压=按下反馈，切换=状态落定反馈 */
+   与克制动效批按钮按压(0.15s)互补：按压=按下反馈，切换=状态落定反馈。
+   2026-10-25 返工：本组清单不含 color 过渡——.status-tag 的墨黑覆写把前景从 #fff 改成
+   var(--paper)，一旦插值 color，换肤中段前景停在两色中点而底色已是提亮颜料，实测塌到 1.3:1
+   （K1 灰沼教训同一类）。颜色即时落定，位移/阴影动效照旧。 */
 html[data-artist-theme] .artist-scope .nav-item--active,
 html[data-artist-theme] .artist-scope .status-tag,
 html[data-artist-theme] .artist-scope .el-radio-button__inner,
 html[data-artist-theme] .artist-scope .el-segmented__item {
-  transition: background-color var(--dur-mid) var(--ease-out), border-color var(--dur-mid) var(--ease-out), color var(--dur-mid) var(--ease-out), transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-mid) var(--ease-out);
+  transition: background-color var(--dur-mid) var(--ease-out), border-color var(--dur-mid) var(--ease-out), transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-mid) var(--ease-out);
 }
 html[data-artist-theme] .artist-scope .el-radio-button__inner:active,
 html[data-artist-theme] .artist-scope .el-segmented__item:active {

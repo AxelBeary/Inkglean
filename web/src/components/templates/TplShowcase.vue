@@ -80,19 +80,21 @@
       @touchend.passive="onTouchEnd"
     >
       <template v-if="activeStyle">
-        <Transition name="tpl-style-img-fade" mode="out-in">
-          <el-image
-            v-if="displayImageUrl"
-            :key="displayImageUrl"
-            :src="displayImageUrl"
-            fit="contain"
-            class="tpl-style-display-img"
-            :alt="activeStyle.name"
-            :preview-src-list="[displayImageUrl]"
-            preview-teleported
-            hide-on-click-modal
-          />
-        </Transition>
+        <div class="tpl-style-img-stage">
+          <Transition name="tpl-style-img-fade">
+            <el-image
+              v-if="displayImageUrl"
+              :key="displayImageUrl"
+              :src="displayImageUrl"
+              fit="contain"
+              class="tpl-style-display-img"
+              :alt="activeStyle.name"
+              :preview-src-list="[displayImageUrl]"
+              preview-teleported
+              hide-on-click-modal
+            />
+          </Transition>
+        </div>
         <div class="tpl-style-display-info">
           <div class="tpl-style-display-head">
             <h3 class="tpl-style-display-name">{{ activeStyle.name }}</h3>
@@ -124,8 +126,8 @@
 
   <!-- ── 单画风退化：纯尺寸列表（与 OrderForm 退化逻辑一致）── -->
   <div v-else-if="mode === 'style' && styles.length === 1" class="tpl-style-single">
-    <div v-if="displayImageUrl" class="tpl-style-single-cover">
-      <Transition name="tpl-style-img-fade" mode="out-in">
+    <div v-if="displayImageUrl" class="tpl-style-single-cover tpl-style-img-stage">
+      <Transition name="tpl-style-img-fade">
         <el-image
           :key="displayImageUrl"
           :src="displayImageUrl"
@@ -496,8 +498,11 @@ function goOrder() {
 .tpl-style-img-fade-leave-to {
   opacity: 0;
 }
-/* 换画风是高频浏览动作：out-in 下旧图淡出 150ms 会先空一块，这里让旧图瞬切、新图再淡入 */
-.tpl-style-img-fade-leave-active { transition-duration: 0s; }
+/* 换画风是高频浏览动作：out-in 下旧图必须先彻底离场，中间必空一帧（把离场时长压到 0 也只是
+   把 150ms 空窗换成 1 帧空窗）。改叠放交叉淡入——舞台定高由入场图决定，离场图绝对定位覆在
+   其上淡出，两帧之间始终有一张实图。 */
+.tpl-style-img-stage { position: relative; }
+.tpl-style-img-fade-leave-active { position: absolute; inset: 0; }
 
 /* 尺寸价格列表（多画风/单画风共用） */
 .tpl-style-sizes {
