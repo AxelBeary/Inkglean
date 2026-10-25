@@ -300,6 +300,7 @@
 
   <!-- 815 拍板 #1：取消后 5 秒撤销提示 -->
   <CancelUndoToast
+    :key="cancelUndo.seq"
     v-if="cancelUndo.visible"
     :label="cancelUndo.label"
     :window-ms="cancelUndo.windowMs"

@@ -33,7 +33,9 @@ export default async function complianceRoutes(fastify: FastifyInstance) {
   const ADMIN_ACTIONS = [
     'report_resolve', 'content_remove', 'content_restore',
     'artist_ban', 'artist_unban', 'home_takedown', 'home_restore',
-    'artist_status_set', 'artist_remove'
+    'artist_status_set', 'artist_remove',
+    // GHSA-6pf3 S3：画师资料更新已写留痕，白名单漏它会让 ?action= 精确筛不到
+    'artist_profile_update'
   ]
 
   /**
@@ -99,7 +101,7 @@ export default async function complianceRoutes(fastify: FastifyInstance) {
    * GET /api/admin/admin-actions
    * 管理动作留痕查看入口（v75 补 IP 后才算真正能用：账本可查来源）
    * ?limit=（默认 100，service 钳制 1~500）、?action=（白名单精确筛）、
-   * ?targetType= + ?targetId=（成对才生效，走索引 idx_admin_actions_target）
+   * ?targetType=（类型粗筛，形态受限）、?targetType= + ?targetId=（精确到对象，走索引 idx_admin_actions_target）
    * 鉴权边界：admin_ip 只在本前缀下出现，任何非 /api/admin 响应不得带出（P4-1 §5）
    */
   fastify.get('/api/admin/admin-actions', {
@@ -111,7 +113,7 @@ export default async function complianceRoutes(fastify: FastifyInstance) {
           // 刻意不设 maximum：超上限由 service 钳制（传 9999 得到 500 条），与全站列表惯例一致
           limit: { type: 'integer' },
           action: { type: 'string' },
-          targetType: { type: 'string' },
+          targetType: { type: 'string', maxLength: 32, pattern: '^[A-Za-z0-9_-]*$' },
           targetId: { type: 'integer' }
         }
       }
@@ -122,10 +124,10 @@ export default async function complianceRoutes(fastify: FastifyInstance) {
     if (Number.isFinite(q.limit)) filters.limit = q.limit
     // 白名单外（含拼错）→ 忽略该筛选条件而非 400：管理页筛选器不该因为一个脏参数就整页报错
     if (q.action && ADMIN_ACTIONS.includes(q.action)) filters.action = q.action
-    // targetType 与 targetId 成对才生效：单给 targetType 既命中不了复合索引，也容易让运维误读结果
-    if (q.targetType && Number.isFinite(q.targetId)) {
+    // targetType 单列即类型粗筛（issue #49-2）；与 targetId 同给则精确到对象。形态非法由 schema 直接 400，不静默忽略
+    if (q.targetType) {
       filters.targetType = q.targetType
-      filters.targetId = q.targetId
+      if (Number.isFinite(q.targetId)) filters.targetId = q.targetId
     }
     return {
       rows: complianceService.getAdminActions(filters),

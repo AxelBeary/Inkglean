@@ -236,7 +236,7 @@ describe('P4-1 管理动作留痕查看接口（B2）', () => {
     expect(junk.total).toBe(2)
   })
 
-  it('TC-AAA-11: ?targetType+?targetId 成对生效（走 idx_admin_actions_target）；缺一不筛', async () => {
+  it('TC-AAA-11: ?targetType 单列即类型粗筛（issue #49-2）；?targetType+?targetId 精确到对象', async () => {
     const artworkId = seedArtwork(admin.id)
     seedAction({ action: 'content_remove', targetType: 'artwork', targetId: artworkId })
     seedAction({ action: 'content_remove', targetType: 'message', targetId: artworkId })
@@ -249,12 +249,21 @@ describe('P4-1 管理动作留痕查看接口（B2）', () => {
     expect(pair.rows[0].target_type).toBe('artwork')
     expect(pair.total).toBe(1)
 
-    // 只给 targetType：复合索引第二列缺失，成对约定 → 不启用该筛选（返回全量）
+    // 只给 targetType：管理页只有类型下拉，没有 id 输入口——单列必须生效（旧「成对才生效」等于筛选器是摆设）
     const half = (await list('/api/admin/admin-actions?targetType=artwork')).json() as ActionListResponse
-    expect(half.rows).toHaveLength(3)
-    // 只给 targetId 同理
+    expect(half.rows).toHaveLength(2)
+    expect(half.rows.every(r => r.target_type === 'artwork')).toBe(true)
+    expect(half.total).toBe(2)
+    // 只给 targetId：无类型仍不筛（避免裸 id 跨类型撞号误读）
     const half2 = (await list(`/api/admin/admin-actions?targetId=${artworkId}`)).json() as ActionListResponse
     expect(half2.rows).toHaveLength(3)
+  })
+
+  it('TC-AAA-11b: ?targetType 形态非法 → 400（schema 拦住，不静默忽略成「筛了个空」）', async () => {
+    const dirty = await list('/api/admin/admin-actions?targetType=art%2Fwork%20')
+    expect(dirty.statusCode).toBe(400)
+    const long = await list(`/api/admin/admin-actions?targetType=${'a'.repeat(33)}`)
+    expect(long.statusCode).toBe(400)
   })
 
   it('TC-AAA-12: action 与 target 组合筛选（查「这件作品被处置过几次」）', async () => {

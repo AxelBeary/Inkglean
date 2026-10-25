@@ -158,7 +158,8 @@ export function useOrderActions({ order, routeId, statusAction, prevPriority, lo
 
   // ─── R39：取消订单滑块确认（R30e 交互，C59 高代价操作用滑块） ───
   // 815 拍板 #1：取消走带 5 秒撤销窗口的新端点（队列重排延迟结算）
-  const cancelUndo = ref<{ visible: boolean; orderId: number | string | null; label: string; windowMs: number }>({ visible: false, orderId: null, label: '', windowMs: 5000 })
+  // seq：同一订单二次取消也要重挂提示（issue #53-4，宿主按 seq 给 key，否则倒计时沿用上一笔）
+  const cancelUndo = ref<{ visible: boolean; orderId: number | string | null; label: string; windowMs: number; seq: number }>({ visible: false, orderId: null, label: '', windowMs: 5000, seq: 0 })
 
   /** 取消成功后亮撤销提示 */
   function showCancelUndo(updated: { id?: number; order_no?: string }, windowMs: number | undefined) {
@@ -166,7 +167,8 @@ export function useOrderActions({ order, routeId, statusAction, prevPriority, lo
       visible: true,
       orderId: updated.id ?? routeId,
       label: updated.order_no || String(routeId),
-      windowMs: windowMs ?? 5000
+      windowMs: windowMs ?? 5000,
+      seq: cancelUndo.value.seq + 1
     }
   }
 

@@ -249,7 +249,7 @@ function copyText() {
   }
   lines.push('────────────')
   const tt = totals.value
-  if (tt.discountCents > 0) lines.push(`${props.t('receipt.discountLine')} ${discountLabel(form.discountType, form.discountValue, props.locale)}  -${formatYuan(tt.discountCents)}`)
+  if (tt.discountCents > 0) lines.push(`${props.t('receipt.discountLine')} ${discountLabel(form.discountType, form.discountValue, props.locale, tt.discountCents)}  -${formatYuan(tt.discountCents)}`)
   lines.push(`${props.t('receipt.totalLine')} ${formatYuan(tt.totalCents)}`)
   if (tt.depositCents > 0) {
     lines.push(`${props.t('receipt.depositLine')} ${formatYuan(tt.depositCents)}`)
@@ -405,7 +405,7 @@ function drawReceipt(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
   }
 
   if (tt.discountCents > 0) {
-    moneyLine(`${props.t('receipt.discountLine')} ${discountLabel(form.discountType, form.discountValue, props.locale)}`, `-${formatYuan(tt.discountCents)}`)
+    moneyLine(`${props.t('receipt.discountLine')} ${discountLabel(form.discountType, form.discountValue, props.locale, tt.discountCents)}`, `-${formatYuan(tt.discountCents)}`)
   }
   moneyLine(props.t('receipt.totalLine'), formatYuan(tt.totalCents), true)
   if (tt.depositCents > 0) {

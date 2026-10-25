@@ -54,6 +54,8 @@ export interface TodoItem {
   currentStageId?: number | null
   /** 815 审计 P1-2: 下一节点 id（已是末节点/无流程时为 null，待办推进用） */
   nextStageId?: number | null
+  /** GHSA Wave2 issue #48: 乐观锁版本（主仓同名抄入；桌面端只读待办，不写） */
+  version?: number | null
 }
 
 export interface TodoResult {

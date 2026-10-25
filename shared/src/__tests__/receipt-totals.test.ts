@@ -53,4 +53,19 @@ describe('receipt 计算口径（shared 事实源）', () => {
     expect(discountLabel('amount', 50, 'zh-CN')).toContain('-')
     expect(discountLabel('none', 0, 'zh-CN')).toBe('')
   })
+
+  // GHSA Wave2 issue #51-1：数量未取整会算出半分（100.01 元 × 1.5 = 15001.5 分），
+  // 而 ReceiptPrinter 载入草稿时又会 floor 成 1 → 同一张票刷新前后金额跳变
+  it('数量按整数计：1.5 件按 1 件算，小计不出现半分', () => {
+    expect(computeReceiptTotals([item('a', 1.5, 100.01)], 'none', 0, null).subtotalCents).toBe(10001)
+    expect(computeReceiptTotals([item('a', 0.5, 100)], 'none', 0, null).subtotalCents).toBe(0)
+  })
+
+  // issue #51-2：直减超过小计时实扣已钳到小计，文案仍写原值 → 同一行出现「-999.00 -¥100.00」
+  it('discountLabel amount 形态与实扣同源（钳制后的分）', () => {
+    const t = computeReceiptTotals([item('a', 1, 100)], 'amount', 999, null)
+    expect(t.discountCents).toBe(10000)
+    expect(discountLabel('amount', 999, 'zh-CN', t.discountCents)).toBe('-100.00')
+    expect(discountLabel('amount', 50, 'zh-CN', 5000)).toBe('-50.00')
+  })
 })

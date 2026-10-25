@@ -3,6 +3,7 @@
 // 点击推进语义不变（仍 updateStatus → done）。
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { ElMessage } from 'element-plus'
 
 interface TodoTestItem {
   id: number
@@ -12,6 +13,7 @@ interface TodoTestItem {
   deadline: string | null
   tag: string
   stageName?: string | null
+  version?: number | null
 }
 
 const h = vi.hoisted(() => ({
@@ -63,6 +65,7 @@ function makeItem(overrides: Partial<TodoTestItem> = {}): TodoTestItem {
     deadline: null,
     tag: '进行中',
     stageName: null,
+    version: 11,
     ...overrides
   }
 }
@@ -126,7 +129,7 @@ describe('LedgerTodo 动作词接真实工作流节点（E3）', () => {
     await flushPromises()
     await wrapper.vm.$nextTick()
 
-    expect(h.updateStatus).toHaveBeenCalledWith(6, 'done')
+    expect(h.updateStatus).toHaveBeenCalledWith(6, 'done', { version: 11 })
     // 完成后行沉底：沉底区显示 done 状态文案
     expect(wrapper.find('.row.sunk').exists()).toBe(true)
     expect(wrapper.text()).toContain('common.orderStatus.done')
@@ -138,5 +141,32 @@ describe('LedgerTodo 动作词接真实工作流节点（E3）', () => {
     ])
 
     expect(wrapper.find('.r-btn').text()).toBe('dashboard.ledgerVerbConfirm')
+  })
+
+  // GHSA Wave2 issue #48：台账动词同为订单写路径——带锁、409 按本仓口径处理、旧契约不伪造版本
+  it('撞 409：提示冲突并重拉待办，不当普通失败弹错', async () => {
+    h.updateStatus.mockRejectedValueOnce(Object.assign(new Error('conflict'), { code: 'ORDER_CONFLICT' }))
+    const wrapper = await mountLedger([makeItem({ id: 8, stageName: '细化' })])
+
+    await wrapper.find('.r-btn').trigger('click')
+    await flushPromises()
+
+    expect(ElMessage.warning).toHaveBeenCalledWith('common.orderConflict')
+    expect(ElMessage.error).not.toHaveBeenCalled()
+    // 重拉：挂载一次 + 冲突后一次
+    expect(h.getDashboardTodo).toHaveBeenCalledTimes(2)
+    wrapper.unmount()
+  })
+
+  it('旧契约缺 version → 不伪造，沿用服务端当前版本（不带 version 字段）', async () => {
+    const item = makeItem({ id: 9, stageName: '细化' })
+    delete item.version
+    const wrapper = await mountLedger([item])
+
+    await wrapper.find('.r-btn').trigger('click')
+    await flushPromises()
+
+    expect(h.updateStatus).toHaveBeenCalledWith(9, 'done', {})
+    wrapper.unmount()
   })
 })

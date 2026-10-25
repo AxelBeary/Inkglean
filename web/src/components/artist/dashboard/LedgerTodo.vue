@@ -194,6 +194,8 @@ function sinkRow(item: TodoItem) {
 async function act(item: TodoItem) {
   const verb = verbOf(item)
   if (verb.key === 'none' || busy.value || cooldowns[item.id] > 0) return
+  // GHSA Wave2 issue #48：台账动词同为订单写路径，按本仓口径携带 version（缺则沿用服务端当前版本）
+  const vOpt = item.version != null ? { version: item.version } : {}
   // 交付动词：交付流在订单详情页，行体直达详情（不是原地动作）
   if (verb.key === 'deliver') {
     router.push(`/orders/${item.id}?from=dashboard`)
@@ -204,7 +206,7 @@ async function act(item: TodoItem) {
     if (verb.key === 'done' && item.nextStageId) {
       // 815 审计 P1-2 修复：工作流单的"完成"=推进到下一节点（后端 R30d 拦直接改 done）；
       // 推到末节点时后端自动置 done → 行沉底；未到底则重载拿新节点名
-      const updated = await artistApi.advanceStage(item.id, item.nextStageId)
+      const updated = await artistApi.advanceStage(item.id, item.nextStageId, vOpt)
       if (updated.status === 'done') {
         sinkRow(item)
       } else {
@@ -214,7 +216,7 @@ async function act(item: TodoItem) {
       return
     }
     const nextStatus = verb.key === 'confirm' ? 'confirmed' : verb.key === 'start' ? 'wip' : 'done'
-    await artistApi.updateStatus(item.id, nextStatus)
+    await artistApi.updateStatus(item.id, nextStatus, vOpt)
     if (nextStatus === 'done') {
       sinkRow(item)
     } else {
@@ -223,7 +225,13 @@ async function act(item: TodoItem) {
       startCooldown(item.id)
     }
   } catch (err) {
-    ElMessage.error((err as Error).message)
+    // 409：提示冲突并重拉服务端真相（对齐 QueueBoardList/useOrderActions），不当普通失败弹错
+    if ((err as { code?: string }).code === 'ORDER_CONFLICT') {
+      ElMessage.warning(t('common.orderConflict'))
+      await load()
+    } else {
+      ElMessage.error((err as Error).message)
+    }
   } finally {
     busy.value = false
   }
