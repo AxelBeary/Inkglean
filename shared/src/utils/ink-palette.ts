@@ -25,6 +25,10 @@ export const INK_PALETTE = {
   // （web/src/styles/artist-tokens.css `--sl-t`、desktop/src/styles/paper-ink.css `--sl-t`）
   // 不一致 → 对齐为 #E5F1E9（色差肉眼不可辨，无测试钉死；本包是双端共用色值事实源）
   slT: '#E5F1E9',
+  // 2026-10-26（#58 返工 5）：补齐颜料盘剩余两支——收入环图此前只能用墨阶补位，
+  // 因为它拿不到藤黄/赭石。取值同 artist-tokens.css 宣纸档（--th/--zhe），保持本包口径。
+  th: '#966C0A',
+  zhe: '#8A5A33',
   white: '#FFFFFF',
   black: '#000000'
 }

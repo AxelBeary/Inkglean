@@ -21,9 +21,7 @@
     <!-- 波 M：画廊数据未到前骨架占位（避免「暂无作品」误判闪一帧） -->
     <section class="gallery-section tpl-reveal" v-else-if="galleryLoading">
       <p class="tpl-section-label gallery-label">{{ $t('artistHome.artworks') }}</p>
-      <div class="gallery-loading-skeleton" aria-hidden="true">
-        <div v-for="i in 3" :key="i" class="gallery-loading-card"></div>
-      </div>
+      <div class="gallery-loading-skeleton" aria-hidden="true"></div>
     </section>
     <!-- P2-3: 无作品空态 -->
     <section class="gallery-section tpl-reveal" v-else>
@@ -196,30 +194,34 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
 }
 /* 波 M：首载骨架（画廊数据未到前占位，淡墨 shimmer，克制） */
 .gallery-loading-skeleton {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+  /* 与 TplAlbumStage 同高，避免骨架→画册下方内容整体下坠 */
+  height: 62vh;
+  min-height: 340px;
   max-width: 900px;
   margin: 0 auto;
-}
-.gallery-loading-card {
+  border-radius: 4px;
+  background: var(--pal-bg-alt, var(--paper2));
   position: relative;
-  height: 240px;
   overflow: hidden;
-  border: 1px solid var(--pal-border);
-  background: var(--pal-surface);
 }
-.gallery-loading-card::after {
+.gallery-loading-skeleton::after {
   content: '';
   position: absolute;
   inset: 0;
+  /* 微光走 token：写死 rgba(255,255,255,.35) 在浅盘几乎看不见、在墨黑档过刺（实测压 #22201A 5.86:1）
+     ——回到与本仓其余骨架同口径的 --pal-border 混合（#58 返工 4） */
   background: linear-gradient(110deg, transparent 30%, color-mix(in srgb, var(--pal-border) 55%, transparent) 50%, transparent 70%);
   transform: translateX(-100%);
-  animation: gallery-loading-shimmer 1.5s ease-in-out infinite;
+  animation: gallery-skeleton-shimmer 1.4s ease-in-out infinite;
 }
-@keyframes gallery-loading-shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+@keyframes gallery-skeleton-shimmer { to { transform: translateX(100%); } }
+/* 断点抄内容侧真值：TplAlbumStage 的高度切换在 768px，抄成 960px 会留 769~960 这一段仍差 60px+
+   （#58 返工 2） */
+@media (max-width: 768px) {
+  .gallery-loading-skeleton { height: 50vh; min-height: 280px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gallery-loading-skeleton::after { animation: none; }
 }
 
 /* v0.36: 画册翻页 — gallery：大小交错（editorial）节奏——当前页直角细线框装裱，
@@ -309,9 +311,6 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
 @media (max-width: 768px) {
   .gallery-section {
     padding: 56px 16px;
-  }
-  .gallery-loading-skeleton {
-    grid-template-columns: 1fr;
   }
 }
 </style>

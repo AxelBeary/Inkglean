@@ -48,6 +48,7 @@ import type { ChartConfiguration } from 'chart.js'
 import { artistApi } from '../../api/index'
 import { formatYuan } from '../../utils/money'
 import { INK_PALETTE } from '../../utils/ink-palette'
+import { isReducedMotion } from '../../utils/animSpeed'
 import { buildCumulative, isIncomeEmpty, monthLabels } from '../../utils/income-chart'
 import type { IncomeMonthLike } from '../../utils/income-chart'
 import type { IncomeByStyleRow, TopClientRow } from '../../api/types'
@@ -74,8 +75,7 @@ let barChart: ChartLike | null = null
 let lineChart: ChartLike | null = null
 let doughnutChart: ChartLike | null = null
 
-/** 环图色板：宣纸色谱轮换（花青/松绿/朱砂/墨四/墨二；canvas 色板无藤黄 th，用墨阶补位） */
-const DOUGHNUT_COLORS = [INK_PALETTE.hq, INK_PALETTE.sl, INK_PALETTE.zs, INK_PALETTE.ink4, INK_PALETTE.ink2]
+/** 环图色板：不在这里定色，按当次渲染的 token 取（见 doughnutColors，#58 返工 5） */
 
 function destroyCharts() {
   barChart?.destroy()
@@ -86,14 +86,55 @@ function destroyCharts() {
   doughnutChart = null
 }
 
-async function renderCharts() {
+interface ChartPalette {
+  axis: string; grid: string; legend: string
+  hq: string; sl: string; zs: string; zsT: string; paper2: string
+  th: string; zhe: string
+}
+
+/** 图表不从写死色盘取色：直接读当前作用域的 CSS token，宣纸/墨黑切换后重建即自动换色 */
+function readChartPalette(): ChartPalette {
+  const cs = typeof getComputedStyle === 'function' ? getComputedStyle(document.documentElement) : null
+  const v = (name: string, fallback: string) => cs?.getPropertyValue(name).trim() || fallback
+  return {
+    axis: v('--ink3', INK_PALETTE.ink3),
+    grid: v('--line', INK_PALETTE.line),
+    legend: v('--ink2', INK_PALETTE.ink2),
+    hq: v('--hq', INK_PALETTE.hq),
+    sl: v('--sl', INK_PALETTE.sl),
+    zs: v('--zs', INK_PALETTE.zs),
+    zsT: v('--zs-t', INK_PALETTE.zsT),
+    paper2: v('--paper2', INK_PALETTE.paper2),
+    th: v('--th', INK_PALETTE.th),
+    zhe: v('--zhe', INK_PALETTE.zhe)
+  }
+}
+
+/** 环图色板：国画颜料五色（花青/石绿/朱砂/藤黄/赭石）随主题取值。
+ *  #58 返工 5：原先直接取 INK_PALETTE 亮色盘常量（写死宣纸值），墨黑档下最弱一片
+ *  压 paper2 底只有 2.09:1，「图表跟主题重绘」只兑现了一半；改走 token 后同一套语义色
+ *  在墨黑档取提亮盘（--hq #8FB2D1 等），相邻片靠 2px paper2 描边分隔（实测各片压描边 5.87~8.63:1）。
+ *  兜底仍走 INK_PALETTE（读不到 token 的窄环境，如单测），不再在本文件写死 hex。 */
+function doughnutColors(p: ChartPalette): string[] {
+  return [p.hq, p.sl, p.zs, p.th, p.zhe]
+}
+
+/** canvas 不吃 --dur-*，也不被 [data-reduce-motion] 的 CSS 兜底压住（#58 返工 6）：
+ *  动画只在「允许动效」时保留；换肤重建一律不重放入场动画（用户没要新图，只是要换色）。 */
+function chartAnimation(allowEntrance: boolean): false | undefined {
+  return allowEntrance && !isReducedMotion() ? undefined : false
+}
+
+async function renderCharts(allowEntrance = true) {
   if (empty.value || !barCanvas.value || !lineCanvas.value) return
   const { default: Chart } = await import('chart.js/auto')
   destroyCharts()
 
   const labels = monthLabels(rows.value, locale.value)
-  const axisColor = INK_PALETTE.ink3
-  const gridColor = INK_PALETTE.line
+  const palette = readChartPalette()
+  const axisColor = palette.axis
+  const gridColor = palette.grid
+  const animation = chartAnimation(allowEntrance)
 
   // 月度收入：订单收款 + 散单堆叠（宣纸色谱：花青/松绿）
   const barConfig: ChartConfiguration<'bar'> = {
@@ -104,13 +145,13 @@ async function renderCharts() {
         {
           label: t('toolsExport.incomeOrder'),
           data: rows.value.map(r => r.orderCents / 100),
-          backgroundColor: INK_PALETTE.hq,
+          backgroundColor: palette.hq,
           stack: 'income'
         },
         {
           label: t('toolsExport.incomeStandalone'),
           data: rows.value.map(r => r.standaloneCents / 100),
-          backgroundColor: INK_PALETTE.sl,
+          backgroundColor: palette.sl,
           stack: 'income'
         }
       ]
@@ -118,7 +159,8 @@ async function renderCharts() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: INK_PALETTE.ink2 } } },
+      animation,
+      plugins: { legend: { labels: { color: palette.legend } } },
       scales: {
         x: { stacked: true, ticks: { color: axisColor }, grid: { display: false } },
         y: {
@@ -138,9 +180,9 @@ async function renderCharts() {
       datasets: [{
         label: t('toolsExport.incomeCumulativeTitle'),
         data: buildCumulative(rows.value).map(c => c / 100),
-        borderColor: INK_PALETTE.zs,
-        backgroundColor: INK_PALETTE.zsT,
-        pointBackgroundColor: INK_PALETTE.zs,
+        borderColor: palette.zs,
+        backgroundColor: palette.zsT,
+        pointBackgroundColor: palette.zs,
         fill: true,
         tension: 0.25
       }]
@@ -148,6 +190,7 @@ async function renderCharts() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      animation,
       plugins: { legend: { display: false } },
       scales: {
         x: { ticks: { color: axisColor }, grid: { display: false } },
@@ -164,12 +207,14 @@ async function renderCharts() {
 }
 
 /** 画风收入分布环图（空串桶落「未分类」；图例置底） */
-async function renderDoughnut() {
+async function renderDoughnut(allowEntrance = true) {
   if (styleEmpty.value || !doughnutCanvas.value) return
   const { default: Chart } = await import('chart.js/auto')
   doughnutChart?.destroy()
   doughnutChart = null
 
+  const palette = readChartPalette()
+  const colors = doughnutColors(palette)
   const labels = styleRows.value.map(s => s.styleName || t('toolsExport.incomeUncategorized'))
   const doughnutConfig: ChartConfiguration<'doughnut'> = {
     type: 'doughnut',
@@ -177,16 +222,17 @@ async function renderDoughnut() {
       labels,
       datasets: [{
         data: styleRows.value.map(s => s.cents / 100),
-        backgroundColor: labels.map((_l, i) => DOUGHNUT_COLORS[i % DOUGHNUT_COLORS.length]),
-        borderColor: INK_PALETTE.paper2,
+        backgroundColor: labels.map((_l, i) => colors[i % colors.length]),
+        borderColor: palette.paper2,
         borderWidth: 2
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      animation: chartAnimation(allowEntrance),
       plugins: {
-        legend: { position: 'bottom', labels: { color: INK_PALETTE.ink2 } }
+        legend: { position: 'bottom', labels: { color: palette.legend } }
       }
     }
   }
@@ -215,8 +261,29 @@ async function load() {
   await renderDoughnut()
 }
 
-onMounted(() => { void load() })
-onBeforeUnmount(destroyCharts)
+/** 主题属性变化后按新 token 重建（图表只在创建时取色，不会自己跟着 CSS 变）。
+ *  #58 返工 6：换肤只关心颜色，重建时一律关掉入场动画——Chart.js 在 canvas 里创建，
+ *  既不读 --dur-* 也不吃 [data-reduce-motion] 的 CSS 兜底，不显式关掉就会每次换肤重放一遍。 */
+async function refreshForTheme(): Promise<void> {
+  if (loading.value || loadFailed.value || empty.value) return
+  await nextTick()
+  await renderCharts(false)
+  await renderDoughnut(false)
+}
+
+let themeObserver: MutationObserver | null = null
+onMounted(() => {
+  void load()
+  if (typeof MutationObserver === 'function') {
+    themeObserver = new MutationObserver(() => { void refreshForTheme() })
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-artist-theme'] })
+  }
+})
+onBeforeUnmount(() => {
+  themeObserver?.disconnect()
+  themeObserver = null
+  destroyCharts()
+})
 </script>
 
 <style scoped>
