@@ -73,9 +73,11 @@
           <el-tag v-if="inst.status === 'paid'" type="success" size="small">{{ $t('orderDetail.payRefPaid') }}</el-tag>
           <el-tag v-else-if="inst.status === 'partial'" type="warning" size="small">{{ $t('orderDetail.payRefPartial', { amount: `¥${formatCents(inst.paidCents)}` }) }}</el-tag>
           <el-tag v-else type="info" size="small">{{ $t('orderDetail.payRefPending') }}</el-tag>
-          <!-- 快捷收款（非终态 + 有差额时显示） -->
+          <!-- 快捷收款（非终态 + 节点有差额 + 订单级仍有待收）
+               PR #26 后节点待收走 forwardFill：存在负尾款节点时，节点级差额可能大于订单级待收
+               （带内场景 Σ含负 < paid < Σ正）。订单级已收足就不该再递快捷收款按钮。 -->
           <el-button
-            v-if="!isTerminal && inst.remainingCents > 0"
+            v-if="!isTerminal && inst.remainingCents > 0 && poolRemainingCents > 0"
             size="small" type="primary" plain
             @click="emit('collect', inst)"
           >

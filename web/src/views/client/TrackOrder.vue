@@ -345,8 +345,10 @@ const trackPayPercent = computed(() => {
   return Math.min(100, Math.round((order.value?.paidTotalCents || 0) / total * 100))
 })
 /** 下期应付：下一个未覆盖分期节点的金额（partial 时显示剩余）
- * 2-1（审计二章1）：与服务端 getOrderInstallments 同口径——已收封顶到 Σ节点价，
- * 零/负价节点视为已结清不参与吞并，大幅降价后不再算出负数下期 */
+ * 2-1（审计二章1）：零/负价节点视为已结清不参与吞并，大幅降价后不再算出负数下期。
+ * ⚠ PR #26 后服务端 getOrdersInstallments 改走 pricing-engine 的 forwardFill 顺序填充原语，
+ * 本处仍是客户端自算的「Σ正节点封顶」。逐案复算（负尾款 / 带内 / 纯超付 / 负节点跳过）
+ * 与服务端行为等价，但两者已不是同一份实现——改服务端填充规则时必须回来核对这里。 */
 const trackNextDueCents = computed(() => {
   const insts = order.value?.installments
   if (!insts?.length) return trackRemainingCents.value
