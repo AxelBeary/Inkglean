@@ -173,6 +173,57 @@ describe('PriceCard 约稿条哑组件（shared）', () => {
   })
 })
 
+// ─── issue 51-3（拍3-A）：0 元为非法输入——min=0.01 + 行内提示 + 不计入已填档位 ───
+describe('issue 51-3: 0 元档口径', () => {
+  it('档位价格输入 min=0.01', () => {
+    const wrapper = mountCard()
+    for (const price of wrapper.findAll('.pc-tier-main .pc-price')) {
+      expect(price.attributes('min')).toBe('0.01')
+    }
+  })
+
+  it('输入 0 出 pc-tier-warn 行内提示；清空恢复未填态不告警', async () => {
+    const wrapper = mountCard()
+    expect(wrapper.findAll('.pc-tier-warn')).toHaveLength(0) // 空输入 = 未填，不告警
+    const price = wrapper.findAll('.pc-tier-main .pc-price')[0]
+    await price.setValue('0')
+    expect(wrapper.findAll('.pc-tier-warn')).toHaveLength(1)
+    expect(wrapper.find('.pc-tier-warn').text()).toBe('priceCard.zeroPriceHint')
+    await price.setValue('80')
+    expect(wrapper.findAll('.pc-tier-warn')).toHaveLength(0) // 合法价撤销提示
+    await price.setValue('')
+    expect(wrapper.findAll('.pc-tier-warn')).toHaveLength(0)
+  })
+
+  it('0 元档不计入已填：copyText 触发 tiersMinRequired，不发 copy-text', async () => {
+    const wrapper = mountCard()
+    await wrapper.find('#pc-title').setValue('头像价目')
+    const inputs = wrapper.findAll('.pc-tier-main .pc-input')
+    // 三档：两档合法 + 一档 0 元 → filled=2 < MIN_TIERS=3
+    await inputs[0].setValue('大头')
+    await inputs[1].setValue('180')
+    await inputs[2].setValue('半身')
+    await inputs[3].setValue('0')
+    await inputs[4].setValue('全身')
+    await inputs[5].setValue('350')
+    expect(wrapper.findAll('.pc-tier-warn')).toHaveLength(1)
+
+    await wrapper.findAll('.pc-actions button')[1].trigger('click')
+    expect(notifies(wrapper).some(n => n.kind === 'warning' && n.text === 'priceCard.tiersMinRequired')).toBe(true)
+    expect(wrapper.emitted('copy-text')).toBeFalsy()
+  })
+
+  it('0 元档不计入 request-import 的 hasContent', async () => {
+    const wrapper = mountCard()
+    const inputs = wrapper.findAll('.pc-tier-main .pc-input')
+    await inputs[0].setValue('大头')
+    await inputs[1].setValue('0')
+    const importBtn = () => wrapper.findAll('.pc-tier-actions .pc-btn--ghost')[1]
+    await importBtn().trigger('click')
+    expect(wrapper.emitted('request-import')![0][0]).toEqual({ hasContent: false })
+  })
+})
+
 // ─── SHR-01 回归：布局 A 多分组画布高度预算（组间距 24×(g−1) 不漏算） ───
 describe('SHR-01 drawLayoutA 画布高度预算回归', () => {
   /** 纯公式断言：canvasH 必须 >= 实际绘制消耗（head + rows + gaps + finalGap + footer + seal） */

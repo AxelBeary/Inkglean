@@ -53,6 +53,8 @@ const DICT: Record<string, string> = {
   'priceCard.copyFailed': '复制失败，请手动复制',
   'priceCard.titleRequired': '请先填写卡片标题',
   'priceCard.tiersMinRequired': '至少填 3 行完整档位（名称 + 价格）',
+  // issue 51-3（拍3-A）：0 元非法的行内提示（PriceCard 无赠品控件，文案只陈述约束）
+  'priceCard.zeroPriceHint': '价格需大于 0',
   'priceCard.exportFailed': '生成失败，请稍后重试',
   'priceCard.fileTypeError': '请选择图片文件',
   'priceCard.contactLine': '联系：{contact}',
@@ -69,6 +71,8 @@ const DICT: Record<string, string> = {
   'receipt.itemsLabel': '制品明细',
   'receipt.itemsDesc': '名称 + 数量 + 单价；勾「赠」则划线计 0',
   'receipt.itemsRequired': '至少填一行完整制品（名称 + 单价）',
+  // issue 51-4（拍3-A）：非赠品且单价≤0 的行不进导出的行内提示
+  'receipt.exportExcludedHint': '该行不会出现在导出中：价格需大于 0',
   'receipt.itemNamePlaceholder': '制品名称，如：头像',
   'receipt.qtyLabel': '数量',
   'receipt.pricePlaceholder': '单价（元）',
