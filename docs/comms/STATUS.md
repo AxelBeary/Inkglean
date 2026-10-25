@@ -119,8 +119,8 @@
 > - **盘面清理**：11 个 `.qoder/worktrees/agent-huiyue-*` 注册全部摘除、33 个已并入本地分支删除（末端 SHA 存 `deleted-branches.txt` 可恢复）；
 >   7 份席位交回台账归档进 `AGENTS/artifacts/inkglean-sec-audit-20261024/seat-ledgers/`；三个残目录只剩 node_modules，删除被本机设置规则拦，候用户手动。
 > - **待办新增**：STATUS 正文达 6 条，按体例第 6 条起须整段归档；归档属高风险文本迁移，按 AGENTS.md「不与代码施工混批」留作单独一批。
-> - **changelog 余量告警**：活档 39701 B（阈值 40 KB，余约 1.2KB）/ 207 行（阈值 450）。下一批大概率撞线，
->   撞线唯一处置＝oldest 段整搬 `docs/changelog-archive/` 新卷 + 逐行哈希校验，禁调高阈值续命。
+> - **changelog 余量告警**：活档 40198 B（阈值 40 KB = 40960 B，**余仅 762 B**）/ 208 行（阈值 450）。下一批必然撞线，
+>   撞线唯一处置＝oldest 段整搬 `docs/changelog-archive/` 新卷 + 逐行哈希校验，禁调高阈值续命。建议与 STATUS 正文归档并成同一批纯文档迁移。
 
 >  📌 **2026-10-21 四批收口：U45/U46 修复批 + Dependabot #19/#20 + N×M 尺寸覆盖 + E2E 定位器规则（一号自主批）**
 >
