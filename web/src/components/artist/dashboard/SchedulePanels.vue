@@ -339,9 +339,13 @@ watch(kind, ensureLoad)
 
 /* ─── 款式 B · 台账（一天一栏一事一行小纸条） ─── */
 .led-cols {
-  display: grid; grid-template-columns: repeat(7, 1fr);
+  display: grid; grid-template-columns: repeat(7, minmax(72px, 1fr));
   border: 1px solid var(--line2); background: var(--paper2);
-  border-radius: 4px 9px 5px 8px / 8px 5px 9px 4px; overflow: hidden;
+  border-radius: 4px 9px 5px 8px / 8px 5px 9px 4px;
+  /* 只写 x 可滚 + y 裁切：块尾的 overflow:hidden 简写会把上面的 overflow-x:auto 整个撤销
+     （#58 返工 1）。7 列最小 504px，卡片窄于此时段 4~7 天必须能滚出来——改前只是省略号，
+     改后若滚不出来是净退化。 */
+  overflow-x: auto; overflow-y: hidden;
 }
 .led-col { border-right: 1px dashed var(--line2); padding: 8px; min-height: 104px; }
 .led-col:last-child { border-right: none; }
@@ -375,7 +379,7 @@ watch(kind, ensureLoad)
 .ptag.tone-done { opacity: .75; }
 
 /* ─── 款式 D · 运单（一天一叠小单据带圆戳） ─── */
-.way-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+.way-days { display: grid; grid-template-columns: repeat(7, minmax(72px, 1fr)); gap: 8px; overflow-x: auto; }
 .way-day { text-align: center; }
 .way-d { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink3); margin-bottom: 8px; font-variant-numeric: tabular-nums; }
 .way-today .way-d { color: var(--zs); font-weight: 700; }
@@ -436,10 +440,6 @@ watch(kind, ensureLoad)
 }
 .sp-pop-detail:hover { background: var(--hq-t); }
 
-/* 响应式：窄屏台账/运单改两天一屏滚动，纸签自动换行天然兼容 */
-@media (max-width: 600px) {
-  .led-cols, .way-days { grid-template-columns: repeat(7, minmax(84px, 1fr)); overflow-x: auto; }
-}
 @media (prefers-reduced-motion: reduce) {
   .sp-skeleton-row { animation: none; }
   .sp-pop { animation: none; }
