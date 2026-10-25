@@ -1,15 +1,15 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-10-25 刷新：外部反馈吸纳批——PR #43/#45/#46/#47 接收 + issue #48/#49/#51/#53 落地）
+## 看板（2026-10-26 刷新：外部反馈吸纳批 + 依赖收口；PR #43/#45/#46/#47 接收、issue #48/#49/#51/#53 落地）
 
-- **HEAD 与推送**：`44419700` = 上一批（GHSA-6pf3 安全批 + 14 功能 PR + #42）之上再叠本批五笔提交；十九道全绿 @ 44419700
-- **基线（accept.ps1 十九道全绿 @ `44419700`）**：server **1974** / web **1043** / desktop **616** / shared **29** / E2E **14** / cargo test 32（Rust 另计）
+- **HEAD 与推送**：`8b73e86f` = 上一批（GHSA-6pf3 安全批 + 14 功能 PR + #42）之上叠本批六笔代码 + 三笔文档/依赖；十九道全绿 @ 8b73e86f（296s）
+- **基线（accept.ps1 十九道全绿 @ `8b73e86f`）**：server **1974** / web **1043**（155 文件）/ desktop **616**（44）/ shared **29** / E2E **14** / cargo test 32（Rust 另计）
   - 迁移仍 **v79**（本批零新迁移；v77 参考图配额列 / v78 幂等 request_hash / v79 撤销关联）
   - 本批计数增长：server +2（TC-DASH-21b、TC-AAA-11b）/ web +22 / shared +2（小票整数分与折扣文案同源）
 - **排期块视觉已拍板**：拟物卷轴退役、改案头横格（外部 PR #43 落地）；详见「已拍板规则」
 - **GHSA-6pf3 安全批已闭合**：外部私密通告 8 项加固全部落地（认证/账户/资源/桌面端命令授权面）；细节见私密通告，公开不展开（SECURITY.md 口径），自托管请尽快更新
 - **警报/PR 现状**：分列如下
-  - Code scanning open 0；Dependabot open 2（happy-dom：desktop 由 #44 覆盖 / shared 待依赖批）
+  - Code scanning open 0；Dependabot open 0（happy-dom 三处全部到 21.0.4：web/desktop 走 #40/#44，shared 手工对齐 `8b73e86f`）
   - 外部私密通告：修复已全部落地并回函，披露与署名处置候主理人（细节不在公开仓展开，SECURITY.md 口径）
   - Mistwhisker 第二波：#43/#45/#46/#47 已接收；#55/#58 退回要求未合；#26 仍挂起
   - issue #48-#57 已逐条回函
@@ -18,7 +18,9 @@
 
 **下一步（按优先级）**
 
-1. ✅ **本批收口 @ `44419700`**：外部 PR 四路接收 + issue 吸纳五笔提交；十九道全绿 385s（日志 `AGENTS/artifacts/mistwhisker-wave2-20261025/logs/accept-final.log`）
+1. ✅ **本批收口 @ `8b73e86f`**：外部 PR 四路接收 + issue 吸纳六笔代码提交 + 依赖收口；十九道全绿 296s
+   - 留痕：`AGENTS/artifacts/mistwhisker-wave2-20261025/logs/`（accept-final / accept-deps2 / 两次单跑复验）
+   - 该轮曾报 web 1028、desktop 608 掉数——单跑复验 1043/616 与基线逐字相符，判为 worker 掉线非回归，未动阈值
 2. **候你拍板（本批新挂 7 项）**：明细见 `AGENTS/artifacts/mistwhisker-wave2-20261025/03-施工台账.md`
    - `isAdmin` 是否回写持久标记（动 REQ-043 I6-e 既有拍板）
    - 0 元档算不算已填 / 该不该上票（#51-3、#51-4）
