@@ -78,7 +78,10 @@
 
   <!-- 订单列表（巡检修复批 B7: 窄屏允许横向滚动，列宽合计 1004px） -->
   <!-- M3: 加载期显示卡片骨架屏（不遮罩已渲染内容），表格 v-if="!loading" -->
-  <HySkeleton v-if="loading" count="6" />
+  <div v-if="loading" class="order-skeleton" aria-hidden="true">
+    <div class="order-skeleton-head"></div>
+    <div v-for="i in 6" :key="i" class="order-skeleton-row"></div>
+  </div>
   <div class="order-table-wrap" v-if="!loading">
     <el-table :data="displayedOrders" stripe style="width: 100%; margin-top: 16px" @row-click="onRowClick" @sort-change="onSortChange">
       <!-- R16: 缩略图列（焦点图优先，无则 —） -->
@@ -167,7 +170,6 @@ import { FETCH_ALL_PAGE_SIZE, ORDER_LIST_UI_PAGE_SIZE } from '../../constants/pa
 // v0.38 第二批: 统一墨线空态（REQ-026 §二）
 import InkEmpty from '../../components/artist/visual/InkEmpty.vue'
 // M3: 订单卡片骨架屏（加载期替代 v-loading 遮罩）
-import HySkeleton from '../../components/shared/HySkeleton.vue'
 import { formatDateTimeShort } from '../../utils/datetime'
 import { safeGetItem, safeSetItem } from '../../utils/storage'
 
@@ -420,6 +422,40 @@ onMounted(() => {
 .el-table :deep(.el-table__row--striped td) { background: color-mix(in srgb, var(--paper2) 55%, transparent); }
 
 /* 巡检修复批 B7: 窄屏表格横向滚动（修法②——容器 overflow-x + 表格 min-width） */
+.order-skeleton {
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--card);
+}
+.order-skeleton-head {
+  height: 40px;
+  background: var(--paper2);
+  border-bottom: 1px solid var(--line);
+}
+.order-skeleton-row {
+  height: 49px; /* 与 el-table 单行同高 */
+  border-bottom: 1px solid var(--line);
+  position: relative;
+  overflow: hidden;
+  background: var(--card);
+}
+.order-skeleton-row::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, .55) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: order-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+.order-skeleton-row:last-child { border-bottom: none; }
+@keyframes order-skeleton-shimmer {
+  to { transform: translateX(100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .order-skeleton-row::after { animation: none; }
+}
 .order-table-wrap { overflow-x: auto; }
 .order-table-wrap .el-table { min-width: 1004px; }
 

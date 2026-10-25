@@ -105,3 +105,20 @@ describe('IncomeTrendCharts 收入趋势图', () => {
     expect(wrapper.find('.itc-sub-empty').exists()).toBe(true)
   })
 })
+
+describe('IncomeTrendCharts 主题切换', () => {
+  it('TC-ITC-04: data-artist-theme 变化后按新 token 重建图表', async () => {
+    getIncomeMonthly.mockResolvedValue({ months: [row('2026-07', 10000)] })
+    mountCharts()
+    await flushPromises()
+    expect(chartCtor).toHaveBeenCalledTimes(2)
+
+    document.documentElement.setAttribute('data-artist-theme', 'ink')
+    await flushPromises()
+    await new Promise(resolve => setTimeout(resolve, 0))
+    await flushPromises()
+
+    expect(chartCtor.mock.calls.length).toBeGreaterThanOrEqual(4)
+    document.documentElement.removeAttribute('data-artist-theme')
+  })
+})

@@ -86,14 +86,36 @@ function destroyCharts() {
   doughnutChart = null
 }
 
+interface ChartPalette {
+  axis: string; grid: string; legend: string
+  hq: string; sl: string; zs: string; zsT: string; paper2: string
+}
+
+/** 图表不从写死色盘取色：直接读当前作用域的 CSS token，宣纸/墨黑切换后重建即自动换色 */
+function readChartPalette(): ChartPalette {
+  const cs = typeof getComputedStyle === 'function' ? getComputedStyle(document.documentElement) : null
+  const v = (name: string, fallback: string) => cs?.getPropertyValue(name).trim() || fallback
+  return {
+    axis: v('--ink3', INK_PALETTE.ink3),
+    grid: v('--line', INK_PALETTE.line),
+    legend: v('--ink2', INK_PALETTE.ink2),
+    hq: v('--hq', INK_PALETTE.hq),
+    sl: v('--sl', INK_PALETTE.sl),
+    zs: v('--zs', INK_PALETTE.zs),
+    zsT: v('--zs-t', INK_PALETTE.zsT),
+    paper2: v('--paper2', INK_PALETTE.paper2)
+  }
+}
+
 async function renderCharts() {
   if (empty.value || !barCanvas.value || !lineCanvas.value) return
   const { default: Chart } = await import('chart.js/auto')
   destroyCharts()
 
   const labels = monthLabels(rows.value, locale.value)
-  const axisColor = INK_PALETTE.ink3
-  const gridColor = INK_PALETTE.line
+  const palette = readChartPalette()
+  const axisColor = palette.axis
+  const gridColor = palette.grid
 
   // 月度收入：订单收款 + 散单堆叠（宣纸色谱：花青/松绿）
   const barConfig: ChartConfiguration<'bar'> = {
@@ -104,13 +126,13 @@ async function renderCharts() {
         {
           label: t('toolsExport.incomeOrder'),
           data: rows.value.map(r => r.orderCents / 100),
-          backgroundColor: INK_PALETTE.hq,
+          backgroundColor: palette.hq,
           stack: 'income'
         },
         {
           label: t('toolsExport.incomeStandalone'),
           data: rows.value.map(r => r.standaloneCents / 100),
-          backgroundColor: INK_PALETTE.sl,
+          backgroundColor: palette.sl,
           stack: 'income'
         }
       ]
@@ -118,7 +140,7 @@ async function renderCharts() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: INK_PALETTE.ink2 } } },
+      plugins: { legend: { labels: { color: palette.legend } } },
       scales: {
         x: { stacked: true, ticks: { color: axisColor }, grid: { display: false } },
         y: {
@@ -138,9 +160,9 @@ async function renderCharts() {
       datasets: [{
         label: t('toolsExport.incomeCumulativeTitle'),
         data: buildCumulative(rows.value).map(c => c / 100),
-        borderColor: INK_PALETTE.zs,
-        backgroundColor: INK_PALETTE.zsT,
-        pointBackgroundColor: INK_PALETTE.zs,
+        borderColor: palette.zs,
+        backgroundColor: palette.zsT,
+        pointBackgroundColor: palette.zs,
         fill: true,
         tension: 0.25
       }]
@@ -170,6 +192,7 @@ async function renderDoughnut() {
   doughnutChart?.destroy()
   doughnutChart = null
 
+  const palette = readChartPalette()
   const labels = styleRows.value.map(s => s.styleName || t('toolsExport.incomeUncategorized'))
   const doughnutConfig: ChartConfiguration<'doughnut'> = {
     type: 'doughnut',
@@ -178,7 +201,7 @@ async function renderDoughnut() {
       datasets: [{
         data: styleRows.value.map(s => s.cents / 100),
         backgroundColor: labels.map((_l, i) => DOUGHNUT_COLORS[i % DOUGHNUT_COLORS.length]),
-        borderColor: INK_PALETTE.paper2,
+        borderColor: palette.paper2,
         borderWidth: 2
       }]
     },
@@ -186,7 +209,7 @@ async function renderDoughnut() {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom', labels: { color: INK_PALETTE.ink2 } }
+        legend: { position: 'bottom', labels: { color: palette.legend } }
       }
     }
   }
@@ -215,8 +238,27 @@ async function load() {
   await renderDoughnut()
 }
 
-onMounted(() => { void load() })
-onBeforeUnmount(destroyCharts)
+/** 主题属性变化后按新 token 重建（图表只在创建时取色，不会自己跟着 CSS 变） */
+async function refreshForTheme(): Promise<void> {
+  if (loading.value || loadFailed.value || empty.value) return
+  await nextTick()
+  await renderCharts()
+  await renderDoughnut()
+}
+
+let themeObserver: MutationObserver | null = null
+onMounted(() => {
+  void load()
+  if (typeof MutationObserver === 'function') {
+    themeObserver = new MutationObserver(() => { void refreshForTheme() })
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-artist-theme'] })
+  }
+})
+onBeforeUnmount(() => {
+  themeObserver?.disconnect()
+  themeObserver = null
+  destroyCharts()
+})
 </script>
 
 <style scoped>
