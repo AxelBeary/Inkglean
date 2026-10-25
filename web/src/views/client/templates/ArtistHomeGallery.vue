@@ -208,12 +208,16 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, .35) 50%, transparent 70%);
+  /* 微光走 token：写死 rgba(255,255,255,.35) 在浅盘几乎看不见、在墨黑档过刺（实测压 #22201A 5.86:1）
+     ——回到与本仓其余骨架同口径的 --pal-border 混合（#58 返工 4） */
+  background: linear-gradient(110deg, transparent 30%, color-mix(in srgb, var(--pal-border) 55%, transparent) 50%, transparent 70%);
   transform: translateX(-100%);
   animation: gallery-skeleton-shimmer 1.4s ease-in-out infinite;
 }
 @keyframes gallery-skeleton-shimmer { to { transform: translateX(100%); } }
-@media (max-width: 960px) {
+/* 断点抄内容侧真值：TplAlbumStage 的高度切换在 768px，抄成 960px 会留 769~960 这一段仍差 60px+
+   （#58 返工 2） */
+@media (max-width: 768px) {
   .gallery-loading-skeleton { height: 50vh; min-height: 280px; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -307,9 +311,6 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
 @media (max-width: 768px) {
   .gallery-section {
     padding: 56px 16px;
-  }
-  .gallery-loading-skeleton {
-    grid-template-columns: 1fr;
   }
 }
 </style>

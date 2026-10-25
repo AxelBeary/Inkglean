@@ -76,11 +76,17 @@
     </router-link>
   </div>
 
-  <!-- 订单列表（巡检修复批 B7: 窄屏允许横向滚动，列宽合计 1004px） -->
-  <!-- M3: 加载期显示卡片骨架屏（不遮罩已渲染内容），表格 v-if="!loading" -->
-  <div v-if="loading" class="order-skeleton" aria-hidden="true">
+    <!-- 订单列表（巡检修复批 B7: 窄屏允许横向滚动，列宽合计 1004px） -->
+  <!-- M3: 加载期骨架屏（不遮罩已渲染内容），表格 v-if="!loading" -->
+  <!-- #58 返工 3：骨架要与内容同形。>768px 内容是表格 → 镜像行式骨架；
+       ≤768px 内容整体换成 .order-cards（P0-3 卡片视图）→ 恢复卡片骨架 HySkeleton，
+       两者由同一个容器查询互斥切换，不再让行式骨架在窄屏与卡片内容错位 -->
+  <div v-if="loading" class="order-skeleton-rows" aria-hidden="true">
     <div class="order-skeleton-head"></div>
     <div v-for="i in 6" :key="i" class="order-skeleton-row"></div>
+  </div>
+  <div v-if="loading" class="order-skeleton-cards" aria-hidden="true">
+    <HySkeleton count="6" />
   </div>
   <div class="order-table-wrap" v-if="!loading">
     <el-table :data="displayedOrders" stripe style="width: 100%; margin-top: 16px" @row-click="onRowClick" @sort-change="onSortChange">
@@ -169,7 +175,8 @@ import { ElMessage } from 'element-plus'
 import { FETCH_ALL_PAGE_SIZE, ORDER_LIST_UI_PAGE_SIZE } from '../../constants/pagination'
 // v0.38 第二批: 统一墨线空态（REQ-026 §二）
 import InkEmpty from '../../components/artist/visual/InkEmpty.vue'
-// M3: 订单卡片骨架屏（加载期替代 v-loading 遮罩）
+// M3: 订单卡片骨架屏（加载期替代 v-loading 遮罩；≤768px 卡片档与 .order-cards 同形）
+import HySkeleton from '../../components/shared/HySkeleton.vue'
 import { formatDateTimeShort } from '../../utils/datetime'
 import { safeGetItem, safeSetItem } from '../../utils/storage'
 
@@ -422,7 +429,7 @@ onMounted(() => {
 .el-table :deep(.el-table__row--striped td) { background: color-mix(in srgb, var(--paper2) 55%, transparent); }
 
 /* 巡检修复批 B7: 窄屏表格横向滚动（修法②——容器 overflow-x + 表格 min-width） */
-.order-skeleton {
+.order-skeleton-rows {
   margin-top: 16px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -435,7 +442,9 @@ onMounted(() => {
   border-bottom: 1px solid var(--line);
 }
 .order-skeleton-row {
-  height: 49px; /* 与 el-table 单行同高 */
+  /* 57px = EP 单元格 padding 8px×2 + 40px 缩略图 + 1px 下边线（#58 返工 3：49px 是窄容器档真值，
+     行式骨架只在 >768px 的表格档出现，照抄 49px 六行少约 48px，骨架撤掉时整页仍会跳） */
+  height: 57px;
   border-bottom: 1px solid var(--line);
   position: relative;
   overflow: hidden;
@@ -445,7 +454,9 @@ onMounted(() => {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, .55) 50%, transparent 70%);
+  /* 微光走 token：写死 rgba(255,255,255,.55) 压在宣纸卡上实测 1.01:1（看不见），
+     压在墨黑卡上 5.86:1（过刺）——改回 --line2 混合后 1.34:1 / 1.20:1，两档都克制可见（#58 返工 4） */
+  background: linear-gradient(110deg, transparent 30%, color-mix(in srgb, var(--line2) 55%, transparent) 50%, transparent 70%);
   transform: translateX(-100%);
   animation: order-skeleton-shimmer 1.4s ease-in-out infinite;
 }
@@ -456,6 +467,8 @@ onMounted(() => {
 @media (prefers-reduced-motion: reduce) {
   .order-skeleton-row::after { animation: none; }
 }
+/* 卡片档骨架默认隐藏，由下方 P0-3 的同一个容器查询与行式骨架互斥切换 */
+.order-skeleton-cards { display: none; }
 .order-table-wrap { overflow-x: auto; }
 .order-table-wrap .el-table { min-width: 1004px; }
 
@@ -467,6 +480,9 @@ onMounted(() => {
 /* 页宽容器查询收尾批：卡片视图断点改认容器宽 */
 @container (max-width: 768px) {
   .order-table-wrap { display: none; }
+  /* #58 返工 3：加载期骨架与内容同形——同一档里行式骨架退场、卡片骨架（HySkeleton）上场 */
+  .order-skeleton-rows { display: none; }
+  .order-skeleton-cards { display: block; }
   .order-cards { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
   .order-card { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; cursor: pointer; text-decoration: none; color: inherit; }
   .order-card-top { display: flex; align-items: center; gap: 12px; }

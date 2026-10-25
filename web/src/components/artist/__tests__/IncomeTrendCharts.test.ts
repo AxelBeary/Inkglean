@@ -1,8 +1,12 @@
 // 收入趋势图组件挂载测试（oimimo 吸纳批四）
 // Chart.js 动态加载整体 mock（只断言实例化次数与空态/失败态分支）
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mount, flushPromises, enableAutoUnmount } from '@vue/test-utils'
 import IncomeTrendCharts from '../IncomeTrendCharts.vue'
+
+// 本文件组件挂了主题 MutationObserver：不自动卸载的话，前序用例的实例会在
+// teardown 之后仍被属性变化唤醒，拿到的是已注销 mock 的真 Chart，抛未捕获拒绝
+enableAutoUnmount(afterEach)
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string) => key, locale: { value: 'zh-CN' } })
@@ -19,12 +23,16 @@ vi.mock('../../../api/index.js', () => ({
   }
 }))
 
-const { chartCtor } = vi.hoisted(() => ({ chartCtor: vi.fn() }))
+const { chartCtor, destroyChartCtor } = vi.hoisted(() => ({
+  chartCtor: vi.fn(),
+  // #58 返工 7：destroy 必须有 spy——原先是空实现，删掉 destroyCharts() 也不会转红
+  destroyChartCtor: vi.fn()
+}))
 vi.mock('chart.js/auto', () => ({
   // 箭头函数不可 new，用类模拟 Chart 构造器
   default: class MockChart {
     constructor(...args: unknown[]) { chartCtor(...args) }
-    destroy() { /* 实例销毁静默 */ }
+    destroy() { destroyChartCtor() }
   }
 }))
 
@@ -106,19 +114,79 @@ describe('IncomeTrendCharts 收入趋势图', () => {
   })
 })
 
-describe('IncomeTrendCharts 主题切换', () => {
-  it('TC-ITC-04: data-artist-theme 变化后按新 token 重建图表', async () => {
-    getIncomeMonthly.mockResolvedValue({ months: [row('2026-07', 10000)] })
-    mountCharts()
-    await flushPromises()
-    expect(chartCtor).toHaveBeenCalledTimes(2)
+describe('IncomeTrendCharts 主题切换（#58 返工 5/6/7）', () => {
+  /** 宣纸档 token：写进 documentElement 的内联自定义属性，readChartPalette 直接读得到 */
+  const PAPER_TOKENS: Record<string, string> = {
+    '--ink3': '#6A6455', '--line': '#DCD0B4', '--ink2': '#5A564B',
+    '--hq': '#33526E', '--sl': '#2F7D54', '--zs': '#BC3A2B',
+    '--zs-t': '#F8EAE6', '--paper2': '#F5EFDF', '--th': '#966C0A', '--zhe': '#8A5A33'
+  }
+  const INK_TOKENS: Record<string, string> = {
+    ...PAPER_TOKENS,
+    '--ink3': '#8F8977', '--line': '#2F2D24', '--ink2': '#B8B3A4',
+    '--hq': '#8FB2D1', '--sl': '#6FBF93', '--zs': '#E07B6B',
+    '--zs-t': 'rgba(224, 123, 107, .14)', '--paper2': '#1D1C15',
+    '--th': '#D9B36A', '--zhe': '#C89B72'
+  }
 
+  function setTokens(toks: Record<string, string>) {
+    for (const [k, v] of Object.entries(toks)) document.documentElement.style.setProperty(k, v)
+  }
+
+  beforeEach(() => {
+    setTokens(PAPER_TOKENS)
+  })
+
+  afterEach(() => {
+    for (const k of Object.keys(PAPER_TOKENS)) document.documentElement.style.removeProperty(k)
+    document.documentElement.removeAttribute('data-artist-theme')
+    document.documentElement.removeAttribute('data-reduce-motion')
+  })
+
+  it('TC-ITC-06: data-artist-theme 变化后按新 token 重建，且重建不再重放入场动画', async () => {
+    getIncomeMonthly.mockResolvedValue({ months: [row('2026-07', 10000)] })
+    getIncomeByStyle.mockResolvedValue({ styles: [{ styleName: '厚涂', cents: 10000 }] })
+    const w = mountCharts()
+    await flushPromises()
+    // 柱 + 线 + 环 = 3 次实例化（增量口径：前面用例留下的 wrapper 也挂着主题观察器）
+    const afterMount = chartCtor.mock.calls.length
+    expect(afterMount).toBeGreaterThanOrEqual(3)
+    const mountCalls = chartCtor.mock.calls.slice(afterMount - 3)
+    const firstConfigs = mountCalls.map(c => c[1] as { data?: { datasets?: Array<{ backgroundColor?: unknown }> }; options?: { animation?: unknown } })
+    // 宣纸档：主图取花青（token 实测读到了，不是走兜底）
+    expect(firstConfigs[0].data!.datasets![0].backgroundColor).toBe('#33526E')
+    // 允许动效时入场动画保持默认（不显式关掉）
+    expect(firstConfigs[0].options!.animation).toBeUndefined()
+
+    const destroyedBefore = destroyChartCtor.mock.calls.length
+    setTokens(INK_TOKENS)
     document.documentElement.setAttribute('data-artist-theme', 'ink')
     await flushPromises()
     await new Promise(resolve => setTimeout(resolve, 0))
     await flushPromises()
 
-    expect(chartCtor.mock.calls.length).toBeGreaterThanOrEqual(4)
-    document.documentElement.removeAttribute('data-artist-theme')
+    const inkNew = chartCtor.mock.calls.slice(afterMount).map(
+      c => c[1] as { data?: { datasets?: Array<{ backgroundColor?: unknown }> }; options?: { animation?: unknown } }
+    )
+    expect(inkNew.length).toBeGreaterThanOrEqual(3)
+    // 新 token 真的进了新图（柱身花青提亮）——「按新 token 重建」这一半此前测不到
+    expect(inkNew.some(cfg => cfg.data?.datasets?.[0]?.backgroundColor === '#8FB2D1')).toBe(true)
+    // 换肤重建一律关动画：canvas 不吃 --dur-*，也不被 [data-reduce-motion] 的 CSS 兜底压住
+    for (const cfg of inkNew) expect(cfg.options!.animation).toBe(false)
+    // 旧实例被销毁（destroy 有 spy：删掉 destroyCharts() 会转红）
+    expect(destroyChartCtor.mock.calls.length).toBeGreaterThan(destroyedBefore)
+    w.unmount()
+  })
+
+  it('TC-ITC-07: 应用内「减少动效」开关打开时，首载也不放入场动画', async () => {
+    getIncomeMonthly.mockResolvedValue({ months: [row('2026-07', 10000)] })
+    document.documentElement.dataset.reduceMotion = 'on'
+    const w = mountCharts()
+    await flushPromises()
+    const base = chartCtor.mock.calls.length
+    expect(base).toBeGreaterThanOrEqual(2)
+    const cfg = chartCtor.mock.calls[base - 2][1] as { options?: { animation?: unknown } }
+    expect(cfg.options!.animation).toBe(false)
+    w.unmount()
   })
 })
