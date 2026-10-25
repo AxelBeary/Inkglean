@@ -3,6 +3,7 @@ import type { Ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { useOrderPayments } from './useOrderPayments'
+import { motionScrollBehavior } from '../utils/animSpeed'
 import { formatCents } from '../utils/money'
 import type { ApiError } from '../api/index'
 import type { EnrichedOrderDetail, OrderInstallment, PaymentRow } from '../api/types'
@@ -61,7 +62,7 @@ export function useOrderPaymentPanel({ order, routeId, onRefresh }: {
 
   /** v0.31 F5: 点击跳转到收款区 */
   function scrollToPayment() {
-    document.querySelector('.pool-ref')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    document.querySelector('.pool-ref')?.scrollIntoView({ behavior: motionScrollBehavior(), block: 'start' })
   }
 
   /** 提交收款 */

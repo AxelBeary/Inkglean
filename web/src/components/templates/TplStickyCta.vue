@@ -37,7 +37,7 @@ defineProps({
 .tpl-sticky-inner {
   max-width: 720px;
   margin: 0 auto;
-  padding: 12px 20px;
+  padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
   display: flex;
   align-items: center;
   justify-content: space-between;

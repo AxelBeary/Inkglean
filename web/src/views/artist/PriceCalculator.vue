@@ -371,8 +371,8 @@ onUnmounted(() => {
   content: ""; width: 8px; height: 8px; flex: none;
   background: var(--zs); border-radius: var(--r-paper);
 }
-.calc-result-total { font-size: 22px; color: var(--hq); font-weight: 700; }
-.calc-line { display: flex; justify-content: space-between; gap: 12px; padding-top: 8px; font-size: 14px; color: var(--ink2); }
+.calc-result-total { font-size: 22px; color: var(--hq); font-weight: 700; font-variant-numeric: tabular-nums; }
+.calc-line { display: flex; justify-content: space-between; gap: 12px; padding-top: 8px; font-size: 14px; color: var(--ink2); font-variant-numeric: tabular-nums; }
 .calc-line--dim { color: var(--ink3); font-size: 13px; }
 .calc-addon-pct { margin-left: 4px; font-size: 11px; color: var(--ink4); }
 .calc-disclaimer { margin-top: 12px; font-size: 12px; color: var(--ink3); }

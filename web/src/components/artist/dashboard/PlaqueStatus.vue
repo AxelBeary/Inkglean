@@ -228,7 +228,7 @@ onMounted(() => {
   filter: drop-shadow(0 13px 11px rgba(38, 37, 30, .2));
 }
 .plaque:disabled { cursor: default; }
-[data-theme="ink"] .plaque { filter: drop-shadow(0 13px 13px rgba(0, 0, 0, .5)); }
+html[data-artist-theme="ink"] .plaque { filter: drop-shadow(0 13px 13px rgba(0, 0, 0, .5)); }
 .plaque-3d {
   width: 100%; height: 100%; position: relative; display: block;
   transform-style: preserve-3d; transition: transform .72s cubic-bezier(.45, .05, .3, 1);

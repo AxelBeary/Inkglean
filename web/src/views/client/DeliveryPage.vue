@@ -191,7 +191,7 @@ onMounted(() => {
   display: flex; justify-content: space-between; align-items: center;
   padding: 12px 0; border-bottom: 1px solid var(--border-color);
 }
-.file-info { display: flex; flex-direction: column; gap: 4px; }
-.file-name { color: var(--text-primary); font-weight: 500; }
+.file-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.file-name { color: var(--text-primary); font-weight: 500; overflow-wrap: anywhere; }
 .file-size { color: var(--text-secondary); font-size: 12px; }
 </style>
