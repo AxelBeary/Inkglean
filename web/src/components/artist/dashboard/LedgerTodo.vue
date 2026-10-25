@@ -216,12 +216,15 @@ async function act(item: TodoItem) {
       return
     }
     const nextStatus = verb.key === 'confirm' ? 'confirmed' : verb.key === 'start' ? 'wip' : 'done'
-    await artistApi.updateStatus(item.id, nextStatus, vOpt)
+    const updated = await artistApi.updateStatus(item.id, nextStatus, vOpt)
     if (nextStatus === 'done') {
       sinkRow(item)
     } else {
-      // 原地状态前进：更新行状态，动词随之递进
-      items.value = items.value.map(i => i.id === item.id ? { ...i, status: nextStatus } : i)
+      // 原地状态前进：更新行状态，动词随之递进。version 必须一并换成服务端返回的新值——
+      // 冷却结束不重拉待办，带旧 version 再点下一个动词会撞假 409
+      items.value = items.value.map(i => i.id === item.id
+        ? { ...i, status: nextStatus, version: updated.version ?? i.version }
+        : i)
       startCooldown(item.id)
     }
   } catch (err) {
