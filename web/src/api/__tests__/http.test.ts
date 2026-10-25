@@ -179,3 +179,29 @@ describe('请求核：错误归一化', () => {
     expect(err.message).toBe('common.networkError')
   })
 })
+
+describe('请求核：超时覆盖响应体读取', () => {
+  it('响应头已到但响应体悬挂时，超时中止读体并归入网络错误（旧实现清计时器过早）', async () => {
+    let aborted = false
+    const hanging = {
+      ok: true,
+      status: 200,
+      text: () => new Promise((_resolve, reject) => {
+        signalRef?.addEventListener('abort', () => {
+          aborted = true
+          reject(new DOMException('The operation was aborted', 'AbortError'))
+        })
+      })
+    } as unknown as Response
+    let signalRef: AbortSignal | undefined
+    h.fetch.mockImplementation((_url: string, init: RequestInit) => {
+      signalRef = init.signal ?? undefined
+      return Promise.resolve(hanging)
+    })
+
+    const err = (await getJson('/artist/hanging-body', { timeout: 10 }).catch(e => e)) as { message: string; status?: number }
+    expect(aborted).toBe(true)
+    expect(err.message).toBe('common.networkError')
+    expect(err.status).toBeUndefined()
+  })
+})
