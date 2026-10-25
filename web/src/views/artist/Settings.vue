@@ -371,27 +371,31 @@ const TAB_BASELINE_FIELDS = {
 }
 type SettingsTab = 'profile' | 'showcase' | 'template'
 const tabBaseline: Record<SettingsTab, string | null> = { profile: null, showcase: null, template: null }
+/** 规则内容单独一条基线：showcase 页签里「字段保存」与「规则保存」是两条独立写路径，
+ *  共用一条基线会让字段保存后（基线剔除 rules）与脏判定（快照含 rules）永远不等 → 恒脏。 */
+const rulesBaseline = ref<string | null>(null)
 
-function snapshotTab(tab: SettingsTab, includeRules = true): string {
+function snapshotTab(tab: SettingsTab): string {
   if (tab === 'showcase') {
     return JSON.stringify({
       status: form.status,
       links: form.customLinks.map(l => l.url || ''),
       tags: [...form.inspirationTags],
       announcement: form.announcement,
-      announcementExpiresAt: form.announcementExpiresAt,
-      // 仅规则保存/加载时把 rulesContent 计入基线（见 save() 的 a1-10 注释）
-      ...(includeRules ? { rules: rulesContent.value } : {})
+      announcementExpiresAt: form.announcementExpiresAt
     })
   }
   return JSON.stringify(TAB_BASELINE_FIELDS[tab].map(k => form[k as keyof typeof form]))
 }
 function markTabSaved(tab: SettingsTab, includeRules = true) {
-  tabBaseline[tab] = snapshotTab(tab, includeRules)
+  tabBaseline[tab] = snapshotTab(tab)
+  // 仅规则保存/加载时刷新规则基线（见 save() 的 a1-10 注释）
+  if (tab === 'showcase' && includeRules) rulesBaseline.value = rulesContent.value
 }
 function isTabDirty(tab: SettingsTab) {
   if (tabBaseline[tab] === null) return false
-  return snapshotTab(tab) !== tabBaseline[tab]
+  if (snapshotTab(tab) !== tabBaseline[tab]) return true
+  return tab === 'showcase' && rulesBaseline.value !== null && rulesContent.value !== rulesBaseline.value
 }
 async function beforeTabLeave(_newName: string, oldName: string) {
   if (!isTabDirty(oldName as SettingsTab)) return true

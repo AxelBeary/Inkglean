@@ -135,6 +135,7 @@ import { useI18n } from 'vue-i18n'
 // REQ-039: 纸墨卡片头（管理弹窗内分组标题）
 import CardHead from '../../artist/visual/CardHead.vue'
 import { formatDateTime } from '../../../utils/datetime'
+import { copyText } from '../../../utils/clipboard'
 
 const { t } = useI18n()
 const inviteVisible = defineModel({ type: Boolean, default: false })
@@ -248,10 +249,9 @@ async function openInviteUses(row: AdminInviteCode) {
 }
 
 async function copyInviteCode(code: string) {
-  try {
-    await navigator.clipboard.writeText(code)
-    ElMessage.success(t('invite.copied'))
-  } catch { /* 剪贴板受限时静默（非关键路径） */ }
+  // HTTP/内网等非安全上下文下 navigator.clipboard 不可用，统一封装会降级 execCommand
+  if (await copyText(code)) ElMessage.success(t('invite.copied'))
+  else ElMessage.error(t('invite.copyFailed'))
 }
 
 async function revokeInviteCode(row: AdminInviteCode) {

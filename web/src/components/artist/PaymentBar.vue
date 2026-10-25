@@ -59,7 +59,8 @@ const elasticId = ref<number | null>(null)
 const detachId = ref<number | null>(null)
 const inputId = ref<number | null>(null)
 const inputVal = ref(0)
-const inputRef = ref<ComponentPublicInstance | null>(null)
+// v-for 内的字符串 ref 会被 Vue 收成数组（同 StageListView.editInput 口径）
+const inputRef = ref<ComponentPublicInstance[] | null>(null)
 
 const localBp = ref<Record<number, number>>({})
 watch(() => props.stages, (stages) => {
@@ -230,7 +231,7 @@ function startInput(seg: { id: number; bp: number }) {
   inputVal.value = seg.bp / 100
   nextTick(() => {
     // 自动聚焦并全选，用户可直接输入覆盖
-    const inputEl = inputRef.value?.$el?.querySelector('input')
+    const inputEl = inputRef.value?.[0]?.$el?.querySelector('input')
     if (inputEl) { inputEl.focus(); inputEl.select() }
   })
 }

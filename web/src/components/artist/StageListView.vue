@@ -303,6 +303,8 @@ function startEdit(s: StageRow) {
 }
 
 function commitEdit(s: StageRow) {
+  // 回车提交后输入框卸载会再触发一次 blur：只认当前编辑行，防重复发请求
+  if (editingId.value !== s.id) return
   if (editName.value.trim() && editName.value.trim() !== s.name) {
     emit('rename', s.id, editName.value.trim())
   }
@@ -316,6 +318,7 @@ function startDescEdit(s: StageRow) {
 }
 
 function commitDescEdit(s: StageRow) {
+  if (descEditId.value !== s.id) return
   const val = descEditVal.value.trim()
   if (val !== (s.description || '')) {
     emit('updateDesc', s.id, val)
