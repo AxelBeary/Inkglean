@@ -201,7 +201,13 @@ export function useOrderFormDraft(subdomain: string, state: OrderFormDraftState)
     if (draftTimer) clearTimeout(draftTimer)
   }
 
+  /** issue #53-2: 卸载前把节流窗口内最后一笔同步落盘（清定时器 + 立即存，与 onBeforeUnload 同形） */
+  function flushDraft() {
+    clearDraftTimers()
+    saveDraft()
+  }
+
   return {
-    hasDraftContent, restoreDraft, loadStoredDraft, discardDraft, onBeforeUnload, clearDraftTimers
+    hasDraftContent, restoreDraft, loadStoredDraft, discardDraft, onBeforeUnload, clearDraftTimers, flushDraft
   }
 }

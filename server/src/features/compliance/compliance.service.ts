@@ -256,10 +256,14 @@ function buildActionFilter(opts: AdminActionFilters): { where: string; params: A
     clauses.push('action = ?')
     params.push(opts.action)
   }
-  // targetType 与 targetId 成对才生效：只给 target_type 一列命中不了复合索引 idx_admin_actions_target
   if (opts.targetType && opts.targetId != null) {
+    // 成对：精确到对象，走复合索引 idx_admin_actions_target
     clauses.push('target_type = ? AND target_id = ?')
     params.push(opts.targetType, opts.targetId)
+  } else if (opts.targetType) {
+    // issue #49-2：单列就是类型粗筛。成对门槛虽保住了复合索引，却把管理页筛选器变成摆设（筛了等于没筛）
+    clauses.push('target_type = ?')
+    params.push(opts.targetType)
   }
   return { where: clauses.length ? `WHERE ${clauses.join(' AND ')}` : '', params }
 }

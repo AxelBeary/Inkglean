@@ -81,7 +81,7 @@ function runDeadline(order: ReturnType<typeof ref>, onConflict?: () => void) {
   }))
 }
 
-function runActions(order: ReturnType<typeof ref>, loadOrder?: () => Promise<unknown>) {
+function runActions(order: ReturnType<typeof ref>, loadOrder?: () => Promise<void>) {
   return runComposable(() => useOrderActions({
     order: order as never,
     routeId: 1,

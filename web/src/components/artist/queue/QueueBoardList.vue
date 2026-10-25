@@ -252,6 +252,7 @@
 
   <!-- 815 拍板 #1：取消后 5 秒撤销提示 -->
   <CancelUndoToast
+    :key="cancelUndo.seq"
     v-if="cancelUndo.visible"
     :label="cancelUndo.label"
     :window-ms="cancelUndo.windowMs"
@@ -539,8 +540,10 @@ interface CancelUndoState {
   orderId: number | null
   label: string
   windowMs: number
+  /** 同一订单二次取消也要重挂提示（issue #53-4） */
+  seq: number
 }
-const cancelUndo = ref<CancelUndoState>({ visible: false, orderId: null, label: '', windowMs: 5000 })
+const cancelUndo = ref<CancelUndoState>({ visible: false, orderId: null, label: '', windowMs: 5000, seq: 0 })
 
 async function doCancelWithUndo(order: QueueRow) {
   if (cancellingBusyId.value === order.id) return
@@ -553,7 +556,8 @@ async function doCancelWithUndo(order: QueueRow) {
       visible: true,
       orderId: order.id,
       label: res.order_no || order.orderNo || String(order.id),
-      windowMs: res.undoWindowMs ?? 5000
+      windowMs: res.undoWindowMs ?? 5000,
+      seq: cancelUndo.value.seq + 1
     }
     ElMessage.success(t('queue.statusUpdated'))
     emit('refresh-queue')
@@ -579,7 +583,8 @@ async function doCancelWithUndo(order: QueueRow) {
           visible: true,
           orderId: order.id,
           label: res.order_no || order.orderNo || String(order.id),
-          windowMs: res.undoWindowMs ?? 5000
+          windowMs: res.undoWindowMs ?? 5000,
+          seq: cancelUndo.value.seq + 1
         }
         ElMessage.success(t('queue.statusUpdated'))
         emit('refresh-queue')

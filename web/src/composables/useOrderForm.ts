@@ -412,7 +412,7 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
   // 草稿的落盘节流/恢复过滤/离开拦截本体在 orderFormHelpers（巨型文件防阀拆分），
   // 状态仍全部归本 composable 所有：这里只把引用交出去，读写指向同一份数据。
   const {
-    hasDraftContent, restoreDraft, loadStoredDraft, discardDraft, onBeforeUnload, clearDraftTimers
+    hasDraftContent, restoreDraft, loadStoredDraft, discardDraft, onBeforeUnload, flushDraft
   } = useOrderFormDraft(subdomain, {
     form, styles, selectedStyleId, selectedSizeId, isMultiStyle,
     regularAddons, usageAddons, rushAddons, styleAddonSelections,
@@ -640,7 +640,7 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
 
   onUnmounted(() => {
     window.removeEventListener('beforeunload', onBeforeUnload)
-    clearDraftTimers()
+    flushDraft() // issue #53-2: 清定时器前先落盘，防抖 500ms 内的最后一笔不再丢在内存里
     if (styleCalcTimer) clearTimeout(styleCalcTimer)
     discountValidationSeq++ // a3: 卸载后在途验证响应作废
   })

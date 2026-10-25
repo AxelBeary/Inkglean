@@ -141,7 +141,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, nextTick, onMounted, onBeforeUnmount, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { artistApi, artistPublicApi } from '../../api/index'
 import type { ArtistOrderItem, PublicArtStyle, PublicPricingResult, WorkflowStageDTO, ClientProfile, ClientSummary } from '../../api/types'
@@ -688,10 +688,16 @@ onMounted(() => {
   init()
 })
 
+onBeforeUnmount(() => {
+  // issue #53-1: 路由切走也要落防抖窗口内最后一笔。必须 onBeforeUnmount——那时右栏子组件仍在，
+  // getDraftState() 取得到内容；放 onUnmounted 会报「无内容」，反向把草稿 removeItem 抹掉
+  if (draftTimer) { clearTimeout(draftTimer); draftTimer = null }
+  saveDraft()
+})
+
 onUnmounted(() => {
   window.removeEventListener('beforeunload', onBeforeUnload)
   window.removeEventListener('storage', onDraftStorage) // G-4: 成对清理
-  if (draftTimer) { clearTimeout(draftTimer); draftTimer = null }
   // 围剿 a1-2: QQ 历史防抖定时器离页清理 + 在途请求作废（卸载递增序号）
   if (qqTimer) { clearTimeout(qqTimer); qqTimer = null }
   qqSeq++

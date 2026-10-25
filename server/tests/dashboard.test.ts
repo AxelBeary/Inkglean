@@ -358,6 +358,16 @@ describe('合并待办列表 stageName（E3）', () => {
     expect(result[0].stageName).toBe('细化')
   })
 
+  // GHSA Wave2 issue #48：台账动词直调写接口，todo 出参必须带乐观锁版本，否则前端无从携带（写=无条件覆盖）
+  it('TC-DASH-21b: todo 出参带 version，与 orders.version 一致', () => {
+    const o = seedOrder(artist.id, { order_no: 'E3-001b', status: 'wip' })
+    const row = db.prepare('SELECT version FROM orders WHERE id = ?').get(o.id) as { version: number }
+
+    const result = dashboard.getTodoList(artist.id)
+    expect(result).toHaveLength(1)
+    expect(result[0].version).toBe(row.version)
+  })
+
   it('TC-DASH-22: 无工作流节点的订单 → stageName 为 null（降级不报错）', () => {
     seedOrder(artist.id, { order_no: 'E3-002', status: 'wip' })
 
@@ -394,7 +404,9 @@ describe('合并待办列表 stageName（E3）', () => {
       stageName: '线稿',
       // 815 审计 P1-2: 新增字段，单节点时 nextStageId 为 null
       currentStageId: expect.any(Number),
-      nextStageId: null
+      nextStageId: null,
+      // GHSA Wave2 issue #48: todo 出参增发乐观锁版本（台账写路径带锁用）
+      version: expect.any(Number)
     })
   })
 })

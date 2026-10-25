@@ -194,6 +194,8 @@ interface TodoOrder {
   deadline: string | null
   created_at: string
   updated_at: string
+  /** 乐观锁版本：台账动词直调写接口须携带，缺则前端无法带锁（issue #48） */
+  version: number
   /** E3: 当前工作流节点名（LEFT JOIN，无节点为 null，前端降级为既有措辞） */
   stage_name: string | null
   /** 815 审计 P1-2: 当前工作流节点 id（无节点为 null，前端据此判流程单） */
@@ -217,7 +219,7 @@ export function getTodoList(artistId: number) {
   // 815 审计 P1-2: 增补 current_stage_id + next_stage_id（待办清单推进流程单需要下一节点 id）
   const orders = db.prepare(`
     SELECT o.id, o.order_no, o.client_name, o.status, o.deadline,
-           o.created_at, o.updated_at,
+           o.created_at, o.updated_at, o.version,
            o.current_stage_id,
            ws.name AS stage_name,
            (SELECT s2.id FROM artist_workflow_stages s2
@@ -291,7 +293,8 @@ export function getTodoList(artistId: number) {
       tag,
       stageName: o.stage_name || null,
       currentStageId: o.current_stage_id ?? null,
-      nextStageId: o.next_stage_id ?? null
+      nextStageId: o.next_stage_id ?? null,
+      version: o.version
     }
   })
 }

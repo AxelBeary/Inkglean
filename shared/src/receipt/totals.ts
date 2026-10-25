@@ -48,8 +48,9 @@ export function computeReceiptTotals(
   discountValue: number,
   depositYuan: number | null
 ): ReceiptTotals {
+  // 数量按整数计：输入框 step=1 仍可键入 1.5，不取整会算出半分，且与 ReceiptPrinter 载入草稿时的 floor 不一致 → 同票金额跳变
   const subtotalCents = validItems(items).reduce(
-    (sum, i) => sum + (i.gift ? 0 : Math.max(0, i.qty) * yuanToCentsLocal(i.priceYuan)),
+    (sum, i) => sum + (i.gift ? 0 : Math.floor(Math.max(0, i.qty)) * yuanToCentsLocal(i.priceYuan)),
     0
   )
 
@@ -70,7 +71,7 @@ export function computeReceiptTotals(
 }
 
 /** 折扣展示文案：percent → '9 折'（zh）/ '10% off'（en）；amount → '-¥xx.xx'；none → '' */
-export function discountLabel(type: ReceiptDiscountType, value: number, locale: string): string {
+export function discountLabel(type: ReceiptDiscountType, value: number, locale: string, clampedCents?: number): string {
   if (type === 'percent') {
     const pct = Math.min(100, Math.max(0, value))
     return locale === 'zh-CN'
@@ -78,7 +79,9 @@ export function discountLabel(type: ReceiptDiscountType, value: number, locale: 
       : `${Math.round(100 - pct)}% off`
   }
   if (type === 'amount') {
-    return `-${(Math.max(0, value)).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    // 文案数字与实扣同源：直减 999 / 小计 100 时按原值会渲染成「-999.00 -¥100.00」两行对不上
+    const cents = Number.isFinite(clampedCents as number) ? Math.max(0, clampedCents as number) : yuanToCentsLocal(value)
+    return `-${(cents / 100).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   }
   return ''
 }

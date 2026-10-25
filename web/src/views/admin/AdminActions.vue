@@ -105,7 +105,7 @@ async function load() {
   try {
     const params: { limit: number; action?: string; targetType?: string; targetId?: number } = { limit: limit.value }
     if (actionFilter.value) params.action = actionFilter.value
-    // 后端要求 targetType 与 targetId 成对才生效；本页只做类型粗筛，不成对则不下发 targetType
+    if (targetTypeFilter.value) params.targetType = targetTypeFilter.value
     const res = await complianceApi.getAdminActions(params)
     rows.value = res.rows
     total.value = res.total
