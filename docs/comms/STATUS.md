@@ -2,10 +2,10 @@
 
 ## 看板（2026-10-26 二次刷新：wave3 —— PR #55/#58/#26/#59/#60 全数合入 + 上批 7 项待拍板全部落地）
 
-- **HEAD 与推送**：`81ea7dc3` = `ef96183a` 之上叠 3 笔本批代码 + 5 笔 PR 合并 + 1 笔 lockfile 根镜像校正 + 文档；十九道全绿 @ 81ea7dc3（335s）
-- **基线（accept.ps1 十九道全绿 @ `81ea7dc3`）**：server **1981** / web **1069**（159 文件）/ desktop **616**（44）/ shared **44** / E2E **14** / cargo test 32（Rust 另计）
+- **HEAD 与推送**：`b4d22c6d` = `ef96183a` 之上叠 4 笔本批代码 + 5 笔 PR 合并 + 1 笔 lockfile 根镜像校正 + 文档；十九道全绿（耗时见留痕日志）
+- **基线（accept.ps1 十九道全绿 @ `b4d22c6d`）**：server **1981** / web **1073**（159 文件）/ desktop **616**（44）/ shared **44** / E2E **14** / cargo test 32（Rust 另计）
   - 迁移仍 **v79**（本批零新迁移；v77 参考图配额列 / v78 幂等 request_hash / v79 撤销关联）
-  - 本批计数增长：server +7（#26 自带回归）/ web +26（本批 10 例 + PR #55/#58 自带）/ shared +15（PriceCard 拆分 + 弹窗可达性）
+  - 本批计数增长：server +7（#26 自带回归）/ web +30（本批 10 例 + #26 跟进 4 例 + PR #55/#58 自带）/ shared +15（PriceCard 拆分 + 弹窗可达性）
 - **拟物收敛射程已定案**：只限排期块（ScheduleScroll）；挂牌 3D / 墨迹动画 / 登录纸艺山水**不动**，wave3 实测零外扩
 - **GHSA-6pf3 安全批已闭合**：8 项加固全部落地并回函；披露处置＝**维持私密不公开**（详见「已拍板规则」）
 - **警报/PR 现状**：Code scanning open 0；Dependabot open 0（#59/#60 已合）；**open PR 0**（#55/#58/#26 三路返工后全数接收）
@@ -15,7 +15,7 @@
 
 **下一步（按优先级）**
 
-1. ✅ **wave3 收口 @ `81ea7dc3`**：PR #55/#58/#26/#59/#60 五路合入 + 上批 7 项待拍板全部落地；十九道全绿 335s
+1. ✅ **wave3 收口 @ `b4d22c6d`**：PR #55/#58/#26/#59/#60 五路合入 + 上批 7 项待拍板全部落地 + #26 跟进一笔
    - 留痕：`AGENTS/artifacts/mistwhisker-wave3-20261026/`（review-W1/W2 评审、seat-C 交回、logs/accept-wave3.log、deleted-branches.txt）
 2. **登记未施工（下批候选；均已逐条核实成立，无安全口子）**
    - #52 其余六条：登出先清态后发请求、`resetSession` 收编 401 清理、签名刷新按 50 分片、路由守卫 fetch 去重与超时、setup 先判 ok 后 json
@@ -83,7 +83,7 @@
   - 既有绕过留痕不变：-Force / -SkipAccept 仍记 WARN（本批顺手补上 -SkipAccept 实际未写的 WARN 行），阻断仍走 Stop-Fail 写告警文件。
   - 验证：沙盒 git 仓八景（纯文档领先→WARN 放行；含代码/离线 SHA/红报告/25h 陈旧→阻断；-Force/-SkipAccept/dirty 景行为不变），取证件 `AGENTS/temp/docdowngrade-20260929/results.md`。详见 changelog 同批条。
 
-**起手必读**：**⚑ 下次开工第一件事**：读顶部看板（wave3：PR #55/#58/#26/#59/#60 五路合入 + 上批 7 项待拍板全部落地，十九道全绿 @ `81ea7dc3`）→ 再读 **⚑ 下方正文第一条（2026-10-26 wave3 收口）**；余下待用户项看看板「下一步」第 2~3 条。
+**起手必读**：**⚑ 下次开工第一件事**：读顶部看板（wave3：PR #55/#58/#26/#59/#60 五路合入 + 上批 7 项待拍板全部落地，十九道全绿 @ `b4d22c6d`）→ 再读 **⚑ 下方正文第一条（2026-10-26 wave3 收口）**；余下待用户项看看板「下一步」第 2~3 条。
 
 **起手必读续**：→ 交接档 `docs/comms/交接-20260912-会话收口与待拍清单.md` → 本节看板 → `AGENTS.md`（含「STATUS 体例与归档纪律」）→ 碰桌面端再读 `desktop/docs/STATUS.md` 顶部。
 
@@ -100,6 +100,10 @@
 > - **拟物零外扩实测**：ScheduleScroll / SealStamp / LoginBackdrop / PaperCard / GreetingNote 五个面 diff 全空，射程限定成立。
 > - **#26 接收**：节点待收改走 `deriveInstallmentProgress`，与 `computeLockedState` 同吃 `forwardFill`；
 >   上轮反对的展示/引擎分叉结构性消除，复算证实无负尾款订单展示零变化。
+> - **#26 合入后的两处跟进（一号自施）**：节点快捷收款的按钮与预填金额钳到订单级待收——负尾款「带内」场景
+>   （Σ含负 < paid < Σ正）节点差额会大于订单级待收，只看节点差额就会在已收足的订单上递一个超收默认值；
+>   另修正 `TrackOrder.vue` 一处已失实注释（客户端自算的「Σ正节点封顶」与服务端 forwardFill 行为等价、但已非同一份实现）。
+>   登记不动项：`checkOrderConservation` 内还有第三份内联顺序填充实现（Σ 与 forwardFill 恒等、守恒断言只查 Σ，无行为分叉），属可收编技术债。
 > - **#59/#60 接收**：eslint 10.13.0 / ts-eslint 8.72.0 / vite 6.4.5 / @fastify/static 10.1.7 / chart.js 4.6.1 / vue-i18n 11.4.16 / oxlint 1.89.0。
 >   happy-dom 三端仍 21.0.4，未触 `@tauri-apps/*`（成对规矩不触发）。
 > - **顺手校正**：`npm install` 实测 web/desktop 两个 lockfile 的根镜像 devDependencies 陈旧（happy-dom 仍写 ^20.14.6，自 PR #40/#44 起漏更，
@@ -110,7 +114,7 @@
 > - **本批代码（C 席，shared）**：PriceCard.vue 1094→692（拆出 `pricecard/{types,tiers,draw}.ts` + `ArtworkPickerModal.vue`，对外签名不变、两端调用方零跟改）；
 >   弹窗补 aria-modal/Escape/焦点陷阱/焦点归还；档位 `min` 0→0.01 + 行内提示；小票排除行补提示（`receipt/totals.ts` 一行未动）。
 >   **F-44 唯一遗留豁免就此清偿，ALLOWLIST 现为空表。**
-> - **验证**：十九道全绿 @ `81ea7dc3`（335s）；server 1981 / web 1069（159 文件）/ desktop 616（44）/ shared 44 / E2E 14；基线已同步、复跑零掉数。
+> - **验证**：十九道全绿 @ `b4d22c6d`；server 1981 / web 1073（159 文件）/ desktop 616（44）/ shared 44 / E2E 14；基线已同步。
 >   业务+测试同改走 `-TestTamperAck`（三处有意的行为标准变更：基础价回落取消、I6-e 修订、0 元非法）。
 > - **盘面清理**：11 个 `.qoder/worktrees/agent-huiyue-*` 注册全部摘除、33 个已并入本地分支删除（末端 SHA 存 `deleted-branches.txt` 可恢复）；
 >   7 份席位交回台账归档进 `AGENTS/artifacts/inkglean-sec-audit-20261024/seat-ledgers/`；三个残目录只剩 node_modules，删除被本机设置规则拦，候用户手动。
