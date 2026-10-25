@@ -2,7 +2,9 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- viewport-fit=cover：不补这一项，env(safe-area-inset-bottom) 在 iOS 全面屏上恒等于 0，
+       OrderForm/MoMobileBar/吸底 CTA/悬浮件四处底部安全区留白全是死声明（2026-10-26 返工核实） -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <!-- b4-12 裁决：品牌主语言为中文（拾绘 Inkglean），title/meta 静态中文保留；
        页面标题由路由守卫按 locale 动态更新，此处仅作首屏 SEO 兜底，不做双语切换 -->
   <!-- P2-12（v0.20）：基础 SEO meta — SPA 静态兜底，页面标题由路由守卫动态更新 -->

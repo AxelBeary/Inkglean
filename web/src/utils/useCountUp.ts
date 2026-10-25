@@ -4,10 +4,7 @@
 //      只对首次数据到达滚动一次，后续更新从当前值平滑过渡；不循环。
 import { ref, reactive, watch, onUnmounted, isRef } from 'vue'
 import type { Ref } from 'vue'
-
-// 模块级检测一次系统「减少动态效果」偏好（SSR 安全兜底）
-const prefersReduced = typeof window !== 'undefined'
-  && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+import { isReducedMotion } from './animSpeed'
 
 function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3)
@@ -33,7 +30,9 @@ export function useCountUp(target: Ref<number> | number | (() => number), { dura
 
   function run(from: number, to: number): void {
     if (raf) cancelAnimationFrame(raf)
-    if (prefersReduced) { display.value = to; return }
+    // 调用时读，不做模块级常量：dataset.reduceMotion 由 ArtistLayout 挂载后写入，
+    // 模块求值早于它，常量口径永远错过应用内开关（#56 时序病）
+    if (isReducedMotion()) { display.value = to; return }
     const start = performance.now()
     const step = (now: number): void => {
       const p = Math.min((now - start) / duration, 1)
