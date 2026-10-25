@@ -93,20 +93,23 @@
       <div v-if="preview" class="group calc-group calc-result">
         <div class="calc-result-head">
           <span class="calc-result-title">{{ preview.styleName }} · {{ preview.sizeName }}</span>
-          <span class="calc-result-total">{{ formatYuanValue(preview.totalPrice) }}</span>
+          <span class="calc-result-total">{{ formatYuanValue(preview.totalCents / 100) }}</span>
         </div>
-        <div class="calc-line"><span>{{ $t('priceCalc.basePrice') }}</span><span>{{ formatYuanValue(preview.basePrice) }}</span></div>
-        <div v-for="item in preview.addonItems" :key="item.name + item.quantity + item.amount" class="calc-line">
-          <span>{{ item.name }}{{ item.quantity > 1 ? ' ×' + item.quantity : '' }}</span>
-          <span>{{ formatYuanValue(item.amount) }}</span>
+        <div class="calc-line"><span>{{ $t('priceCalc.basePrice') }}</span><span>{{ formatYuanValue(preview.baseCents / 100) }}</span></div>
+        <div v-for="item in addonLines" :key="item.key" class="calc-line">
+          <span>
+            {{ item.name }}<template v-if="item.qty > 1"> ×{{ item.qty }}</template>
+            <span v-if="item.pct != null" class="calc-addon-pct">+{{ item.pct }}%</span>
+          </span>
+          <span>{{ formatYuanValue(item.amountCents / 100) }}</span>
         </div>
-        <div v-if="preview.usageMultiplier || preview.rushMultiplier" class="calc-line calc-line--dim">
+        <div v-if="preview.usage || preview.rush" class="calc-line calc-line--dim">
           <span>
             {{ $t('priceCalc.multiplierNote') }}
-            <template v-if="preview.usageMultiplier">{{ preview.usageMultiplier.name }} ×{{ preview.usageMultiplier.factor }}</template>
-            <template v-if="preview.rushMultiplier">{{ preview.rushMultiplier.name }} ×{{ preview.rushMultiplier.factor }}</template>
+            <template v-if="preview.usage">{{ preview.usage.name }} +{{ preview.usage.percent }}%</template>
+            <template v-if="preview.rush">{{ preview.rush.name }} +{{ preview.rush.percent }}%</template>
           </span>
-          <span>{{ formatYuanValue(preview.multiplierTotal) }}</span>
+          <span>{{ formatYuanValue(multiplierCents / 100) }}</span>
         </div>
         <p class="calc-disclaimer">{{ $t('priceCalc.disclaimer') }}</p>
       </div>
@@ -118,7 +121,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import type { PublicArtStyle, PublicPricingResult, PublicStyleAddon, StyleAddonSelection } from '../../api/types'
+import type { PublicArtStyle, PublicPricingResult, PublicStyleAddon, StyleAddonSelection, StylePriceResult } from '../../api/types'
 import { useI18n } from 'vue-i18n'
 import { artistPublicApi, artistApi } from '../../api/index'
 import { useArtistStore } from '../../stores/artist'
@@ -146,16 +149,13 @@ interface AddonSelectionPayload extends StyleAddonSelection {
   optionLabel?: string | null
 }
 
-/** 算价预览（模板展示字段随响应附带） */
-interface CalcPreview {
-  styleName: string
-  sizeName: string
-  totalPrice: number
-  basePrice: number
-  addonItems: Array<{ name: string; quantity: number; amount: number }>
-  usageMultiplier: { name: string; factor: number } | null
-  rushMultiplier: { name: string; factor: number } | null
-  multiplierTotal: number
+/** 算价结果统一消费 API DTO（此前自行声明了一份字段名全错的本地形状，金额恒渲染 ¥0） */
+interface AddonLineView {
+  key: string
+  name: string
+  qty: number
+  pct?: number
+  amountCents: number
 }
 
 const styles = ref<PublicArtStyle[]>([])
@@ -167,7 +167,24 @@ const loadFailed = ref(false)
 const selectedStyleId = ref<number | null>(null)
 const selectedSizeId = ref<number | null>(null)
 const addonSel = reactive<Record<string, AddonSelState>>({})
-const preview = ref<CalcPreview | null>(null)
+const preview = ref<StylePriceResult | null>(null)
+/** 增项明细行（固定价 + 百分比价统一展平；key 仅用于 v-for） */
+const addonLines = computed<AddonLineView[]>(() => {
+  const p = preview.value
+  if (!p) return []
+  return [
+    ...(p.fixedAddonItems ?? []).map(i => ({
+      key: `f-${i.name}-${i.quantity}-${i.amountCents}`, name: i.name, qty: i.quantity, amountCents: i.amountCents
+    })),
+    ...(p.percentAddonItems ?? []).map(i => ({
+      key: `p-${i.name}-${i.quantity}-${i.amountCents}`, name: i.name, qty: i.quantity, pct: i.percent, amountCents: i.amountCents
+    }))
+  ]
+})
+/** 倍率加价合计（用途 + 加急；DTO 已给增量分） */
+const multiplierCents = computed(() =>
+  (preview.value?.usage?.incrementCents ?? 0) + (preview.value?.rush?.incrementCents ?? 0)
+)
 
 const selectedStyle = computed(() => styles.value.find(s => s.id === selectedStyleId.value) || null)
 /** 当前尺寸下可用增项（后端已按尺寸覆盖过滤 hidden） */
@@ -236,7 +253,7 @@ async function doCalc() {
       addons: buildAddons()
     })
     if (mySeq !== calcSeq) return
-    preview.value = res as unknown as CalcPreview
+    preview.value = res
   } catch {
     if (mySeq !== calcSeq) return
     // 请求失败：保留上次结果并明示错误，禁止静默清空预览
@@ -389,5 +406,6 @@ onUnmounted(() => {
 .calc-result-total { font-size: 22px; color: var(--hq); font-weight: 700; }
 .calc-line { display: flex; justify-content: space-between; gap: 12px; padding-top: 8px; font-size: 14px; color: var(--ink2); }
 .calc-line--dim { color: var(--ink3); font-size: 13px; }
+.calc-addon-pct { margin-left: 4px; font-size: 11px; color: var(--ink4); }
 .calc-disclaimer { margin-top: 12px; font-size: 12px; color: var(--ink3); }
 </style>
