@@ -11,7 +11,7 @@
   --pal-bg-alt: #f3efe9;
   --pal-surface: #ffffff;
   --pal-text: #2b2622;
-  --pal-text-dim: #8a8177;
+  --pal-text-dim: #6b6258;
   --pal-border: #e7ded2;
 }
 html.dark {
@@ -29,7 +29,7 @@ html[data-palette='paper'] {
   --pal-bg-alt: #f3efe9;
   --pal-surface: #ffffff;
   --pal-text: #2b2622;
-  --pal-text-dim: #8a8177;
+  --pal-text-dim: #6b6258;
   --pal-border: #e7ded2;
 }
 html.dark[data-palette='paper'] {
@@ -47,7 +47,7 @@ html[data-palette='ink'] {
   --pal-bg-alt: #eaeae7;
   --pal-surface: #ffffff;
   --pal-text: #1a1a1a;
-  --pal-text-dim: #8c8c8c;
+  --pal-text-dim: #6a6a6a;
   --pal-border: #dcdcdc;
 }
 html.dark[data-palette='ink'] {
@@ -66,7 +66,7 @@ html[data-palette='dusk'] {
   --pal-bg-alt: #dbe3f2;
   --pal-surface: #ffffff;
   --pal-text: #202b40;
-  --pal-text-dim: #75819c;
+  --pal-text-dim: #5c6880;
   --pal-border: #c9d4e8;
 }
 html.dark[data-palette='dusk'] {
@@ -85,7 +85,7 @@ html[data-palette='moss'] {
   --pal-bg-alt: #ddead2;
   --pal-surface: #ffffff;
   --pal-text: #23341c;
-  --pal-text-dim: #75866a;
+  --pal-text-dim: #5c6b52;
   --pal-border: #c9dcba;
 }
 html.dark[data-palette='moss'] {

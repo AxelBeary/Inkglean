@@ -204,7 +204,7 @@
 
       <!-- REQ-031 A2: 收据（delivered 只读凭证，只呈现事实流水） -->
       <el-dialog v-model="showReceipt" :title="$t('track.receiptTitle')" width="440px">
-        <div class="receipt" v-if="order">
+        <div class="track-receipt" v-if="order">
           <div class="receipt-head">
             <span class="receipt-brand font-display">HUIYUE</span>
             <span class="receipt-sub">{{ $t('track.receiptSub') }}</span>
@@ -663,7 +663,7 @@ html:not(.dark) .track-page { --el-input-placeholder-color: #6c6e72; }
 
 /* ─── REQ-031 A2: 收据 ─── */
 .receipt-actions { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
-.receipt { padding: 4px 2px; }
+.track-receipt { padding: 4px 2px; }
 .receipt-head {
   display: flex; align-items: baseline; justify-content: space-between;
   padding-bottom: 12px; border-bottom: 1px solid var(--border-color); margin-bottom: 4px;

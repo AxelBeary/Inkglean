@@ -122,6 +122,7 @@ import type { PlatformDTO } from '../../../api/types'
 import type { HeroArtworkLike, GalleryArtworkLike, PricingStyleLike, PricingTierLike, WorkflowStageLike } from './types'
 import { useI18n } from 'vue-i18n'
 import { useArtistData } from '../../../composables/useArtistData'
+import { motionScrollBehavior } from '../../../utils/animSpeed'
 import { useScrollReveal } from '../../../composables/useScrollReveal'
 import { useStickyCta } from '../../../composables/useStickyCta'
 import TplHero from '../../../components/templates/TplHero.vue'
@@ -180,7 +181,7 @@ const navItems = computed(() => {
 
 function scrollTo(id: string) {
   menuOpen.value = false
-  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+  document.getElementById(id)?.scrollIntoView({ behavior: motionScrollBehavior() })
 }
 
 // 滚动侦测：高亮当前所在区块

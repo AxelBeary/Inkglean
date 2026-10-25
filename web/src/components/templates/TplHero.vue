@@ -214,6 +214,7 @@ defineExpose({ sentinelEl })
 .tpl-hero--fullscreen {
   position: relative;
   height: 100vh;
+  height: 100dvh;
   min-height: 560px;
   overflow: hidden;
 }
