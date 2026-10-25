@@ -1,34 +1,28 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-10-26 刷新：外部反馈吸纳批 + 依赖收口；PR #43/#45/#46/#47 接收、issue #48/#49/#51/#53 落地）
+## 看板（2026-10-26 二次刷新：wave3 —— PR #55/#58/#26/#59/#60 全数合入 + 上批 7 项待拍板全部落地）
 
-- **HEAD 与推送**：`8b73e86f` = 上一批（GHSA-6pf3 安全批 + 14 功能 PR + #42）之上叠本批六笔代码 + 三笔文档/依赖；十九道全绿 @ 8b73e86f（296s）
-- **基线（accept.ps1 十九道全绿 @ `8b73e86f`）**：server **1974** / web **1043**（155 文件）/ desktop **616**（44）/ shared **29** / E2E **14** / cargo test 32（Rust 另计）
+- **HEAD 与推送**：`a8fe3f1d` = `ef96183a` 之上叠 2 笔本批代码 + 5 笔 PR 合并 + 1 笔 lockfile 根镜像校正；十九道全绿 @ a8fe3f1d（353s）
+- **基线（accept.ps1 十九道全绿 @ `a8fe3f1d`）**：server **1981** / web **1069**（159 文件）/ desktop **616**（44）/ shared **44** / E2E **14** / cargo test 32（Rust 另计）
   - 迁移仍 **v79**（本批零新迁移；v77 参考图配额列 / v78 幂等 request_hash / v79 撤销关联）
-  - 本批计数增长：server +2（TC-DASH-21b、TC-AAA-11b）/ web +22 / shared +2（小票整数分与折扣文案同源）
-- **排期块视觉已拍板**：拟物卷轴退役、改案头横格（外部 PR #43 落地）；详见「已拍板规则」
-- **GHSA-6pf3 安全批已闭合**：外部私密通告 8 项加固全部落地（认证/账户/资源/桌面端命令授权面）；细节见私密通告，公开不展开（SECURITY.md 口径），自托管请尽快更新
-- **警报/PR 现状**：分列如下
-  - Code scanning open 0；Dependabot open 0（happy-dom 三处全部到 21.0.4：web/desktop 走 #40/#44，shared 手工对齐 `8b73e86f`）
-  - 外部私密通告：修复已全部落地并回函，披露与署名处置候主理人（细节不在公开仓展开，SECURITY.md 口径）
-  - Mistwhisker 第二波：#43/#45/#46/#47 已接收；#55/#58 退回要求未合；#26 仍挂起
-  - issue #48-#57 已逐条回函
+  - 本批计数增长：server +7（#26 自带回归）/ web +26（本批 10 例 + PR #55/#58 自带）/ shared +15（PriceCard 拆分 + 弹窗可达性）
+- **拟物收敛射程已定案**：只限排期块（ScheduleScroll）；挂牌 3D / 墨迹动画 / 登录纸艺山水**不动**，wave3 实测零外扩
+- **GHSA-6pf3 安全批已闭合**：8 项加固全部落地并回函；披露处置＝**维持私密不公开**（详见「已拍板规则」）
+- **警报/PR 现状**：Code scanning open 0；Dependabot open 0（#59/#60 已合）；**open PR 0**（#55/#58/#26 三路返工后全数接收）
+  - issue 处置：#49/#50/#51 已落地关单；#52/#53 部分落地（余项分档见正文）；#54/#56/#57 登记未施工
 - 公网冻结现状不变；管理员判定只认库值
 - 🔴 **上线前置硬警告仍有效**：公网部署前**必须先确认 `platform_config.admin_qq` 非空**
 
 **下一步（按优先级）**
 
-1. ✅ **本批收口 @ `8b73e86f`**：外部 PR 四路接收 + issue 吸纳六笔代码提交 + 依赖收口；十九道全绿 296s
-   - 留痕：`AGENTS/artifacts/mistwhisker-wave2-20261025/logs/`（accept-final / accept-deps2 / 两次单跑复验）
-   - 该轮曾报 web 1028、desktop 608 掉数——单跑复验 1043/616 与基线逐字相符，判为 worker 掉线非回归，未动阈值
-2. **候你拍板（本批新挂 7 项）**：明细见 `AGENTS/artifacts/mistwhisker-wave2-20261025/03-施工台账.md`
-   - `isAdmin` 是否回写持久标记（动 REQ-043 I6-e 既有拍板）
-   - 0 元档算不算已填 / 该不该上票（#51-3、#51-4）
-   - step-up 过期的修法分层（最小重探 vs http 全局钩子重放）
-   - 算价失败是否冻结提交（#50-1/2/4）
-   - 骨架改行式（触 9/25「订单列表骨架=6 张内容卡片」拍板）
-   - #26 待收口径分叉；外部私密通告的披露与署名处置
-3. **#55/#58 退回后再接**：暗色滚动条 1.00:1、空串 src 隐形请求、`overflow-x` 被同块撤销、骨架断点 960/内容 768、图表配色未跟主题——清单已贴 PR
+1. ✅ **wave3 收口 @ `a8fe3f1d`**：PR #55/#58/#26/#59/#60 五路合入 + 上批 7 项待拍板全部落地；十九道全绿 353s
+   - 留痕：`AGENTS/artifacts/mistwhisker-wave3-20261026/`（review-W1/W2 评审、seat-C 交回、logs/accept-wave3.log、deleted-branches.txt）
+2. **登记未施工（下批候选；均已逐条核实成立，无安全口子）**
+   - #52 其余六条：登出先清态后发请求、`resetSession` 收编 401 清理、签名刷新按 50 分片、路由守卫 fetch 去重与超时、setup 先判 ok 后 json
+   - #53 余项：换图在途序号守卫、重绑冷却倒计时、收款比例未保存的离开拦截
+   - #50 余项：QQ 前端 pattern、接单状态门禁、匿名凭证混合、参考图上限双向失效（点选不写 refFileList / 粘贴缩略图不渲染）
+   - #54 可访问性与全角标点（含 `check-i18n` 正则只认 `[一-鿿]` 的门禁待补）；#56/#57 架构级遗留
+3. **盘面清理待你一句话**：`.qoder/worktrees/` 三个残目录只剩 node_modules（约 8.4 万文件），`rm -rf` 被本机设置规则拦，需你手动删
 4. **待你拍板的技术债（剩余）**：U26 server 以 tsx 作生产依赖；U33 桌面发版流水线从未跑过（缺 vars/secrets，首版必红）
 5. **待你终验 / 终审**：桌面真机 UI 清单（标题栏/托盘/通知/文件选择器/本地记账；opener 需真人点）；对外文案 W4/W6/U12/U13
 6. **剩红灯需拍板**：U16 板块级下架 / U17 数据服务 / G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度 / U22 改稿上限 / U23 记忆库优先级边界 / U24 视觉判断通道归属
@@ -38,17 +32,31 @@
 - 改 `desktop/src-tauri/` 必本地跑 `cargo test`（含真 IPC/ACL）：`tauri-build` 用**严格 JSON 解析器**，9/12 那笔 `//` 注释就是只跑 server/web 就交、CI 单红 desktop job 换来的（本地“全绿”是假全绿）
 - **动桌面端 `@tauri-apps/*` JS SDK 必同批把 `Cargo.lock` 配到同号**（核心同 minor、插件精确同号），并跑 `npx tauri info` 留证：该比对只在 `tauri build/dev/info` 触发，**CI 四 job 全绿不等于发版流水线不红**（10-13 靠 dependabot 单边跳版换来的）
 - **模板区禁写「内联箭头函数/闭包内访问 import 绑定的属性或元素」**：vue-tsc 3.3.12/3.3.13 有 dotValue 误插 `.value` 的回归（上游 #6238 未合并），须抽成 `<script setup>` 具名 `function`；复发点见 10-13 批条
-- 门禁缺口已清：`check-file-size.mjs` SCOPES 已覆盖 server/web/desktop/shared 四层（F-44），ALLOWLIST 仅剩 PriceCard 一项（Home.vue 已于 10-21 清偿）；禁止用调高冻结值给长胖文件续命
+- 门禁缺口已清：`check-file-size.mjs` SCOPES 已覆盖 server/web/desktop/shared 四层（F-44），**ALLOWLIST 现为空表**（Home.vue 10-21 清偿、PriceCard.vue 10-26 拆至 692 行清偿）；禁止用调高冻结值给长胖文件续命
 - **悬浮投影窗 SQL 最小权限**：只有截稿窗可授 `sql:default`，永不给 execute；改悬浮窗数据面必跑 `cargo test`（`desktop/src-tauri/tests/acl.rs` 真 ACL）。
 
 **已拍板规则**
 
+- 报价未就绪不得提交（2026-10-26，issue #50-1/#50-2，用户授权「按最优方案处理」）：算价脏 / 在途 / 失败 / 无结果四态一律拦提交，并**取消「未计价回退尺寸基础价」**。
+  - 理由：那个回退值漏掉全部增项/用途/加急，是会被截图当承诺的低价。服务端始终是唯一算价引擎，这里拦的是「看到的价 ≠ 成交的价」。
+  - 展示价改整数分单源（`styleDisplayCents`），⛔ 再跨层传「元」中转值；下单成功后以回执 `totalPriceCents` 校正复制文案。
+  - 连带（#50-6）：折扣码未验证通过**既不随算价下发、也不许提交**。否则算价按无折扣报价、服务端却可能真扣，同一分叉换个位置复发。
+- 0 元语义（2026-10-26，issue #51-3/#51-4）：**0 元非法**。价目卡档位 `min` 0 → 0.01 + 行内提示；小票非赠品且单价≤0 的行维持不进导出，编辑区补「不会出现在导出中」。
+  - 理由：desktop 均价分母早已把 price=0 排除在外，选「0 元合法」要跨端推翻既有口径；「免费」语义已由赠品勾选表达，不需要第二套。
+- `isAdmin` 持久标记（2026-10-26，issue #52-3，**修订 REQ-043 I6-e**）：`/auth/me` 的修正改走 store action `setAdminFlag`，内存与 `artist_is_admin` 同源写。
+  - 旧口径「只改内存、不镜像」的后果：被降级的管理员每次刷新都拿旧标记过路由守卫、进管理 UI，直到 `/auth/me` 返回才纠正（服务端边界不破，纯 UI 反复误判）。
+  - 「localStorage 写入一律走 store action」纪律不变，只是补上这一个写入口。
+- step-up 过期恢复出口（2026-10-26，issue #49-1）：取**最小档**——AdminLayout 子路由切换即重探，复用现成弹框；窗口过期后不必整页刷新。
+  - **完整档不做**（http 层广播 + 各视图重放队列）：重放非幂等写请求的风险高于收益，且牵动 http.ts 与多视图接线。
+- 订单列表骨架（2026-10-26，**修订 9/25「骨架=6 张内容卡片」**）：骨架随内容形态切换——宽屏 6 卡、窄屏行式，两副与内容侧共用同一个 `@container (max-width:768px)` 条件（PR #58 落地）。
+- GHSA-6pf3 披露处置（2026-10-26）：**维持私密、不公开、不署名**。修复已全部落地，但公网生产环境在线，公开细节等于给未更新的自托管实例留攻击窗口；署名需报告者本人同意，不单方面发布。
 - 排期块视觉（2026-10-25，用户拍板）：拟物「纸签卷轴」退役，改**案头横格**（外部 PR #43 落地）。理由口径：原拟物不合现代审美，去卷轴后确实更好看。
-  - 射程**只裁排期块**：登录页纸艺山水、挂牌 3D、墨迹动画等其余拟物面未被裁定，⛔ 据本条自行推广。
+  - 射程**只裁排期块**：登录页纸艺山水、挂牌 3D、墨迹动画等其余拟物面未被裁定，⛔ 据本条自行推广。2026-10-26 用户复确认此射程；wave3 合入 #55/#58 后实测零外扩（五个拟物面 diff 全空）。
   - 连带修复：落格少算截稿日一格（闭区间独占线需 +2），随 #43 同批落地。
 - 结论级证据摘要入库（2026-09-29，better-harness 修复批）：入库台账引用的拍板/验收证据，若逐条详单只住 gitignore 的 `AGENTS/`，须在 `docs/comms/evidence/` 留读者安全摘要（判定要点+日期+本机指针），细节只写一份不互抄；约定见该目录 README。
   - 首件：`证据-记忆库维护批-20260929.md`（锚待办 U23/U24）；temp 下可执行脚本是否收编仍待拍板（U19=G5/F-40），本条不裁决。
 - F-44（2026-09-20）：巨型文件防阀扩射 `desktop/src`、`shared/src`（better-harness 修复批，用户裁决选项①「扩射程+冻结豁免」）。存量超线按冻结值豁免：`desktop/src/views/Home.vue` 807 / `shared/src/components/PriceCard.vue` 1094，只许拆小不许再长。
+  - 两项豁免均已清偿（Home.vue 10-21 拆至 800、PriceCard.vue 10-26 拆至 692），ALLOWLIST 现为空表；历史出处注释留在 `check-file-size.mjs` 表头。
 - F-44 顺手消红（沿 9/12「胖了就拆」口径）：`TplGallery.vue` 被 9/17 审计批顶到 808 行的存量违规已拆。
   - 点赞逻辑拆至 `composables/useGalleryLikes.ts`（逐字搬移零行为变更）
   - 与并行 G 批的 TplAlbumStage 拆分共熔；web 四道门禁绿（含 typecheck，test 140 文件 959 例）
@@ -75,11 +83,40 @@
   - 既有绕过留痕不变：-Force / -SkipAccept 仍记 WARN（本批顺手补上 -SkipAccept 实际未写的 WARN 行），阻断仍走 Stop-Fail 写告警文件。
   - 验证：沙盒 git 仓八景（纯文档领先→WARN 放行；含代码/离线 SHA/红报告/25h 陈旧→阻断；-Force/-SkipAccept/dirty 景行为不变），取证件 `AGENTS/temp/docdowngrade-20260929/results.md`。详见 changelog 同批条。
 
-**起手必读**：**⚑ 下次开工第一件事**：读顶部看板（HEAD `04ddfbd1`，U45/U46 + Dependabot #19/#20 已收口并 push）→ 再读 **⚑ 下方正文第一条（2026-10-21 两批收口）**；余下待用户项看板第 2~4 条。
+**起手必读**：**⚑ 下次开工第一件事**：读顶部看板（wave3：PR #55/#58/#26/#59/#60 五路合入 + 上批 7 项待拍板全部落地，十九道全绿 @ `a8fe3f1d`）→ 再读 **⚑ 下方正文第一条（2026-10-26 wave3 收口）**；余下待用户项看看板「下一步」第 2~3 条。
 
 **起手必读续**：→ 交接档 `docs/comms/交接-20260912-会话收口与待拍清单.md` → 本节看板 → `AGENTS.md`（含「STATUS 体例与归档纪律」）→ 碰桌面端再读 `desktop/docs/STATUS.md` 顶部。
 
 **起手必读续二**：改桌面 UI 必跑 `huiyue-layout-audit` 自检循环（**宿主级技能**，住 `%USERPROFILE%\.agents\skills\huiyue-layout-audit\`，不在仓库属正常；VL 评审通道不可用，只能 measure.mjs + 人工逐项清单）。
+
+>  📌 **2026-10-26 wave3 收口：PR #55/#58/#26/#59/#60 五路全数合入 + 上批 7 项待拍板全部落地**
+>
+> - **授权口径**：用户裁定「拟物收敛只限卷轴排期块」「其余按最优方案处理」「老 worktree 可清理」。
+> - **拓扑**：两路只读评审席（W1 判 #55/#58 返工七条、W2 判 #26 与 Dependabot）+ 一路前端施工席（C 批 shared），一号做 web 两批与集成收口。
+>   报告全在 `AGENTS/artifacts/mistwhisker-wave3-20261026/`。
+> - **#55/#58 接收**：两份「返工七条」逐条对撞代码全部真修实。要点：暗色滚动条改吃 `--text-primary` 56%/68%（复算最弱 3.11:1 过线）、
+>   空串 src 改 v-if 整颗不渲染、`.status-tag` 摘 color 插值、token 硬编码清零、overflow 简写撤销病灶修复、
+>   骨架断点 960→768 与内容对齐、环图改吃 `readChartPalette()`。
+> - **拟物零外扩实测**：ScheduleScroll / SealStamp / LoginBackdrop / PaperCard / GreetingNote 五个面 diff 全空，射程限定成立。
+> - **#26 接收**：节点待收改走 `deriveInstallmentProgress`，与 `computeLockedState` 同吃 `forwardFill`；
+>   上轮反对的展示/引擎分叉结构性消除，复算证实无负尾款订单展示零变化。
+> - **#59/#60 接收**：eslint 10.13.0 / ts-eslint 8.72.0 / vite 6.4.5 / @fastify/static 10.1.7 / chart.js 4.6.1 / vue-i18n 11.4.16 / oxlint 1.89.0。
+>   happy-dom 三端仍 21.0.4，未触 `@tauri-apps/*`（成对规矩不触发）。
+> - **顺手校正**：`npm install` 实测 web/desktop 两个 lockfile 的根镜像 devDependencies 陈旧（happy-dom 仍写 ^20.14.6，自 PR #40/#44 起漏更，
+>   Dependabot 只重写已解析条目、不动根镜像），单独一笔对齐。
+> - **本批代码（一号，web）**：报价未就绪不得提交 + 取消基础价回落 + 展示价改整数分单源（#50-1/#50-2）；
+>   未验证折扣码既不入算价也不许提交（#50-6）；尺寸全展示档给出口（#50-4）；step-up 切页重探（#49-1 最小档）；
+>   `setAdminFlag` 回写持久标记（#52-3，修订 REQ-043 I6-e）。
+> - **本批代码（C 席，shared）**：PriceCard.vue 1094→692（拆出 `pricecard/{types,tiers,draw}.ts` + `ArtworkPickerModal.vue`，对外签名不变、两端调用方零跟改）；
+>   弹窗补 aria-modal/Escape/焦点陷阱/焦点归还；档位 `min` 0→0.01 + 行内提示；小票排除行补提示（`receipt/totals.ts` 一行未动）。
+>   **F-44 唯一遗留豁免就此清偿，ALLOWLIST 现为空表。**
+> - **验证**：十九道全绿 @ `a8fe3f1d`（353s）；server 1981 / web 1069（159 文件）/ desktop 616（44）/ shared 44 / E2E 14；基线已同步。
+>   业务+测试同改走 `-TestTamperAck`（三处有意的行为标准变更：基础价回落取消、I6-e 修订、0 元非法）。
+> - **盘面清理**：11 个 `.qoder/worktrees/agent-huiyue-*` 注册全部摘除、33 个已并入本地分支删除（末端 SHA 存 `deleted-branches.txt` 可恢复）；
+>   7 份席位交回台账归档进 `AGENTS/artifacts/inkglean-sec-audit-20261024/seat-ledgers/`；三个残目录只剩 node_modules，删除被本机设置规则拦，候用户手动。
+> - **待办新增**：STATUS 正文达 6 条，按体例第 6 条起须整段归档；归档属高风险文本迁移，按 AGENTS.md「不与代码施工混批」留作单独一批。
+> - **changelog 余量告警**：活档 39701 B（阈值 40 KB，余约 1.2KB）/ 207 行（阈值 450）。下一批大概率撞线，
+>   撞线唯一处置＝oldest 段整搬 `docs/changelog-archive/` 新卷 + 逐行哈希校验，禁调高阈值续命。
 
 >  📌 **2026-10-21 四批收口：U45/U46 修复批 + Dependabot #19/#20 + N×M 尺寸覆盖 + E2E 定位器规则（一号自主批）**
 >
