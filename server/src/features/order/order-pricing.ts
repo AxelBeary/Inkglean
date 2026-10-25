@@ -1,6 +1,6 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
-import { allocateDelta, computeLockedState, assertConservation, sumEntryDeltas } from '../pricing/pricing-engine.js'
+import { allocateDelta, computeLockedState, assertConservation, deriveInstallmentProgress, sumEntryDeltas } from '../pricing/pricing-engine.js'
 import type { EngineInstallment, PriceEntry } from '../pricing/pricing-engine.js'
 import { logActivity } from './activity-log.service.js'
 import { resolvePriceCents } from '../../utils/price.js'
@@ -133,25 +133,26 @@ export function getOrdersInstallments(orderIds: number[]): Map<number, OrderInst
   }
 
   for (const [orderId, list] of rowsByOrder) {
-    // 2-1（审计 二#1）: 已收封顶到 Σ节点价，逐节点 take 钳制到 [0, amt]——
-    // 与 readInstallmentState（引擎视图）同口径；负价/零价节点视为已结清，
-    // 杜绝大幅降价至已收之下时出现负「已付」/「待付」展示错乱
-    const sumAmounts = list.reduce((s, r) => s + (r.amountCents || 0), 0)
-    let covered = Math.min(coveredByOrder.get(orderId) ?? 0, sumAmounts)
+    // 2-1（审计 二#1）+ 审计 #21 条目 2：节点级已收/待收改走引擎的 R7 顺序填充原语
+    // deriveInstallmentProgress——它与 computeLockedState 判「付清即锁」吃的是同一个 forwardFill，
+    // 本函数不再自实现封顶。此前展示侧自算的封顶（Σ含负）与锁定推导不同步：30/70 节点降价成
+    // [15000, -5000] 且已收 30000 时，首节点仍显示 locked=true + 待收 5000，与订单级待收
+    // （终价−已收 ≤ 0）互相矛盾，画师端快捷收款按该待收预填就能继续收一笔本不该收的钱。
+    // 非尾款待收下限 0 由原语负责（R8）；尾款的负待收=多收应退，不入展示口径，钳到 0。
+    const progress = deriveInstallmentProgress(
+      list.map((r, i) => ({ sortOrder: i, amountCents: r.amountCents || 0 })),
+      coveredByOrder.get(orderId) ?? 0
+    )
     const installments: OrderInstallment[] = []
-    for (const r of list) {
+    list.forEach((r, i) => {
       const amt = r.amountCents || 0
-      let paidCents = 0
-      let status = 'pending'
-      if (amt > 0 && covered > 0) {
-        const take = Math.min(covered, amt)
-        covered -= take
-        paidCents = take
-        status = take >= amt ? 'paid' : 'partial'
-      } else if (amt <= 0) {
-        // 无待收节点（0 价/负价尾款）：不产生已付，也绝不显示负待付
-        status = 'paid'
-      }
+      // 尾款可吸收超付（paidCents > amt），展示层不回显「已付 30000 / 应收 -5000」这类账内表示
+      const paidCents = amt > 0 ? Math.min(Math.max(0, progress[i].paidCents), amt) : 0
+      let status: string
+      if (amt <= 0) status = 'paid'          // 0 价/负价尾款节点：无待收对象，视为已结清
+      else if (paidCents >= amt) status = 'paid'
+      else if (paidCents > 0) status = 'partial'
+      else status = 'pending'
       installments.push({
         id: r.id,
         name: r.name,
@@ -162,7 +163,7 @@ export function getOrdersInstallments(orderIds: number[]): Map<number, OrderInst
         locked: r.locked === 1,
         lockedReason: r.lockedReason ?? null
       })
-    }
+    })
     result.set(orderId, installments)
   }
 
@@ -259,6 +260,16 @@ function ensureBaseEntry(orderId: number): void {
  * 读取订单节点的引擎视图（含锁定标记与推导已收）。
  * 已收一律从 orders.paid_total_cents 顺序填充推导（paid_cents 旧列已随 v52 退役，R7）。
  * 返回按 sort_order 升序；lockedFlags 与 insts 同序。
+ *
+ * 口径说明（审计 #21 条目 2 的裁决，勿与展示侧混改）：本处的封顶是**含负节点的 Σ**，
+ * 与展示侧 getOrdersInstallments（走 deriveInstallmentProgress，R8 非尾款下限 0）不同。
+ * 这是有意的分工，不是漂移：
+ *   - 本函数的 paidCents 只喂 allocateDelta 的 `待收 = 节点价 − 已收`，其 A3「关闭」判定
+ *     依赖 Σ待收 ≡ Σ节点价 − 已收 这条恒等式成立——含负尾款正是该恒等式的吸收端
+ *     （纯超付压到尾款使其待收变负，与 checkOrderConservation 的 A2 同一口径）。
+ *   - 展示侧要回答的是「这笔还该不该收」，负待收对用户无意义，故按 R8 钳到 0。
+ * 锁定判定本身不读本函数的 paidCents：computeLockedState 自带 forwardFill（R7）现算，
+ * 与展示侧同源，所以「展示说已收满 / 引擎说欠收」在本仓不可能同时出现。
  */
 function readInstallmentState(orderId: number): { insts: EngineInstallment[]; lockedFlags: boolean[] } {
   const rows = db.prepare(
