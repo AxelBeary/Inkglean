@@ -126,3 +126,28 @@ describe('Settings 规则脏标记隔离（a1-10）', () => {
     expect(vm.isTabDirty('showcase')).toBe(false)
   })
 })
+
+describe('Settings showcase 保存后脏标记复位', () => {
+  beforeEach(() => {
+    h.getProfile.mockReset()
+    h.getRules.mockReset()
+    h.getPlatforms.mockReset()
+    h.updateProfile.mockReset()
+    h.updateRules.mockReset()
+  })
+
+  it('字段保存后、规则未改动时页签不再判脏（旧实现恒脏）', async () => {
+    h.getProfile.mockResolvedValue(h.profile)
+    h.getRules.mockResolvedValue({ content: '初始规则' })
+    h.getPlatforms.mockResolvedValue([])
+    h.updateProfile.mockResolvedValue({})
+
+    const vm = mountSettings()
+    await flushPromises()
+    expect(vm.isTabDirty('showcase')).toBe(false)
+
+    await vm.save()
+    expect(h.updateProfile).toHaveBeenCalledTimes(1)
+    expect(vm.isTabDirty('showcase')).toBe(false)
+  })
+})
