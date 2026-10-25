@@ -944,6 +944,12 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     sizeShowcaseBlocked: '该尺寸展示中，暂不可约稿',
     pctOfBase: '按基础价计算',
     priceCalcFailed: '价格计算失败，请稍后重试',
+    // issue #50-1/#50-2：报价未就绪时不给数字（⛔ 回退基础价，那是漏掉全部增项的低价）
+    pricePending: '报价待确认',
+    priceUpdating: '报价更新中',
+    priceNotReady: '报价更新中，请稍候再提交',
+    // issue #50-4：尺寸全为展示档时的出口
+    sizeNoneAvailable: '该画风暂无可约尺寸，可跳过直接继续',
     priceSubtotal: '小计（基础价 + 增项）',
     previewBaseLine: '基础价（{size}）',
     // v0.35 F4: 入口 A 预选可见横幅（展示柜带选择进来）
@@ -2731,6 +2737,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     copyFailed: '复制失败，请手动复制',
     titleRequired: '请先填写卡片标题',
     tiersMinRequired: '至少填 3 行完整档位（名称 + 价格）',
+    // issue #51-3（拍板 A：0 元非法）
+    zeroPriceHint: '价格需大于 0',
     exportFailed: '生成失败，请稍后重试',
     fileTypeError: '请选择图片文件',
     contactLine: '联系：{contact}',
@@ -2749,6 +2757,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     itemsLabel: '制品明细',
     itemsDesc: '名称 + 数量 + 单价；勾「赠」则划线计 0',
     itemsRequired: '至少填一行完整制品（名称 + 单价）',
+    // issue #51-4（拍板 A：非赠品 0 元行不进导出）
+    exportExcludedHint: '该行不会出现在导出中：价格需大于 0',
     itemNamePlaceholder: '制品名称，如：头像',
     qtyLabel: '数量',
     pricePlaceholder: '单价（元）',

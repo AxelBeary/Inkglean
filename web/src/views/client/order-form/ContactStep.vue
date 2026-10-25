@@ -53,7 +53,7 @@
 
     <div class="step-nav">
       <el-button @click="emit('prev')">{{ t('orderForm.prevStep') }}</el-button>
-      <el-button type="primary" @click="emit('submit')">
+      <el-button type="primary" :disabled="submitDisabled" @click="emit('submit')">
         {{ t('orderForm.submit') }}
         <template v-if="submitPriceText"> — {{ submitPriceText }}</template>
       </el-button>
@@ -73,8 +73,10 @@ defineProps<{
   hasRules: boolean
   /** sanitizeHtml 消毒后的须知 HTML */
   sanitizedRules: string
-  /** 提交按钮价格后缀（已选尺寸时格式化总价；null 不显示） */
+  /** 提交按钮价格后缀（报价就绪时是格式化总价，未就绪时是状态文案；null 不显示） */
   submitPriceText: string | null
+  /** issue #50-1：报价非最新态（脏/在途/失败/无结果）时禁用提交 */
+  submitDisabled: boolean
 }>()
 
 const emit = defineEmits<{

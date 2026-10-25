@@ -2,9 +2,10 @@
   <!-- ── v0.32: 选尺寸（画风模式步骤 2 / 单画风步骤 1） ── -->
   <div>
     <h3 class="step-title">{{ t('orderForm.sizeStepTitle') }}</h3>
-    <!-- 画风无尺寸：提示 + 直接跳过（2026-08-07 用户反馈：无尺寸画风卡死无下一步） -->
-    <div v-if="!sizes.length" class="no-size-hint">
-      <p>{{ t('orderForm.noSizeHint') }}</p>
+    <!-- 画风无可约尺寸：提示 + 直接跳过（2026-08-07 用户反馈：无尺寸画风卡死无下一步；
+         issue #50-4：全是展示档尺寸时同样卡死，判定口径与服务端 style-pricing 一致） -->
+    <div v-if="!hasAvailable" class="no-size-hint">
+      <p>{{ sizes.length ? t('orderForm.sizeNoneAvailable') : t('orderForm.noSizeHint') }}</p>
       <div class="step-nav">
         <el-button v-if="isMultiStyle" @click="emit('prev')">{{ t('orderForm.prevStep') }}</el-button>
         <el-button type="primary" @click="emit('skip')">{{ t('orderForm.noSizeContinue') }}</el-button>
@@ -37,16 +38,23 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatYuanValue } from '../../../utils/money'
 import type { StyleSize } from './types'
 
-defineProps<{
+const props = defineProps<{
   /** 当前已选画风的尺寸列表（无画风时父层不渲染本组件） */
   sizes: StyleSize[]
   selectedSizeId: number | null
   isMultiStyle: boolean
 }>()
+
+// 与服务端 style-pricing.service.ts 同口径：display_status 为空或 available 才可算价，
+// showcase/closed 一律拒。全部不可约时走空态出口，不留死锁。
+const hasAvailable = computed(() =>
+  props.sizes.some(sz => !sz.display_status || sz.display_status === 'available')
+)
 
 const emit = defineEmits<{
   (e: 'select', id: number): void

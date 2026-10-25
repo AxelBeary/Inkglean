@@ -22,7 +22,8 @@ function mountCard(selectedSize: StyleSize) {
       selectedSize,
       preview: null,
       installments: [],
-      displayPrice: selectedSize?.base_price ?? 0
+      // issue #50-2：展示价改整数分单源；这些用例只验档位说明渲染，给一个已就绪的报价
+      displayCents: selectedSize?.base_price != null ? Math.round(selectedSize.base_price * 100) : null
     },
     global: { mocks: { $t: (key: string) => key } }
   })

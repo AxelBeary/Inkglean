@@ -25,6 +25,7 @@ interface ArtistStoreStub {
   loggedIn: boolean
   isAdmin: boolean
   logout: () => void
+  setAdminFlag: (isAdmin: boolean) => void
   fetchProfile: () => Promise<unknown>
 }
 
@@ -48,6 +49,7 @@ const h = vi.hoisted(() => ({
   getStats: vi.fn(),
   fetchProfile: vi.fn(),
   logout: vi.fn(),
+  setAdminFlag: vi.fn(),
   push: vi.fn(),
   routeName: 'ArtistDashboard',
   artistStore: null as ArtistStoreStub | null,
@@ -130,6 +132,8 @@ function freshStores() {
     loggedIn: true,
     isAdmin: false,
     logout: h.logout,
+    // issue #52-3：服务端修正 isAdmin 必须走 store action（内存 + 持久标记同源）
+    setAdminFlag: h.setAdminFlag,
     // 0817：布局 onMounted 预拉 profile（导航开关判定依赖）
     fetchProfile: h.fetchProfile
   }
@@ -159,6 +163,7 @@ beforeEach(() => {
   h.getStats.mockReset().mockResolvedValue({ pendingCount: 0 })
   h.fetchProfile.mockReset().mockResolvedValue(undefined)
   h.logout.mockReset()
+  h.setAdminFlag.mockReset()
   h.push.mockReset()
   h.routeName = 'ArtistDashboard'
   freshStores()
@@ -194,7 +199,7 @@ describe('ArtistLayout 会话强校验（G-1）', () => {
     expect(h.push).toHaveBeenCalledWith({ name: 'ArtistLogin' })
   })
 
-  it('isAdmin 与本地标记不符 → 以服务端为准修正 store（localStorage 不再镜像，I6-e）', async () => {
+  it('isAdmin 与本地标记不符 → 以服务端为准，走 setAdminFlag 同步持久标记（issue #52-3）', async () => {
     localStorage.setItem('artist_logged_in', '1')
     localStorage.setItem('artist_is_admin', '0')
     h.getMe.mockResolvedValue({ isAdmin: true })
@@ -202,13 +207,12 @@ describe('ArtistLayout 会话强校验（G-1）', () => {
     await mountLayout(ArtistLayout)
     await flushPromises()
 
-    expect(h.artistStore!.isAdmin).toBe(true)
-    // 单一数据源：localStorage 只由 store action 写，会话校验不再回写
-    expect(localStorage.getItem('artist_is_admin')).toBe('0')
+    // 修订 REQ-043 I6-e：只改内存会让被提权/降级者下次刷新又拿旧标记过守卫
+    expect(h.setAdminFlag).toHaveBeenCalledWith(true)
     expect(h.push).not.toHaveBeenCalled()
   })
 
-  it('成功且标记一致 → 不跳转不登出', async () => {
+  it('成功且标记一致 → 不跳转不登出，也不重写持久标记', async () => {
     localStorage.setItem('artist_logged_in', '1')
     localStorage.setItem('artist_is_admin', '0')
     h.getMe.mockResolvedValue({ isAdmin: false })
@@ -217,6 +221,7 @@ describe('ArtistLayout 会话强校验（G-1）', () => {
     await flushPromises()
 
     expect(h.artistStore!.isAdmin).toBe(false)
+    expect(h.setAdminFlag).not.toHaveBeenCalled()
     expect(localStorage.getItem('artist_is_admin')).toBe('0')
     expect(h.logout).not.toHaveBeenCalled()
     expect(h.push).not.toHaveBeenCalled()
@@ -322,7 +327,7 @@ describe('AdminLayout 会话强校验（G-1）', () => {
     expect(h.push).toHaveBeenCalledWith({ name: 'ArtistLogin' })
   })
 
-  it('isAdmin 与本地标记不符 → 以服务端为准修正 store（localStorage 不再镜像，I6-e）', async () => {
+  it('isAdmin 与本地标记不符 → 以服务端为准，走 setAdminFlag 同步持久标记（issue #52-3）', async () => {
     localStorage.setItem('artist_logged_in', '1')
     localStorage.setItem('artist_is_admin', '1')
     h.artistStore!.isAdmin = true
@@ -331,8 +336,7 @@ describe('AdminLayout 会话强校验（G-1）', () => {
     await mountLayout(AdminLayout)
     await flushPromises()
 
-    expect(h.artistStore!.isAdmin).toBe(false)
-    expect(localStorage.getItem('artist_is_admin')).toBe('1')
+    expect(h.setAdminFlag).toHaveBeenCalledWith(false)
     expect(h.logout).not.toHaveBeenCalled()
   })
 })

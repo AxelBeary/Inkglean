@@ -198,6 +198,15 @@ async function createForm(opts: CreateFormOpts = {}) {
   return { wrapper, formRef, of: composable }
 }
 
+/**
+ * 等 300ms 防抖计价落地。issue #50-1 之后报价未就绪不得提交，
+ * 凡是选了尺寸的提交用例都必须先让报价就位，否则会被 priceBlocking 正当拦下。
+ */
+async function settlePrice() {
+  await new Promise(r => setTimeout(r, 350))
+  await flushPromises()
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   sessionStorage.clear()
@@ -410,15 +419,28 @@ describe('计价', () => {
     expect(of.stylePricePreview.value).toBeNull()
   })
 
-  it('styleDisplayPrice：无尺寸=0；选尺寸未计价=基础价回退；计价后=总价', async () => {
+  it('styleDisplayCents：无报价一律 null（⛔ 回退基础价）；计价后=总价整数分', async () => {
     const { of } = await createForm()
     of.selectStyle(11)
-    expect(of.styleDisplayPrice.value).toBe(0) // 未选尺寸
+    expect(of.styleDisplayCents.value).toBeNull() // 未选尺寸
     of.selectSize(111)
-    expect(of.styleDisplayPrice.value).toBe(80) // 未计价回退基础价
-    await new Promise(r => setTimeout(r, 350))
-    await flushPromises()
-    expect(of.styleDisplayPrice.value).toBe(468) // 46800 分
+    // issue #50-2 拍板 A：未计价不再回退基础价（旧行为显示 ¥80，漏掉全部增项）
+    expect(of.styleDisplayCents.value).toBeNull()
+    expect(of.priceBlocking.value).toBe(true)
+    await settlePrice()
+    expect(of.styleDisplayCents.value).toBe(46800)
+    expect(of.priceBlocking.value).toBe(false)
+  })
+
+  it('issue #50-6：折扣码未验证通过时不随算价请求下发（逐字输入不再打断计价）', async () => {
+    vi.useFakeTimers()
+    const { of } = await createForm()
+    of.selectStyle(11)
+    of.selectSize(111)
+    of.form.discountCode = 'SAVE10'
+    await vi.advanceTimersByTimeAsync(800)
+    expect(calcPriceMock.mock.calls.at(-1)![0].discountCode).toBeNull()
+    vi.useRealTimers()
   })
 
   it('installmentPreview：定金30%/尾款70% 分摊（尾差归末节点）', async () => {
@@ -677,6 +699,7 @@ describe('提交', () => {
     ;(of.styleAddonSelections as AddonSelections)[1112].quantity = 2
     of.toggleUsage(1114)
     of.toggleRush(1116)
+    await settlePrice()
     of.form.clientQq = '12345678'
     of.form.agreed = true
     await of.submit()
@@ -706,6 +729,7 @@ describe('提交', () => {
     const { of } = await createForm()
     of.selectStyle(11)
     of.selectSize(111)
+    await settlePrice()
     of.form.clientQq = '12345678'
     await of.submit()
     expect(ElMessage.error).toHaveBeenCalledWith('服务器错误')
@@ -716,6 +740,7 @@ describe('提交', () => {
     const { of } = await createForm()
     of.selectStyle(11)
     of.selectSize(111)
+    await settlePrice()
     of.form.clientQq = '12345678'
     orderCreateMock.mockRejectedValueOnce(new Error('服务器错误'))
     await of.submit()
@@ -728,6 +753,35 @@ describe('提交', () => {
     await of.submit()
     const key3 = orderCreateMock.mock.calls[2][1].headers['idempotency-key']
     expect(key3).not.toBe(key1)
+  })
+
+  it('issue #50-1：报价未就绪 → 拦下提交并提示；报价就位后放行', async () => {
+    const { of } = await createForm()
+    of.selectStyle(11)
+    of.selectSize(111)
+    of.form.clientQq = '12345678'
+    of.form.agreed = true
+    expect(of.priceBlocking.value).toBe(true)
+    await of.submit()
+    expect(orderApi.create).not.toHaveBeenCalled()
+    expect(ElMessage.warning).toHaveBeenCalledWith('orderForm.priceNotReady')
+    expect(of.submitting.value).toBe(false)
+
+    await settlePrice()
+    expect(of.priceBlocking.value).toBe(false)
+    await of.submit()
+    expect(orderApi.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('issue #50-2：计价失败 → 报价态出「待确认」而非基础价，且提交被拦', async () => {
+    const { of } = await createForm()
+    calcPriceMock.mockRejectedValue(new Error('boom'))
+    of.selectStyle(11)
+    of.selectSize(111)
+    await settlePrice()
+    expect(of.styleDisplayCents.value).toBeNull()
+    expect(of.priceStatusText.value).toBe('orderForm.pricePending')
+    expect(of.priceBlocking.value).toBe(true)
   })
 })
 

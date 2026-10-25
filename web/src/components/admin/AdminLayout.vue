@@ -252,6 +252,13 @@ function onStepUpVerified() {
   stepUpVisible.value = false
 }
 
+// issue #49-1: 30 分钟窗口过期后，管理台动作只收到 401 toast、没有恢复出口，
+// 此前只在 onMounted 探一次，用户必须整页刷新才能重验。改为子路由切换即重探。
+watch(() => route.path, () => {
+  if (stepUpInitializing.value || stepUpVisible.value) return
+  checkStepUp()
+})
+
 /** 取消验证：未升级不得停留在管理后台 → 回画师后台 */
 function onStepUpCancel() {
   stepUpVisible.value = false
