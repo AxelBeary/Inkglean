@@ -207,9 +207,10 @@ async function request<T>(method: string, url: string, data?: unknown, config: R
   // 且 finally 清计时器可避免遗留定时器）
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), config.timeout ?? DEFAULT_TIMEOUT_MS)
+  const onExternalAbort = () => controller.abort()
   if (config.signal) {
     if (config.signal.aborted) controller.abort()
-    else config.signal.addEventListener('abort', () => controller.abort(), { once: true })
+    else config.signal.addEventListener('abort', onExternalAbort, { once: true })
   }
 
   const headers: Record<string, string> = {
@@ -219,8 +220,9 @@ async function request<T>(method: string, url: string, data?: unknown, config: R
     ...(config.headers || {})
   }
 
+  // 计时器覆盖到响应体读完：fetch 一 resolve（收到响应头）就清计时器的话，
+  // 服务端发完头后卡住 body 会让 res.text() 永不 settle（loading 永久转圈、无错误可报）。
   let res: Response | undefined
-  let fetchFailed = false
   try {
     res = await fetch(buildUrl(url, config.params), {
       method,
@@ -230,16 +232,17 @@ async function request<T>(method: string, url: string, data?: unknown, config: R
       body,
       signal: controller.signal
     })
-  } catch {
-    // 网络不可达 / 请求被中止（超时或外部 signal）：原实现里对应 axios 无 response 的分支
-    fetchFailed = true
+    if (!res.ok) return await fail(res.status, await readErrorBody(res))
+    return await readSuccess<T>(res)
+  } catch (err) {
+    // fail() 抛出的 ApiError 原样上抛，避免被当成网络错误二次包装
+    if ((err as ApiError)?.status !== undefined) throw err
+    // 网络不可达 / 请求被中止（超时或外部 signal）/ 读体中断
+    return await fail()
   } finally {
     clearTimeout(timer)
+    config.signal?.removeEventListener('abort', onExternalAbort)
   }
-
-  if (fetchFailed || !res) return fail()
-  if (!res.ok) return fail(res.status, await readErrorBody(res))
-  return readSuccess<T>(res)
 }
 
 // ─── 类型化请求 helper（模块私有，供 ./modules/* 复用） ───

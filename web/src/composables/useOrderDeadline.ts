@@ -20,6 +20,12 @@ export function useOrderDeadline({ order, routeId, applyOrder }: {
 }) {
   const { t } = useI18n()
 
+  /** 乐观锁：带上当前快照 version（缺失时不带，沿用服务端当前版本） */
+  function versionOpt(): { version?: number } {
+    const v = order.value?.version
+    return v != null ? { version: v } : {}
+  }
+
   // ─── v0.38: 剩余天数（REQ-026 §四.4：截稿日 − 今天；正=剩余 / 0=当天 / 负=逾期） ───
   const daysLeft = computed(() => {
     const d = order.value?.deadline
@@ -65,7 +71,7 @@ export function useOrderDeadline({ order, routeId, applyOrder }: {
 
   async function changeDeadline(val: string | null) {
     try {
-      applyOrder(await artistApi.updateDeadline(routeId, val || null)) // M-9: 统一写入口（旧快照拒收）
+      applyOrder(await artistApi.updateDeadline(routeId, val || null, versionOpt())) // M-9: 统一写入口（旧快照拒收）
       ElMessage.success(t('orderDetail.deadlineSavedSync'))
     } catch (err) {
       // T1: 保存失败时回弹 picker 显示值为 order 原值（watcher 同款截取逻辑，避免界面与数据不一致）
@@ -83,7 +89,7 @@ export function useOrderDeadline({ order, routeId, applyOrder }: {
 
   async function changeStartDate(val: string | null) {
     try {
-      const updated = await artistApi.updateStartDate(routeId, val || null)
+      const updated = await artistApi.updateStartDate(routeId, val || null, versionOpt())
       applyOrder(updated) // M-9: 统一写入口（旧快照拒收）
       ElMessage.success(t('orderDetail.startDateSavedSync'))
       // 自动填截稿日：截稿日为空 + 有开工日 + 档位有工期
@@ -95,7 +101,7 @@ export function useOrderDeadline({ order, routeId, applyOrder }: {
         const m = String(start.getMonth() + 1).padStart(2, '0')
         const d = String(start.getDate()).padStart(2, '0')
         const autoDeadline = `${y}-${m}-${d}`
-        applyOrder(await artistApi.updateDeadline(routeId, autoDeadline)) // M-9: 统一写入口（旧快照拒收）
+        applyOrder(await artistApi.updateDeadline(routeId, autoDeadline, versionOpt())) // M-9: 统一写入口（旧快照拒收）
         ElMessage.success(t('orderDetail.deadlineAutoSet'))
       }
     } catch (err) {
