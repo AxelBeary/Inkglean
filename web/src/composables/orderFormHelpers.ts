@@ -201,10 +201,11 @@ export function useOrderFormDraft(subdomain: string, state: OrderFormDraftState)
     if (draftTimer) clearTimeout(draftTimer)
   }
 
-  /** issue #53-2: 卸载前把节流窗口内最后一笔同步落盘（清定时器 + 立即存，与 onBeforeUnload 同形） */
+  /** issue #53-2: 卸载前把节流窗口内最后一笔同步落盘。只在确有内容时写——
+   * saveDraft 的既有语义是「无内容即删键」，卸载路径拿它去覆盖会把上一轮存着的草稿抹掉 */
   function flushDraft() {
     clearDraftTimers()
-    saveDraft()
+    if (hasDraftContent.value) saveDraft()
   }
 
   return {

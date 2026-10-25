@@ -501,6 +501,29 @@ describe('草稿保存 / 恢复', () => {
     expect(draft.styleState.addonSelections[1111]).toMatchObject({ toggled: true })
   })
 
+  // GHSA Wave2 issue #53-2：防抖窗口内离开页面，最后一笔草稿随卸载落盘（旧实现只清定时器 → 丢）
+  it('卸载 flush：防抖窗口内的最后一笔仍写进 sessionStorage', async () => {
+    vi.useFakeTimers()
+    const { of, wrapper } = await createForm()
+    of.selectStyle(11)
+    of.selectSize(111)
+    // 刻意不推进 500ms 定时器：模拟「刚选完就走」
+    wrapper.unmount()
+
+    const draft = JSON.parse(sessionStorage.getItem('orderForm_draft_alice')!) as DraftState
+    expect(draft.styleState.sizeId).toBe(111)
+  })
+
+  // 同一条 flush 的反面：saveDraft 的既有语义是「无内容即删键」，卸载路径不能拿它去抹掉上一轮存着的草稿
+  it('卸载 flush：无内容时不写也不删已存草稿', async () => {
+    const { wrapper } = await createForm()
+    sessionStorage.setItem('orderForm_draft_alice', JSON.stringify({ form: { clientQq: '999888777' }, styleState: {} }))
+
+    wrapper.unmount()
+
+    expect(sessionStorage.getItem('orderForm_draft_alice')).toContain('999888777')
+  })
+
   it('restoreDraft：画风+尺寸+增项+用途加急+文本全量恢复', async () => {
     const { of } = await createForm({
       draft: {
