@@ -39,6 +39,8 @@
                   </label>
                   <button type="button" class="rc-mini-btn" :disabled="form.items.length <= 1" :aria-label="t('receipt.removeItem')" @click="removeItem(i)">{{ t('receipt.removeItem') }}</button>
                 </div>
+                <!-- issue 51-4（拍3-A）：非赠品且单价≤0 的行被 validItems 排除——编辑区明示不进导出，不再静默 -->
+                <p v-if="isExportExcluded(item)" class="rc-item-excluded">{{ t('receipt.exportExcludedHint') }}</p>
               </div>
               <button type="button" class="rc-btn rc-btn--ghost" :disabled="form.items.length >= 10" @click="addItem">{{ t('receipt.addItem') }}</button>
             </div>
@@ -236,6 +238,19 @@ function addItem() {
 function removeItem(i: number) {
   if (form.items.length <= 1) return
   form.items.splice(i, 1)
+}
+
+/**
+ * issue 51-4（拍3-A）：显式输入 0/负单价的非赠品行会被 totals.validItems 排除、不进导出。
+ * 排除口径维持不变（0 元非法，「免费」由赠品勾选表达），但编辑区行内明示，不再静默消失。
+ * 空单价 = 未填行，不告警（与 PriceCard.isZeroPrice 同口径）。
+ */
+function isExportExcluded(item: ReceiptItem): boolean {
+  if (item.gift) return false
+  const raw: unknown = item.priceYuan
+  if (raw == null || raw === '') return false
+  const n = Number(raw)
+  return Number.isFinite(n) && n <= 0
 }
 
 // ─── 纯文字版（组件只产文本，剪贴板与成败提示归宿主） ───
@@ -553,6 +568,8 @@ defineExpose({
 }
 .rc-item-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .rc-item-sub .rc-mini-btn { margin-left: auto; }
+/* issue 51-4：不进导出行的行内提示（朱砂示警色，功能性平实陈述） */
+.rc-item-excluded { margin: 0; font-size: calc(var(--font-scale, 1) * 12px); color: var(--zs); }
 .rc-item-qty { width: 64px; }
 .rc-item-price { flex: 1; min-width: 90px; max-width: 160px; }
 .rc-item--gift .rc-item-price { opacity: 0.5; }

@@ -46,10 +46,10 @@ const LIMIT = 800
 //
 // 2026-09-20 F-44 拍板：SCOPES 扩射 desktop/src、shared/src（better-harness 修复批，用户裁决选项①
 // 「扩射程+冻结豁免」）。存量超线 1 项按冻结值豁免，只许拆小不许再长
-// （Home.vue 已于 2026-10-21 U45/U46 批拆至 800 行并移出本表）：
-const ALLOWLIST = {
-  'shared/src/components/PriceCard.vue': 1094,  // F-44 登记（2026-09-20 实测 1094 行）
-}
+// （Home.vue 已于 2026-10-21 U45/U46 批拆至 800 行并移出本表；
+//   PriceCard.vue 已于 2026-10-26 issue #51 批拆至 692 行并移出本表——
+//   拆出 pricecard/{types,tiers,draw}.ts + ArtworkPickerModal.vue，F-44 唯一遗留豁免就此清偿，本表现为空）：
+const ALLOWLIST = {}
 
 const SCOPES = ['server/src', 'web/src', 'desktop/src', 'shared/src']
 const EXCLUDE = /(__tests__|[\\/]tests?[\\/]|\.test\.|\.spec\.|[\\/]locales[\\/])/

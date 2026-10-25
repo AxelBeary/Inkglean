@@ -20,6 +20,7 @@ export * from './receipt/totals'
 
 // ─── F3 约稿条 / F4 小票哑组件（shared-824 整件搬家批） ───
 // 哑组件纪律：不发请求、不读存储、不碰剪贴板；数据进 props、事件出 emit
+// issue-51 拆分批：PriceCard 契约类型迁住 components/pricecard/types.ts（对外签名不变）
 export { default as PriceCard } from './components/PriceCard.vue'
 export { default as ReceiptPrinter } from './components/ReceiptPrinter.vue'
 export type {
@@ -28,5 +29,5 @@ export type {
   PriceCardDraft,
   PriceCardArtwork,
   ImportedTier
-} from './components/PriceCard.vue'
+} from './components/pricecard/types'
 export type { ReceiptDraft, ReceiptDraftItem } from './components/ReceiptPrinter.vue'

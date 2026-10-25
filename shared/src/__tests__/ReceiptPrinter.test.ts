@@ -122,3 +122,40 @@ describe('ReceiptPrinter 小票哑组件（shared）', () => {
     expect(wrapper.findAll('.rc-seg')[1].findAll('.rc-seg-btn')[2].attributes('aria-pressed')).toBe('true')
   })
 })
+
+// ─── issue 51-4（拍3-A）：0 元非赠品行被 validItems 排除——排除行为不变，编辑区行内明示 ───
+describe('issue 51-4: 不进导出行的行内提示', () => {
+  it('单价 0 的非赠品行出提示；勾赠或改价 >0 后消失', async () => {
+    const wrapper = mountReceipt()
+    expect(wrapper.findAll('.rc-item-excluded')).toHaveLength(0) // 空单价 = 未填，不告警
+    await wrapper.findAll('.rc-item-name')[0].setValue('头像')
+    await wrapper.findAll('.rc-item-price')[0].setValue('0')
+    expect(wrapper.findAll('.rc-item-excluded')).toHaveLength(1)
+    expect(wrapper.find('.rc-item-excluded').text()).toBe('receipt.exportExcludedHint')
+
+    // 勾「赠」→ 赠品行合法，提示消失
+    await wrapper.findAll('.rc-gift input')[0].setValue(true)
+    expect(wrapper.findAll('.rc-item-excluded')).toHaveLength(0)
+
+    // 取消赠品 + 单价 >0 → 合法行，无提示
+    await wrapper.findAll('.rc-gift input')[0].setValue(false)
+    await wrapper.findAll('.rc-item-price')[0].setValue('80')
+    expect(wrapper.findAll('.rc-item-excluded')).toHaveLength(0)
+  })
+
+  it('排除行为维持不变：0 元行不进 copy-text 输出', async () => {
+    const wrapper = mountReceipt()
+    await wrapper.findAll('.rc-item-name')[0].setValue('免费行')
+    await wrapper.findAll('.rc-item-price')[0].setValue('0')
+    await wrapper.findAll('.rc-item-name')[1].setValue('付费行')
+    await wrapper.findAll('.rc-item-price')[1].setValue('100')
+    await wrapper.findAll('.rc-actions button')[1].trigger('click') // 复制纯文字版
+
+    const evts = wrapper.emitted('copy-text')
+    expect(evts).toBeTruthy()
+    const { text } = evts![0][0] as { text: string }
+    expect(text).toContain('付费行')
+    expect(text).toContain('¥100.00')
+    expect(text).not.toContain('免费行') // validItems 排除口径未动
+  })
+})
