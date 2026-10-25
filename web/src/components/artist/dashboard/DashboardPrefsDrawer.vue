@@ -61,6 +61,7 @@
               type="button"
               class="ink-switch"
               :class="{ on: !isHidden(id) }"
+              :disabled="saving"
               role="switch"
               :aria-checked="!isHidden(id)"
               :aria-label="t('dashboardPrefs.toggleAria', { name: t(nameKey(id)) })"
@@ -71,16 +72,16 @@
           <div class="d-row2">
             <span class="d-sub">{{ t('dashboardPrefs.widthLabel') }}</span>
             <span class="seg">
-              <button type="button" :class="{ on: widthOf(id) === 'half' }" @click="setWidth(id, 'half')">{{ t('dashboardPrefs.widthHalf') }}</button>
-              <button type="button" :class="{ on: widthOf(id) === 'full' }" @click="setWidth(id, 'full')">{{ t('dashboardPrefs.widthFull') }}</button>
+              <button type="button" :disabled="saving" :class="{ on: widthOf(id) === 'half' }" @click="setWidth(id, 'half')">{{ t('dashboardPrefs.widthHalf') }}</button>
+              <button type="button" :disabled="saving" :class="{ on: widthOf(id) === 'full' }" @click="setWidth(id, 'full')">{{ t('dashboardPrefs.widthFull') }}</button>
             </span>
 
             <template v-if="hasDensity(id)">
               <span class="d-sub">{{ t('dashboardPrefs.densityLabel') }}</span>
               <span class="seg">
-                <button type="button" :class="{ on: densityOf(id) === 3 }" @click="setDensity(id, 3)">{{ t('dashboardPrefs.density3') }}</button>
-                <button type="button" :class="{ on: densityOf(id) === 5 }" @click="setDensity(id, 5)">{{ t('dashboardPrefs.density5') }}</button>
-                <button type="button" :class="{ on: densityOf(id) === 0 }" @click="setDensity(id, 0)">{{ t('dashboardPrefs.densityAll') }}</button>
+                <button type="button" :disabled="saving" :class="{ on: densityOf(id) === 3 }" @click="setDensity(id, 3)">{{ t('dashboardPrefs.density3') }}</button>
+                <button type="button" :disabled="saving" :class="{ on: densityOf(id) === 5 }" @click="setDensity(id, 5)">{{ t('dashboardPrefs.density5') }}</button>
+                <button type="button" :disabled="saving" :class="{ on: densityOf(id) === 0 }" @click="setDensity(id, 0)">{{ t('dashboardPrefs.densityAll') }}</button>
               </span>
             </template>
           </div>
@@ -93,6 +94,7 @@
                 v-for="opt in stylePick(id)!.options"
                 :key="opt.value"
                 type="button"
+                :disabled="saving"
                 :class="{ on: styleOf(id) === opt.value }"
                 @click="setStyle(id, opt.value)"
               >{{ t(opt.nameKey) }}</button>

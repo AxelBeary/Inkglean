@@ -33,7 +33,7 @@
       <el-table-column :label="$t('returning.lastOrder')" min-width="150">
         <template #default="{ row }">{{ formatDate(row.lastOrderAt) }}</template>
       </el-table-column>
-      <el-table-column :label="$t('returning.daysSince')" min-width="140">
+      <el-table-column :label="$t('returning.daysSinceLabel')" min-width="140">
         <template #default="{ row }">{{ $t('returning.daysSince', { n: row.daysSinceLastOrder }) }}</template>
       </el-table-column>
       <el-table-column :label="$t('returning.copyScript')" width="130" fixed="right">

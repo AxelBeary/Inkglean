@@ -473,6 +473,8 @@ watch(
   [src, wmType, wmText, fontSize, logoScale, opacity, mode, position, margin, spacing, logoDataUrl],
   () => {
     clearTimeout(previewTimer ?? undefined)
+    // 源图被清空/切换时旧预览必须先失效，否则会显示上一单的成品
+    if (!src.value) previewDataUrl.value = ''
     previewTimer = setTimeout(renderPreview, 300)
   }
 )

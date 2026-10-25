@@ -39,7 +39,9 @@
       <el-table-column prop="report_ip" :label="$t('compliance.admin.colReportIp')" width="140">
         <template #default="{ row }">{{ row.report_ip || '—' }}</template>
       </el-table-column>
-      <el-table-column prop="created_at" :label="$t('compliance.admin.colCreatedAt')" width="168" />
+      <el-table-column prop="created_at" :label="$t('compliance.admin.colCreatedAt')" width="168">
+        <template #default="{ row }">{{ formatDateTime(row.created_at) }}</template>
+      </el-table-column>
       <!-- 813-fq-tail-shared 战役 S：≤760px 操作列收成图标按钮（aria-label/title 保留文案），
            防止 240px 固定列在窄屏挤压、横向溢出 -->
       <el-table-column :label="$t('compliance.admin.colActions')" :width="compactActions ? 156 : 300" fixed="right">
@@ -178,6 +180,7 @@ import { useI18n } from 'vue-i18n'
 import { CircleCheck, Delete, ChatDotRound, Warning, Unlock, House } from '@element-plus/icons-vue'
 import { complianceApi, adminApi } from '../../api/index'
 import type { AdminArtistItem, ReportItem } from '../../api/types'
+import { formatDateTime } from '../../utils/datetime'
 import StepUpDialog from '../../components/admin/StepUpDialog.vue'
 
 const { t } = useI18n()

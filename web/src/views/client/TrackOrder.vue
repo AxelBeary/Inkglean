@@ -461,10 +461,10 @@ function saveLink(orderNoToSave: string, tokenToSave: string) {
 /** 核心查询：凭订单号 + 令牌；成功自动入本地清单 */
 // K1-1：查询竞态守卫（同款 seq 模式，对齐 OrderDetail.loadOrderSeq/useOrderForm.doStyleCalc）
 let searchSeq = 0
-async function search(no = orderNo.value, tok = token.value) {
+async function search(no = orderNo.value, tok = token.value): Promise<'ok' | 'invalid' | 'error' | null> {
   if (!(no || '').trim() || !(tok || '').trim()) {
     ElMessage.warning(t('track.enterLink'))
-    return false
+    return 'error'
   }
   const mySeq = ++searchSeq
   searching.value = true
@@ -480,12 +480,13 @@ async function search(no = orderNo.value, tok = token.value) {
     orderNo.value = no.trim()
     token.value = tok.trim()
     saveLink(no.trim(), tok.trim())
-    return true
+    return 'ok'
   } catch (err) {
     if (mySeq !== searchSeq) return null
     ElMessage.error((err as Error).message)
     searchError.value = true
-    return false
+    // 只有「令牌确实失效」才允许上层删除本地凭据；网络/限流/5xx 一律保留
+    return (err as { status?: number })?.status === 404 ? 'invalid' : 'error'
   } finally {
     if (mySeq === searchSeq) searching.value = false
   }
@@ -502,17 +503,18 @@ function searchFromInput() {
 
 /** 已保存清单行：一键查询；令牌失效（404）时移除条目（WEB-13: 不再仅标 invalid 留存明文令牌） */
 async function querySaved(item: SavedLink) {
-  const ok = await search(item.orderNo, item.token)
+  const result = await search(item.orderNo, item.token)
   // null = 已被更新的查询取代（竞态晚到），不据此处理
-  if (ok === null) return
-  if (ok) {
+  if (result === null) return
+  if (result === 'ok') {
     // WEB-13: 查询成功，刷新 lastUsedAt（TTL 续期）
     item.lastUsedAt = Date.now()
     item.invalid = false
-  } else {
-    // WEB-13: 令牌失效（服务端轮换/过期），移除条目而非仅标记——明文 token 不得继续驻留
+  } else if (result === 'invalid') {
+    // WEB-13: 令牌确已失效（404），移除条目而非仅标记——明文 token 不得继续驻留
     savedLinks.value = savedLinks.value.filter(i => i.orderNo !== item.orderNo)
   }
+  // 'error'（断网/429/5xx）：保留条目，避免一次网络抖动就永久丢凭据
   persistSavedLinks()
 }
 
