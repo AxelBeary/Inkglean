@@ -6,6 +6,7 @@ import { bumpTokenVersion, recordLastLogin, getArtistById } from '../artist/arti
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { AppError, E } from '../../shared/errors.js'
 import { publicArtistDTO } from '../../shared/dto.js'
+import { parseSqliteUtcDate } from '../../utils/date.js'
 import { createBoundedTtlStore } from './webauthn.js'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import type { Artist } from '../../types/entities.js'
@@ -480,7 +481,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
     // 冷却期检查（管理员豁免）
     if (!isAdmin && artist.totp_rebound_at) {
-      const reboundTime = new Date(artist.totp_rebound_at).getTime()
+      // issue #53-5：列值是 SQLite UTC 文本（datetime('now')），裸 new Date() 会按容器本地时区解析，
+      // TZ=Asia/Shanghai 下冷却实际只剩 16h；统一走 UTC 解析口径
+      const reboundTime = parseSqliteUtcDate(artist.totp_rebound_at).getTime()
       if (Date.now() - reboundTime < 24 * 60 * 60 * 1000) {
         const remainingMs = 24 * 60 * 60 * 1000 - (Date.now() - reboundTime)
         const remainingHours = Math.ceil(remainingMs / (60 * 60 * 1000))
