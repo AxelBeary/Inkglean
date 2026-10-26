@@ -4,7 +4,7 @@
     <header class="legal-header">
       <router-link to="/" class="legal-back">{{ $t('compliance.common.backHome') }}</router-link>
       <h1 class="font-display legal-title">{{ $t(`compliance.${docType}.pageTitle`) }}</h1>
-      <p class="legal-updated">{{ $t('compliance.common.updated') }}：{{ $t(`compliance.${docType}.updated`) }}</p>
+      <p class="legal-updated">{{ $t('compliance.common.updatedOn', { date: $t(`compliance.${docType}.updated`) }) }}</p>
     </header>
 
     <main class="legal-body">

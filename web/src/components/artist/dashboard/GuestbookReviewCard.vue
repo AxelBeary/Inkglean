@@ -30,7 +30,7 @@
       <p class="gb-mod-content">{{ m.content }}</p>
       <p class="gb-mod-time">{{ formatDateTime(m.created_at) }}</p>
       <div class="gb-mod-reply" v-if="m.artist_reply">
-        <span class="gb-mod-reply-label">{{ $t('dashboard.guestbookReply') }}：</span>{{ m.artist_reply }}
+        <span class="gb-mod-reply-label">{{ $t('dashboard.guestbookReplyLabel') }}</span>{{ m.artist_reply }}
       </div>
       <div class="gb-mod-actions" v-if="m.status === 'pending'">
         <el-button size="small" class="gb-btn gb-btn--approve" @click="approveMsg(m)">{{ $t('dashboard.guestbookApprove') }}</el-button>

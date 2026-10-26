@@ -30,7 +30,7 @@
 
     <!-- 实时预览 -->
     <p class="preview-hint" v-if="newText.trim()">
-      {{ $t('admin.greetingPreview') }}：{{ previewText }}
+      {{ $t('admin.greetingPreviewLine', { text: previewText }) }}
     </p>
 
     <!-- 列表（T 波：el-table 行由 EP 内部渲染、无法挂 Vue 过渡，改等价 CSS 网格列表 +

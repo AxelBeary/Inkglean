@@ -70,6 +70,8 @@ describe('AddonStep 合计/折扣行序（817-D 10-2）', () => {
     expect(discountIdx).toBeGreaterThanOrEqual(0)
     expect(totalIdx).toBeGreaterThan(discountIdx)
     expect(lines[totalIdx].text()).toContain('¥90.00')
+    // issue #54-2：折扣行括号已收进词条，模板不许再硬编码全角括号
+    expect(lines[discountIdx].text()).not.toMatch(/[（）：]/)
   })
 
   it('无折扣：合计行照常渲染 totalCents', () => {
@@ -79,5 +81,18 @@ describe('AddonStep 合计/折扣行序（817-D 10-2）', () => {
     expect(total.exists()).toBe(true)
     expect(total.text()).toContain('¥100.00')
     expect(wrapper.find('.price-line.discount').exists()).toBe(false)
+  })
+
+  // issue #54-2：百分比增项注的括号同样收进词条（英文态才不会是「（...）」）
+  it('百分比增项注：模板不硬编码全角括号', () => {
+    const wrapper = mountStep({
+      ...basePreview,
+      percentAddonItems: [{ name: '渐变', percent: 20, amountCents: 2000 }]
+    })
+
+    const note = wrapper.find('.price-line-note')
+    expect(note.exists()).toBe(true)
+    expect(note.text()).toContain('orderForm.pctOfBaseInParens')
+    expect(note.text()).not.toMatch(/[（）：]/)
   })
 })
