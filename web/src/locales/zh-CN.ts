@@ -1327,6 +1327,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // v128: 修改记录（手动修改+打回均计一次，口径用户拍板）
     revisionTitle: '修改记录', revisionTotal: '共 {n} 次',
     revisionManual: '手动修改', revisionRollback: '打回',
+    revisionStagePath: '「{from}」→「{to}」',
     advanceTo: '推进到：', stageBack: '↩ 打回上一节点', stageUpdated: '流程已更新',
     stageBackConfirm: '确定打回到「{name}」？订单状态将标记为修改中。',
     stageOffConfirm: '关闭后此订单不再跟随工作流程，回到固定状态流转。确定关闭？',
