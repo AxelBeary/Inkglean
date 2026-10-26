@@ -898,6 +898,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     typeWarning: 'JPG 或 WebP 预览效果更好，当前格式也可以正常上传。',
     // G-7（P2-13）: 参考图归属凭证获取失败（匿名凭证签发链路网络异常时提示）
     anonTokenRequired: '参考图凭证获取失败，请检查网络后重试',
+    // issue #50-8：上传途中凭证换新——旧批参考图归属旧凭证，不能与新凭证混提
+    refTokenRotated: '上传凭证已更新，之前的参考图已清空，请重新上传',
     loadFailed: '加载画师信息失败',
     // R57: 草稿恢复
     draftTitle: '恢复草稿', draftFound: '检测到未提交的草稿，是否恢复？',

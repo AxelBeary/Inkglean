@@ -27,9 +27,13 @@ export const STYLE_B = {
 
 /**
  * 构造 useOrderForm 可控 mock：mode = 'single' | 'multi' | 'empty'（无画风配置）
+ * status = 画师接单状态（issue #50-7 门禁用，默认 open）
  * 与真实 composable 暴露面一致（SPEC-PRICE-2 新 API 面）
  */
-export function buildMockComposable(mode: 'single' | 'multi' | 'empty') {
+export function buildMockComposable(
+  mode: 'single' | 'multi' | 'empty',
+  status: 'open' | 'full' | 'break' | 'hidden' = 'open'
+) {
   const styleMode = mode !== 'empty'
   const multi = mode === 'multi'
   const form = reactive({
@@ -45,7 +49,7 @@ export function buildMockComposable(mode: 'single' | 'multi' | 'empty') {
   const availableStyleAddons = computed(() => selectedSize.value?.addons || [])
 
   return {
-    artist: ref({ name: 'Alice', notifyEnabled: false, revisionNote: '' }),
+    artist: ref({ name: 'Alice', notifyEnabled: false, revisionNote: '', status }),
     rulesContent: ref(''),
     loading: ref(false),
     workflowStages: ref([] as WorkflowStageItem[]),

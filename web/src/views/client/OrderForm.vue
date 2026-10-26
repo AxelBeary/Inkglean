@@ -13,7 +13,17 @@
         <el-button type="primary" size="small" @click="retryLoad">{{ $t('common.loadRetry') }}</el-button>
       </div>
 
-      <template v-if="artist">
+      <!-- issue #50-7：画师非 open（full/break/hidden）→ POST /api/orders 必 400 ARTIST_NOT_OPEN，
+           提前出空态，别让客户填完整张表才被拒。判据只认服务端回显的 status，
+           不用 effectiveStatus——那是额度展示口径，服务端下单不据此拦单 -->
+      <div v-if="artistNotOpen" class="closed-banner">
+        <el-empty :description="$t('errors.ARTIST_NOT_OPEN')" :image-size="60" />
+        <div class="step-nav step-nav--end">
+          <el-button @click="$router.push(`/artist/${subdomain}`)">{{ $t('orderForm.backHome') }}</el-button>
+        </div>
+      </div>
+
+      <template v-else-if="artist">
         <!-- R58-2: 步骤指示器 + v0.35 F4 预选摘要横幅（拆分子组件） -->
         <StepIndicator
           :step-defs="stepDefs"
@@ -309,6 +319,9 @@ const {
 // 模板读取的 artist 字段（revisionNote/notifyEnabled/contactQq/paletteId/inspirationTags）均属完整公开形状；
 // hidden 最小形状（HiddenArtistProfile）不会进入本页渲染链路，此处联合类型收敛为完整形状
 const artist = computed(() => artistRaw.value as VisibleArtistProfile | null)
+
+// issue #50-7：接单状态门禁——服务端只认 artists.status，非 open 一律 400
+const artistNotOpen = computed(() => !!artist.value && artist.value.status !== 'open')
 
 // AddonStep 的 priceText prop 参数为本地宽松形状 StyleAddon，useOrderForm 实现按 PublicStyleAddon 口径——
 // 运行时是同一批对象（断言成立），包一层适配参数逆变
@@ -682,6 +695,11 @@ function goTrack() {
   background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--r-l);
 }
 .load-error-banner p { margin: 0 0 14px; color: var(--text-secondary); font-size: 14px; }
+/* issue #50-7：非接单状态空态（与加载失败横幅同壳，只换内文，不新造视觉） */
+.closed-banner {
+  margin: 24px auto; max-width: 420px; padding: 20px; text-align: center;
+  background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--r-l);
+}
 /* 战役波 M：步骤切换淡入（class 重触发；v-show 隐藏面板 display:none 不参与，仅当前步可见） */
 .step-fade-run > *:not(.step-eyebrow) { animation: step-fade-in var(--dur-mid) var(--ease-out); }
 @keyframes step-fade-in { from { opacity: 0; } to { opacity: 1; } }
