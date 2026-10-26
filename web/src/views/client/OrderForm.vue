@@ -89,12 +89,11 @@
               <DetailStep
                 v-show="step === detailStep"
                 v-model:description="form.description"
+                v-model:ref-file-list="refFileList"
                 :inspire-tags="inspireTags"
                 :workflow-stages="workflowStages"
                 :revision-note="artist?.revisionNote || ''"
-                :ref-file-list="refFileList"
                 :upload-request="handleRefUpload"
-                :upload-remove="handleRefRemove"
                 @prev="step = isStyleMode ? addonStep : 1"
                 @next="goNextFromDetail"
               />
@@ -288,7 +287,7 @@ const {
   artist: artistRaw, rulesContent, loading, loadError, retryLoad, workflowStages,
   form, rules,
   submitting, showSuccess, resultNo, trackUrl, submit,
-  refFileList, handleRefUpload: rawHandleRefUpload, handleRefRemove,
+  refFileList, handleRefUpload: rawHandleRefUpload,
   sanitizedRules,
   // 折扣码
   discountEnabled, discountResult, discountError, discountValidating,
