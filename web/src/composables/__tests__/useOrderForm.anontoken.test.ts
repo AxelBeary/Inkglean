@@ -75,6 +75,11 @@ async function createForm() {
 
 const FILE = { size: 1024, name: 'ref.png', uid: 'u1' } as unknown as File & { uid: string | number }
 
+/** 模拟 EP onStart 落条目（v-model:file-list 下选文件即入同一数组，随后才走 http-request） */
+function landRefItem(of: ReturnType<typeof useOrderForm>) {
+  of.refFileList.value.push({ name: FILE.name, uid: FILE.uid, status: 'ready' })
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   h.getAnonToken.mockReset()
@@ -101,7 +106,8 @@ describe('useOrderForm 参考图归属凭据（G-7）', () => {
   it('带参考图提交：同一 x-anon-token + 幂等键同时携带', async () => {
     h.getAnonToken.mockResolvedValue('anon-token-abc')
     const of = await createForm()
-    await of.handleRefUpload({ file: FILE }) // 上传成功即持有参考图路径
+    landRefItem(of)
+    await of.handleRefUpload({ file: FILE }) // 上传成功即回填参考图路径到同一数组
     of.form.clientQq = '12345'
     of.form.agreed = true
 
@@ -129,6 +135,7 @@ describe('useOrderForm 参考图归属凭据（G-7）', () => {
     // 上传时凭证可用并记录；提交时获取链路已失效（如埋点 400 清缓存）→ 仍用上传同源 token
     h.getAnonToken.mockResolvedValue('anon-token-abc')
     const of = await createForm()
+    landRefItem(of)
     await of.handleRefUpload({ file: FILE })
     of.form.clientQq = '12345'
     of.form.agreed = true
@@ -157,6 +164,7 @@ describe('useOrderForm 参考图归属凭据（G-7）', () => {
       .mockResolvedValueOnce({ filePath: 'references/r.png', url: '/uploads/references/r.png' })
 
     const of = await createForm()
+    landRefItem(of)
     await of.handleRefUpload({ file: FILE })
 
     expect(h.reference).toHaveBeenCalledTimes(2)
