@@ -28,7 +28,7 @@ interface ArtistState {
   isAdmin: boolean
 }
 
-// WEB-12: 会话序号守卫——logout/applySession 时递增，使旧在途请求失效；
+// WEB-12: 会话序号守卫——resetSession/applySession 时递增，使旧在途请求失效；
 // 对比 useOrderPayments.ts:23 / ArtStyleManager.vue:564 已有 loadSeq 模式，
 // 布尔守卫 if(!this.loggedIn) 无法拦截「logout→login(B) 后 A 的在途响应到达」场景
 let sessionSeq = 0
@@ -122,21 +122,28 @@ export const useArtistStore = defineStore('artist', {
       this.stats = stats
     },
 
-    // 登出
-    async logout(): Promise<void> {
-      // WEB-12: 登出递增序号，使旧在途请求失效
+    /**
+     * issue #52-1/#52-2: 会话清理的唯一入口（登出与 401 通路共用；$reset 不再承担此职责）。
+     * 先递增序号再清态——在途 fetchProfile/fetchStats 的响应到达时会被序号比对拦下。
+     */
+    resetSession(): void {
       ++sessionSeq
-      // WEB-12: 重置 loading（旧在途请求的 finally 不再负责熄灭）
-      this.loading = false
-      try { await authApi.logout() } catch { /* 静默 */ }
       this.loggedIn = false
       this.profile = null
       this.stats = null
+      this.loading = false
       this.isAdmin = false
       safeRemoveItem('artist_logged_in')
       safeRemoveItem('artist_is_admin')
       // WEB-13: 登出时清理客户查单令牌（明文 token 不得跨会话驻留）
       safeRemoveItem(TRACK_LINKS_KEY)
+    },
+
+    // 登出
+    logout(): void {
+      // #52-1: 本地态先清再发请求——登出即时生效，不让 15s 超时的撤销请求拖住跳转
+      this.resetSession()
+      void authApi.logout().catch(() => { /* 服务端撤销失败不影响本地已登出 */ })
     }
   }
 })

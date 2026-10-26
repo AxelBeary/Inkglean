@@ -24,13 +24,13 @@
  *   回退全量刷新——向后兼容，未改造的消费者行为不变
  *
  * 硬规则：
- * - 静默失败（catch 吞掉，不打扰用户）
+ * - 失败只暴露不中断（issue #52-5：refreshError 可见，不再静默吞掉整批失败）
  * - 防重入（多张图同时 error 合并为一次批量刷新）
  * - @error 触发的刷新加 300ms 防抖 + 每图最大重试 2 次
  * - 定时刷新不受重试上限限制（定期兜底不应被阻断）
  * - onUnmounted 自动清理定时器和防抖计时器
  */
-import { onUnmounted } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import { artistApi } from '../api/index'
 
 // G1：后端签名 TTL 已缩至 5 分钟（file-sign.ts FILE_TTL_MS），间隔/阈值同步压缩并 export 做口径哨兵。
@@ -40,6 +40,9 @@ const MAX_ERROR_RETRIES = 2 // @error 触发刷新的每图最大重试次数
 // R-15: 后台标签回可见的补刷阈值（Chrome 节流 setInterval 后，切后台签名会过期；
 // 回可见时距上次刷新超过该阈值立即补一次。G1：旧值 8 分钟 > TTL 5 分钟已失效，压至 2 分钟）
 export const VISIBLE_REFRESH_THRESHOLD_MS = 2 * 60 * 1000
+// #52-5：服务端 refresh-signatures 的 paths 上限是 maxItems:50（server/src/features/order/order-list.routes.ts），
+// 整批超限会被 400 拒掉——长列表一次收集上百张图时全量刷新会整体失效，故按上限分片。
+export const SIGNATURE_REFRESH_BATCH_SIZE = 50
 
 export function useSignatureRefresh({ collect, apply, intervalMs = DEFAULT_INTERVAL_MS }: {
   collect: () => string[]
@@ -51,6 +54,8 @@ export function useSignatureRefresh({ collect, apply, intervalMs = DEFAULT_INTER
   let lastRefreshAt = Date.now()
   const pendingPaths = new Set<string>() // 等待刷新的出错图片 path（BUG-5：Set 去重）
   const errorRetries = new Map<string, number>() // path → 重试次数（BUG-5：按图独立计数）
+  // #52-5: 最近一次失败原因（成功即清空）；调用方/测试可据此感知，不再静默
+  const refreshError = ref<unknown>(null)
 
   /** R-15: 页面回可见时补刷（防后台定时器节流导致的签名过期） */
   function onVisibilityChange() {
@@ -67,17 +72,26 @@ export function useSignatureRefresh({ collect, apply, intervalMs = DEFAULT_INTER
     const targets = paths?.length ? paths : collect()
     if (!targets.length) return
     refreshing = true
+    // 已成功换签的路径数：分片失败时只对未换签的路径累加重试计数
+    let done = 0
     try {
-      const { urls } = await artistApi.refreshSignatures(targets)
-      apply(urls)
+      // #52-5: 按服务端上限分片、串行提交（并发会撞 refresh-sig 限流 20 次/5min）
+      for (let i = 0; i < targets.length; i += SIGNATURE_REFRESH_BATCH_SIZE) {
+        const chunk = targets.slice(i, i + SIGNATURE_REFRESH_BATCH_SIZE)
+        const { urls } = await artistApi.refreshSignatures(chunk)
+        apply(urls)
+        done = i + chunk.length
+      }
       lastRefreshAt = Date.now() // 只按成功刷新计时（失败不推迟补刷）
+      refreshError.value = null
       for (const p of targets) errorRetries.delete(p) // 刷新成功 → 清除该图计数
-    } catch {
+    } catch (err) {
+      // #52-5: 失败即停止后续分片，但把失败暴露出去（原实现整段静默）
+      refreshError.value = err
       if (fromError) {
         // BUG-5：按图累加，超限后仅该图不再重试，其他图不受影响
-        for (const p of targets) errorRetries.set(p, (errorRetries.get(p) || 0) + 1)
+        for (const p of targets.slice(done)) errorRetries.set(p, (errorRetries.get(p) || 0) + 1)
       }
-      // 静默失败：刷新不成功不应打断用户操作，定时刷新仍会兜底
     } finally {
       refreshing = false
     }
@@ -117,5 +131,5 @@ export function useSignatureRefresh({ collect, apply, intervalMs = DEFAULT_INTER
     document.removeEventListener('visibilitychange', onVisibilityChange)
   })
 
-  return { refreshNow }
+  return { refreshNow, refreshError }
 }
