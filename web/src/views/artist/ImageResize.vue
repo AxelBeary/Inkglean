@@ -94,6 +94,9 @@ const resultBytes = ref(0)
 const resultW = ref(0)
 const resultH = ref(0)
 let resultObjectUrl: string | null = null
+// 双代次守卫：sourceGen 作废在途 FileReader，processGen 作废在途压缩（换图/卸载都要能把旧结果丢掉）
+let sourceGen = 0
+let processGen = 0
 
 const qualityPercent = computed(() => Math.round(quality.value * 100))
 const originalSizeText = computed(() => formatBytes(originalBytes.value))
@@ -121,8 +124,15 @@ function acceptImageFile(file: File) {
   }
   fileName.value = file.name
   originalBytes.value = file.size
+  // 换图即作废在途读图与压缩：旧结果不再回写，processing 就地解除（旧任务的 finally 已被代次挡掉）
+  sourceGen += 1
+  processGen += 1
+  processing.value = false
+  const gen = sourceGen
   const reader = new FileReader()
   reader.onload = () => {
+    // 连选两张时后发的读图可能先回来，先发的那份必须丢弃
+    if (gen !== sourceGen) return
     sourceDataUrl.value = reader.result as string
     // 换图后旧结果失效
     releaseResult()
@@ -144,7 +154,10 @@ function releaseResult() {
 /** canvas 缩放压缩 → WebP blob → 本地预览 + 体积估算（纯前端，不出网） */
 async function process() {
   if (!sourceDataUrl.value || processing.value) return
+  const gen = processGen
   const target = targetSize(preset.value, customW.value, customH.value)
+  // quality 随参数一起快照：await 之后再读会拿到换图/拖动滑块后的新值
+  const quality0 = quality.value
   if (!isValidCustomDims(target.width, target.height)) {
     ElMessage.warning(t('imageResize.invalidDims'))
     return
@@ -153,7 +166,9 @@ async function process() {
   try {
     const img = await loadImage(sourceDataUrl.value)
     const dstH = target.height ?? autoHeight(img.naturalWidth, img.naturalHeight, target.width)
-    const blob = await resizeImageToBlob(img, { width: target.width, height: dstH, quality: quality.value })
+    const blob = await resizeImageToBlob(img, { width: target.width, height: dstH, quality: quality0 })
+    // 期间换过图/卸载过：结果属于旧图，不能覆盖新图的结果区，也不动 processing（已由换图重置）
+    if (gen !== processGen) return
     releaseResult()
     resultObjectUrl = URL.createObjectURL(blob)
     resultDataUrl.value = resultObjectUrl
@@ -161,9 +176,9 @@ async function process() {
     resultW.value = target.width
     resultH.value = dstH ?? 0
   } catch {
-    ElMessage.error(t('imageResize.processFailed'))
+    if (gen === processGen) ElMessage.error(t('imageResize.processFailed'))
   } finally {
-    processing.value = false
+    if (gen === processGen) processing.value = false
   }
 }
 
@@ -177,7 +192,12 @@ function download() {
   a.remove()
 }
 
-onUnmounted(releaseResult)
+onUnmounted(() => {
+  // 卸载后 onload/await 仍可能回来（组件实例已死）：抬高代次令其全部落空
+  sourceGen += 1
+  processGen += 1
+  releaseResult()
+})
 </script>
 
 <style scoped>

@@ -4,15 +4,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { MockInstance } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 
-const { ElMessage } = vi.hoisted(() => ({ ElMessage: { success: vi.fn(), warning: vi.fn(), error: vi.fn() } }))
+const { ElMessage, loadImageMock } = vi.hoisted(() => ({
+  ElMessage: { success: vi.fn(), warning: vi.fn(), error: vi.fn() },
+  loadImageMock: vi.fn()
+}))
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string, params?: Record<string, unknown>) => (params ? `${key}:${JSON.stringify(params)}` : key) })
 }))
 vi.mock('element-plus', () => ({ ElMessage }))
-vi.mock('../../utils/watermark.js', () => ({
-  loadImage: vi.fn(() => Promise.resolve({ naturalWidth: 1000, naturalHeight: 500 }))
-}))
+// 路径按测试文件所在目录解析（原写 '../../utils/watermark.js' 指向不存在的 views/utils，mock 一直空转）
+vi.mock('../../../utils/watermark.js', () => ({ loadImage: loadImageMock }))
 
 import ImageResize from '../ImageResize.vue'
 
@@ -45,6 +47,14 @@ const ElButtonStub = {
 // 被测组件仍为 JS script-setup：vm 暴露面以局部 interface 描述（最小必要断言）
 interface ImageResizeVM {
   preset: string
+  quality: number
+}
+
+/** 可控 Promise：模拟「压缩还在跑」的中间态 */
+function createDeferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((r) => { resolve = r })
+  return { promise, resolve }
 }
 
 function mountResize() {
@@ -72,6 +82,8 @@ describe('压图改尺寸（812-tools-a）', () => {
   let anchorClickSpy: MockInstance
 
   beforeEach(() => {
+    loadImageMock.mockReset()
+    loadImageMock.mockImplementation(() => Promise.resolve({ naturalWidth: 1000, naturalHeight: 500 } as HTMLImageElement))
     getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: vi.fn() } as unknown as CanvasRenderingContext2D)
     toBlobSpy = vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((cb) => {
       cb(new Blob(['fake-webp'], { type: 'image/webp' }))
@@ -142,5 +154,48 @@ describe('压图改尺寸（812-tools-a）', () => {
     await flushPromises()
     expect(ElMessage.warning).toHaveBeenCalledWith('imageResize.invalidDims')
     expect(toBlobSpy).not.toHaveBeenCalled()
+  })
+
+  // issue #53-3：压缩在途时换图——旧图结果不得回写（此前 await 后无条件写 result*）
+  it('压缩中换图：旧图的压缩结果不回写、不产生 blob 预览，新图仍可正常压缩', async () => {
+    const { wrapper } = mountResize()
+    const slowA = createDeferred<HTMLImageElement>()
+    loadImageMock.mockReturnValueOnce(slowA.promise)
+
+    await chooseImage(wrapper) // A
+    await wrapper.find('.ir-process').trigger('click')
+    expect(wrapper.find('.ir-process').text()).toBe('imageResize.processing')
+
+    await chooseImage(wrapper) // B：换图作废在途压缩
+    expect(wrapper.find('.ir-process').text()).toBe('imageResize.process')
+
+    slowA.resolve({ naturalWidth: 1000, naturalHeight: 500 } as HTMLImageElement)
+    await flushPromises()
+
+    // 旧图结果整段落空：既无预览卡，也没创建过 blob URL（旧代码此处会写出结果）
+    expect(wrapper.find('.ir-result').exists()).toBe(false)
+    expect(URL.createObjectURL).not.toHaveBeenCalled()
+
+    // 防过度修复：B 的正常路径不被守卫挡住
+    await wrapper.find('.ir-process').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.ir-result').exists()).toBe(true)
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(1)
+    expect(wrapper.text()).toContain('imageResize.resultDims:{"w":1242,"h":1660}')
+  })
+
+  // issue #53-3 连带：quality 此前在 await 之后才读，会拿到压缩途中被拖动后的新值
+  it('压缩中调滑块：按点击那一刻的 quality 产出', async () => {
+    const { wrapper, vm } = mountResize()
+    const slow = createDeferred<HTMLImageElement>()
+    loadImageMock.mockReturnValueOnce(slow.promise)
+
+    await chooseImage(wrapper)
+    await wrapper.find('.ir-process').trigger('click')
+    vm.quality = 0.5
+    slow.resolve({ naturalWidth: 1000, naturalHeight: 500 } as HTMLImageElement)
+    await flushPromises()
+
+    expect(toBlobSpy).toHaveBeenCalledWith(expect.any(Function), 'image/webp', 0.85)
   })
 })

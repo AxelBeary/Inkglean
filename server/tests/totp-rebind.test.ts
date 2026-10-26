@@ -457,3 +457,63 @@ describe('GHSA-6pf3 低-4：重绑暂存存储有界与惰性清理', () => {
     expect(entry!.expiresAt).toBeLessThanOrEqual(Date.now() + 5 * 60_000 + 5000)
   })
 })
+
+// ============================================
+// issue #53-5：冷却脚本按 UTC 文本解析
+// 列值是 SQLite datetime('now') 的 UTC 文本；裸 new Date() 按容器本地时区解析，
+// TZ=Asia/Shanghai（docker-compose.yml 同口径）下冷却只剩 16h——前端倒计时与后端放行时刻都错。
+// ============================================
+describe('issue #53-5：重绑冷却按 UTC 文本解析', () => {
+  let app: FastifyInstance
+
+  beforeEach(async () => {
+    cleanDb()
+    resetRateLimitBuckets() // 同文件前序用例已打满 rebind-init 桶，须重置
+    app = await buildApp({ logger: false })
+    await app.ready()
+  })
+
+  afterEach(async () => {
+    await app.close()
+  })
+
+  async function rebindInitStatus(artistId: number, tokenVersion: number) {
+    const token = createSession(artistId, tokenVersion)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/totp/rebind-init',
+      headers: { Authorization: 'Bearer ' + token }
+    })
+    return res
+  }
+
+  it('TC-COOL-UTC-01: 刚重绑（datetime(now)）→ 429 且剩余约 24h，不得缩水成 16h', async () => {
+    const artist = seedArtist({ qq_number: '99801', subdomain: 'cool-utc-now' })
+    db.prepare("UPDATE artists SET totp_rebound_at = datetime('now') WHERE id = ?").run(artist.id)
+
+    const res = await rebindInitStatus(artist.id, artist.token_version)
+    expect(res.statusCode).toBe(429)
+    const body = res.json()
+    expect(body.code).toBe('REBIND_COOLDOWN')
+    // 本地时区误解析会让 Date.now()-rebound 凭空多出 8h，剩余只剩 ~16h
+    expect(body.detail.remainingMs).toBeGreaterThan(23 * 60 * 60 * 1000)
+    expect(body.detail.remainingMs).toBeLessThanOrEqual(24 * 60 * 60 * 1000)
+  })
+
+  it('TC-COOL-UTC-02: 17 小时前重绑仍在冷却内（旧实现会误判为已满 24h 放行）', async () => {
+    const artist = seedArtist({ qq_number: '99802', subdomain: 'cool-utc-17h' })
+    db.prepare("UPDATE artists SET totp_rebound_at = datetime('now', '-17 hours') WHERE id = ?").run(artist.id)
+
+    const res = await rebindInitStatus(artist.id, artist.token_version)
+    expect(res.statusCode).toBe(429)
+    expect(res.json().code).toBe('REBIND_COOLDOWN')
+  })
+
+  it('TC-COOL-UTC-03: 25 小时前重绑已过冷却 → 放行', async () => {
+    const artist = seedArtist({ qq_number: '99803', subdomain: 'cool-utc-past' })
+    db.prepare("UPDATE artists SET totp_rebound_at = datetime('now', '-25 hours') WHERE id = ?").run(artist.id)
+
+    const res = await rebindInitStatus(artist.id, artist.token_version)
+    expect(res.statusCode).toBe(200)
+  })
+})

@@ -35,10 +35,10 @@
         <div class="ctrl">
           <!-- 已绑定：显示重绑按钮 -->
           <template v-if="totpVerified">
-            <el-button v-if="rebindStep === 'idle'" type="primary" size="small" @click="startRebind" :disabled="rebindCooldownMs > 0">
+            <el-button v-if="rebindStep === 'idle'" type="primary" size="small" @click="startRebind" :disabled="cooldownActive">
               {{ t('account.totpRebind') }}
             </el-button>
-            <p v-if="rebindCooldownMs > 0" class="cooldown-hint">
+            <p v-if="cooldownActive" class="cooldown-hint">
               {{ t('account.totpRebindCooldown', { hours: Math.ceil(rebindCooldownMs / 3600000) }) }}
             </p>
           </template>
@@ -235,13 +235,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../stores/artist'
 import { webauthnApi, totpRebindApi, calendarFeedApi, artistApi } from '../../api/index'
 import { WarningFilled, Loading } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { copyText as copyToClipboard } from '../../utils/clipboard'
+import { safeGetItem, safeSetItem, safeRemoveItem } from '../../utils/storage'
 import {
   toCredentialCreationOptions,
   toCredentialRequestOptions,
@@ -380,6 +381,48 @@ const rebindCooldownMs = ref(0)
 // passkey 重绑（a1 修复后）：Step1 走登录仪式——loginOptions 拿挑战 + credentials.get 产 assertion，暂存到 confirm 时交后端 verifyLogin
 const rebindPasskeyCredential = ref<unknown>(null)
 
+// ─── 重绑冷却（issue #53-5：本地存「上次重绑时刻」，每次按 Date.now 反算）───
+// 管理员在服务端豁免（auth.routes.ts），前端同口径不禁用
+const isAdmin = computed(() => store.isAdmin === true)
+const cooldownActive = computed(() => rebindCooldownMs.value > 0 && !isAdmin.value)
+let cooldownTimer: ReturnType<typeof setInterval> | null = null
+
+function cooldownStorageKey(): string {
+  const id = profile.value?.id
+  return id == null ? '' : `huiyue_totp_rebound_at_${id}`
+}
+
+/** 剩余量一律由时间戳反算：不做自减计数（后台标签页节流时自减会漂） */
+function syncCooldown() {
+  const key = cooldownStorageKey()
+  if (!key) { rebindCooldownMs.value = 0; return }
+  const raw = safeGetItem(key)
+  const at = raw == null ? NaN : Number(raw)
+  if (!Number.isFinite(at)) {
+    if (raw != null) safeRemoveItem(key) // 脏值按无冷却处理并清掉
+    rebindCooldownMs.value = 0
+    return
+  }
+  const remain = at + REBIND_COOLDOWN_DEFAULT_MS - Date.now()
+  if (remain <= 0) {
+    safeRemoveItem(key)
+    rebindCooldownMs.value = 0
+    return
+  }
+  rebindCooldownMs.value = remain
+}
+
+/** 落盘「距今 remainMs 到期」——成功写满 24h，429 用服务端 remainingMs 校正 */
+function markCooldown(remainMs: number) {
+  const remain = Math.max(0, remainMs)
+  const key = cooldownStorageKey()
+  if (key) {
+    if (remain > 0) safeSetItem(key, String(Date.now() + remain - REBIND_COOLDOWN_DEFAULT_MS))
+    else safeRemoveItem(key)
+  }
+  rebindCooldownMs.value = remain
+}
+
 async function startRebind() {
   rebindStep.value = 'verify'
   rebindLoading.value = true
@@ -395,9 +438,9 @@ async function startRebind() {
   } catch (err) {
     if (isBackendError(err) && err.code === 'REBIND_COOLDOWN') {
       rebindStep.value = 'idle'
-      rebindCooldownMs.value = typeof err.detail?.remainingMs === 'number'
+      markCooldown(typeof err.detail?.remainingMs === 'number'
         ? err.detail.remainingMs
-        : REBIND_COOLDOWN_DEFAULT_MS
+        : REBIND_COOLDOWN_DEFAULT_MS)
     } else {
       rebindStep.value = 'idle'
       ElMessage.error(t('account.totpRebindFailed'))
@@ -463,7 +506,7 @@ async function confirmRebind() {
     await totpRebindApi.rebindConfirm(body)
     rebindStep.value = 'done'
     // 刷新 store（踢下线后 store 会被清除）
-    rebindCooldownMs.value = REBIND_COOLDOWN_DEFAULT_MS
+    markCooldown(REBIND_COOLDOWN_DEFAULT_MS)
   } catch {
     ElMessage.error(t('account.totpRebindFailed'))
   } finally {
@@ -545,6 +588,14 @@ onMounted(() => {
   }
   loadFeed()
   loadDevices()
+  // 冷却键按画师 id 命名，profile 到位（含直链异步拉取）后再读；后续每秒按 Date.now 重算
+  cooldownTimer = setInterval(syncCooldown, 1000)
+})
+
+watch(() => profile.value?.id, () => syncCooldown(), { immediate: true })
+
+onUnmounted(() => {
+  if (cooldownTimer) { clearInterval(cooldownTimer); cooldownTimer = null }
 })
 </script>
 
