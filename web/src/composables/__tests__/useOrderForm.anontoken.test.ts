@@ -15,11 +15,12 @@ const h = vi.hoisted(() => ({
   getFreshAnonToken: vi.fn(),
   create: vi.fn(),
   reference: vi.fn(),
-  msgError: vi.fn()
+  msgError: vi.fn(),
+  msgWarning: vi.fn()
 }))
 
 vi.mock('element-plus', () => ({
-  ElMessage: { success: vi.fn(), error: h.msgError, warning: vi.fn(), info: vi.fn() },
+  ElMessage: { success: vi.fn(), error: h.msgError, warning: h.msgWarning, info: vi.fn() },
   ElMessageBox: { confirm: vi.fn(() => Promise.resolve('confirm')) }
 }))
 
@@ -74,10 +75,11 @@ async function createForm() {
 }
 
 const FILE = { size: 1024, name: 'ref.png', uid: 'u1' } as unknown as File & { uid: string | number }
+const FILE_B = { size: 1024, name: 'ref-b.png', uid: 'u2' } as unknown as File & { uid: string | number }
 
 /** 模拟 EP onStart 落条目（v-model:file-list 下选文件即入同一数组，随后才走 http-request） */
-function landRefItem(of: ReturnType<typeof useOrderForm>) {
-  of.refFileList.value.push({ name: FILE.name, uid: FILE.uid, status: 'ready' })
+function landRefItem(of: ReturnType<typeof useOrderForm>, file: File & { uid: string | number } = FILE) {
+  of.refFileList.value.push({ name: file.name, uid: file.uid, status: 'ready' })
 }
 
 beforeEach(() => {
@@ -191,5 +193,81 @@ describe('useOrderForm 参考图归属凭据（G-7）', () => {
     expect(h.reference).toHaveBeenCalledTimes(1)
     expect(h.getFreshAnonToken).toHaveBeenCalledTimes(1)
     expect(h.msgError).toHaveBeenCalledWith('缺少有效匿名凭证（x-anon-token）')
+  })
+})
+
+// issue #50-8：整表参考图必须同一凭证——凭证中途换新不得静默混提
+describe('useOrderForm 上传凭证锁定（#50-8）', () => {
+  it('首次上传后凭证换新 → 旧批参考图被清空并提示需重传，提交只带新凭证的图', async () => {
+    h.getAnonToken.mockResolvedValue('anon-token-old')
+    const of = await createForm()
+    landRefItem(of)
+    await of.handleRefUpload({ file: FILE })
+    expect(of.refFileList.value.map(f => f.filePath)).toEqual(['references/r.png'])
+
+    // anonUpload 内部换新（旧凭证失效重试）：第二次上传用的是新凭证
+    h.getAnonToken.mockResolvedValue('anon-token-new')
+    h.reference.mockImplementationOnce((file: File) => Promise.resolve({
+      filePath: `references/${file.name}`, url: `/uploads/references/${file.name}`
+    }))
+    landRefItem(of, FILE_B)
+    await of.handleRefUpload({ file: FILE_B })
+
+    expect(of.refFileList.value.map(f => f.filePath)).toEqual(['references/ref-b.png'])
+    expect(h.msgWarning).toHaveBeenCalledWith('orderForm.refTokenRotated')
+
+    of.form.clientQq = '12345'
+    of.form.agreed = true
+    await of.submit()
+    const [payload, options] = createMock.mock.calls[0]
+    expect(payload.references).toEqual(['references/ref-b.png'])
+    expect(options.headers['x-anon-token']).toBe('anon-token-new')
+  })
+
+  it('凭证未变 → 参考图全部保留并随提交发出', async () => {
+    h.getAnonToken.mockResolvedValue('anon-token-abc')
+    const of = await createForm()
+    landRefItem(of)
+    await of.handleRefUpload({ file: FILE })
+    h.reference.mockImplementationOnce((file: File) => Promise.resolve({
+      filePath: `references/${file.name}`, url: `/uploads/references/${file.name}`
+    }))
+    landRefItem(of, FILE_B)
+    await of.handleRefUpload({ file: FILE_B })
+
+    expect(of.refFileList.value.map(f => f.filePath)).toEqual(['references/r.png', 'references/ref-b.png'])
+    expect(h.msgWarning).not.toHaveBeenCalled()
+
+    of.form.clientQq = '12345'
+    of.form.agreed = true
+    await of.submit()
+    const [payload, options] = createMock.mock.calls[0]
+    expect(payload.references).toEqual(['references/r.png', 'references/ref-b.png'])
+    expect(options.headers['x-anon-token']).toBe('anon-token-abc')
+  })
+
+  it('无参考图时凭证换新 → 不提示、不阻塞（没有旧批可混）', async () => {
+    h.getAnonToken.mockResolvedValue('anon-token-old')
+    const of = await createForm()
+    landRefItem(of)
+    await of.handleRefUpload({ file: FILE })
+    // 用户把已传的图删了：列表里无旧批条目
+    of.refFileList.value.splice(0)
+
+    h.getAnonToken.mockResolvedValue('anon-token-new')
+    h.reference.mockImplementationOnce((file: File) => Promise.resolve({
+      filePath: `references/${file.name}`, url: `/uploads/references/${file.name}`
+    }))
+    landRefItem(of, FILE_B)
+    await of.handleRefUpload({ file: FILE_B })
+
+    expect(h.msgWarning).not.toHaveBeenCalled()
+    expect(of.refFileList.value.map(f => f.filePath)).toEqual(['references/ref-b.png'])
+
+    of.form.clientQq = '12345'
+    of.form.agreed = true
+    await of.submit()
+    expect(orderApi.create).toHaveBeenCalledTimes(1)
+    expect(createMock.mock.calls[0][1].headers['x-anon-token']).toBe('anon-token-new')
   })
 })

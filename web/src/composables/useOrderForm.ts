@@ -146,7 +146,20 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
 
   // ─── 校验规则 ───
   const rules = {
-    clientQq: [{ required: true, message: () => t('orderForm.fillQq'), trigger: 'blur' }],
+    clientQq: [
+      { required: true, message: () => t('orderForm.fillQq'), trigger: 'blur' },
+      {
+        // issue #50-5：与服务端 POST /api/orders 的 clientQq 逐字同口径（5-15 位数字），
+        // 提交前也 trim，等价于对最终载荷校验；空值交给上一条 required，避免双报
+        validator: (_rule: unknown, value: unknown, callback: (error?: Error) => void) => {
+          const raw = String(value ?? '')
+          if (!raw) callback()
+          else if (!/^\d{5,15}$/.test(raw.trim())) callback(new Error(t('errors.QQ_FORMAT')))
+          else callback()
+        },
+        trigger: 'blur'
+      }
+    ],
     agreed: [{
       validator: (_rule: unknown, value: unknown, callback: (error?: Error) => void) => {
         // R24：错误文案走 order.validation 命名空间（弹窗与行内提示一致）
@@ -190,6 +203,24 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
     .filter((p): p is string => typeof p === 'string' && p.length > 0))
   /** 本次会话成功上传参考图时实际使用的匿名凭证——下单提交必须与上传同源（F-10 归属校验） */
   let refUploadToken: string | null = null
+
+  /**
+   * issue #50-8：整表参考图必须同一凭证。服务端按 anon_id 逐条校验，混用会在提交时整体回滚且
+   * 不给指向性提示。故凭证首次上传成功即锁定；后续上传若被 anonUpload 换新（旧凭证失效重试），
+   * 旧批参考图已归属旧 anon_id，只能就地清空并明确要求重传，⛔ 不静默混提。
+   */
+  function lockRefUploadToken(token: string) {
+    if (refUploadToken === token) return
+    const rotated = refUploadToken !== null
+    refUploadToken = token
+    // 无已提交条目（用户已删除/从未传成）时无需打扰：没有旧批可混
+    if (!rotated || !refFileList.value.some(item => item.filePath)) return
+    // 原地 splice 而非换数组：el-upload 的 v-model:file-list 绑定同一个数组实例
+    for (let i = refFileList.value.length - 1; i >= 0; i--) {
+      if (refFileList.value[i].filePath) refFileList.value.splice(i, 1)
+    }
+    ElMessage.warning(t('orderForm.refTokenRotated'))
+  }
 
   // ─── 计算属性 ───
   const sanitizedRules = computed(() => sanitizeHtml(rulesContent.value))
@@ -481,7 +512,8 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
       // G-7（P2-13 前端侧）: 上传前 await 凭证；缓存凭证失效（INVALID_ANON_TOKEN）时
       // anonUpload 内部换新重试一次，避免公网用户被旧凭证卡死
       const { uploaded, token } = await uploadReferenceWithAnonToken(file)
-      refUploadToken = token
+      // issue #50-8：凭证换新会清空旧批已传条目（按 filePath 判），本条在途条目无路径，回填不受影响
+      lockRefUploadToken(token)
       // 按 uid 回填 EP 已落进同一数组的条目（EP 的 onStart 先于 http-request）：
       // 回填而非追加，否则同一张图会出现两条，上限与提交都会多算
       const item = refFileList.value.find(f => String(f.uid) === String(file.uid))
@@ -513,7 +545,8 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
       }
       try {
         const { uploaded, token } = await uploadReferenceWithAnonToken(file)
-        refUploadToken = token
+        // issue #50-8：先结算凭证（换新时清掉旧批已传条目），再把本条推进同一数组
+        lockRefUploadToken(token)
         // 与点选条目同形（含 filePath）：粘贴条目落进即带路径，无需回填
         refFileList.value.push({
           name: file.name || 'pasted-image.png',
