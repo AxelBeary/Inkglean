@@ -148,3 +148,82 @@ describe('TplGallery WEB-07：likedIds 响应式 + likeCountOverrides', () => {
     expect(btn.props('initialCount')).toBe(6)
   })
 })
+
+// #56 筛选切换不再重播整块入场：key 随筛选变化 → 子树重建 → useScrollReveal 的 MutationObserver
+// 无差别补挂 .tpl-visible → 0.42s 阶梯动画整块重放（12 项实测约 1.08s）。
+// 修复口径：首次挂载保留入场；setFilter 首次调用后置 revealDone，两处根类不再挂 tpl-reveal。
+describe('TplGallery #56：筛选切换不重播入场动画', () => {
+  const GALLERY_WITH_FILTERS = {
+    filterSizes: [
+      { id: 11, name: 'A4', style_id: 1, style_name: '线稿', sort_order: 1 },
+      { id: 12, name: 'A3', style_id: 1, style_name: '线稿', sort_order: 2 }
+    ],
+    artworks: [
+      { id: 1, title: 'Art 1', image_path: 'img/1.png', like_count: 5, size_tags: [{ style_size_id: 11 }] },
+      { id: 2, title: 'Art 2', image_path: 'img/2.png', like_count: 10, size_tags: [{ style_size_id: 12 }] },
+      { id: 3, title: 'Art 3', image_path: 'img/3.png', like_count: 0, size_tags: [{ style_size_id: 11 }] }
+    ]
+  }
+
+  /** Transition mode="out-in" 在无 CSS 的测试环境里靠定时器收尾（与上方翻页用例同口径） */
+  async function settleSwap(wrapper: ReturnType<typeof mountGallery>) {
+    vi.advanceTimersByTime(100)
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+  }
+
+  beforeEach(() => {
+    h.push.mockReset()
+    h.storage.clear()
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('首次挂载仍带入场景观类（tpl-reveal，入场动画不受影响）', () => {
+    const wrapper = mountGallery({ gallery: GALLERY_WITH_FILTERS, layout: 'masonry' })
+    const items = wrapper.findAll('.tpl-gallery-item')
+    expect(items).toHaveLength(3)
+    expect(items.every(i => i.classes().includes('tpl-reveal'))).toBe(true)
+  })
+
+  it('切一次筛选后新节点不再挂 tpl-reveal（重建不重播）', async () => {
+    const wrapper = mountGallery({ gallery: GALLERY_WITH_FILTERS, layout: 'masonry' })
+    await wrapper.findAll('.tpl-gallery-filter')[1].trigger('click')
+    await settleSwap(wrapper)
+
+    const items = wrapper.findAll('.tpl-gallery-item')
+    expect(items).toHaveLength(2) // 筛选结果仍按 key 重建渲染
+    expect(items.some(i => i.classes().includes('tpl-reveal'))).toBe(false)
+  })
+
+  it('album：切筛选后舞台根节点同样不再挂 tpl-reveal（子组件口径同步）', async () => {
+    const wrapper = mountGallery({ gallery: GALLERY_WITH_FILTERS, layout: 'album' })
+    expect(wrapper.find('.tpl-gallery--album').classes()).toContain('tpl-reveal')
+
+    await wrapper.findAll('.tpl-gallery-filter')[1].trigger('click')
+    await settleSwap(wrapper)
+
+    expect(wrapper.find('.tpl-gallery--album').classes()).not.toContain('tpl-reveal')
+    // 翻页 DOM 仍在（Transition/key 行为不变）
+    expect(wrapper.find('.tpl-album-arrow--next').exists()).toBe(true)
+  })
+
+  it('切筛选后点赞响应式照旧透传（revealDone 不改数据链路）', async () => {
+    const wrapper = mountGallery({ gallery: GALLERY_WITH_FILTERS, layout: 'masonry' })
+    await wrapper.findAll('.tpl-gallery-filter')[1].trigger('click')
+    await settleSwap(wrapper)
+
+    const btn = wrapper.findComponent(ArtworkLikeButton)
+    expect(btn.props('liked')).toBe(false)
+    btn.vm.$emit('update:liked', true)
+    btn.vm.$emit('update:count', 6)
+    await wrapper.vm.$nextTick()
+
+    const updated = wrapper.findComponent(ArtworkLikeButton)
+    expect(updated.props('liked')).toBe(true)
+    expect(updated.props('initialCount')).toBe(6)
+  })
+})
