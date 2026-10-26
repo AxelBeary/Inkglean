@@ -4,7 +4,9 @@
  * 职责：
  *   1. 扫描 web/src 下 .vue/.js/.ts 中「用户可见硬编码中文/英文」（template 文本节点、
  *      ElMessage/ElMessageBox/alert/confirm 参数、placeholder/title/label 等属性）。
- *   2. 存量违规写入 baseline（scripts/i18n-baseline.json）豁免，不修存量；
+ *   2. 扫描 .vue template 区插值外的全角标点：中文收进 $t 后往往把 `（` `：` 留在模板里，
+ *      英文态会原样显示中文标点（issue #54 漏网；中文主检测只能拦住中文本身）。
+ *   3. 存量违规写入 baseline（scripts/i18n-baseline.json）豁免，不修存量；
  *      新增违规直接 exit 1 拦截——「为了过验证而绕」和「新增屎山」在提交时被拦下。
  *
  * 用法：
@@ -24,10 +26,26 @@
  *   - baseline key = 相对路径 + 违规串原文；存量字符串未改即豁免，新增/修改即拦截
  */
 import { readdirSync, readFileSync, writeFileSync, existsSync } from 'fs'
-import { join, relative, sep } from 'path'
+import { join, relative, resolve, sep } from 'path'
 import { fileURLToPath } from 'url'
 
-const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..')
+/** 目录/自身路径解析：被单测 import 时 vite 会改写 new URL(..., import.meta.url)，失败退回 cwd */
+function selfDir(): string {
+  try {
+    return fileURLToPath(new URL('.', import.meta.url))
+  } catch {
+    return process.cwd()
+  }
+}
+function selfFile(): string {
+  try {
+    return fileURLToPath(import.meta.url).toLowerCase()
+  } catch {
+    return ''
+  }
+}
+
+const ROOT = join(selfDir(), '..')
 const SRC = join(ROOT, 'src')
 const BASELINE_FILE = join(ROOT, 'scripts', 'i18n-baseline.json')
 const INDEX_HTML = join(ROOT, 'index.html')
@@ -63,38 +81,55 @@ const WHITELIST = [
   'Google Authenticator', 'Microsoft Authenticator', '2FAS'  // b4 裁决：真实验证器品牌名可保留
 ]
 
+/**
+ * 中文判定字符类：〇(U+3007) 々(U+3005) Ext-A 主区 兼容区 Ext-B~I（Ext-B 起需 u 标志）。
+ * 全脚本只此一处口径——每条中文规则与预筛/复判都引用它，避免两套「算不算中文」。
+ */
+const CJK_CLASS = '\\u3007\\u3005\\u3400-\\u4DBF\\u4E00-\\u9FFF\\uF900-\\uFAFF\\u{20000}-\\u{2A6DF}\\u{2A700}-\\u{2EBEF}\\u{30000}-\\u{3134F}'
+/** 一段文本是否含中文（含扩展区） */
+export const CJK_RE = new RegExp(`[${CJK_CLASS}]`, 'u')
+
+/**
+ * 插值外全角标点：CJK 标点 + 全角形式区。
+ * 不含：全角字母数字/半角片假名；—(U+2014)…(U+2026)·(U+00B7) 这类占位符；
+ * ＋(U+FF0B) 全角加号——本仓当图标字用（8 处「＋ 添加」按钮），不是标点，纳入会误报。
+ * 「」『』(U+300C-300F) 属标点、会随语言变（英文态该出半角引号），故纳入；
+ * 仓库内最后一处硬编码（OrderRevisionCard 的阶段路径）已同批收进 locale。
+ */
+export const FULLWIDTH_PUNCT_RE = /[\u3001-\u303F\uFF01-\uFF0A\uFF0C-\uFF0F\uFF1A-\uFF20\uFF3B-\uFF40\uFF5B-\uFF65]/
+
 /** 模板/JS 中用户可见的文本位置（正则） */
 const RULES: I18nRule[] = [
   // template 文本节点：>中文<
-  { label: 'template-text', templateOnly: true, re: />\s*([^<>{}\n]*[\u4e00-\u9fff][^<>{}\n]*)</g },
+  { label: 'template-text', templateOnly: true, re: new RegExp(`>\\s*([^<>{}\\n]*[${CJK_CLASS}][^<>{}\\n]*)<`, 'gu') },
   // template 文本节点：>English<（b4 盲区；品牌名/语言自指走 WHITELIST）
   { label: 'template-text-en', templateOnly: true, re: />\s*((?!\/)[^<>{}\n]*[A-Za-z][^<>{}\n]*)</g },
   // {{ }} 插值里的中文串字面量（b4 盲区；$t/t 参数已在 maskTArgs 剔除）
-  { label: 'template-interp', templateOnly: true, re: /\{\{([^{}]*?)(['"`][^'"`\n]*[\u4e00-\u9fff][^'"`\n]*['"`])[^{}]*\}\}/g },
+  { label: 'template-interp', templateOnly: true, re: new RegExp(`\\{\\{([^{}]*?)(['"\`][^'"\`\\n]*[${CJK_CLASS}][^'"\`\\n]*['"\`])[^{}]*\\}\\}`, 'gu') },
   // 常见展示属性（直接写死的静态值）
-  { label: 'attr', re: /(?<![\w:@-])\b(placeholder|title|label|aria-label|empty-text|append-text|confirm-button-text|cancel-button-text|alt|text|content|description|tooltip|aria-description|aria-placeholder)\s*=\s*"([^"]*[\u4e00-\u9fff][^"]*)"/g },
+  { label: 'attr', re: new RegExp(`(?<![\\w:@-])\\b(placeholder|title|label|aria-label|empty-text|append-text|confirm-button-text|cancel-button-text|alt|text|content|description|tooltip|aria-description|aria-placeholder)\\s*=\\s*"([^"]*[${CJK_CLASS}][^"]*)"`, 'gu') },
   // 静态英文展示属性（b4 盲区；绑定表达式 :attr= 不查）
   { label: 'attr-en', re: /(?<![\w:@-])\b(placeholder|title|label|aria-label|empty-text|append-text|confirm-button-text|cancel-button-text|alt|text|content|description|tooltip|aria-description|aria-placeholder)\s*=\s*"([^"]*[A-Za-z][^"]*)"/g },
   // 冒号绑定里直接写死的中文字符串字面量（:placeholder="'请输入'" 之类）
-  { label: 'bound-literal', re: /:\s*(placeholder|title|label|aria-label)\s*=\s*"'\s*([^'"]*[\u4e00-\u9fff][^'"]*)\s*'"/g },
+  { label: 'bound-literal', re: new RegExp(`:\\s*(placeholder|title|label|aria-label)\\s*=\\s*"'\\s*([^'"]*[${CJK_CLASS}][^'"]*)\\s*'"`, 'gu') },
   // 冒号绑定里反引号字面量（b4 盲区：:title="`中文`"）
-  { label: 'bound-literal-ticks', re: /:\s*(placeholder|title|label|aria-label|alt|text|tooltip|description|aria-description)\s*=\s*"`([^"`\n]*[\u4e00-\u9fff][^"`\n]*)`"/g },
+  { label: 'bound-literal-ticks', re: new RegExp(`:\\s*(placeholder|title|label|aria-label|alt|text|tooltip|description|aria-description)\\s*=\\s*"\`([^"\`\\n]*[${CJK_CLASS}][^"\`\\n]*)\`"`, 'gu') },
   // ElMessage / ElMessageBox / alert / confirm 参数
-  { label: 'message', re: /\b(?:ElMessage\.(?:success|error|warning|info)|ElMessageBox\.(?:alert|confirm|prompt)|alert|confirm)\s*\(\s*['"`]([^'"`\n]*[\u4e00-\u9fff][^'"`\n]*)['"`]/g },
+  { label: 'message', re: new RegExp(`\\b(?:ElMessage\\.(?:success|error|warning|info)|ElMessageBox\\.(?:alert|confirm|prompt)|alert|confirm)\\s*\\(\\s*['"\`]([^'"\`\\n]*[${CJK_CLASS}][^'"\`\\n]*)['"\`]`, 'gu') },
   // 英文可见提示（b4 盲区）
   { label: 'message-en', re: /\b(?:ElMessage\.(?:success|error|warning|info)|ElMessageBox\.(?:alert|confirm|prompt)|alert|confirm)\s*\(\s*['"`]([^'"`\n]*[A-Za-z][^'"`\n]*)['"`]/g },
   // ElMessageBox 第二参（标题，b4 盲区；当前无实例）
-  { label: 'message-2nd', re: /\bElMessageBox\.(?:alert|confirm|prompt)\s*\(\s*[^,]+?,\s*['"`]([^'"`\n]*[\u4e00-\u9fff][^'"`\n]*)['"`]/g },
+  { label: 'message-2nd', re: new RegExp(`\\bElMessageBox\\.(?:alert|confirm|prompt)\\s*\\(\\s*[^,]+?,\\s*['"\`]([^'"\`\\n]*[${CJK_CLASS}][^'"\`\\n]*)['"\`]`, 'gu') },
   // 对象字面量错误消息（{ message: '中文' } / { error: '中文' }）
-  { label: 'err-object', re: /\b(?:message|error|title)\s*:\s*['"`]([^'"`\n]*[\u4e00-\u9fff][^'"`\n]*)['"`]/g },
+  { label: 'err-object', re: new RegExp(`\\b(?:message|error|title)\\s*:\\s*['"\`]([^'"\`\\n]*[${CJK_CLASS}][^'"\`\\n]*)['"\`]`, 'gu') },
   // new Error('中文') 构造参数（b4 盲区：可能经 err.message 上抛给用户）
-  { label: 'err-ctor', re: /\bnew\s+Error\s*\(\s*['"`]([^'"`\n]*[\u4e00-\u9fff][^'"`\n]*)['"`]/g }
+  { label: 'err-ctor', re: new RegExp(`\\bnew\\s+Error\\s*\\(\\s*['"\`]([^'"\`\\n]*[${CJK_CLASS}][^'"\`\\n]*)['"\`]`, 'gu') }
 ]
 
 /** web/index.html 静态 title/meta（b4 盲区；现有中文为已裁决的 SEO 兜底存量） */
 const HTML_RULES: I18nRule[] = [
-  { label: 'html-title', re: /<\s*title\s*>([^<]*[\u4e00-\u9fff][^<]*)<\s*\/\s*title\s*>/g },
-  { label: 'html-meta', re: /\b(?:content|name|property|site_name)\s*=\s*"([^"]*[\u4e00-\u9fff][^"]*)"/g }
+  { label: 'html-title', re: new RegExp(`<\\s*title\\s*>([^<]*[${CJK_CLASS}][^<]*)<\\s*\\/\\s*title\\s*>`, 'gu') },
+  { label: 'html-meta', re: new RegExp(`\\b(?:content|name|property|site_name)\\s*=\\s*"([^"]*[${CJK_CLASS}][^"]*)"`, 'gu') }
 ]
 
 /** 剥离 JS 行内注释（// 与块注释）——粗略但够用：注释里的中文不算违规 */
@@ -135,6 +170,93 @@ function maskTArgs(text: string): string {
   return text.replace(/(?:\$t|\bt)\s*\(\s*['"`][^'"`]*['"`]/g, '')
 }
 
+/** 掩码用占位符：\u0000 打断节点（标签/HTML 注释），\u0001 留在节点内但不参与标点匹配（插值） */
+const MASK_BREAK = '\u0000'
+const MASK_INLINE = '\u0001'
+
+/** 同长度掩码（保留换行，行号与偏移不漂移） */
+function maskWith(chunk: string, ch: string): string {
+  return chunk.replace(/[^\n]/g, ch)
+}
+
+/** 把模板标签整体掩码为 \u0000，留下文本节点；引号内的 > 不算标签结束（v-if="a > 0"） */
+function maskTags(text: string): string {
+  let out = ''
+  let i = 0
+  while (i < text.length) {
+    if (text[i] !== '<') {
+      out += text[i]
+      i++
+      continue
+    }
+    let quote = ''
+    let j = i + 1
+    for (; j < text.length; j++) {
+      const ch = text[j]
+      if (quote) { if (ch === quote) quote = '' }
+      else if (ch === '"' || ch === "'") quote = ch
+      else if (ch === '>') { j++; break }
+    }
+    out += maskWith(text.slice(i, j), MASK_BREAK)
+    i = j
+  }
+  return out
+}
+
+/** .vue 顶层 template 区偏移（跳过 <script>/<style> 块，避免把 JS 代码当模板文本扫） */
+function templateRegionOf(raw: string): { start: number; end: number } | null {
+  const blocks = [...raw.matchAll(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/g)]
+    .map(m => ({ start: m.index ?? 0, end: (m.index ?? 0) + m[0].length }))
+  const inBlock = (i: number): boolean => blocks.some(b => i >= b.start && i < b.end)
+  const open = [...raw.matchAll(/<template(\s[^>]*)?>/g)].find(m => !inBlock(m.index ?? 0))
+  if (!open) return null
+  const start = (open.index ?? 0) + open[0].length
+  // 取最后一个闭合（嵌套 <template #header> 先闭合，不能取第一个）
+  const close = [...raw.matchAll(/<\/template>/g)].filter(m => (m.index ?? 0) > start && !inBlock(m.index ?? 0)).pop()
+  return { start, end: close?.index ?? raw.length }
+}
+
+/**
+ * 规则 template-fullwidth-punct：template 文本节点与静态属性里插值外的全角标点。
+ * 只看「剥掉注释/插值/标签后仍在文本位」的字符：`:attr`/`@event`/`v-*` 里的表达式是 JS，
+ * 随标签整体掩码掉，天然不查；JS 注释也只可能出现在这两处，同样不必单独剥。
+ */
+export function collectTemplateFullwidth(rel: string, raw: string): Violation[] {
+  const region = templateRegionOf(raw)
+  if (!region) return []
+  const body = raw.slice(region.start, region.end)
+  const masked = body
+    .replace(/<!--[\s\S]*?-->/g, m => maskWith(m, MASK_BREAK))
+    .replace(/\{\{[\s\S]*?\}\}/g, m => maskWith(m, MASK_INLINE))
+  const out: Violation[] = []
+  const push = (index: number, text: string): void => {
+    const norm = text.replace(/\s+/g, ' ').trim()
+    if (!norm) return
+    out.push({ file: rel, line: raw.slice(0, region.start + index).split('\n').length, text: norm, rule: 'template-fullwidth-punct' })
+  }
+  // 静态属性值：名字前不能是 : @ - 等（排除 :attr / v-bind:attr / @event），v-* 指令值同样是表达式
+  const attrRe = /(?<![\w:@.-])([a-zA-Z][\w.-]*)\s*=\s*"([^"]*)"/g
+  let am: RegExpExecArray | null
+  while ((am = attrRe.exec(masked)) !== null) {
+    if (/^v-/.test(am[1]) || !FULLWIDTH_PUNCT_RE.test(am[2])) continue
+    const valStart = am.index + am[0].indexOf('"') + 1
+    push(am.index, body.slice(valStart, valStart + am[2].length))
+  }
+  // 文本节点：标签整体掩码后逐处命中，命中点向两侧扩到节点边界，取原文整段（便于写进 baseline）
+  const nodeText = maskTags(masked)
+  const re = new RegExp(FULLWIDTH_PUNCT_RE.source, 'g')
+  let m: RegExpExecArray | null
+  while ((m = re.exec(nodeText)) !== null) {
+    let s = m.index
+    let e = m.index + m[0].length
+    while (s > 0 && nodeText[s - 1] !== MASK_BREAK) s--
+    while (e < nodeText.length && nodeText[e] !== MASK_BREAK) e++
+    push(s, body.slice(s, e))
+    re.lastIndex = e
+  }
+  return out
+}
+
 function walk(dir: string, acc: string[]): string[] {
   for (const name of readdirSync(dir, { withFileTypes: true })) {
     if (name.name === 'node_modules' || name.name === 'dist' || name.name === '.git') continue
@@ -165,7 +287,7 @@ function collect(): Violation[] {
         if (/<\/template>/.test(stateLine)) inTemplate = false
       }
       const stripped = maskTArgs(stripComment(stripHtmlComment(line)))
-      if (!/[\u4e00-\u9fff]/.test(stripped) && !/[A-Za-z]/.test(stripped)) return
+      if (!CJK_RE.test(stripped) && !/[A-Za-z]/.test(stripped)) return
       for (const rule of RULES) {
         if (rule.templateOnly && (!file.endsWith('.vue') || !inTemplate)) continue
         const re = new RegExp(rule.re.source, rule.re.flags)
@@ -173,25 +295,26 @@ function collect(): Violation[] {
         while ((m = re.exec(stripped)) !== null) {
           let text = (m[2] ?? m[1] ?? '').trim()
           if (rule.label === 'template-interp') text = text.replace(/^['"`]|['"`]$/g, '')
-          if (!text || !(/[\u4e00-\u9fff]/.test(text) || /[A-Za-z]/.test(text))) continue
+          if (!text || !(CJK_RE.test(text) || /[A-Za-z]/.test(text))) continue
           if (WHITELIST.some(w => text === w)) continue
           violations.push({ file: rel, line: idx + 1, text, rule: rule.label })
         }
       }
     })
+    if (file.endsWith('.vue')) violations.push(...collectTemplateFullwidth(rel, raw))
   }
   // index.html 静态 title/meta（b4 盲区；现有中文为已裁决的 SEO 兜底存量）
   if (existsSync(INDEX_HTML)) {
     const raw = readFileSync(INDEX_HTML, 'utf8')
     raw.split('\n').forEach((line, idx) => {
       const stripped = stripHtmlComment(stripComment(line))
-      if (!/[\u4e00-\u9fff]/.test(stripped)) return
+      if (!CJK_RE.test(stripped)) return
       for (const rule of HTML_RULES) {
         const re = new RegExp(rule.re.source, rule.re.flags)
         let m: RegExpExecArray | null
         while ((m = re.exec(stripped)) !== null) {
           const text = (m[1] ?? m[2] ?? '').trim()
-          if (!text || !/[\u4e00-\u9fff]/.test(text)) continue
+          if (!text || !CJK_RE.test(text)) continue
           if (WHITELIST.some(w => text === w)) continue
           violations.push({ file: 'index.html', line: idx + 1, text, rule: rule.label })
         }
@@ -324,8 +447,11 @@ async function main(): Promise<void> {
     return
   }
   if (fresh.length > 0) {
-    console.error(`[check-i18n] 拦截 ${fresh.length} 处新增硬编码中文（存量已进 baseline，新增必须走 $t 或白名单）:`)
+    console.error(`[check-i18n] 拦截 ${fresh.length} 处新增硬编码文案（存量已进 baseline，新增必须走 $t 或白名单）:`)
     for (const v of fresh) console.error(`  ${v.file}:${v.line} [${v.rule}] ${v.text}`)
+    if (fresh.some(v => v.rule === 'template-fullwidth-punct')) {
+      console.error('[check-i18n] template-fullwidth-punct：这些全角标点在英文态会原样显示中文标点（中文已走 $t，标点漏在模板里）——把标点并入词条（如 xxxInParens）或移进插值。')
+    }
   }
   if (keyDiff.length > 0) {
     console.error(`[check-i18n] 拦截 ${keyDiff.length} 处中英词条键缺失（zh-CN 与 en 必须一一对应）:`)
@@ -334,4 +460,6 @@ async function main(): Promise<void> {
   process.exit(1)
 }
 
-void main()
+// 被单测 import 时不执行扫描：只有 argv[1] 就是本文件才跑 main
+const invokedPath = process.argv[1] ? resolve(process.argv[1]).toLowerCase() : ''
+if (selfFile() && invokedPath === selfFile()) void main()

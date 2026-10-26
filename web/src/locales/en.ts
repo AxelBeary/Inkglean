@@ -1329,6 +1329,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     // v128: revision records (manual revision + send-back each count once)
     revisionTitle: 'Revision Records', revisionTotal: '{n} rounds',
     revisionManual: 'Manual revision', revisionRollback: 'Sent back',
+    revisionStagePath: '“{from}” → “{to}”',
     advanceTo: 'Advance to: ', stageBack: '↩ Send back', stageUpdated: 'Workflow updated',
     stageBackConfirm: 'Send back to "{name}"? The order will be marked as in revision.',
     stageOffConfirm: 'This order will stop following your workflow and fall back to fixed statuses. Continue?',
