@@ -24,9 +24,15 @@
   </header>
 
   <!-- fullscreen：全屏画作 + 角落展签（gallery） -->
-  <header v-else-if="variant === 'fullscreen'" class="tpl-hero tpl-hero--fullscreen" ref="sentinelEl">
+  <!-- 无焦点图时退回内容高（同 banner 的 no-art 口径），不再留 100dvh 空白块（issue #57-7） -->
+  <header
+    v-else-if="variant === 'fullscreen'"
+    class="tpl-hero tpl-hero--fullscreen"
+    :class="{ 'tpl-hero--no-art': !heroArtwork }"
+    ref="sentinelEl"
+  >
     <img v-if="heroArtwork" :src="imgUrl(heroArtwork.image_path)" alt="" class="tpl-hero-full-img" />
-    <div class="tpl-hero-full-shade"></div>
+    <div v-if="heroArtwork" class="tpl-hero-full-shade"></div>
     <div class="tpl-hero-plaque">
       <h1 class="tpl-hero-name tpl-hero-name--plaque">{{ artist.name }}</h1>
       <p class="tpl-hero-bio tpl-hero-bio--plaque" v-if="artist.bio">{{ artist.bio }}</p>
@@ -218,6 +224,17 @@ defineExpose({ sentinelEl })
   min-height: 560px;
   overflow: hidden;
 }
+/* issue #57-7：无焦点图时 100dvh 只剩空块——退回内容高，展签从叠放改文档流（视觉口径同 banner 的 no-art） */
+.tpl-hero--fullscreen.tpl-hero--no-art {
+  height: auto;
+  min-height: 0;
+  padding: 56px 0;
+}
+.tpl-hero--fullscreen.tpl-hero--no-art .tpl-hero-plaque {
+  position: static;
+  max-width: 860px;
+  margin: 0 auto;
+}
 .tpl-hero-full-img {
   position: absolute;
   inset: 0;
@@ -336,6 +353,10 @@ defineExpose({ sentinelEl })
   .tpl-hero-plaque {
     margin: 0 20px 28px;
     max-width: none;
+  }
+  /* no-art 展签走文档流：窄屏左右留白由外层给（内层 margin 已是 auto 居中） */
+  .tpl-hero--fullscreen.tpl-hero--no-art {
+    padding: 40px 20px;
   }
   .tpl-hero-name--plaque {
     font-size: clamp(24px, 6vw, 30px);

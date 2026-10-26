@@ -117,4 +117,13 @@ describe('PaymentPanel 节点快捷收款按钮门控', () => {
     })
     expect(collectBtns(wrapper)).toHaveLength(0)
   })
+
+  // issue #54-2：差额行的括号收进词条（英文态才是半角），模板不许再硬编码全角括号
+  it('差额行标点走词条，模板无全角括号', () => {
+    const wrapper = mountPanel({ installmentRefs: NODE })
+    const remain = wrapper.find('.pool-ref-remain')
+    expect(remain.exists()).toBe(true)
+    expect(remain.text()).toContain('orderDetail.payNodeRemainInParens')
+    expect(remain.text()).not.toMatch(/[（）：]/)
+  })
 })

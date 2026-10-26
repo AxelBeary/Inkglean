@@ -151,9 +151,11 @@ function goNext() {
   if (index.value < props.filteredArtworks.length - 1) index.value += 1
 }
 
-// 键盘 ←/→ 翻页（本组件仅在 album 布局挂载；灯箱打开时让位给灯箱；输入框聚焦时不抢按键）
+// 键盘 ←/→ 翻页（本组件仅在 album 布局挂载；灯箱打开时让位给灯箱；输入框聚焦时不抢按键；
+// 带 alt/ctrl/meta 的组合键属于浏览器/系统快捷键——拦下会与 Alt+← 后退等撞车，一律不处理）
 function onKeydown(e: KeyboardEvent) {
   if (props.lightboxOpen) return
+  if (e.altKey || e.ctrlKey || e.metaKey) return
   const el = document.activeElement as HTMLElement | null
   if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
   if (e.key === 'ArrowLeft') goPrev()

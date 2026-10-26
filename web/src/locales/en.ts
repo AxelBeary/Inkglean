@@ -929,6 +929,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     // v0.31 F3: discount code
     discountLabel: 'Discount code', discountPlaceholder: 'Have a code?', discountValidate: 'Apply',
     discountEstimate: 'Est. discount',
+    // issue #54-2: brackets live in the message so the English state uses ASCII parens
+    discountEstimateWithCode: 'Est. discount ({code})',
     // issue #50-6: code typed but never verified — the quote excludes it, so block submit
     discountNotValidated: 'Discount code not verified — the quote does not include it',
     // v0.32 REQ-023 Phase2: multi-style three-step flow
@@ -943,9 +945,12 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     addonGroupUsage: 'Usage (pick at most one)',
     addonGroupRush: 'Rush (pick at most one)',
     multOptionalHint: 'optional',
+    // issue #54-2: leading space is part of the English form (no CJK bracket padding)
+    multOptionalHintInParens: ' (optional)',
     sizeShowcaseTag: 'Showcase · not bookable',
     sizeShowcaseBlocked: 'This size is on display and not bookable right now',
     pctOfBase: 'of base price',
+    pctOfBaseInParens: ' (of base price)',
     priceCalcFailed: 'Price calculation failed — please try again later',
     // issue #50-1/#50-2: no number while the quote is not settled (base-price fallback removed)
     pricePending: 'Quote pending',
@@ -1181,6 +1186,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     guestbookTitle: 'Guestbook moderation', guestbookEmpty: 'No messages',
     guestbookPending: 'Pending', guestbookApproved: 'Approved', guestbookRejected: 'Rejected',
     guestbookApprove: 'Approve', guestbookReject: 'Reject', guestbookReply: 'Reply',
+    guestbookReplyLabel: 'Reply: ',
     guestbookReplyPlaceholder: 'Reply to this visitor (≤500 chars)', guestbookReplySave: 'Save reply',
     guestbookApprovedMsg: 'Message approved', guestbookRejectedMsg: 'Message rejected', guestbookRepliedMsg: 'Reply saved',
     guestbookError: 'Failed to load guestbook messages',
@@ -1402,6 +1408,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     payAmountZero: 'Amount cannot be zero', payRefundNoteRequired: 'Please enter a reason when refunding or revoking a payment.', payRefundExceed: 'Refund cannot exceed the amount already paid ¥{amount}',
     // v0.31 F4: node payments
     payNodePaid: 'Paid', payNodeDue: 'Due', payNodeRemain: 'Remaining',
+    // issue #54-2: whole line + param, ASCII parens, leading space
+    payNodeRemainInParens: ' (Remaining ¥{amount})',
     payNodeCollect: 'Collect', payNodeTitle: 'Collect for "{name}"',
     nodePayNoteFallback: '{name} payment',
     // v0.31 F5 → REQ-025 phase 2: due banner (primary = order-level total due, secondary = current node)
@@ -1697,6 +1705,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     // Size tri-state
     sizeStatusOpen: 'Open', sizeStatusShow: 'Display', sizeStatusClose: 'Closed',
     styleInactiveTag: 'Inactive',
+    styleInactiveInParens: ' (Inactive)',
     // Size summary line
     sizeSummaryLabel: 'Addons', sizeSummaryEmpty: 'No addons enabled (drag from pool above)'
   },
@@ -2058,6 +2067,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     orderColType: 'Type', orderColTime: 'Order time',
     greetingManage: 'Greeting Manager', greetingPlaceholder: "Enter greeting, use {'{'}name{'}'} for artist name",
     greetingPreview: 'Preview',
+    // issue #54-2: colon lives in the message (ASCII colon + space in English)
+    greetingPreviewLine: 'Preview: {text}',
     greetingColText: 'Greeting', greetingColSlot: 'Time slot', greetingColEnabled: 'Enabled',
     greetingEmpty: 'No greetings yet',
     greetingDeleteConfirm: 'Delete this greeting?',
@@ -2289,6 +2300,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     common: {
       backHome: 'Back to home',
       updated: 'Last updated',
+      updatedOn: 'Last updated: {date}',
       privacy: 'Privacy Policy',
       terms: 'Terms of Service',
       report: 'Report',

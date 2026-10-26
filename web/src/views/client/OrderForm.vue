@@ -182,7 +182,7 @@
             <span>+{{ formatYuan(stylePricePreview.rush.incrementCents) }}</span>
           </div>
           <div v-if="stylePricePreview.discount" class="receipt-row">
-            <span>{{ $t('orderForm.discountEstimate') }}（{{ stylePricePreview.discount.code }}）</span>
+            <span>{{ $t('orderForm.discountEstimateWithCode', { code: stylePricePreview.discount.code }) }}</span>
             <span>-{{ formatYuan(stylePricePreview.discount.amountCents) }}</span>
           </div>
         </template>
