@@ -25,6 +25,21 @@ interface SubmitAdminResult {
   otpauthUri: string
 }
 
+/** 设置接口的错误响应体（AppError 形状；非 JSON 错误页解析失败时为 undefined） */
+interface SetupErrorBody {
+  code?: string
+  error?: string
+}
+
+/** #52-7: 错误体尽力解析——5xx 的 HTML 错误页直接 res.json() 会抛 SyntaxError，盖掉业务错误 */
+async function readErrorBody(res: Response): Promise<SetupErrorBody | undefined> {
+  try {
+    return await res.json() as SetupErrorBody
+  } catch {
+    return undefined
+  }
+}
+
 export const useSetupStore = defineStore('setup', () => {
   // 初始化状态
   const initialized = ref(false)
@@ -88,13 +103,15 @@ export const useSetupStore = defineStore('setup', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params)
     })
-    const data = await res.json()
+    // #52-7: 先判 res.ok 再解析——失败分支的错误体可能不是 JSON（反代 HTML 错误页）
     if (!res.ok) {
-      const err = new Error(data.error || i18n.global.t('setup.submitAdminFailed')) as SetupApiError
-      err.code = data.code
+      const body = await readErrorBody(res)
+      const err = new Error(body?.error || i18n.global.t('setup.submitAdminFailed')) as SetupApiError
+      err.code = body?.code
       err.status = res.status
       throw err
     }
+    const data = await res.json() as SubmitAdminResult
     adminQq.value = data.artist.qqNumber
     adminName.value = data.artist.name
     totpSecret.value = data.totpSecret
@@ -111,13 +128,15 @@ export const useSetupStore = defineStore('setup', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ qqNumber: adminQq.value, code })
     })
-    const data = await res.json()
+    // #52-7: 同 submitAdmin，先判 res.ok 再解析错误体
     if (!res.ok) {
-      const err = new Error(data.error || i18n.global.t('setup.confirmTotpFailed')) as SetupApiError
-      err.code = data.code
+      const body = await readErrorBody(res)
+      const err = new Error(body?.error || i18n.global.t('setup.confirmTotpFailed')) as SetupApiError
+      err.code = body?.code
       err.status = res.status
       throw err
     }
+    const data = await res.json() as Record<string, unknown>
     initialized.value = true
     return data
   }

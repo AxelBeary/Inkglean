@@ -5,6 +5,7 @@ import i18n from '../i18n/index'
 import { useArtistStore } from '../stores/artist'
 import { useThemeStore } from '../stores/theme'
 import { useSetupStore } from '../stores/setup'
+import { DEFAULT_TIMEOUT_MS } from '../api/modules/http'
 import { safeGetItem, safeSetItem, safeRemoveItem } from '../utils/storage'
 
 // ============================================
@@ -173,6 +174,47 @@ function isSafeInternalRedirect(raw: string): boolean {
   return true
 }
 
+/** setup 状态探测结果：ok 带服务端字段原值（缺字段时语义与旧实现一致），503 走向导，其余按放行 */
+type SetupStatusProbe =
+  | { kind: 'ok'; initialized?: boolean; tokenRequired?: boolean }
+  | { kind: 'setupRequired' }
+  | { kind: 'unknown' }
+
+/** #52-6: 在途探测句柄——并发导航（含存储禁用时每次切页都探测）复用同一次请求 */
+let setupStatusInFlight: Promise<SetupStatusProbe> | null = null
+
+/**
+ * 探测 /api/setup/status：#52-6 给守卫的裸 fetch 补超时（与请求核同口径）与并发去重；
+ * 超时/网络/非 JSON 一律拒绝上抛，由调用方按 fail-open 处理。
+ */
+function probeSetupStatus(): Promise<SetupStatusProbe> {
+  if (setupStatusInFlight) return setupStatusInFlight
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS)
+  setupStatusInFlight = (async (): Promise<SetupStatusProbe> => {
+    try {
+      const res = await fetch('/api/setup/status', { signal: controller.signal })
+      if (!res.ok) {
+        if (res.status !== 503) return { kind: 'unknown' }
+        // a3: 服务端重置后（503 SETUP_REQUIRED）清陈旧缓存并跳开箱向导，与 api 拦截器行为对齐
+        try {
+          const data = await res.json() as { code?: string }
+          return data?.code === 'SETUP_REQUIRED' ? { kind: 'setupRequired' } : { kind: 'unknown' }
+        } catch {
+          // 非 JSON 错误体，按放行处理
+          return { kind: 'unknown' }
+        }
+      }
+      const data = await res.json() as { initialized?: boolean; tokenRequired?: boolean }
+      return { kind: 'ok', initialized: data.initialized, tokenRequired: data.tokenRequired }
+    } finally {
+      clearTimeout(timer)
+      setupStatusInFlight = null
+    }
+  })()
+  return setupStatusInFlight
+}
+
 // 路由守卫
 router.beforeEach(async (to, _from, next) => {
   // REQ-038: 开箱设置初始化守卫
@@ -181,33 +223,26 @@ router.beforeEach(async (to, _from, next) => {
     const setupDone = safeGetItem('setup_initialized')
     if (setupDone !== '1') {
       try {
-        const res = await fetch('/api/setup/status')
-        if (!res.ok && res.status === 503) {
-          // a3: 服务端重置后（503 SETUP_REQUIRED）清陈旧缓存并跳开箱向导，与 api 拦截器行为对齐
-          try {
-            const data = await res.json()
-            if (data?.code === 'SETUP_REQUIRED') {
-              safeRemoveItem('setup_initialized')
-              return next({ name: 'SetupWizard' })
-            }
-          } catch { /* 非 JSON 错误体，按放行处理 */ }
+        const probe = await probeSetupStatus()
+        if (probe.kind === 'setupRequired') {
+          safeRemoveItem('setup_initialized')
+          return next({ name: 'SetupWizard' })
         }
-        // res.ok 守卫：其余 404/5xx 的 JSON 不带 initialized，不得误触重定向
-        if (res.ok) {
-          const data = await res.json()
+        // res.ok 守卫：其余 404/5xx 的响应不带 initialized，不得误触重定向
+        if (probe.kind === 'ok') {
           // WEB-09 修复：路由守卫将 tokenRequired 回写 setup store——
           // 此前裸 fetch 读完就丢，SetupWizard 挂载时 tokenRequired 仍为默认 false，口令输入框永不渲染
           const setupStore = useSetupStore()
-          setupStore.initialized = data.initialized ?? false
-          setupStore.tokenRequired = data.tokenRequired ?? false
-          if (data.initialized === false) {
+          setupStore.initialized = probe.initialized ?? false
+          setupStore.tokenRequired = probe.tokenRequired ?? false
+          if (probe.initialized === false) {
             return next({ name: 'SetupWizard' })
           }
           // 缓存已初始化状态
           safeSetItem('setup_initialized', '1')
         }
       } catch (err) {
-        // 网络异常，放行避免卡死
+        // 网络异常/超时，放行避免卡死
         // eslint-disable-next-line no-console -- setup 守卫 fail-open 降级链路需留痕
         console.warn('[setup] 初始化状态检查失败，放行', err)
       }

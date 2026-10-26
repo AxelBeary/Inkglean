@@ -18,7 +18,8 @@ vi.mock('../../i18n/index.js', () => ({
 }))
 
 vi.mock('../../stores/artist.js', () => ({
-  useArtistStore: () => ({ $reset: h.reset })
+  // #52-2: 401 通路的清理入口是 resetSession（清态 + 递增 sessionSeq 的桩），不再是 $reset
+  useArtistStore: () => ({ resetSession: h.reset })
 }))
 
 vi.mock('../../router/index.js', () => ({
@@ -73,19 +74,18 @@ describe('api 请求核 401 分流（824）', () => {
     expect(err.code).toBe('TOTP_BIND_REQUIRED')
     expect(h.reset).toHaveBeenCalledTimes(1)
     expect(h.push).toHaveBeenCalledWith({ name: 'ArtistLogin' })
-    expect(localStorage.getItem('artist_logged_in')).toBeNull()
-    expect(localStorage.getItem('artist_is_admin')).toBeNull()
+    // #52-2: 本地态清理统一由 store.resetSession 负责（含两个持久标记），请求核只负责委托调用
     expect(sessionStorage.getItem(TOTP_BIND_REQUIRED_NOTICE_KEY)).toBe('1')
   })
 
-  it('TOTP_BIND_REQUIRED（已在登录页）：清标记但不写旗标不跳转（调用方就地展示）', async () => {
+  it('TOTP_BIND_REQUIRED（已在登录页）：清理但不写旗标不跳转（调用方就地展示）', async () => {
     h.routeName = 'ArtistLogin'
 
     await fire401('TOTP_BIND_REQUIRED')
 
     expect(h.push).not.toHaveBeenCalled()
     expect(sessionStorage.getItem(TOTP_BIND_REQUIRED_NOTICE_KEY)).toBeNull()
-    expect(localStorage.getItem('artist_logged_in')).toBeNull()
+    expect(h.reset).toHaveBeenCalledTimes(1)
   })
 
   it('白名单码（TOTP_NOT_BOUND）：只抛错不登出、不写旗标', async () => {
@@ -103,7 +103,7 @@ describe('api 请求核 401 分流（824）', () => {
 
     expect(err.code).toBe('SESSION_EXPIRED')
     expect(h.push).toHaveBeenCalledWith({ name: 'ArtistLogin' })
-    expect(localStorage.getItem('artist_logged_in')).toBeNull()
+    expect(h.reset).toHaveBeenCalledTimes(1)
     expect(sessionStorage.getItem(TOTP_BIND_REQUIRED_NOTICE_KEY)).toBeNull()
   })
 })
