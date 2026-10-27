@@ -203,6 +203,7 @@ export default {
 
     // Slots & buffer (supplement)
     BATCH_FULL: 'This artist is fully booked and cannot accept new orders',
+    BATCH_FULL_ACTION: 'The batch is full — this action is unavailable because the slot has been taken',
     INVALID_BATCH_LIMIT: 'Invalid slot settings (formal + buffer must be at least 1)',
     NOT_BUFFER_ORDER: 'This order is not in the buffer zone',
 

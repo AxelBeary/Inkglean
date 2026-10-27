@@ -6,6 +6,13 @@
 > - 滚动分册：活档体积门 `scripts/check-changelog-size.mjs`（≤40KB / ≤450 行，单段 ≤4KB，accept 第 19 道）；撞线即搬 oldest 段入 `docs/changelog-archive/` 新卷（整段零改动 + 逐行哈希校验，禁调高阈值续命）。
 > - v0.x 时代（v0.1~v0.46+）全量台账在 `docs/changelog-archive/changelog-v0-20260927.md`，只读历史。
 
+## 拍板落地批（2026-10-27）
+
+- **下载失败处置（修订 #21-8）**：每 3 次半途 → 5 分钟冷却、可重试；累计 9 次 → 彻底锁定（需画师再许可）。新增迁移 **v80** `deliverables.download_fail_total`。原「3 次永久锁 + 冷却字段不可达」作废。
+- **批次名额（#21 补充 B）**：手动递补与撤销取消都不得越 `batch_limit`，超限返回 409 `BATCH_FULL_ACTION`；旧用例「递补允许超 N」按新口径改写。
+- **桌面平台（#22-8）**：只支持 Windows，`bundle.targets=["nsis"]`，README/STATUS 写明。
+- **字体度量（#57-8）**：新增 KaiTi 回退度量面（size-adjust 100% / ascent 92.8% / descent 25.6% / line-gap 0），按实测文楷与楷体行盒对齐，首屏大标题换字不再跳高。
+
 ## issue 剩余可做项批（2026-10-27）
 
 - **#21**：隐藏队列位次时主 `position/total` 一并置空；`advanceStage(null)` 关跟踪补终态守卫（新增 5 例）。

@@ -1,6 +1,6 @@
 // ============================================
 // 815 拍板 #4：交付文件一次性下载回归
-// ①start 签发 ②confirm 锁定+IP 留痕 ③锁定后 410 ④半途 3 次防护锁定+冷却
+// ①start 签发 ②confirm 锁定+IP 留痕 ③锁定后 410 ④半途 3 次 → 5 分钟冷却（可重试），累计 9 次彻底锁定
 // ⑤60 秒下载器兜底锁定 ⑥画师再许可解锁（留痕，历史 IP 保留）
 // ============================================
 import { describe, it, expect, beforeEach } from 'vitest'
@@ -14,6 +14,7 @@ interface DeliverableRow {
   download_ip: string | null
   downloaded_at: number | null
   download_attempts: number
+  download_fail_total: number
   cooldown_until: number | null
 }
 
@@ -55,23 +56,48 @@ describe('交付文件一次性下载（815 拍板 #4）', () => {
     expect(() => orderGalleryService.startDeliverableDownload(order.id, fileId)).toThrow('DOWNLOAD_LOCKED')
   })
 
-  it('TC-DL-03: 半途下载 3 次 → 防护锁定 + 冷却 + 留痕', () => {
+  it('TC-DL-03: 半途下载 3 次 → 5 分钟冷却（可重试），不再永久锁', () => {
     // 第 1 次 start 正常；之后每次 start 结算上次为半途尝试
     orderGalleryService.startDeliverableDownload(order.id, fileId)
     orderGalleryService.startDeliverableDownload(order.id, fileId) // attempts=1
     orderGalleryService.startDeliverableDownload(order.id, fileId) // attempts=2
     expect(row().download_attempts).toBe(2)
 
-    // 第 4 次 start → attempts=3 触发防护锁定
+    // 第 4 次 start → attempts=3 触发冷却（不写 download_locked）
+    expect(() => orderGalleryService.startDeliverableDownload(order.id, fileId)).toThrow('DOWNLOAD_COOLDOWN')
+    const after = row()
+    expect(after.download_locked).toBe(0)
+    expect(after.cooldown_until).toBeGreaterThan(Date.now())
+    expect(after.download_attempts).toBe(0) // 本段计数清零
+    expect(after.download_fail_total).toBe(3) // 累计保留
+    expect(noteCount('已暂停 5 分钟')).toBe(1)
+
+    // 冷却到期后可再试（不再需要画师再许可）
+    db.prepare('UPDATE deliverables SET cooldown_until = ? WHERE id = ?').run(Date.now() - 1, fileId)
+    expect(orderGalleryService.startDeliverableDownload(order.id, fileId).filePath).toBeTruthy()
+  })
+
+  it('TC-DL-07: 累计 9 次半途 → 彻底锁定（防故意刷）', () => {
+    // 模拟已走完两轮冷却、累计 8 次后的第三次半途
+    db.prepare('UPDATE deliverables SET download_attempts = 2, download_fail_total = 8, last_started_at = ? WHERE id = ?')
+      .run(Date.now(), fileId)
+
     expect(() => orderGalleryService.startDeliverableDownload(order.id, fileId)).toThrow('DOWNLOAD_LOCKED')
     const after = row()
     expect(after.download_locked).toBe(1)
-    expect(after.cooldown_until).toBeGreaterThan(Date.now())
-    expect(noteCount('未完成下载')).toBe(1)
+    expect(after.download_fail_total).toBe(9)
+    expect(noteCount('已彻底锁定')).toBe(1)
+  })
 
-    // 冷却期内即使解锁标记也被 423 拦（此处直接验证 cooldown 字段生效路径）
-    db.prepare('UPDATE deliverables SET download_locked = 0 WHERE id = ?').run(fileId)
-    expect(() => orderGalleryService.startDeliverableDownload(order.id, fileId)).toThrow('DOWNLOAD_COOLDOWN')
+  it('TC-DL-08: 画师再许可同时清零累计失败数', () => {
+    db.prepare('UPDATE deliverables SET download_locked = 1, download_attempts = 2, download_fail_total = 9 WHERE id = ?')
+      .run(fileId)
+
+    orderGalleryService.repermitDeliverable(order.id, fileId)
+    const after = row()
+    expect(after.download_fail_total).toBe(0)
+    expect(after.download_attempts).toBe(0)
+    expect(orderGalleryService.startDeliverableDownload(order.id, fileId).filePath).toBeTruthy()
   })
 
   it('TC-DL-04: 60 秒兜底——上次开始超窗未确认，下次 start 视为下载器已完成 → 锁定', () => {

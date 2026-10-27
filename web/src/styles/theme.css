@@ -2,6 +2,19 @@
    拾绘后台主题 — 五色 + 亮暗
    ============================================ */
 
+/* #57-8：KaiTi 回退面的行盒与文楷对齐，防首屏大标题换字时整页跳高。
+   实测（fontTools）：LXGW WenKai upem 1000 / hhea 928,-256 / lineGap 0 → 行盒 1.184em；
+   KaiTi upem 256 / hhea 220,-36 / lineGap 36 → 行盒 1.141em。CJK 两边都是全角，size-adjust 100%。
+   本面只在文楷未就绪的 swap 窗口生效；不手改生成的 font.css。 */
+@font-face {
+  font-family: 'KaiTi Metric Fallback';
+  src: local('KaiTi'), local('KaiTi_GB2312'), local('STKaiti');
+  size-adjust: 100%;
+  ascent-override: 92.8%;
+  descent-override: 25.6%;
+  line-gap-override: 0%;
+}
+
 /* ===== 语义变量 ===== */
 :root {
   /* 底色 */
@@ -42,7 +55,7 @@
   --ease-bounce: cubic-bezier(.34, 1.56, .64, 1);
 
   /* 字体 */
-  --font-display: 'LXGW WenKai', 'KaiTi', 'STKaiti', serif;
+  --font-display: 'LXGW WenKai', 'KaiTi Metric Fallback', 'KaiTi', 'STKaiti', serif;
   --font-body: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', -apple-system,
     BlinkMacSystemFont, 'Segoe UI', sans-serif;
 

@@ -232,6 +232,7 @@ export const E = {
 
   // 名额与缓冲（v0.17 SPEC-004）
   BATCH_FULL: 'BATCH_FULL',
+  BATCH_FULL_ACTION: 'BATCH_FULL_ACTION',
   INVALID_BATCH_LIMIT: 'INVALID_BATCH_LIMIT',
   NOT_BUFFER_ORDER: 'NOT_BUFFER_ORDER',
 
@@ -484,6 +485,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
 
   // 名额与缓冲（v0.17 SPEC-004）
   BATCH_FULL: '该画师已接满，暂时无法下单',
+  BATCH_FULL_ACTION: '批次已满，无法执行该操作（名额已被其他订单占用）',
   INVALID_BATCH_LIMIT: '名额设置无效（正式位+缓冲位至少为1）',
   NOT_BUFFER_ORDER: '该订单不在缓冲区',
 
