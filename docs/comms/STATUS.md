@@ -3,6 +3,7 @@
 ## 看板（2026-10-28 刷新：#22 桌面端剩余五项收口）
 
 - **HEAD 与推送**：`5e00ec87` = #22 五项（导入原子写 / 逐窗回执 / 退出清悬浮窗 / 偏好跨窗同步 / 发布包 asset+CSP）；十九道全绿（685s，报告 `accept-master-20261028-053528.md`）
+- **发版**：**v1.1.0**（2026-10-28，稳交付·好管理版）——安装包 `inkglean-installer-v1.1.0.zip`；迁移 v71→v80 自动执行；说明见 `docs/changelog.md` 顶部与 GitHub Releases
 - **基线（accept.ps1 十九道全绿 @ 本批）**：server **1993**（174 文件）/ web **1167**（171）/ desktop **629**（45）/ shared **44** / E2E **14** / cargo test **39**（lib 28 + ACL 8 + release_config 3）
   - 迁移 **v80** 不变
   - 本批计数增长：desktop +13（逐窗回执 8 / 偏好跨窗同步 3 / 导入中止 2）
