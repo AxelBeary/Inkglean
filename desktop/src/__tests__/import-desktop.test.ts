@@ -22,7 +22,7 @@ vi.mock('../bridge', () => ({
 }))
 
 vi.mock('../bridge/db', () => ({
-  broadcastCloseAllDb: vi.fn(async () => {}),
+  broadcastCloseAllDb: vi.fn(async () => ({ missing: [] as string[] })),
   deleteDbSidecar: vi.fn(async () => {}),
   DB_CLOSE_ALL_EVENT: 'desktop-db-close-all'
 }))
@@ -153,6 +153,26 @@ describe('runImport 桌面路径 · #22-2（非 SQLite 载荷在动手之前即�
   })
 
   it('好文件头照常走到覆写那一步（校验不误伤正常导入）', async () => {
+    const r = await runImport([], [], validPreview(), false)
+    expect(r.ok).toBe(true)
+    expect(dbWriteIndex()).toBeGreaterThanOrEqual(0)
+  })
+})
+
+describe('runImport 桌面路径 · #22-2（悬浮窗未回执即中止导入）', () => {
+  it('有悬浮窗未在超时内回执：不关连接、不清边车、不覆写库，给可读原因', async () => {
+    vi.mocked(broadcastCloseAllDb).mockResolvedValueOnce({ missing: ['floating-timer'] })
+    const r = await runImport([], [], validPreview(), false)
+
+    expect(r.ok).toBe(false)
+    expect(r.reason).toContain('计时器')
+    expect(r.reason).toContain('未响应')
+    expect(dbWriteIndex()).toBe(-1) // 本地库一个字节都没动
+    expect(closeLocalDb).not.toHaveBeenCalled()
+    expect(deleteDbSidecar).not.toHaveBeenCalled()
+  })
+
+  it('全部回执（missing 为空）照常导入', async () => {
     const r = await runImport([], [], validPreview(), false)
     expect(r.ok).toBe(true)
     expect(dbWriteIndex()).toBeGreaterThanOrEqual(0)

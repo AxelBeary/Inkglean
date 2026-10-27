@@ -26,7 +26,9 @@ tauri = { version = "2", features = ["test"] }
 
 [dependencies]
 # tray-icon feature：壳层商业化批托盘常驻必需（tauri::tray 模块由该 feature 门控）
-tauri = { version = "2", features = ["tray-icon"] }
+# protocol-asset：图缓存经 convertFileSrc 的 asset:// 地址加载（#22-7；与 tauri.conf.json
+#   security.assetProtocol.enable 成对，缺一侧发布包里 <img> 静默不显示）
+tauri = { version = "2", features = ["tray-icon", "protocol-asset"] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-updater = "2"

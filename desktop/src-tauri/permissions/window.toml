@@ -5,12 +5,13 @@
 
 [[set]]
 identifier = "window-controls"
-description = "主窗窗口控制：最小化 / 最大化切换 / 关闭（desktop_window_minimize、desktop_window_toggle_maximize、desktop_window_close）+ 全局关闭行为偏好写入（desktop_close_behavior_set，改的是「关窗=退出还是收托盘」的应用级状态）。仅主窗；悬浮窗调 close_behavior_set 会被拒且前端已 catch 静默，主窗启动时已同步过同值"
+description = "主窗窗口控制：最小化 / 最大化切换 / 关闭（desktop_window_minimize、desktop_window_toggle_maximize、desktop_window_close）+ 全局关闭行为偏好写入（desktop_close_behavior_set，改的是「关窗=退出还是收托盘」的应用级状态）+ 悬浮窗户名清单（desktop_floating_window_labels，导入前逐窗等关连接回执用）。仅主窗；悬浮窗调 close_behavior_set 会被拒且前端已 catch 静默，主窗启动时已同步过同值"
 permissions = [
   "allow-desktop-window-minimize",
   "allow-desktop-window-toggle-maximize",
   "allow-desktop-window-close",
   "allow-desktop-close-behavior-set",
+  "allow-desktop-floating-window-labels",
 ]
 
 [[set]]

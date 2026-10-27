@@ -13,10 +13,9 @@ import { usePrefsStore } from '../stores/prefs'
 import type { HomeMainView } from '../stores/prefs'
 import { useScheduleStore } from '../stores/schedule'
 import { PANEL_REGISTRY } from '../panels/contract'
-import type { PanelId, TearableId } from '../panels/contract'
+import type { PanelId } from '../panels/contract'
 import { checkAndDownloadUpdate, installPendingUpdate, isDesktop } from '../bridge'
 import { openFloatingWindow } from '../bridge/window'
-import { listen } from '@tauri-apps/api/event'
 import { useLocalLedgerStore } from '../stores/localLedger'
 import { useAutoTimeStore } from '../stores/autoTime'
 import { buildLocalDeadlineAlerts, buildLocalGlance, localDaysLeft } from '../components/home/localGlance'
@@ -202,15 +201,8 @@ function restoreTorn() {
   }
 }
 
-// ─── 827 用户终验整改：悬浮窗被 ×/Alt+F4 直关时壳层发事件，主窗同步清同件撕出态（防占位骗人） ───
-let unlistenFloatClosed: (() => void) | undefined
-function listenFloatClosed() {
-  if (!isDesktop()) return
-  listen<string>('desktop-float-closed', (e) => {
-    const kind = e.payload as TearableId
-    if (prefs.isTorn(kind)) prefs.setTorn(kind, false)
-  }).then(fn => { unlistenFloatClosed = fn }).catch(() => { /* 监听失败静默：最多退回「点我贴回」手动路径 */ })
-}
+// ─── 827 用户终验整改：悬浮窗被 ×/Alt+F4 直关的撕出态清理已上移到 App.vue（#22-6）——
+// 监听不再随首页卸载而丢，离开首页期间贴回/直关都不会在回页后被「自动又撕出来」。 ───
 
 // ─── 启动静默检查更新（保留既有口径：云端登录态，失败全静默） ───
 async function silentUpdateCheck() {
@@ -238,7 +230,6 @@ function onRefresh(): void {
 onMounted(async () => {
   window.addEventListener('online', onOnline)
   window.addEventListener('offline', onOffline)
-  listenFloatClosed()
   // F8 二期自动识别：双模式均启（纯本地采样，不联网，合双模式纪律）
   autoTime.start()
   // 模块扫描（档②波17 四件）：不热更口径，启动扫一次；管理页可手动重扫（§3.7）
@@ -260,7 +251,6 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('online', onOnline)
   window.removeEventListener('offline', onOffline)
-  unlistenFloatClosed?.()
   autoTime.stop()
 })
 

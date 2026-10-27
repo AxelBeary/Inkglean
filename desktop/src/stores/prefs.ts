@@ -69,12 +69,43 @@ function load(): DesktopPrefs {
   }
 }
 
+/** storage 事件只在他窗写入时触发（本窗写入不触发），所以 adopt 后的回写不会自激。
+ *  每个 webview 一份模块实例，只挂一次；同一窗内多个 Pinia 实例（仅测试）共用首个监听。 */
+let storageArmed = false
+function armStorageSync(adopt: (next: DesktopPrefs) => void): void {
+  if (storageArmed || typeof window === 'undefined') return
+  storageArmed = true
+  window.addEventListener('storage', (event) => {
+    if (event.key !== STORAGE_KEY || event.newValue === null) return
+    try {
+      adopt(normalize(JSON.parse(event.newValue)))
+    } catch {
+      // 坏值忽略：保留本窗现值，等下一次正常写入
+    }
+  })
+}
+
 export const usePrefsStore = defineStore('desktop-prefs', () => {
   const prefs = reactive<DesktopPrefs>(load())
 
   watch(prefs, v => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(v)) } catch { /* 写失败静默，偏好非关键路径 */ }
   }, { deep: true })
+
+  /** 他窗写入后本窗内存跟进的整表替换（#22-6）。
+   *  不跟进的两种后果都实测存在：主窗离开首页期间悬浮窗「贴回」，回首页仍按旧 torn 又撕出来；
+   *  悬浮窗用旧快照再写偏好，会把主窗后来改的字号/主题覆盖回旧值。 */
+  function adopt(next: DesktopPrefs): void {
+    prefs.hidden = next.hidden
+    prefs.mount = next.mount
+    prefs.torn = next.torn
+    prefs.focus = next.focus
+    prefs.fontSize = next.fontSize
+    prefs.theme = next.theme
+    prefs.mainView = next.mainView
+  }
+
+  armStorageSync(adopt)
 
   function toggleHidden(id: PanelId) {
     const panel = PANEL_REGISTRY.find(p => p.id === id)

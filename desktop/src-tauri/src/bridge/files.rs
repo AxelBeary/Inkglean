@@ -30,7 +30,9 @@
 // 超出本批改口，调用点在 stores/panels（见 S5B 交回台账「遗留」）。
 use base64::{engine::general_purpose::STANDARD, Engine};
 use std::fs;
+use std::io::Write;
 use std::path::{Component, Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager, Window};
 use tauri_plugin_dialog::{DialogExt, FilePath};
 
@@ -160,6 +162,45 @@ fn resolve_within_dir(raw: &str, dir: &Path) -> Result<PathBuf, String> {
     resolve_within_roots(raw, &roots)
 }
 
+/// 原子落盘（审计 #22 条目 2）：同目录临时文件 → 写满 → fsync → rename 覆盖目标。
+///
+/// why：`fs::write` 先 truncate 再写，写到一半失败（磁盘不足/进程被杀/目标被占用）会把原文件
+/// 截成半截——导入整库覆写时那就是账本全灭。rename 在 Windows 走 MoveFileEx(REPLACE_EXISTING)：
+/// 要么整体换上新文件，要么原文件一个字节都不动。
+///
+/// 目标被其他进程占用（悬浮窗仍持 SQLite 句柄）时 rename 会失败，这正是想要的失败方向：
+/// 报错、原文件保留，绝不「截断一半」。fsync 在 rename 之前，掉电时不会出现「名字换了但内容是空的」。
+fn write_atomic(target: &Path, bytes: &[u8]) -> Result<(), String> {
+    let parent = target
+        .parent()
+        .ok_or_else(|| "目标路径缺少父目录".to_string())?;
+    let file_name = target
+        .file_name()
+        .ok_or_else(|| "目标路径缺少文件名".to_string())?
+        .to_string_lossy()
+        .into_owned();
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or_default();
+    // 临时件与目标同目录：跨卷 rename 不原子（std 会退化成复制+删除）
+    let tmp = parent.join(format!(".{file_name}.{}.{nanos}.tmp", std::process::id()));
+    let outcome = (|| -> std::io::Result<()> {
+        let mut file = fs::File::create(&tmp)?;
+        file.write_all(bytes)?;
+        file.sync_all()?;
+        drop(file);
+        fs::rename(&tmp, target)
+    })();
+    match outcome {
+        Ok(()) => Ok(()),
+        Err(e) => {
+            let _ = fs::remove_file(&tmp);
+            Err(format!("写入文件失败（原文件未改动）：{e}"))
+        }
+    }
+}
+
 #[tauri::command]
 pub fn desktop_save_file(app: AppHandle, path: String, data_b64: String) -> Result<(), String> {
     let target = guard(&app, &path)?;
@@ -169,7 +210,7 @@ pub fn desktop_save_file(app: AppHandle, path: String, data_b64: String) -> Resu
         }
     }
     let bytes = STANDARD.decode(data_b64.as_bytes()).map_err(|e| e.to_string())?;
-    fs::write(&target, bytes).map_err(|e| e.to_string())
+    write_atomic(&target, &bytes)
 }
 
 /// 批量校验文件是否存在（F1 丢失提醒）：入参顺序与返回一致；
@@ -380,7 +421,7 @@ pub async fn desktop_export_save_b64(
     let target = picked
         .into_path()
         .map_err(|_| "保存对话框返回了非本地路径，已放弃写入".to_string())?;
-    fs::write(&target, bytes).map_err(|e| format!("写入所选文件失败：{e}"))?;
+    write_atomic(&target, &bytes).map_err(|e| format!("写入所选文件失败：{e}"))?;
     Ok(ExportSaveOutcome {
         saved_path: Some(target.to_string_lossy().into_owned()),
     })
@@ -808,5 +849,70 @@ mod tests {
         let encoded = STANDARD.encode(&bytes);
         let err = decode_export_payload(&encoded).expect_err("超过 100MB 应拒");
         assert!(err.contains("100MB"), "实际: {err}");
+    }
+
+    // ─── #22-2：原子落盘（临时文件 + fsync + rename）──────────────────────────
+
+    #[test]
+    fn atomic_write_replaces_existing_file_without_temp_residue() {
+        let tree = TempTree::new("atomic-replace");
+        let target = tree.root.join("local.db");
+        fs::write(&target, b"old-library").expect("写旧内容");
+        write_atomic(&target, b"new-library-bytes").expect("原子替换应成功");
+        assert_eq!(fs::read(&target).unwrap(), b"new-library-bytes");
+        let leftovers: Vec<String> = fs::read_dir(&tree.root)
+            .expect("读临时根")
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|name| name.ends_with(".tmp"))
+            .collect();
+        assert!(leftovers.is_empty(), "临时件应清理干净，实际残留: {leftovers:?}");
+        tree.cleanup();
+    }
+
+    #[test]
+    fn atomic_write_creates_missing_file() {
+        let tree = TempTree::new("atomic-create");
+        let target = tree.root.join("backup").join("x.zip");
+        fs::create_dir_all(target.parent().unwrap()).expect("建父目录");
+        write_atomic(&target, b"pk").expect("新建写入应成功");
+        assert_eq!(fs::read(&target).unwrap(), b"pk");
+        tree.cleanup();
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn atomic_write_keeps_original_when_target_is_busy() {
+        // 目标被别的连接占住时 rename 必须失败——这正是导入覆写遇到「悬浮窗还没关连接」
+        // 时该有的行为：拒写、原文件不动。注意 std 的 File::open 默认带 FILE_SHARE_DELETE，
+        // 挡不住 rename；这里用和 SQLite os_win.c 同款 share 模式（读+写，不含 DELETE）。
+        use std::os::windows::fs::OpenOptionsExt;
+        const FILE_SHARE_READ: u32 = 0x0000_0001;
+        const FILE_SHARE_WRITE: u32 = 0x0000_0002;
+
+        let tree = TempTree::new("atomic-busy");
+        let target = tree.root.join("local.db");
+        fs::write(&target, b"old-library").expect("写旧内容");
+        let hold = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
+            .open(&target)
+            .expect("按 SQLite share 模式打开占位句柄");
+        let err = write_atomic(&target, b"new-library").expect_err("目标被占用时不应成功");
+        assert!(
+            err.contains("原文件未改动"),
+            "拒因应说明原文件未改动，实际: {err}"
+        );
+        drop(hold);
+        assert_eq!(fs::read(&target).unwrap(), b"old-library");
+        let leftovers: Vec<String> = fs::read_dir(&tree.root)
+            .expect("读临时根")
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|name| name.ends_with(".tmp"))
+            .collect();
+        assert!(leftovers.is_empty(), "失败路径也应清理临时件，实际: {leftovers:?}");
+        tree.cleanup();
     }
 }

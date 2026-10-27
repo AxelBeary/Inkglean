@@ -81,7 +81,7 @@ vi.mock('../bridge/db', () => ({
   openLocalDb: async () => h.db,
   closeLocalDb: async () => {},
   localDbPath: async () => '/appdata/local.db',
-  broadcastCloseAllDb: async () => {},
+  broadcastCloseAllDb: async () => ({ missing: [] }),
   deleteDbSidecar: async () => {},
   DB_CLOSE_ALL_EVENT: 'desktop-db-close-all'
 }))

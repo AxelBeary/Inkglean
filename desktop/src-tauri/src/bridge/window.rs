@@ -9,6 +9,26 @@ use tauri::{AppHandle, LogicalPosition, Manager, WebviewUrl, WebviewWindowBuilde
 /// 主窗口 label（tauri.conf.json app.windows 首项，capabilities 按此匹配）
 const MAIN_WINDOW: &str = "main";
 
+/// 撕悬浮三件的 label 前缀（kind 见 FloatingKind::label）。
+/// 主窗关闭收尾与导入前握手清单共用这一条口径，别再各写一份 `starts_with`。
+pub(crate) fn is_floating_label(label: &str) -> bool {
+    label.starts_with("floating-")
+}
+
+/// 现存悬浮窗户名（#22-2：导入整库覆写前逐个等回执）。
+/// 只回名字、不回句柄或内容；主窗专用（capability 挂 window-controls），投影窗无权点名别的窗。
+#[tauri::command]
+pub fn desktop_floating_window_labels(app: AppHandle) -> Vec<String> {
+    let mut labels: Vec<String> = app
+        .webview_windows()
+        .into_keys()
+        .filter(|label| is_floating_label(label))
+        .collect();
+    // 排序只为稳定：回执比对按名集合，不依赖 HashMap 遍历序
+    labels.sort();
+    labels
+}
+
 // ─── 关闭行为偏好（壳层商业化批） ───
 // 前端菜单选「直接退出 / 最小化到托盘」后同步到本状态；
 // 真正拦截在 lib.rs on_window_event（CloseRequested）里做——这样 Alt+F4 等
@@ -163,4 +183,22 @@ pub async fn desktop_floating_close(app: AppHandle, kind: FloatingKind) -> Resul
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn floating_label_prefix_matches_all_three_kinds() {
+        for kind in [
+            FloatingKind::Timer,
+            FloatingKind::TodayTodo,
+            FloatingKind::Deadline,
+        ] {
+            assert!(is_floating_label(&kind.label()), "{} 应被认作悬浮窗", kind.label());
+        }
+        assert!(!is_floating_label("main"));
+        assert!(!is_floating_label("floating")); // 无连字符的裸前缀不算，防误伤
+    }
 }

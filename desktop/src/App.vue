@@ -6,9 +6,11 @@
 // 826 壳层商业化批：启动即把关闭行为偏好同步到壳层（不依赖菜单渲染，保证 Alt+F4 等路径也能命中）。
 // 波13：主题施加——偏好 × 系统深色 → html[data-desktop-theme]，系统外观变化即时跟随。
 import { onMounted, onUnmounted, watchEffect } from 'vue'
+import { listen } from '@tauri-apps/api/event'
 import { usePrefsStore } from './stores/prefs'
 import { isDesktop, readCloseBehaviorPref, setCloseBehavior } from './bridge'
 import { resolveTheme, applyThemeToDom } from './tools/theme'
+import type { TearableId } from './panels/contract'
 
 const prefs = usePrefsStore()
 watchEffect(() => {
@@ -41,15 +43,28 @@ watchEffect(() => {
 })
 function onSystemThemeChange() { applyTheme() }
 
+// #22-6：悬浮窗被 ×/Alt+F4 直关时壳层发事件清撕出态。监听必须挂在常驻壳上——
+// 旧实现只挂在首页，用户不在首页时事件会丢，回首页又按旧 torn 把窗「自动撕出来」。
+let unlistenFloatClosed: (() => void) | undefined
+function listenFloatClosed() {
+  if (!isDesktop()) return
+  void listen<string>('desktop-float-closed', (event) => {
+    const kind = event.payload as TearableId
+    if (prefs.isTorn(kind)) prefs.setTorn(kind, false)
+  }).then((fn) => { unlistenFloatClosed = fn }).catch(() => { /* 监听失败静默：最多退回手动贴回 */ })
+}
+
 onMounted(() => {
   darkMq?.addEventListener('change', onSystemThemeChange)
   window.addEventListener('resize', onResize)
+  listenFloatClosed()
   // 纯浏览器/同步失败都静默（偏好默认即退出，同步不上不造成危险态）
   if (isDesktop()) setCloseBehavior(readCloseBehaviorPref()).catch(() => {})
 })
 onUnmounted(() => {
   darkMq?.removeEventListener('change', onSystemThemeChange)
   window.removeEventListener('resize', onResize)
+  unlistenFloatClosed?.()
 })
 </script>
 

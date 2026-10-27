@@ -21,7 +21,7 @@ const h = vi.hoisted(() => {
     close(): Promise<boolean>
   }
   const opened: FakeDb[] = []
-  const listened: Array<() => void> = []
+  const listened: Array<(event: { payload: unknown }) => void> = []
   const loadedPaths: string[] = []
 
   function make(path: string): FakeDb {
@@ -64,7 +64,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 }))
 
 vi.mock('@tauri-apps/api/event', () => ({
-  listen: vi.fn(async (_event: string, cb: () => void) => {
+  listen: vi.fn(async (_event: string, cb: (event: { payload: unknown }) => void) => {
     h.listened.push(cb)
     return () => {}
   }),
@@ -178,7 +178,7 @@ describe('U45 · 只读通道与读写通道分离', () => {
     await openLocalDb()
     await vi.waitFor(() => expect(h.listened).toHaveLength(1))
 
-    h.listened[0]()
+    h.listened[0]({ payload: null }) // 旧式广播无 requestId：只需关连接
     await vi.waitFor(() => {
       expect(h.opened[0].closed).toBe(true)
       expect(h.opened[1].closed).toBe(true)

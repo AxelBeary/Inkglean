@@ -125,7 +125,17 @@ export interface ImportResult {
   backupPath: string
 }
 
-/** 执行导入（替换）：①有本地数据先自动备份 → ②跨窗广播关连接 + 清边车 + 覆写库 → ③恢复设置。
+/** 悬浮窗 label → 人话名（中止导入时告诉用户是哪一个没响应） */
+function floatingNameOf(label: string): string {
+  switch (label) {
+    case 'floating-timer': return '计时器'
+    case 'floating-today-todo': return '今日待办'
+    case 'floating-deadline': return '截稿倒计时'
+    default: return label
+  }
+}
+
+/** 执行导入（替换）：①有本地数据先自动备份 → ②跨窗广播关连接并等逐窗回执 → 清边车 + 覆写库 → ③恢复设置。
  *  hasLocal：调用方按 DSK-08 全量判定（orders/files/profile/templates/time_log）后传入；
  *  缺省回退旧口径（orders/files 任一非空）以兼容既有调用。
  *  调用方在之后须重载各 store（loaded 复位 + loadAll）让界面吃到新数据。 */
@@ -156,9 +166,18 @@ export async function runImport(
     await saveFile(backupPath, new Uint8Array(await blob.arrayBuffer()))
   }
 
-  // ② 替换库（DSK-09）：先跨窗广播关所有连接（悬浮窗独立 webview 各持句柄），
-  //    再关本窗连接，清 -wal/-shm 边车（防旧边车套到新库致脏库），最后整文件覆写。
-  await broadcastCloseAllDb()
+  // ② 替换库（DSK-09 / #22-2）：先跨窗广播关所有连接并要求逐窗回执；
+  //    有任何悬浮窗没在超时内回执就中止——句柄未释放时覆写轻则失败、重则脏库，
+  //    宁可让用户稍后重试，也不赌「大概关完了」。此时本地库一个字节都没动。
+  const closeReport = await broadcastCloseAllDb()
+  if (closeReport.missing.length > 0) {
+    const names = closeReport.missing.map(floatingNameOf).join('、')
+    return {
+      ok: false,
+      reason: `悬浮窗（${names}）未响应关闭请求，已取消导入以免损坏本地数据；请稍后重试，或先贴回悬浮窗`,
+      backupPath
+    }
+  }
   await closeLocalDb()
   try {
     await deleteDbSidecar()

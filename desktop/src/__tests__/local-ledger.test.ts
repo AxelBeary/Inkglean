@@ -92,7 +92,7 @@ describe('记账 store 的连接通道选择（U45）', () => {
       openLocalDbReadOnly,
       closeLocalDb: vi.fn(async () => {}),
       localDbPath: vi.fn(async () => '/appdata/local.db'),
-      broadcastCloseAllDb: vi.fn(async () => {}),
+      broadcastCloseAllDb: vi.fn(async () => ({ missing: [] })),
       deleteDbSidecar: vi.fn(async () => {}),
       DB_CLOSE_ALL_EVENT: 'desktop-db-close-all'
     }))

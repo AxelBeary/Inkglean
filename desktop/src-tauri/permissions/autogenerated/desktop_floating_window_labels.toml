@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-desktop-floating-window-labels"
+description = "Enables the desktop_floating_window_labels command without any pre-configured scope."
+commands.allow = ["desktop_floating_window_labels"]
+
+[[permission]]
+identifier = "deny-desktop-floating-window-labels"
+description = "Denies the desktop_floating_window_labels command without any pre-configured scope."
+commands.deny = ["desktop_floating_window_labels"]

@@ -160,8 +160,8 @@ describe('DSK-09 跨窗广播 / 边车桥（纯浏览器环境逃生门）', () 
     expect(DB_CLOSE_ALL_EVENT).toBe('desktop-db-close-all')
   })
 
-  it('broadcastCloseAllDb 浏览器环境静默不抛（无壳层事件能力）', async () => {
-    await expect(broadcastCloseAllDb()).resolves.toBeUndefined()
+  it('broadcastCloseAllDb 浏览器环境静默返回空清单（无壳层可握手）', async () => {
+    await expect(broadcastCloseAllDb()).resolves.toEqual({ missing: [] })
   })
 
   it('deleteDbSidecar 浏览器环境抛 BridgeUnavailableError', async () => {

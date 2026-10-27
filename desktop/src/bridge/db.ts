@@ -2,6 +2,8 @@
 // 纪律：「仅存本机」数据的唯一持久化通道（F8 计时数据可导出范围同款口径，永不上传）；
 // 逃生门同既有桥：纯浏览器环境抛 BridgeUnavailableError。
 import { invoke } from '@tauri-apps/api/core'
+import { listen, emit } from '@tauri-apps/api/event'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { isDesktop } from './env'
 import { BridgeUnavailableError } from './errors'
 import { fileSizes } from './files'
@@ -134,29 +136,95 @@ export function openLocalDbReadOnly(): Promise<LocalDatabase> {
   return readOnlyDbPromise
 }
 
-// ─── 波2 DSK-09：导入整库覆写时的跨窗口连接收口 ───
+// ─── 波2 DSK-09 / #22-2：导入整库覆写时的跨窗口连接收口 ───
 // 根因：撕悬浮三件是独立 webview，各持自己的 SQLite 连接；主窗 closeLocalDb 只关自己，
 // 覆写 local.db 时悬浮窗连接仍持文件句柄（Windows 上可致覆写失败），且 WAL 边车 -wal/-shm
-// 若残留会被下次开库套到新库上致脏库。修法＝覆写前跨窗广播关连接 + 显式清边车。
-// ⚠️ 是否真造成脏库/文件锁需 WebView2 真机验证（见 ledger 未尽事项）。
+// 若残留会被下次开库套到新库上致脏库。修法＝覆写前跨窗广播关连接 + 逐窗回执 + 显式清边车。
+// #22-2 补强：旧版广播后固定等 400ms（纯猜），大包/忙机器上悬浮窗可能还没关完就开始覆写。
+// 现在带 requestId 等每个现存悬浮窗的 ack；超时未回执的窗名回给导入侧，导入直接中止。
 
 /** 跨窗口广播事件名：通知所有 webview（主窗 + 撕悬浮独立窗）关闭各自本地库连接 */
 export const DB_CLOSE_ALL_EVENT = 'desktop-db-close-all'
+/** 关连接回执事件名（悬浮窗关完连接后回发，payload={ requestId, label }） */
+export const DB_CLOSE_ACK_EVENT = 'desktop-db-close-ack'
 
-/** 广播后等待其他窗口处理关连接的缓冲毫秒（best-effort，无逐窗 ack 回执） */
-const DB_CLOSE_BROADCAST_WAIT_MS = 400
+/** 等逐窗回执的上限；正常关一个连接是毫秒级，留足慢盘/忙窗余量 */
+const DB_CLOSE_ACK_TIMEOUT_MS = 3000
 
-/** 跨窗口广播「关闭所有本地库连接」：导入覆写前调用，让悬浮窗等独立 webview 释放文件句柄。
- *  best-effort：emit 后等固定缓冲再返回（无逐窗 ack，真机验证点）；纯浏览器环境静默无事。 */
-export async function broadcastCloseAllDb(): Promise<void> {
-  if (!isDesktop()) return
+export interface DbCloseAckReport {
+  /** 收到广播却没在超时内回执、且仍然存活的悬浮窗户名（它可能还持有库句柄） */
+  missing: string[]
+}
+
+/** 未回执清单（纯函数可测）：已消失的窗不算 missing——它不可能再持有句柄 */
+export function missingAcks(
+  expected: string[],
+  acked: Iterable<string>,
+  stillOpen: string[]
+): string[] {
+  const done = new Set(acked)
+  const open = new Set(stillOpen)
+  return expected.filter((label) => !done.has(label) && open.has(label))
+}
+
+/** 现存悬浮窗户名；命令不可用（旧壳/非桌面）返回空清单 */
+async function floatingWindowLabels(): Promise<string[]> {
+  return await invoke<string[]>('desktop_floating_window_labels')
+}
+
+/** 跨窗口广播「关闭所有本地库连接」并等逐窗回执；返回未响应的悬浮窗清单。
+ *  纯浏览器环境静默返回空清单（无壳层可握手）。任何握手异常按「未回执」保守上报，
+ *  由导入侧中止——原子覆写保证中止不会损坏原库，但也不该在句柄未释放时硬上。 */
+export async function broadcastCloseAllDb(): Promise<DbCloseAckReport> {
+  if (!isDesktop()) return { missing: [] }
+  let expected: string[]
   try {
-    const { emit } = await import('@tauri-apps/api/event')
-    await emit(DB_CLOSE_ALL_EVENT)
+    expected = await floatingWindowLabels()
   } catch {
-    // 无事件能力（理论不该发生）：不阻塞导入，靠调用方自身 closeLocalDb + 边车清理兜底
+    return { missing: [] } // 旧壳无此命令：维持既有 best-effort 口径（导入侧仍会清边车）
   }
-  await new Promise((resolve) => setTimeout(resolve, DB_CLOSE_BROADCAST_WAIT_MS))
+  if (expected.length === 0) return { missing: [] }
+
+  const acked = new Set<string>()
+  try {
+    const requestId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+    // 先挂监听再广播：ack 可能比 listen 的 Promise 解析还快，顺序反了会把回执漏掉
+    let finish!: () => void
+    const done = new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, DB_CLOSE_ACK_TIMEOUT_MS)
+      finish = () => {
+        clearTimeout(timer)
+        resolve()
+      }
+    })
+    const unlisten = await listen<{ requestId?: string; label?: string }>(
+      DB_CLOSE_ACK_EVENT,
+      (event) => {
+        if (event.payload?.requestId !== requestId) return
+        const label = event.payload.label
+        if (typeof label !== 'string') return
+        acked.add(label)
+        if (expected.every((l) => acked.has(l))) finish()
+      }
+    )
+    try {
+      await emit(DB_CLOSE_ALL_EVENT, { requestId })
+      await done
+    } finally {
+      unlisten()
+    }
+  } catch {
+    return { missing: expected.filter((label) => !acked.has(label)) }
+  }
+
+  let stillOpen: string[]
+  try {
+    stillOpen = await floatingWindowLabels()
+  } catch {
+    // 复查失败：把未回执的都当仍存活（保守，宁可不导入）
+    return { missing: expected.filter((label) => !acked.has(label)) }
+  }
+  return { missing: missingAcks(expected, acked, stillOpen) }
 }
 
 /** 删除本地库 -wal/-shm 边车（DSK-09 覆写前清场）：纯浏览器抛 BridgeUnavailableError。
@@ -184,17 +252,23 @@ export async function checkpointWalForBackup(): Promise<number> {
   return walSize ?? 0
 }
 
-// 模块级自注册监听：任何 import 本模块的 webview（主窗 + 撕悬浮三件，均经 localLedger 等
-// store 间接引入）在桌面壳下自动挂监听——收到广播即关本窗两条连接（读写 + 只读投影），
-// 释放 local.db 句柄，让导入窗能安全整库覆写。纯浏览器/无事件能力静默跳过；模块单例只挂一次。
+// 模块级自注册监听：任何 import 本模块的 webview（主窗 + 撕悬浮三件）在桌面壳下自动挂监听——
+// 收到广播即关本窗两条连接（读写 + 只读投影），释放 local.db 句柄，并向主窗回执（#22-2）。
+// 为保所有窗都在启动即挂上，main.ts 直接 import 本模块（悬浮窗不经过 localLedger 也照样有）。
+// 纯浏览器/无事件能力静默跳过；模块单例只挂一次。
 let closeListenerArmed = false
 function armCloseListener(): void {
   if (closeListenerArmed || !isDesktop()) return
   closeListenerArmed = true
-  void import('@tauri-apps/api/event')
-    .then(({ listen }) => {
-      void listen(DB_CLOSE_ALL_EVENT, () => { void closeLocalDb() })
-    })
-    .catch(() => { /* 无事件能力：静默，靠导入窗自身 closeLocalDb 兜底 */ })
+  void listen<{ requestId?: string } | null>(DB_CLOSE_ALL_EVENT, async (event) => {
+    await closeLocalDb()
+    const requestId = event.payload?.requestId
+    if (typeof requestId !== 'string') return // 旧广播无回执约定：关掉即可
+    try {
+      await emit(DB_CLOSE_ACK_EVENT, { requestId, label: getCurrentWindow().label })
+    } catch {
+      // 回执发不出去：主窗按「未响应」处理并取消导入，原库不受影响
+    }
+  }).catch(() => { /* 无事件能力：静默，靠导入窗自身 closeLocalDb 兜底 */ })
 }
 armCloseListener()

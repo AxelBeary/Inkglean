@@ -6,6 +6,15 @@
 > - 滚动分册：活档体积门 `scripts/check-changelog-size.mjs`（≤40KB / ≤450 行，单段 ≤4KB，accept 第 19 道）；撞线即搬 oldest 段入 `docs/changelog-archive/` 新卷（整段零改动 + 逐行哈希校验，禁调高阈值续命）。
 > - v0.x 时代（v0.1~v0.46+）全量台账在 `docs/changelog-archive/changelog-v0-20260927.md`，只读历史。
 
+## #22 桌面端剩余五项批（2026-10-28）
+
+- **导入原子写（22-2 残余）**：`desktop_save_file` 与导出对话框落盘改「同目录临时文件 → 写满 → fsync → rename」。写一半失败或目标被占（悬浮窗仍持 SQLite 句柄）时原文件一字节不动，临时件失败即清。测试按 SQLite 同款 share 模式（读+写、不含 DELETE）构造占用，证明 rename 被拒且旧库内容保留。
+- **跨窗关连接逐窗回执（22-2 残余）**：新增 `desktop_floating_window_labels`（仅主窗 ACL）。导入广播带 requestId，逐窗等 ack（3s 上限）；未回执且仍存活的悬浮窗按人话列名回报，`runImport` 直接中止、不关连接/不清边车/不覆写库。`db.ts` 改静态 import，`main.ts` 入口引入，保证每个 webview 启动即挂监听。
+- **关主窗残留进程（22-3）**：退出路径（非托盘）在主窗销毁前先 destroy 全部 `floating-*` 窗。此前主窗没了、悬浮窗还在，进程不退且托盘/快捷键/单实例都只找 main，用户再也唤不回主窗。
+- **贴回状态跨窗同步（22-6）**：prefs store 监听 `storage` 事件跟进他窗写入（先 normalize 再采纳）；`desktop-float-closed` 监听从首页上移到 App 常驻。离开首页期间贴回/直关，回页不再被旧 torn 自动重撕，也不会用旧快照覆盖主窗新改的字号/主题。
+- **发布包资源协议与 CSP（22-7）**：`assetProtocol.enable=true` + Cargo `protocol-asset` + CSP 补 `frame-src 'self' data:`；新增 `tests/release_config.rs` 三条静态回归。发布包真人启动点击仍是最后一道（本批另产出 release 可执行文件，未做真人操作验证）。
+- **验证**：desktop lint / build 绿；vitest **629**（+13）；cargo test **39**（lib 28 + ACL 8 + 发布配置 3）；`npx tauri info` 无成对 mismatch。
+
 ## 拍板落地批（2026-10-27）
 
 - **下载失败处置（修订 #21-8）**：每 3 次半途 → 5 分钟冷却、可重试；累计 9 次 → 彻底锁定（需画师再许可）。新增迁移 **v80** `deliverables.download_fail_total`。原「3 次永久锁 + 冷却字段不可达」作废。

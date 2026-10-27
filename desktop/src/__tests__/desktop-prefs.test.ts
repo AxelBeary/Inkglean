@@ -1,7 +1,7 @@
 // 方向 A 测试①⑤：桌面布局偏好归一化 + 撕出状态持久化
 // ① prefs 归一化：坏数据落默认永不抛错；today 强制不可隐（系统控制优先纪律）。
 // ⑤ 撕出状态随偏好持久化：重开应用（新 store 实例）仍读到撕出态。
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { usePrefsStore } from '../stores/prefs'
@@ -115,5 +115,64 @@ describe('撕出状态持久化（测试⑤）', () => {
     const reopened = freshStore()
     expect(reopened.prefs.mount).toBe('indigo')
     expect(reopened.prefs.focus).toBe(true)
+  })
+})
+
+describe('跨窗偏好同步（#22-6）', () => {
+  /**
+   * 每个用例取全新模块实例：storage 监听按「每 webview 一份模块」只挂一次，
+   * 复用同一模块会让监听指向首个用例的 store 实例（测试专用问题，生产一窗一模块）。
+   */
+  async function freshModuleStore() {
+    vi.resetModules()
+    const { usePrefsStore: useFresh } = await import('../stores/prefs')
+    setActivePinia(createPinia())
+    return useFresh()
+  }
+
+  it('他窗写入后本窗内存跟进：贴回清 torn、字号主题取最新值', async () => {
+    localStorage.clear()
+    const prefs = await freshModuleStore()
+    prefs.setTorn('timer', true)
+    prefs.setFontSize(16)
+    await nextTick()
+
+    // 模拟悬浮窗写 localStorage（torn 清空 + 主窗后来改过字号/主题）
+    const fromOtherWindow = JSON.stringify({
+      hidden: [], mount: 'plain', torn: [], focus: false, fontSize: 19, theme: 'dark', mainView: 'cal'
+    })
+    window.dispatchEvent(new StorageEvent('storage', { key: KEY, newValue: fromOtherWindow }))
+
+    expect(prefs.isTorn('timer')).toBe(false)
+    expect(prefs.prefs.fontSize).toBe(19)
+    expect(prefs.prefs.theme).toBe('dark')
+    expect(prefs.prefs.mainView).toBe('cal')
+  })
+
+  it('坏 JSON / 非本键 / 删除事件一律忽略，保留本窗现值', async () => {
+    localStorage.clear()
+    const prefs = await freshModuleStore()
+    prefs.setFontSize(17)
+
+    window.dispatchEvent(new StorageEvent('storage', { key: KEY, newValue: '{这不是json' }))
+    expect(prefs.prefs.fontSize).toBe(17)
+
+    window.dispatchEvent(new StorageEvent('storage', { key: 'other-key', newValue: '{}' }))
+    expect(prefs.prefs.fontSize).toBe(17)
+
+    window.dispatchEvent(new StorageEvent('storage', { key: KEY, newValue: null }))
+    expect(prefs.prefs.fontSize).toBe(17)
+  })
+
+  it('陈旧非法值经 normalize 归一，不会把脏值灌进内存', async () => {
+    localStorage.clear()
+    const prefs = await freshModuleStore()
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: KEY,
+      newValue: JSON.stringify({ torn: ['timer', 'rocket'], fontSize: 999, mount: 'gold-leaf' })
+    }))
+    expect(prefs.prefs.torn).toEqual(['timer'])
+    expect(prefs.prefs.fontSize).toBe(20)
+    expect(prefs.prefs.mount).toBe('plain')
   })
 })

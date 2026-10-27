@@ -2,7 +2,7 @@
 //
 // Tauri 2 语义（官方 v2.tauri.app/security/capabilities）：经 `generate_handler!` 注册的
 // **应用自有命令默认对所有窗口/WebView 放行**（与插件命令相反）。本仓 `lib.rs` 的
-// `generate_handler!` 注册 31 项（含 files/secure_load 等敏感命令），此前 build.rs 是裸
+// `generate_handler!` 注册 32 项（含 files/secure_load 等敏感命令），此前 build.rs 是裸
 // `tauri_build::build()`、无 `permissions/`，capabilities 只列插件权限 → 悬浮窗（加载同一份前端
 // bundle）能无条件 invoke 任意路径读写与凭据读取。
 //
@@ -28,6 +28,8 @@ const APP_COMMANDS: &[&str] = &[
     "desktop_close_behavior_set",
     "desktop_floating_open",
     "desktop_floating_close",
+    // #22-2：导入覆写前点名现存悬浮窗（只回 label，主窗专用）
+    "desktop_floating_window_labels",
     // bridge/autostart.rs：开机自启
     "desktop_autostart_set",
     "desktop_autostart_get",
