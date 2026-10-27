@@ -13,7 +13,7 @@
 - **关主窗残留进程（22-3）**：退出路径（非托盘）在主窗销毁前先 destroy 全部 `floating-*` 窗。此前主窗没了、悬浮窗还在，进程不退且托盘/快捷键/单实例都只找 main，用户再也唤不回主窗。
 - **贴回状态跨窗同步（22-6）**：prefs store 监听 `storage` 事件跟进他窗写入（先 normalize 再采纳）；`desktop-float-closed` 监听从首页上移到 App 常驻。离开首页期间贴回/直关，回页不再被旧 torn 自动重撕，也不会用旧快照覆盖主窗新改的字号/主题。
 - **发布包资源协议与 CSP（22-7）**：`assetProtocol.enable=true` + Cargo `protocol-asset` + CSP 补 `frame-src 'self' data:`；新增 `tests/release_config.rs` 三条静态回归。发布包真人启动点击仍是最后一道（本批另产出 release 可执行文件，未做真人操作验证）。
-- **验证**：desktop lint / build 绿；vitest **629**（+13）；cargo test **39**（lib 28 + ACL 8 + 发布配置 3）；`npx tauri info` 无成对 mismatch。
+- **验证**：desktop lint / build 绿；vitest **629**（+13）；cargo test **39**（lib 28 + ACL 8 + 发布配置 3）；`npx tauri info` 无成对 mismatch；十九道全绿 @ `5e00ec87`（685s；server 1993 / web 1167 / desktop 629 / shared 44 / E2E 14）。
 
 ## 拍板落地批（2026-10-27）
 

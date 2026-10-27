@@ -1,19 +1,30 @@
 # 桌面端（拾绘桌面版）子项目状态
 
-## 看板（2026-10-21 刷新：U45/U46 修复批 + Dependabot #20；一号自主批）
+## 看板（2026-10-28 刷新：#22 剩余五项收口）
 
-- **HEAD** 随主仓 `master`（`b7d9f442`）；U45/U46 / #20 / N×M（web+server）/ E2E 定位器批（test-only）已合入推送
-- **基线 570**（40 文件；U45/U46 +19；十九道全绿 @ `f8258703`）；版本 0.1.0，**尚未发布**（无 `desktop-v*` tag）
+- **HEAD** 随主仓 `master`（`5e00ec87`）；#22 五项（原子写 / 逐窗回执 / 退出清悬浮窗 / 偏好跨窗同步 / 发布包 asset+CSP）已合入
+- **基线 629**（45 文件；+13：回执 8 / 偏好同步 3 / 导入中止 2；十九道全绿 @ `5e00ec87` 685s）；版本 0.1.0，**尚未发布**（无 `desktop-v*` tag）
+- **Rust 测试 39**（lib 28 + `tests/acl.rs` 1 + `tests/app_acl.rs` 7 + `tests/release_config.rs` 3）；发布 release exe 已产出（`tauri build --no-bundle`，1m40s）
 - **U45 已闭合**：截稿悬浮窗走 `openLocalDbReadOnly()`（不建表）；`floating-deadline.json` 单独授 `sql:default`（无 execute），timer/todo 零 SQL；失败说「暂时取不到截稿」
 - **U46 防线**：`tests/acl.rs` 用 tauri::test mock runtime 走真 IPC/ACL；`build.rs` 把 Windows manifest 链进测试 exe；CI desktop job 由 `cargo check` 改 `cargo test`
-- **F-44**：`Home.vue` 807→800，ALLOWLIST 移除 Home.vue
-- **依赖**：Dependabot #20 合入（pinia 4.1.0 / vue 3.5.44 / vue-tsc 3.3.13 / vitest 4.1.12 / eslint-plugin 8.71.2）；`@tauri-apps/*` 与 Cargo 未动，成对现状不变
+- **依赖**：`@tauri-apps/*` JS 与 Cargo 成对现状不变（本批只给 tauri crate 加 `protocol-asset` feature，`npx tauri info` 无 mismatch）
 - **平台范围**：**只支持 Windows**（2026-10-27 拍板；`bundle.targets = ["nsis"]`，macOS/Linux 不构建不承诺）
 - **默认窗 1200×820**（9/5 拍板，内滚实测 1px≈零）；最小窗 **1200×600 不动**（826 亲定「不允许放太小」）
 - **待用户终验（两摊）**：波1 终验清单 9 组 37 条（=待办 U6）+ 10-13 成对升级后的窗口行为清单（标题栏/托盘/通知/文件选择器/本地库/悬浮窗）
+- **本批新增待真机**：发布包启动后的 asset 图缓存与模块 data 帧、悬浮窗逐窗回执/贴回同步各一遍
 - **发布前必查**：`desktop/docs/发布前待办清单-825.md`（第 19/20 项发布流水线缺陷；第 1 项已改 v74→现状 v76）
 - 体例提示：9/05~8/26 五块已归档至 `desktop/docs/archive-20261021/`；新条目一律短标题 + 分组要点。
-- 细目见主 `docs/changelog.md` 2026-10-21 两条与 `AGENTS/artifacts/U45-U46修复批-20261020/`。
+- 细目见主 `docs/changelog.md` 2026-10-28 条与 `AGENTS/artifacts/issue22-desktop-20261028/`。
+
+> 📌 **2026-10-28 #22 桌面端剩余五项（用户：那个留着的我们现在来一起处理掉）**
+>
+> - **2-残余a 原子写**：`write_atomic()`（同目录临时文件 → fsync → rename）接入 `desktop_save_file` 与导出对话框；被占/半途失败时原文件零改动。
+>   - 测试用 SQLite 同款 share 模式构造占用：std `File::open` 带 `FILE_SHARE_DELETE` 挡不住 rename（第一版测试因此红），改用 `OpenOptionsExt::share_mode` 才复现真实场景。
+> - **2-残余b 逐窗回执**：新增 `desktop_floating_window_labels`（只回 `floating-*`，归 `window-controls`，仅主窗）；导入广播带 requestId 等逐窗 ack（3s），未回执且仍存活即中止导入。`main.ts` 入口引入 `bridge/db`，保证每个 webview 都挂监听。
+> - **3 退出清悬浮窗**：CloseRequested 主窗 Quit 分支先 destroy 全部 `floating-*` 再放行关闭；托盘路径不变。
+> - **6 贴回同步**：prefs 监听 `storage`（normalize 后采纳）；`desktop-float-closed` 监听从 Home 上移 App。
+> - **7 发布包**：`assetProtocol.enable=true` + tauri `protocol-asset`（Cargo.lock 增 http-range 0.1.6）+ CSP `frame-src 'self' data:`；`tests/release_config.rs` 三条静态回归；release exe 已产出，真机启动点击归用户终验。
+> - **门禁**：desktop lint/test(629)/build 绿；cargo test 39；`npx tauri info` 无 mismatch；主仓十九道全绿 @ `5e00ec87`（685s）。留痕 `AGENTS/artifacts/issue22-desktop-20261028/`。
 
 > 📌 **2026-10-19 技术债四合一批桌面侧（U31 工具链收敛 + U32 capabilities 补权限；用户拍板全做）**
 >

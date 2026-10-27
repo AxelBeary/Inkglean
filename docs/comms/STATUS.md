@@ -1,25 +1,25 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-10-27 刷新：七路 PR 全数合入 + 文档整规批）
+## 看板（2026-10-28 刷新：#22 桌面端剩余五项收口）
 
-- **HEAD 与推送**：`ef0fb5b0` = `995f3a68` 之上 7 笔 PR 合并 + 2 笔修复/基建 + 2 笔 issue/拍板落地 + 3 笔文档整规；十九道全绿（489s，报告 `accept-master-20261027-232754.md`）
-- **基线（accept.ps1 十九道全绿 @ 本批）**：server **1993**（174 文件）/ web **1167**（171）/ desktop **616**（44）/ shared **44** / E2E **14** / cargo test 32（Rust 另计）
-  - 迁移 **v80**（v78 幂等 request_hash / v79 撤销关联 / v80 下载累计失败数）
-  - 本批计数增长：server +12（#63 冷却回归 3 + fail-closed 1 + #21 余项 5 + 拍板 3）/ web +94（七路 PR 自带回归 + 本批 14）
-- **拟物收敛射程不变**：只限排期块（ScheduleScroll）；挂牌 3D / 墨迹动画 / 登录纸艺山水**不动**（本批挂牌只改绳角算法，视觉参数原样）
+- **HEAD 与推送**：`5e00ec87` = #22 五项（导入原子写 / 逐窗回执 / 退出清悬浮窗 / 偏好跨窗同步 / 发布包 asset+CSP）；十九道全绿（685s，报告 `accept-master-20261028-053528.md`）
+- **基线（accept.ps1 十九道全绿 @ 本批）**：server **1993**（174 文件）/ web **1167**（171）/ desktop **629**（45）/ shared **44** / E2E **14** / cargo test **39**（lib 28 + ACL 8 + release_config 3）
+  - 迁移 **v80** 不变
+  - 本批计数增长：desktop +13（逐窗回执 8 / 偏好跨窗同步 3 / 导入中止 2）
+- **拟物收敛射程不变**：只限排期块（ScheduleScroll）；挂牌 3D / 墨迹动画 / 登录纸艺山水**不动**
 - **GHSA-6pf3 安全批已闭合**：8 项加固全部落地并回函；披露处置＝**维持私密不公开**（详见「已拍板规则」）
-- **警报/PR 现状**：Code scanning open 0；Dependabot open 0；**open PR 0**（#61/#64/#65/#66/#67/#62/#63 已全数接收）
-  - issue 处置：#50/#53/#52/#23/#54/#21/#57/#56 已关；**仅 #22 保持 open**（真机/发布包验证 5 类）
+- **警报/PR 现状**：Code scanning open 0；Dependabot open 0；**open PR 0**
+  - issue 处置：**全数关闭**（#22 本批收口；余下仅「发布包真人启动」归用户终验）
 - 公网冻结现状不变；管理员判定只认库值
 - 🔴 **上线前置硬警告仍有效**：公网部署前**必须先确认 `platform_config.admin_qq` 非空**
 
 **下一步（按优先级）**
 
-1. ✅ **本批收口**：7 路 PR 合入 + 三处 must-fix 跟进 + 文档整规；留痕 `AGENTS/artifacts/pr-batch-20261027/` 与 `AGENTS/artifacts/docs-整规-20261027/`
+1. ✅ **本批收口**：#22 五项 + release 构建 + 十九道全绿；留痕 `AGENTS/artifacts/issue22-desktop-20261028/`
 2. **登记未施工（下批候选）**
-   - **仅 #22 一张单**：导入非原子写 / 跨窗关连接无 ack / 关主窗残留进程 / 悬浮窗贴回状态不同步 / 发布包资源协议与 CSP（需真机或发布包验证）
    - 评审附带跟进：#61 10MB 超限静默 return + 无 filePath 拦提交 + objectURL 回收；#62 分片失败整批停 + 守卫 15s 无提示；#65 提交时二次校验接单状态
-3. **盘面清理已做**：`.qoder/worktrees/` 三个旧残目录已清空；本轮删 5 个已并入本地分支 + 1 个被返工版取代的孤儿分支（`fix/web-motion-visual-polish` @ 98027400）
+   - 待用户终验：发布包真人启动（asset 图缓存、模块 data 帧）；悬浮窗逐窗回执与贴回同步的真机一遍
+3. **盘面清理已做**：`.qoder/worktrees/` 旧残目录已清空；本轮无新增 worktree
 4. **待你拍板的技术债（剩余）**：U26 server 以 tsx 作生产依赖；U33 桌面发版流水线从未跑过（缺 vars/secrets，首版必红）
 5. **待你终验 / 终审**：桌面真机 UI 清单（标题栏/托盘/通知/文件选择器/本地记账；opener 需真人点）；对外文案 W4/W6/U12/U13
 6. **剩红灯需拍板**：U16 板块级下架 / U17 数据服务 / G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度 / U22 改稿上限 / U23 记忆库优先级边界 / U24 视觉判断通道归属
@@ -83,11 +83,26 @@
   - 既有绕过留痕不变：-Force / -SkipAccept 仍记 WARN（本批顺手补上 -SkipAccept 实际未写的 WARN 行），阻断仍走 Stop-Fail 写告警文件。
   - 验证：沙盒 git 仓八景（纯文档领先→WARN 放行；含代码/离线 SHA/红报告/25h 陈旧→阻断；-Force/-SkipAccept/dirty 景行为不变），取证件 `AGENTS/temp/docdowngrade-20260929/results.md`。详见 changelog 同批条。
 
-**起手必读**：**⚑ 下次开工第一件事**：读顶部看板（wave3：PR #55/#58/#26/#59/#60 五路合入 + 上批 7 项待拍板全部落地，十九道全绿 @ `b4d22c6d`）→ 再读 **⚑ 下方正文第一条（2026-10-26 wave3 收口）**；余下待用户项看看板「下一步」第 2~3 条。
+**起手必读**：**⚑ 下次开工第一件事**：读顶部看板（#22 桌面端五项收口，十九道全绿 @ `5e00ec87`）→ 再读 **⚑ 下方正文第一条（2026-10-28 #22 收口）**；余下待用户项看看板「下一步」第 2~3 条。
 
 **起手必读续**：→ 交接档 `docs/comms/交接-20260912-会话收口与待拍清单.md` → 本节看板 → `AGENTS.md`（含「STATUS 体例与归档纪律」）→ 碰桌面端再读 `desktop/docs/STATUS.md` 顶部。
 
 **起手必读续二**：改桌面 UI 必跑 `huiyue-layout-audit` 自检循环（**宿主级技能**，住 `%USERPROFILE%\.agents\skills\huiyue-layout-audit\`，不在仓库属正常；VL 评审通道不可用，只能 measure.mjs + 人工逐项清单）。
+
+>  📌 **2026-10-28 #22 桌面端剩余五项收口（用户：那个留着的我们现在来一起处理掉）**
+>
+> - **2-残余a 原子写**：`desktop_save_file` 与导出落盘改「同目录临时文件 → 写满 → fsync → rename」。
+>   - 被占（悬浮窗仍持库句柄）或写半途失败：原文件零改动、临时件即清；Rust 测试用 SQLite 同款 share 模式（读+写、不含 DELETE）实证 rename 被拒且旧库保留。
+> - **2-残余b 逐窗回执**：新增 `desktop_floating_window_labels`（window-controls 组，仅主窗）。
+>   - 导入广播带 requestId，逐窗等 ack（3s 上限）；未回执且仍存活者按人话列名，`runImport` 中止且不关连接/不清边车/不覆写。
+>   - `db.ts` 改静态 import、`main.ts` 入口引入，保证每个 webview 启动即挂监听。
+> - **3 退出清悬浮窗**：Quit 分支先 destroy 全部 `floating-*` 再放行主窗关闭，消除「主窗没了、悬浮窗还在、唤不回」。
+> - **6 跨窗同步**：prefs 监听 `storage` 采纳他窗写入；`desktop-float-closed` 上移 App 常驻。
+>   - 离开首页期间贴回/直关，回页不再按旧 torn 重撕，也不会用旧快照覆盖新字号/主题。
+> - **7 发布包**：`assetProtocol.enable=true` + `protocol-asset` + CSP `frame-src 'self' data:`，`release_config.rs` 三条静态回归。
+>   - `npx tauri build --no-bundle` 产出 release exe（1m40s）；发布包真人启动点击仍归用户终验。
+> - **验证**：desktop vitest 629（+13）/ cargo test 39（lib 28 + ACL 8 + release 3）/ tauri info 无 mismatch。
+> - 十九道全绿 @ `5e00ec87`（685s）；基线 desktop 616→629，迁移仍 v80。留痕 `AGENTS/artifacts/issue22-desktop-20261028/`。
 
 >  📌 **2026-10-27 七路 PR 批量合入 + 文档整规批（用户授权：可合的就审合；自己区域的整规派子代理做掉）**
 >
