@@ -96,9 +96,11 @@ const totalCompleted = useCountUp(computed(() => props.stats?.totalCompleted ?? 
 .stat-card--active:hover .stat-go { color: var(--hq); }
 .stat-card--completed:hover .stat-go { color: var(--sl); }
 /* 竖屏/窄屏：三列硬挤会把标签挤断行（812 用户实测报障），≤600px 改单列堆叠。
+   #57-9：断点改认内容容器宽（ArtistLayout 已设 container-type:inline-size）——
+   仅按视口判定时，601~760px 有侧栏的页内容宽只有 ~330px，三卡仍被挤扁。
    注意：el-card 外壳唯一子元素是 .el-card__body，横排必须挂在 body 层才生效
    （首版误挂在外壳层未生效，用户二次报障"全部挤在一起"后定位） */
-@media (max-width: 600px) {
+@container (max-width: 600px) {
   .stat-grid { grid-template-columns: 1fr; gap: 12px; }
   .stat-card :deep(.el-card__body) {
     display: flex; align-items: center; gap: 12px;

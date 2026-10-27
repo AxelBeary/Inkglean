@@ -108,6 +108,7 @@ import { useRouter } from 'vue-router'
 import { artistApi } from '../../../api/index'
 import { formatDateTime } from '../../../utils/datetime'
 import type { ScheduleBar } from '../../../api/types'
+import { useScrollLock } from '../../../composables/useScrollLock'
 
 const { t, locale } = useI18n()
 const router = useRouter()
@@ -206,6 +207,8 @@ function goQueue() {
 // ─── E1：纸签点击订单摘要浮层 ───
 // 只用接口已返回字段；浮层内“进订单详情”承接原点击跳转语义。
 const popBar = ref<ScheduleBar | null>(null)
+// #56-6：浮层只挡点击不挡滚动——打开时锁页面滚动，关闭/卸载释放
+useScrollLock(computed(() => !!popBar.value))
 const popRef = ref<HTMLElement | null>(null)
 let lastFocused: HTMLElement | null = null
 

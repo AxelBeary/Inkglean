@@ -150,6 +150,13 @@ export function getClientQueuePosition(orderNo: string, customerToken: string): 
     return { ...base, position: null, total: null }
   }
 
+  // 审计 #21-10：画师开启隐藏队列位次时，位次与总数都不下发（此前只藏了 buffer 侧的 queuePosition）
+  const queuePref = db.prepare('SELECT hide_queue_position FROM artists WHERE id = ?')
+    .get(order.artist_id) as { hide_queue_position: number } | undefined
+  if (queuePref?.hide_queue_position) {
+    return { ...base, position: null, total: null }
+  }
+
   // 内联活跃队列查询（避免循环引用 order-queue.service.js）
   const queue = db.prepare(`
     SELECT id FROM orders

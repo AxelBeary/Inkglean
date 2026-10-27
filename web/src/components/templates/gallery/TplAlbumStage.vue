@@ -321,6 +321,10 @@ function onFrameClick() {
   /* T 波：0.28s → --dur-mid(.25s) 就近等值 */
   transition: opacity var(--dur-mid) var(--ease-out), transform var(--dur-mid) var(--ease-out);
 }
+/* #56-2：out-in 下每次翻页要等 leave 走完才进 enter；leave 压到 0.1s，连翻不再排队近半秒 */
+.tpl-album-swap-leave-active {
+  transition-duration: 0.1s;
+}
 .tpl-album-swap-enter-from {
   opacity: 0;
   transform: translateX(14px);

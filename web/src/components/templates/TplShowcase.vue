@@ -318,9 +318,11 @@ function selectItem(idx: number) {
   if (props.mode === 'style') onStyleChange()
 }
 
-/** 起步价标签（¥最低尺寸基础价起） */
+/** 起步价标签（¥最低可成交尺寸基础价起；展示态/停用尺寸不算——与服务端口径一致） */
 function fromLabel(style: StyleLike) {
-  const prices = (style.sizes || []).map(s => s.base_price)
+  const prices = (style.sizes || [])
+    .filter(s => !s.display_status || s.display_status === 'available')
+    .map(s => s.base_price)
   if (!prices.length) return '—'
   return formatYuanValue(Math.min(...prices)) + '+'
 }

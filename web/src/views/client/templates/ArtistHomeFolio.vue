@@ -3,10 +3,10 @@
     <!-- 固定导航（滚动侦测高亮 + 移动端汉堡） -->
     <nav class="folio-nav">
       <span class="folio-nav-brand">{{ artist.name }}</span>
-      <button class="folio-nav-burger" @click="menuOpen = !menuOpen" :aria-label="t('artistHome.menuLabel')">
+      <button class="folio-nav-burger" @click="menuOpen = !menuOpen" :aria-label="t('artistHome.menuLabel')" :aria-expanded="menuOpen ? 'true' : 'false'" aria-controls="folio-nav-links">
         <span></span><span></span><span></span>
       </button>
-      <div class="folio-nav-links" :class="{ open: menuOpen }">
+      <div id="folio-nav-links" class="folio-nav-links" :class="{ open: menuOpen }" :inert="isMobile && !menuOpen">
         <a
           v-for="item in navItems"
           :key="item.id"
@@ -159,6 +159,18 @@ const footerLinks = computed(() => rawFooterLinks.value.map((link) => ({ ...link
 const rootEl = ref<HTMLElement | null>(null)
 const heroRef = ref<unknown>(null)
 const menuOpen = ref(false)
+// #54-1：移动端菜单关闭时只是平移出视口，Tab 仍能落到不可见链路上——按移动断点挂 inert。
+// 桌面端链路常驻可见，不能挂 inert，故必须与 CSS 断点同口径判断。
+const isMobile = ref(false)
+let mobileMq: MediaQueryList | null = null
+function syncIsMobile(e?: MediaQueryListEvent) { isMobile.value = e ? e.matches : !!mobileMq?.matches }
+onMounted(() => {
+  if (typeof window.matchMedia !== 'function') return
+  mobileMq = window.matchMedia('(max-width: 768px)')
+  syncIsMobile()
+  mobileMq.addEventListener('change', syncIsMobile)
+})
+onUnmounted(() => { mobileMq?.removeEventListener('change', syncIsMobile); mobileMq = null })
 const activeSection = ref('')
 useScrollReveal(rootEl)
 
@@ -459,9 +471,10 @@ onUnmounted(() => {
     display: flex;
   }
   .folio-nav-links {
-    position: fixed;
-    /* #57 跟进：预览横幅把导航下移时，面板必须跟着下移，否则 fixed top 会盖住导航下半截 */
-    top: calc(57px + var(--preview-banner-h, 0px));
+    /* #57-5：挂进导航（absolute 相对 fixed 的 nav），top:100% 自动跟住导航真实高度；
+       长画师名把 nav 撑高、预览横幅把 nav 下移时都不会再露缝或盖住导航下半截 */
+    position: absolute;
+    top: 100%;
     left: 0;
     right: 0;
     flex-direction: column;
