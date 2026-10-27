@@ -7,6 +7,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'happy-dom',
-    include: ['src/**/__tests__/**/*.test.ts']
+    include: ['src/**/__tests__/**/*.test.ts'],
+    // 同 web：高核数机器默认 fork 数过多，Windows 下偶发单 worker 启动即退
+    poolOptions: { forks: { maxForks: 8 } }
   }
 })
