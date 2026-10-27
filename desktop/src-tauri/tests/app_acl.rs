@@ -247,6 +247,8 @@ fn floating_capabilities_list_no_sensitive_permissions() {
         "db-sidecar",
         "window-controls",
         "window-float-open",
+        // #22-2：点名现存悬浮窗（含 label）属主窗编排面，投影窗不该看到别的窗
+        "allow-desktop-floating-window-labels",
         "activity-monitor",
         "bridge-diagnostics",
     ];
@@ -320,6 +322,7 @@ fn floating_windows_cannot_reach_file_credential_or_module_commands() {
         ("desktop_read_module_entry", json!({ "dirName": "mood-weather" })),
         ("desktop_window_close", json!({})),
         ("desktop_floating_open", json!({ "kind": "timer" })),
+        ("desktop_floating_window_labels", json!({})),
         ("desktop_close_behavior_set", json!({ "behavior": "tray" })),
         ("desktop_autostart_set", json!({ "enabled": true })),
         ("desktop_tray_set_tooltip", json!({ "text": "x" })),
@@ -387,6 +390,7 @@ fn main_window_keeps_file_credential_and_module_access() {
         "desktop_read_module_entry",
         "desktop_install_sample_module",
         "desktop_floating_open",
+        "desktop_floating_window_labels",
         "desktop_close_behavior_set",
         "bridge_ping",
     ] {

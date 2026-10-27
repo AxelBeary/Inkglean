@@ -87,6 +87,15 @@ pub fn run() {
                         if to_tray {
                             api.prevent_close();
                             let _ = window.hide();
+                        } else {
+                            // 退出路径（#22-3）：主窗销毁前先清掉全部悬浮窗。否则主窗没了、
+                            // 悬浮窗还活着，进程不退出；而托盘/快捷键/单实例回调都只找 main，
+                            // 用户再也唤不回主窗（只能托盘退出后重启应用）。
+                            for (label, win) in app.webview_windows() {
+                                if bridge::window::is_floating_label(&label) {
+                                    let _ = win.destroy();
+                                }
+                            }
                         }
                     }
                 } else if window.label().starts_with("floating-") {
@@ -111,6 +120,7 @@ pub fn run() {
             bridge::window::desktop_close_behavior_set,
             bridge::window::desktop_floating_open,
             bridge::window::desktop_floating_close,
+            bridge::window::desktop_floating_window_labels,
             bridge::autostart::desktop_autostart_set,
             bridge::autostart::desktop_autostart_get,
             bridge::db::desktop_local_db_path,
