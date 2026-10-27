@@ -438,7 +438,8 @@ onMounted(() => {
 
 onUnmounted(() => window.removeEventListener('beforeunload', beforeUnload))
 
-defineExpose({ load })
+// issue #53-6：宿主（TierManage）路由离开拦截需要读脏态；保存成功/重置已清 dirty 后即放行
+defineExpose({ load, hasUnsavedPayment: () => dirtyNodes.value.length > 0 })
 </script>
 
 <style scoped>

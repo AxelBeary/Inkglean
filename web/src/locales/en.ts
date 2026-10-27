@@ -1570,6 +1570,10 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     // v0.28 T3: tab labels + action text i18n
     tabWorkflow: 'Workflow & Payment',
     tabDiscount: 'Discount Codes',
+    // issue #53-6: leave guard copy for unsaved payment split
+    leaveUnsavedTitle: 'Unsaved payment split',
+    leaveUnsavedConfirm: 'Your payment split has unsaved changes. Leave anyway? Those changes will be lost.',
+    leaveUnsavedOk: 'Leave anyway',
   },
   // v0.31 F3: discount code management
   discount: {

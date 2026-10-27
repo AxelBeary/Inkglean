@@ -1568,6 +1568,10 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // v0.28 T3: Tab 标签 + 操作文案 i18n 化
     tabWorkflow: '流程与比例',
     tabDiscount: '折扣码',
+    // issue #53-6：收款比例未保存就离开页面时的拦截文案
+    leaveUnsavedTitle: '比例未保存',
+    leaveUnsavedConfirm: '收款比例有未保存的改动，确定离开？离开后这些改动会丢失。',
+    leaveUnsavedOk: '仍要离开',
   },
   // v0.31 F3: 折扣码管理
   discount: {
