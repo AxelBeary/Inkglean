@@ -6,6 +6,14 @@
 > - 滚动分册：活档体积门 `scripts/check-changelog-size.mjs`（≤40KB / ≤450 行，单段 ≤4KB，accept 第 19 道）；撞线即搬 oldest 段入 `docs/changelog-archive/` 新卷（整段零改动 + 逐行哈希校验，禁调高阈值续命）。
 > - v0.x 时代（v0.1~v0.46+）全量台账在 `docs/changelog-archive/changelog-v0-20260927.md`，只读历史。
 
+## issue 剩余可做项批（2026-10-27）
+
+- **#21**：隐藏队列位次时主 `position/total` 一并置空；`advanceStage(null)` 关跟踪补终态守卫（新增 5 例）。
+- **#54**：Folio 移动菜单关闭态挂 `inert` + `aria-expanded/controls`；画风起价排除展示态/停用尺寸（新增 4 例）。
+- **#56**：画册翻页 leave 压到 0.1s；挂牌绳角改按过渡参数解析计算（去掉逐帧 getComputedStyle）；浮层滚动锁（引用计数，新增 3 例）；问候卡改 min-height + 两行 clamp（墨迹 blur 视觉不动）。
+- **#57**：移动菜单挂进导航 `top:100%`；Atelier 公告断点上提 860px；统计卡断点改容器查询。字体度量（57-8）需改生成脚本并做视觉验证，未动。
+- **验证**：十九道全绿 @ `17494d20`（379s）；server 1990 / web 1167。
+
 ## 七路 PR 批量合入 + 文档整规批（2026-10-27）
 
 - **接收**：#61 参考图列表单一数据源 / #64 可达性三处 + 全角标点收进 locale / #65 下单入口门禁（接单状态 / QQ / 匿名凭证）/ #66 check-i18n CJK 扩区 + 模板全角标点门禁 / #67 筛选不重播 + 预览横幅 / #62 会话层五条 / #63 竞态与冷却。
