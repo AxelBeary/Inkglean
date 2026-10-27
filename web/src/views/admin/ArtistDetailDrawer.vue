@@ -67,7 +67,7 @@
       <el-tab-pane :label="$t('menu.tiers')" name="pricing" lazy>
         <div v-loading="pricingLoading">
           <div v-for="style in stylesOverview" :key="style.id" class="pricing-style">
-            <div class="pricing-style-name">{{ style.name }}<span v-if="!style.is_active" class="pricing-inactive">（{{ $t('styleManage.styleInactiveTag') }}）</span></div>
+            <div class="pricing-style-name">{{ style.name }}<span v-if="!style.is_active" class="pricing-inactive">{{ $t('styleManage.styleInactiveInParens') }}</span></div>
             <div v-for="sz in style.sizes" :key="sz.id" class="tier-row">
               <span class="tier-name">{{ sz.name }}</span>
               <el-tag size="small" effect="plain" :type="sizeStatusType(sz.display_status)">{{ sizeStatusLabel(sz.display_status) }}</el-tag>

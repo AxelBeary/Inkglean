@@ -78,7 +78,7 @@
         <span class="price-amount">+{{ formatYuan(item.amountCents) }}</span>
       </div>
       <div v-for="(item, idx) in preview.percentAddonItems" :key="'p' + idx" class="price-line">
-        <span>{{ item.name }} +{{ item.percent }}%<span class="price-line-note">（{{ t('orderForm.pctOfBase') }}）</span></span>
+        <span>{{ item.name }} +{{ item.percent }}%<span class="price-line-note">{{ t('orderForm.pctOfBaseInParens') }}</span></span>
         <span class="price-amount">+{{ formatYuan(item.amountCents) }}</span>
       </div>
       <div class="price-line subtotal">
@@ -119,7 +119,7 @@
       <!-- 817-D 10-2：合计行移到折扣行之后（后端 totalCents 为折后价，先减后合计，
            与 OrderSummaryCard/小票弹窗口径一致，避免「先合计再减折扣」的假折前行序） -->
       <div v-if="preview.discount" class="price-line discount">
-        <span>{{ t('orderForm.discountEstimate') }}（{{ preview.discount.code }}）</span>
+        <span>{{ t('orderForm.discountEstimateWithCode', { code: preview.discount.code }) }}</span>
         <span class="price-amount discount-amount">-{{ formatYuan(preview.discount.amountCents) }}</span>
       </div>
       <div class="price-line total">

@@ -928,6 +928,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // v0.31 F3: 折扣码
     discountLabel: '折扣码', discountPlaceholder: '有折扣码？输入试试', discountValidate: '验证',
     discountEstimate: '预估折扣',
+    // issue #54-2：括号收进词条，英文态改半角（模板不再硬编码全角括号）
+    discountEstimateWithCode: '预估折扣（{code}）',
     // issue #50-6：填了码但没验证 → 报价不含折扣，提交前拦下
     discountNotValidated: '折扣码还没验证，报价里不含折扣',
     // v0.32 REQ-023 Phase2: 多画风三步走
@@ -942,9 +944,11 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     addonGroupUsage: '用途（最多选一项）',
     addonGroupRush: '加急（最多选一项）',
     multOptionalHint: '可不选',
+    multOptionalHintInParens: '（可不选）',
     sizeShowcaseTag: '展示中 · 暂不可约',
     sizeShowcaseBlocked: '该尺寸展示中，暂不可约稿',
     pctOfBase: '按基础价计算',
+    pctOfBaseInParens: '（按基础价计算）',
     priceCalcFailed: '价格计算失败，请稍后重试',
     // issue #50-1/#50-2：报价未就绪时不给数字（⛔ 回退基础价，那是漏掉全部增项的低价）
     pricePending: '报价待确认',
@@ -1180,6 +1184,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     guestbookTitle: '留言审核', guestbookEmpty: '暂无留言',
     guestbookPending: '待审核', guestbookApproved: '已通过', guestbookRejected: '已拒绝',
     guestbookApprove: '通过', guestbookReject: '拒绝', guestbookReply: '回复',
+    guestbookReplyLabel: '回复：',
     guestbookReplyPlaceholder: '回复这位访客（≤500字）', guestbookReplySave: '保存回复',
     guestbookApprovedMsg: '留言已通过', guestbookRejectedMsg: '留言已拒绝', guestbookRepliedMsg: '回复已保存',
     guestbookError: '留言审核加载失败',
@@ -1401,6 +1406,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     payAmountZero: '金额不能为 0', payRefundNoteRequired: '退款或撤销时请填写原因', payRefundExceed: '退款金额不能超出已收金额 ¥{amount}',
     // v0.31 F4: 节点收款
     payNodePaid: '已收', payNodeDue: '应收', payNodeRemain: '差额',
+    // issue #54-2：差额行整句带参（英文态半角括号）
+    payNodeRemainInParens: '（差额 ¥{amount}）',
     payNodeCollect: '收款', payNodeTitle: '「{name}」节点收款',
     nodePayNoteFallback: '{name}收款',
     // v0.31 F5 → REQ-025 二阶段: 待收横幅（主信息=订单级总待收，副信息=当前节点）
@@ -1696,6 +1703,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // 尺寸三态
     sizeStatusOpen: '可约', sizeStatusShow: '展示', sizeStatusClose: '关闭',
     styleInactiveTag: '已停用',
+    styleInactiveInParens: '（已停用）',
     // 尺寸摘要行
     sizeSummaryLabel: '已配增项', sizeSummaryEmpty: '未启用增项（可拖入上方胶囊）'
   },
@@ -2054,6 +2062,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     orderColType: '类型', orderColTime: '下单时间',
     greetingManage: '问候语管理', greetingPlaceholder: "输入问候语，用 {'{'}name{'}'} 代替画师名",
     greetingPreview: '预览',
+    // issue #54-2：冒号收进词条（英文态半角冒号 + 空格）
+    greetingPreviewLine: '预览：{text}',
     greetingColText: '问候语', greetingColSlot: '时段', greetingColEnabled: '启用',
     greetingEmpty: '暂无问候语',
     greetingDeleteConfirm: '确定删除这条问候语吗？',
@@ -2284,6 +2294,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     common: {
       backHome: '返回首页',
       updated: '更新日期',
+      updatedOn: '更新日期：{date}',
       privacy: '隐私政策',
       terms: '服务条款',
       report: '举报',

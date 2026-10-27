@@ -94,7 +94,7 @@
 
     <!-- 用途（最多选一项，可不选） -->
     <div v-if="selectedSizeId && usageAddons.length > 0" class="mo-field">
-      <div class="mo-field-label">{{ $t('manualOrder.usage') }}<span class="mo-field-label-hint">（{{ $t('orderForm.multOptionalHint') }}）</span></div>
+      <div class="mo-field-label">{{ $t('manualOrder.usage') }}<span class="mo-field-label-hint">{{ $t('orderForm.multOptionalHintInParens') }}</span></div>
       <div class="mult-chips">
         <button
           v-for="a in usageAddons" :key="a.id"
@@ -112,7 +112,7 @@
 
     <!-- 加急（最多选一项，可不选） -->
     <div v-if="selectedSizeId && rushAddons.length > 0" class="mo-field">
-      <div class="mo-field-label">{{ $t('manualOrder.rush') }}<span class="mo-field-label-hint">（{{ $t('orderForm.multOptionalHint') }}）</span></div>
+      <div class="mo-field-label">{{ $t('manualOrder.rush') }}<span class="mo-field-label-hint">{{ $t('orderForm.multOptionalHintInParens') }}</span></div>
       <div class="mult-chips">
         <button
           v-for="a in rushAddons" :key="a.id"
