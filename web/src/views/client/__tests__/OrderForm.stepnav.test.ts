@@ -9,6 +9,7 @@ import { polyfillResizeObserver, buildMockComposable } from './helpers/orderForm
 
 type MockComposable = ReturnType<typeof buildMockComposable>
 type ComposableMode = 'single' | 'multi' | 'empty'
+type ArtistStatus = 'open' | 'full' | 'break' | 'hidden'
 
 interface OrderFormVM {
   step: number
@@ -34,15 +35,16 @@ vi.mock('../../../i18n/index.js', () => ({
   default: { global: { locale: { value: 'zh-CN' } } }
 }))
 
-// 提升容器：useOrderForm mock 每次返回可控实例（h.current），模式由 h.mode 决定
+// 提升容器：useOrderForm mock 每次返回可控实例（h.current），模式与接单状态由 h.mode/h.status 决定
 const h = vi.hoisted(() => ({
   mode: 'multi' as ComposableMode,
+  status: 'open' as ArtistStatus,
   current: null as MockComposable | null,
-  build: null as ((mode: ComposableMode) => MockComposable) | null
+  build: null as ((mode: ComposableMode, status: ArtistStatus) => MockComposable) | null
 }))
 
 vi.mock('../../../composables/useOrderForm.js', () => ({
-  useOrderForm: () => (h.current = h.build!(h.mode))
+  useOrderForm: () => (h.current = h.build!(h.mode, h.status))
 }))
 
 import OrderForm from '../OrderForm.vue'
@@ -51,8 +53,9 @@ h.build = buildMockComposable
 
 // ─── 挂载与 DOM 工具 ───
 
-async function mountForm(mode: ComposableMode) {
+async function mountForm(mode: ComposableMode, status: ArtistStatus = 'open') {
   h.mode = mode
+  h.status = status
   h.current = null
   const wrapper = mount(OrderForm, {
     global: {
@@ -261,5 +264,27 @@ describe('OrderForm 步骤导航——画风模型步骤链回归（SPEC-PRICE-2
       expect(vm.step).toBe(3) // detailStep，而非 contactStep=4
       expect(activeTitle(wrapper)).toBe('orderForm.step2Title')
     })
+  })
+
+  // issue #50-7：服务端 POST /api/orders 对 status !== 'open' 一律 400 ARTIST_NOT_OPEN，
+  // 页面须在填表前出空态（判据只看服务端回显 status，不看 effectiveStatus）
+  describe('接单状态门禁（#50-7）', () => {
+    it('status=open → 正常渲染表单，无空态', async () => {
+      const wrapper = await mountForm('single', 'open')
+      expect(wrapper.find('form').exists()).toBe(true)
+      expect(wrapper.find('.closed-banner').exists()).toBe(false)
+    })
+
+    for (const status of ['full', 'break', 'hidden'] as const) {
+      it(`status=${status} → 渲染空态（errors.ARTIST_NOT_OPEN），不渲染表单、不进提交链路`, async () => {
+        const wrapper = await mountForm('single', status)
+        expect(wrapper.find('.closed-banner').exists()).toBe(true)
+        expect(wrapper.text()).toContain('errors.ARTIST_NOT_OPEN')
+        expect(wrapper.find('form').exists()).toBe(false)
+        expect(wrapper.find('.step-item').exists()).toBe(false)
+        expect(wrapper.find('.mobile-cta-bar').exists()).toBe(false)
+        expect(h.current!.submit).not.toHaveBeenCalled()
+      })
+    }
   })
 })

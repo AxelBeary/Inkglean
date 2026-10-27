@@ -170,6 +170,18 @@ interface AddonSelection {
 }
 type AddonSelections = Record<number, AddonSelection>
 
+/** 执行 clientQq 的格式校验规则，返回错误文案（通过返回 null） */
+function runQqFormat(
+  rules: ReturnType<typeof useOrderForm>['rules'],
+  qq: string
+): string | null {
+  const rule = rules.clientQq.find(r => 'validator' in r) as
+    | { validator: (rule: unknown, value: unknown, cb: (error?: Error) => void) => void }
+  let message: string | null = null
+  rule.validator(null, qq, (error?: Error) => { message = error ? error.message : null })
+  return message
+}
+
 interface DraftState {
   styleState: {
     styleId: number
@@ -688,6 +700,40 @@ describe('校验规则', () => {
   it('clientQq 为必填', async () => {
     const { of } = await createForm()
     expect(of.rules.clientQq[0].required).toBe(true)
+  })
+
+  // issue #50-5：QQ 格式与服务端 POST /api/orders 同口径（5-15 位数字，提交前 trim）
+  describe('clientQq 格式（#50-5）', () => {
+    it('5 位数字 → 通过', async () => {
+      const { of } = await createForm()
+      expect(runQqFormat(of.rules, '12345')).toBeNull()
+    })
+
+    it('4 位数字 → 拒（低于 minLength 5）', async () => {
+      const { of } = await createForm()
+      expect(runQqFormat(of.rules, '1234')).toBe('errors.QQ_FORMAT')
+    })
+
+    it('16 位数字 → 拒（超过 maxLength 15）', async () => {
+      const { of } = await createForm()
+      expect(runQqFormat(of.rules, '1234567890123456')).toBe('errors.QQ_FORMAT')
+    })
+
+    it('含字母/空格 → 拒（服务端 pattern ^[0-9]+$）', async () => {
+      const { of } = await createForm()
+      expect(runQqFormat(of.rules, '1234a')).toBe('errors.QQ_FORMAT')
+      expect(runQqFormat(of.rules, '123 456')).toBe('errors.QQ_FORMAT')
+    })
+
+    it('首尾空格 trim 后合法 → 通过', async () => {
+      const { of } = await createForm()
+      expect(runQqFormat(of.rules, '  12345  ')).toBeNull()
+    })
+
+    it('空值不报格式错（交给 required 规则，避免双报）', async () => {
+      const { of } = await createForm()
+      expect(runQqFormat(of.rules, '')).toBeNull()
+    })
   })
 })
 

@@ -899,6 +899,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     typeWarning: 'JPG or WebP previews better, but the current format can still be uploaded.',
     // G-7 (P2-13): reference upload credential unavailable (anon-token issuance network failure)
     anonTokenRequired: 'Failed to obtain the upload credential. Please check your network and retry.',
+    // issue #50-8: credential rotated mid-session — old references belong to the previous credential
+    refTokenRotated: 'Your upload credential was refreshed. Earlier reference images were cleared — please upload them again.',
     loadFailed: 'Failed to load artist info',
     // R57: draft recovery
     draftTitle: 'Restore draft', draftFound: 'An unsent draft was found. Restore it?',
