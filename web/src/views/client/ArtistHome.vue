@@ -1,5 +1,5 @@
 <template>
-  <div class="artist-home" v-loading="loading">
+  <div class="artist-home" :class="{ 'has-preview': isPreview }" v-loading="loading">
     <!-- R50: 预览模式横幅（有预览参数时显示，客户拿到链接也只看到公开数据） -->
     <div v-if="isPreview" class="preview-banner">{{ $t('artistHome.previewBanner') }}</div>
     <!-- UI-8: hidden 状态 — 友好提示页，不渲染模板 -->
@@ -242,5 +242,14 @@ function retryFailedSections() {
   background: var(--el-color-warning-light-3); color: #333;
   font-size: 14px; font-weight: 600;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+/* #57: 横幅 sticky 在顶部（z-index 200）压住 Folio 固定导航（fixed top:0，z-index 100）——层级不冲突，是位置冲突。
+   横幅可见时把导航整体下移到横幅之下；高度口径单源在本变量（实测 10*2 padding + 17 行高 ≈ 37，取 40 留余量），
+   导航侧只读不写，避免同一数值散落多处 */
+.artist-home.has-preview {
+  --preview-banner-h: 40px;
+}
+.artist-home.has-preview :deep(.folio-nav) {
+  top: var(--preview-banner-h, 0);
 }
 </style>

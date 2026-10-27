@@ -50,6 +50,7 @@
         :on-like-toggle="onLikeToggle"
         :on-like-count="onLikeCount"
         :open-lightbox="openLightbox"
+        :reveal="!revealDone"
       />
 
       <!-- v0.36 修正: 瀑布流布局（Classic 等高网格 / Folio 瀑布流）——稳定不闪，恢复 v0.35 行为 -->
@@ -62,7 +63,8 @@
         <div
           v-for="(art, index) in filteredArtworks"
           :key="art.id"
-          class="tpl-gallery-item tpl-reveal"
+          class="tpl-gallery-item"
+          :class="{ 'tpl-reveal': !revealDone }"
           :style="{ '--i': index }"
         >
           <!-- #15: aspect-ratio 占位——有 width/height 时精确预留高度，lazy 加载零跳动 -->
@@ -209,8 +211,11 @@ const displayArtworks = computed(() => {
 // ─── v0.35 F6: 档位筛选（filterSizes 由后端门控好多画风开关/启用状态） ───
 const filters = computed(() => buildGalleryFilters(props.gallery?.filterSizes))
 const activeSizeId = ref<number | null>(null)
+// #56: 首次挂载保留入场动画；首次切筛选后置位——key 重建 + useScrollReveal 无差别补挂会重放整块 0.42s 阶梯入场
+const revealDone = ref(false)
 function setFilter(sizeId: number | null) {
   activeSizeId.value = sizeId
+  revealDone.value = true
 }
 /** 当前显示的作品：默认全部混编；选中档位 → 只显示标注该档位的作品 */
 const filteredArtworks = computed(() => filterArtworksBySize(displayArtworks.value, activeSizeId.value))
