@@ -13,7 +13,7 @@
       <li v-for="(r, i) in revisionRecords" :key="i" class="revision-row">
         <span class="revision-icon" :class="`revision-icon--${r.type}`" aria-hidden="true">{{ r.type === 'rollback' ? '↩' : '✎' }}</span>
         <span class="revision-type">{{ r.type === 'rollback' ? $t('orderDetail.revisionRollback') : $t('orderDetail.revisionManual') }}</span>
-        <span v-if="r.type === 'rollback' && r.fromStage" class="revision-stages">「{{ r.fromStage }}」→「{{ r.toStage }}」</span>
+        <span v-if="r.type === 'rollback' && r.fromStage" class="revision-stages">{{ $t('orderDetail.revisionStagePath', { from: r.fromStage, to: r.toStage }) }}</span>
         <span class="revision-time">{{ formatDate(r.at) }}</span>
       </li>
     </ul>
