@@ -11,7 +11,7 @@ vi.mock('../../api/index.js', () => ({
   artistApi: { refreshSignatures: (...args: unknown[]) => h.refreshSignatures(...args) }
 }))
 
-import { useSignatureRefresh, SIGNATURE_TTL_MS, DEFAULT_INTERVAL_MS, VISIBLE_REFRESH_THRESHOLD_MS } from '../useSignatureRefresh'
+import { useSignatureRefresh, SIGNATURE_TTL_MS, DEFAULT_INTERVAL_MS, VISIBLE_REFRESH_THRESHOLD_MS, SIGNATURE_REFRESH_BATCH_SIZE } from '../useSignatureRefresh'
 
 function mountHost(overrides: Record<string, unknown> = {}) {
   let ctx!: ReturnType<typeof useSignatureRefresh>
@@ -100,5 +100,94 @@ describe('useSignatureRefresh 可见性补刷（R-15）', () => {
     expect(SIGNATURE_TTL_MS).toBe(5 * 60 * 1000)
     expect(DEFAULT_INTERVAL_MS).toBeLessThan(SIGNATURE_TTL_MS)
     expect(VISIBLE_REFRESH_THRESHOLD_MS).toBeLessThan(SIGNATURE_TTL_MS)
+  })
+})
+
+// issue #52-5：服务端 refresh-signatures 的 paths 上限 maxItems:50，
+// 整批超限会被 400 拒掉 → 必须按 50 分片、串行提交（并发会撞限流），单片失败即停且失败外露。
+describe('useSignatureRefresh 分片刷新（issue #52-5）', () => {
+  /** 取第 n 次调用的入参数组 */
+  function callArgs(n: number): string[] {
+    return h.refreshSignatures.mock.calls[n][0] as string[]
+  }
+
+  function makePaths(count: number): string[] {
+    return Array.from({ length: count }, (_, i) => `references/img-${i}.png`)
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-10T00:00:00'))
+    h.refreshSignatures.mockReset()
+    h.refreshSignatures.mockResolvedValue({ urls: {} })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('120 条按 50/50/20 分三次提交', async () => {
+    const paths = makePaths(120)
+    mountHost({ collect: () => paths })
+    await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL_MS + 100)
+
+    expect(h.refreshSignatures).toHaveBeenCalledTimes(3)
+    expect(callArgs(0)).toHaveLength(SIGNATURE_REFRESH_BATCH_SIZE)
+    expect(callArgs(1)).toHaveLength(SIGNATURE_REFRESH_BATCH_SIZE)
+    expect(callArgs(2)).toHaveLength(20)
+    expect([...callArgs(0), ...callArgs(1), ...callArgs(2)]).toEqual(paths)
+  })
+
+  it('串行：前一片未 resolve 前不发下一片', async () => {
+    const paths = makePaths(120)
+    let resolveGate: ((v: unknown) => void) | undefined
+    h.refreshSignatures.mockReset()
+    h.refreshSignatures.mockImplementation(() => new Promise(r => { resolveGate = r }))
+    const { wrapper } = mountHost({ collect: () => paths })
+
+    await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL_MS + 100)
+    expect(h.refreshSignatures).toHaveBeenCalledTimes(1)
+
+    // 第一片 resolve 后第二片才发出，且第二片仍 pending 时第三片不发
+    resolveGate!({ urls: {} })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(h.refreshSignatures).toHaveBeenCalledTimes(2)
+
+    resolveGate!({ urls: {} })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(h.refreshSignatures).toHaveBeenCalledTimes(3)
+    expect(callArgs(2)).toHaveLength(20)
+    wrapper.unmount()
+  })
+
+  it('单片失败即停止后续分片，且失败经 refreshError 外露（不再静默）', async () => {
+    const paths = makePaths(120)
+    const boom = new Error('rate limited')
+    h.refreshSignatures.mockReset()
+    h.refreshSignatures.mockResolvedValueOnce({ urls: {} })
+    h.refreshSignatures.mockRejectedValueOnce(boom)
+
+    const { wrapper, ctx } = mountHost({ collect: () => paths })
+    await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL_MS + 100)
+
+    // 第 2 片失败后第 3 片不得再发
+    expect(h.refreshSignatures).toHaveBeenCalledTimes(2)
+    expect(ctx.refreshError.value).toBe(boom)
+    wrapper.unmount()
+  })
+
+  it('刷新成功后清空 refreshError（重试可恢复）', async () => {
+    const paths = makePaths(10)
+    h.refreshSignatures.mockReset()
+    h.refreshSignatures.mockRejectedValueOnce(new Error('flaky'))
+
+    const { wrapper, ctx } = mountHost({ collect: () => paths })
+    await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL_MS + 100)
+    expect(ctx.refreshError.value).not.toBeNull()
+
+    h.refreshSignatures.mockResolvedValueOnce({ urls: {} })
+    await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL_MS)
+    expect(ctx.refreshError.value).toBeNull()
+    wrapper.unmount()
   })
 })
