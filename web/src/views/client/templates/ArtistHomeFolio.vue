@@ -460,7 +460,8 @@ onUnmounted(() => {
   }
   .folio-nav-links {
     position: fixed;
-    top: 57px;
+    /* #57 跟进：预览横幅把导航下移时，面板必须跟着下移，否则 fixed top 会盖住导航下半截 */
+    top: calc(57px + var(--preview-banner-h, 0px));
     left: 0;
     right: 0;
     flex-direction: column;

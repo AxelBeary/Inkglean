@@ -484,8 +484,10 @@ export default async function authRoutes(fastify: FastifyInstance) {
       // issue #53-5：列值是 SQLite UTC 文本（datetime('now')），裸 new Date() 会按容器本地时区解析，
       // TZ=Asia/Shanghai 下冷却实际只剩 16h；统一走 UTC 解析口径
       const reboundTime = parseSqliteUtcDate(artist.totp_rebound_at).getTime()
-      if (Date.now() - reboundTime < 24 * 60 * 60 * 1000) {
-        const remainingMs = 24 * 60 * 60 * 1000 - (Date.now() - reboundTime)
+      // 解析失败按「冷却中」处理（fail-closed）：脏值不该成为绕过 24h 冷却的口子
+      const elapsedMs = Number.isFinite(reboundTime) ? Date.now() - reboundTime : 0
+      if (elapsedMs < 24 * 60 * 60 * 1000) {
+        const remainingMs = 24 * 60 * 60 * 1000 - elapsedMs
         const remainingHours = Math.ceil(remainingMs / (60 * 60 * 1000))
         throw new AppError(E.REBIND_COOLDOWN, 429, { remainingMs, remainingHours })
       }

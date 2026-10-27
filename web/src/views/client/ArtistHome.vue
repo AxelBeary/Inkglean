@@ -1,7 +1,7 @@
 <template>
-  <div class="artist-home" :class="{ 'has-preview': isPreview }" v-loading="loading">
+  <div ref="rootEl" class="artist-home" :class="{ 'has-preview': isPreview }" v-loading="loading">
     <!-- R50: 预览模式横幅（有预览参数时显示，客户拿到链接也只看到公开数据） -->
-    <div v-if="isPreview" class="preview-banner">{{ $t('artistHome.previewBanner') }}</div>
+    <div v-if="isPreview" ref="bannerEl" class="preview-banner">{{ $t('artistHome.previewBanner') }}</div>
     <!-- UI-8: hidden 状态 — 友好提示页，不渲染模板 -->
     <div v-if="artist?.status === 'hidden'" class="hidden-state">
       <p>{{ $t('artistHome.hidden') }}</p>
@@ -92,6 +92,32 @@ const previewTpl = computed(() => route.query._tpl || null)
 const previewPal = computed(() => route.query._pal || null)
 const previewAccent = computed(() => route.query._accent || null)
 const isPreview = computed(() => !!(previewTpl.value || previewPal.value || previewAccent.value))
+
+// #57 跟进：横幅高度随文案与断点变（英文窄屏折两行 ≈57px），40px 硬编码会把导航/移动菜单压进横幅。
+// 实测高度写回 CSS 变量，CSS 里的 40px 只作首帧估计，导航与移动端菜单都只读该变量。
+const rootEl = ref<HTMLElement | null>(null)
+const bannerEl = ref<HTMLElement | null>(null)
+let bannerRo: ResizeObserver | null = null
+
+function syncBannerHeight() {
+  rootEl.value?.style.setProperty('--preview-banner-h', `${bannerEl.value?.offsetHeight ?? 0}px`)
+}
+
+function watchBanner() {
+  bannerRo?.disconnect()
+  bannerRo = null
+  syncBannerHeight()
+  if (!isPreview.value || !bannerEl.value || typeof ResizeObserver === 'undefined') return
+  bannerRo = new ResizeObserver(syncBannerHeight)
+  bannerRo.observe(bannerEl.value)
+}
+
+onMounted(watchBanner)
+watch(isPreview, watchBanner, { flush: 'post' })
+onUnmounted(() => {
+  bannerRo?.disconnect()
+  bannerRo = null
+})
 
 const paletteId = computed(() => (previewPal.value as string | null) || (artist.value as VisibleArtistProfile | null)?.paletteId || 'paper')
 
@@ -244,8 +270,8 @@ function retryFailedSections() {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 /* #57: 横幅 sticky 在顶部（z-index 200）压住 Folio 固定导航（fixed top:0，z-index 100）——层级不冲突，是位置冲突。
-   横幅可见时把导航整体下移到横幅之下；高度口径单源在本变量（实测 10*2 padding + 17 行高 ≈ 37，取 40 留余量），
-   导航侧只读不写，避免同一数值散落多处 */
+   横幅可见时把导航整体下移到横幅之下；高度由 JS 实测写回本变量（英文窄屏折行 ≠ 40px），
+   CSS 的 40px 只作测量前的首帧估计，导航与移动端菜单都只读不写，避免同一数值散落多处 */
 .artist-home.has-preview {
   --preview-banner-h: 40px;
 }
