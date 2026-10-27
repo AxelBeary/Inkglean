@@ -12,6 +12,7 @@
 - **评审**：四路只读席分层审，主代理复核后 catch 三处 must-fix——#66 执行入口按 argv 比对会静默 exit 0（门禁假绿）、#67 移动菜单被横幅压住 + 横幅高度硬编码 40px。
 - **跟进（`d6582d66`）**：上述三处 + 重绑冷却列值解析失败 fail-closed（新增 TC-COOL-UTC-04）+ QQ 输入 maxlength 15→20（超长粘贴不再被静默截成合法号）。
 - **文档整规**：changelog 最旧 12 段（2026-09-25~10-13）滚动分册至 `docs/changelog-archive/changelog-20260925-20261013-20261027.md`（活档 40198→17991 B）；STATUS 正文最旧两条归档；独立对账逐字节/逐行零丢失。
+- **测试基建（`f58309d8`）**：web/desktop vitest fork 上限 8——本机 28 核默认起 ~27 个 fork，Windows 偶发单 worker 启动即退，连续 3 次门禁假红后定案。
 - **计数**：server 1981→1985 / web 1073→1160；门禁与留痕见 STATUS 与 `AGENTS/artifacts/pr-batch-20261027/`。
 
 ## wave3：五路 PR 合入 + 七项拍板落地（2026-10-26）
