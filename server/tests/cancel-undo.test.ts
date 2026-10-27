@@ -187,4 +187,19 @@ describe('取消撤销路由层（815 拍板 #1）', () => {
     expect(again.statusCode).toBe(400)
     expect(again.json().code).toBe('INVALID_TRANSITION')
   })
+
+  it('TC-CU-09: 窗口期内名额被递补填满 → 撤销取消被拒（审计 #21 补充 B）', () => {
+    const artist = seedArtist({ qq_number: '99809', subdomain: 'cu-009' })
+    db.prepare('UPDATE artists SET batch_limit = 1 WHERE id = ?').run(artist.id)
+    const a = seedOrder(artist.id, { order_no: 'CU-009', status: 'wip', queue_zone: 'formal', queue_position: 1 })
+    const b = seedOrder(artist.id, { order_no: 'CU-010', status: 'pending', queue_zone: 'buffer', queue_position: 1 })
+
+    orderService.cancelOrderWithUndo(a.id)
+    // 窗口期内把缓冲区订单递补进来，占掉唯一名额
+    orderService.promoteOrder(b.id)
+
+    expect(() => orderService.undoCancelOrder(a.id, artist.id)).toThrow('BATCH_FULL_ACTION')
+    const after = db.prepare('SELECT status FROM orders WHERE id = ?').get(a.id) as { status: string }
+    expect(after.status).toBe('cancelled')
+  })
 })

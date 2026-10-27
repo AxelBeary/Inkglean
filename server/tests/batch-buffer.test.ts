@@ -145,7 +145,7 @@ describe('SPEC-004 名额与缓冲系统', () => {
     expect(notes.some(n => n.content.includes('📋'))).toBe(true)
   })
 
-  // ─── 6. 自动递补 ───
+    // ─── 6. 自动递补 ───
 
   it('TC-BB-06: auto_promote=1，完成一单 → 缓冲[0]自动递补', async () => {
     const artist = makeArtist()
@@ -288,7 +288,7 @@ describe('SPEC-004 名额与缓冲系统', () => {
 
   // ─── 12. 画师直接接缓冲单 ───
 
-  it('TC-BB-12: 递补允许超出 N', async () => {
+  it('TC-BB-12: 正式区已满时手动递补被拒（2026-10-27 拍板改口径，原「允许超 N」作废）', async () => {
     const artist = makeArtist()
     seedArtistStages(artist.id)
     setBatchLimit(artist.id, 1, 10)
@@ -296,16 +296,16 @@ describe('SPEC-004 名额与缓冲系统', () => {
     makeOrder(artist.id, { status: 'wip', queue_zone: 'formal' })
     const b1 = makeOrder(artist.id, { status: 'pending', queue_zone: 'buffer' })
 
-    // 手动递补（正式区已满 1/1）
+    // 手动递补（正式区已满 1/1）→ 409，不再允许越限
     const res = await app.inject({
       method: 'POST',
       url: `/api/artist/orders/${b1.id}/promote`,
       headers: authH(artist)
     })
-    expect(res.statusCode).toBe(200)
-    // 正式区现在有 2 个（超出 N=1，允许）
+    expect(res.statusCode).toBe(409)
+    expect(res.json().code).toBe('BATCH_FULL_ACTION')
     const formalCount = (db.prepare("SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND queue_zone = 'formal' AND status NOT IN ('delivered','cancelled')").get(artist.id) as CountRow).c
-    expect(formalCount).toBe(2)
+    expect(formalCount).toBe(1)
   })
 
   // ─── 13. 缓冲简短表单 ───
@@ -357,7 +357,6 @@ describe('SPEC-004 名额与缓冲系统', () => {
     const artist = makeArtist()
     seedArtistStages(artist.id)
     setBatchLimit(artist.id, 0, 10)
-
     db.prepare("INSERT INTO art_styles (artist_id, name, sort_order, is_active) VALUES (?, '默认', 0, 1)").run(artist.id)
     const style = db.prepare('SELECT id FROM art_styles WHERE artist_id = ?').get(artist.id) as IdRow
     db.prepare("INSERT INTO style_sizes (art_style_id, name, base_price, sort_order) VALUES (?, '测试档', 100, 1)").run(style.id)
@@ -371,7 +370,8 @@ describe('SPEC-004 名额与缓冲系统', () => {
     const orderNo = res.json().orderNo
     const order = db.prepare('SELECT * FROM orders WHERE order_no = ?').get(orderNo) as { id: number; queue_zone: string }
 
-    // 递补
+    // 递补（本用例只验节点生成：先把名额恢复到有空位，否则会被 #21 补充 B 的越限守卫拒绝）
+    db.prepare('UPDATE artists SET batch_limit = 5 WHERE id = ?').run(artist.id)
     await app.inject({
       method: 'POST',
       url: `/api/artist/orders/${order.id}/promote`,

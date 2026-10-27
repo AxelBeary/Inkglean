@@ -164,6 +164,17 @@ export function promoteOrder(orderId: number, expectedVersion?: number): OrderDe
   if (['delivered', 'cancelled'].includes(order.status)) throw new AppError(E.ORDER_FINAL_STATE)
 
   return db.transaction(() => {
+    // 审计 #21 补充 B：手动递补不得越 batch_limit（原实现无条件把 buffer 提升为 formal）
+    const artist = db.prepare('SELECT batch_limit FROM artists WHERE id = ?').get(order.artist_id) as { batch_limit: number | null } | undefined
+    if (artist?.batch_limit != null) {
+      const formalCount = (db.prepare(
+        `SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND queue_zone = 'formal' AND status NOT IN ('delivered', 'cancelled')`
+      ).get(order.artist_id) as { c: number }).c
+      if (formalCount >= artist.batch_limit) {
+        throw new AppError(E.BATCH_FULL_ACTION, 409, { limit: artist.batch_limit, current: formalCount })
+      }
+    }
+
     // 正式队列末尾
     const maxPos = db.prepare(
       `SELECT MAX(queue_position) as m FROM orders WHERE artist_id = ? AND queue_zone = 'formal' AND status NOT IN ('delivered', 'cancelled')`
@@ -299,6 +310,18 @@ export function undoCancelOrder(orderId: number, artistId: number): OrderDetail 
 
     // 恢复原状态：撤销是回滚操作，不走 STATUS_TRANSITIONS 前向断言（cancelled 无前向出路）；
     // version 不带守卫（窗口同事务新写入，无并发覆盖面）
+    // 审计 #21 补充 B：窗口期内正式名额可能已被递补占用——恢复正式区订单会越 batch_limit，拒绝并提示
+    if (order.queue_zone === 'formal') {
+      const artist = db.prepare('SELECT batch_limit FROM artists WHERE id = ?').get(order.artist_id) as { batch_limit: number | null } | undefined
+      if (artist?.batch_limit != null) {
+        const formalCount = (db.prepare(
+          `SELECT COUNT(*) as c FROM orders WHERE artist_id = ? AND queue_zone = 'formal' AND status NOT IN ('delivered', 'cancelled')`
+        ).get(order.artist_id) as { c: number }).c
+        if (formalCount >= artist.batch_limit) {
+          throw new AppError(E.BATCH_FULL_ACTION, 409, { limit: artist.batch_limit, current: formalCount })
+        }
+      }
+    }
     updateOrderChecked(orderId, undefined, 'status = ?', win.prev_status)
     db.prepare('UPDATE cancel_undo_windows SET consumed = 1 WHERE id = ?').run(win.id)
     // 留痕：action_type 白名单无 cancel_undo，复用 status_change + undo 标记（避免 CHECK 重建表）

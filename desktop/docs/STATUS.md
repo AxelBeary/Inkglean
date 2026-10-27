@@ -8,6 +8,7 @@
 - **U46 防线**：`tests/acl.rs` 用 tauri::test mock runtime 走真 IPC/ACL；`build.rs` 把 Windows manifest 链进测试 exe；CI desktop job 由 `cargo check` 改 `cargo test`
 - **F-44**：`Home.vue` 807→800，ALLOWLIST 移除 Home.vue
 - **依赖**：Dependabot #20 合入（pinia 4.1.0 / vue 3.5.44 / vue-tsc 3.3.13 / vitest 4.1.12 / eslint-plugin 8.71.2）；`@tauri-apps/*` 与 Cargo 未动，成对现状不变
+- **平台范围**：**只支持 Windows**（2026-10-27 拍板；`bundle.targets = ["nsis"]`，macOS/Linux 不构建不承诺）
 - **默认窗 1200×820**（9/5 拍板，内滚实测 1px≈零）；最小窗 **1200×600 不动**（826 亲定「不允许放太小」）
 - **待用户终验（两摊）**：波1 终验清单 9 组 37 条（=待办 U6）+ 10-13 成对升级后的窗口行为清单（标题栏/托盘/通知/文件选择器/本地库/悬浮窗）
 - **发布前必查**：`desktop/docs/发布前待办清单-825.md`（第 19/20 项发布流水线缺陷；第 1 项已改 v74→现状 v76）

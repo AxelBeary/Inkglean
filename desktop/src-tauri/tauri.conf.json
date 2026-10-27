@@ -30,7 +30,9 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": [
+      "nsis"
+    ],
     "copyright": "© 2026 AxelBeary。保留所有权利",
     "icon": [
       "icons/32x32.png",

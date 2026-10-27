@@ -381,10 +381,12 @@ export async function publishArtwork(
 
 /** 下载器兜底窗口：开始后超过此时长未回报确认，视为下载器已完成下载 → 锁定 */
 export const DOWNLOAD_GRACE_MS = 60_000
-/** 防恶意半途下载：未完整下载尝试达此次数 → 防护锁定 */
+/** 防恶意半途下载：每 3 次未完整下载 → 5 分钟冷却（冷却后清零本段计数，可重试） */
 export const MAX_PARTIAL_ATTEMPTS = 3
-/** 防护锁定冷却时长（5 分钟） */
+/** 防护冷却时长（5 分钟，冷却后客户可重试） */
 export const DOWNLOAD_COOLDOWN_MS = 5 * 60_000
+/** 彻底锁死线：累计未完成下载达 9 次 → 永久锁定，需画师再许可（防故意刷） */
+export const HARD_LOCK_FAIL_TOTAL = 9
 
 interface DeliverableDownloadRow {
   id: number
@@ -393,13 +395,14 @@ interface DeliverableDownloadRow {
   original_name: string
   download_locked: number
   download_attempts: number
+  download_fail_total: number
   last_started_at: number | null
   cooldown_until: number | null
 }
 
 function getDeliverableDownloadRow(orderId: number, fileId: number): DeliverableDownloadRow {
   const row = db.prepare(
-    'SELECT id, order_id, file_path, original_name, download_locked, download_attempts, last_started_at, cooldown_until FROM deliverables WHERE id = ? AND order_id = ?'
+    'SELECT id, order_id, file_path, original_name, download_locked, download_attempts, download_fail_total, last_started_at, cooldown_until FROM deliverables WHERE id = ? AND order_id = ?'
   ).get(fileId, orderId) as DeliverableDownloadRow | undefined
   if (!row) throw new AppError(E.ORDER_NOT_FOUND)
   return row
@@ -416,7 +419,8 @@ type DownloadStartOutcome =
  * 客户开始下载（start）：结算上次未确认的尝试后返回文件路径（路由层再签名）。
  * ① 已锁定 → 410；② 冷却期内 → 423；
  * ③ 上次开始超过 60 秒未确认 → 下载器场景视为已完成 → 锁定；
- * ④ 上次开始未超兜底且未确认 → 半途尝试 +1，达 3 次 → 防护锁定 + 5 分钟冷却。
+ * ④ 上次开始未超兜底且未确认 → 半途尝试 +1；每 3 次进 5 分钟冷却（清零本段计数，冷却后可重试）；
+ *    累计失败达 9 次 → 彻底锁定（需画师再许可，防故意刷）。
  * 注：锁定状态在事务内提交后才抛错（事务内抛错会回滚锁定写入）。
  *
  * 260830 审计 H-4：每次签发同时生成随机 nonce 写入 download_nonce 列并随返回值
@@ -442,17 +446,28 @@ export function startDeliverableDownload(orderId: number, fileId: number): { fil
           .run(orderId, `🔒 交付文件「${d.original_name}」下载窗口已过（下载器兜底），已锁定；如需再次下载请画师再许可`)
         return { outcome: 'grace-locked' }
       }
-      // 半途尝试（拍板⑤）：未完整下载 +1，达 3 次防护锁定 + 冷却 + 留痕
+      // 半途尝试（拍板⑤/2026-10-27 修正）：未完整下载 +1。
+      // 累计达 9 次 → 彻底锁定（防故意刷）；否则每 3 次一段 → 进 5 分钟冷却、本段计数清零，冷却后可重试
       const attempts = d.download_attempts + 1
-      if (attempts >= MAX_PARTIAL_ATTEMPTS) {
+      const failTotal = d.download_fail_total + 1
+      if (failTotal >= HARD_LOCK_FAIL_TOTAL) {
         db.prepare(
-          'UPDATE deliverables SET download_locked = 1, download_attempts = ?, cooldown_until = ?, last_started_at = NULL WHERE id = ?'
-        ).run(attempts, now + DOWNLOAD_COOLDOWN_MS, d.id)
+          'UPDATE deliverables SET download_locked = 1, download_attempts = ?, download_fail_total = ?, cooldown_until = NULL, last_started_at = NULL WHERE id = ?'
+        ).run(attempts, failTotal, d.id)
         db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
-          .run(orderId, `🔒 交付文件「${d.original_name}」连续 ${attempts} 次未完成下载，已防护锁定；如需再次下载请画师再许可`)
+          .run(orderId, `🔒 交付文件「${d.original_name}」累计 ${failTotal} 次未完成下载，已彻底锁定；如需再次下载请画师再许可`)
         return { outcome: 'attempts-locked' }
       }
-      db.prepare('UPDATE deliverables SET download_attempts = ? WHERE id = ?').run(attempts, d.id)
+      if (attempts >= MAX_PARTIAL_ATTEMPTS) {
+        const cooldownMs = DOWNLOAD_COOLDOWN_MS
+        db.prepare(
+          'UPDATE deliverables SET download_attempts = 0, download_fail_total = ?, cooldown_until = ?, last_started_at = NULL WHERE id = ?'
+        ).run(failTotal, now + cooldownMs, d.id)
+        db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
+          .run(orderId, `⏸ 交付文件「${d.original_name}」连续 ${attempts} 次未完成下载，已暂停 5 分钟；稍后可重试（累计 ${failTotal} 次）`)
+        return { outcome: 'cooldown', retryAfterMs: cooldownMs }
+      }
+      db.prepare('UPDATE deliverables SET download_attempts = ?, download_fail_total = ? WHERE id = ?').run(attempts, failTotal, d.id)
     }
 
     // H-4：本次签发专属 nonce——写入账本列，路由层将其编入签名载荷；
@@ -501,7 +516,7 @@ export function repermitDeliverable(orderId: number, fileId: number): void {
   db.transaction(() => {
     const d = getDeliverableDownloadRow(orderId, fileId)
     db.prepare(
-      'UPDATE deliverables SET download_locked = 0, download_attempts = 0, cooldown_until = NULL, last_started_at = NULL, download_nonce = NULL WHERE id = ?'
+      'UPDATE deliverables SET download_locked = 0, download_attempts = 0, download_fail_total = 0, cooldown_until = NULL, last_started_at = NULL, download_nonce = NULL WHERE id = ?'
     ).run(d.id)
     db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
       .run(orderId, `🔓 画师已再许可交付文件「${d.original_name}」的下载`)

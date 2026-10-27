@@ -2,6 +2,9 @@
 
 Tauri 2 + Vue 3 的画师桌面端：本地记账 / 排期可视化 / 悬浮小窗与云端约稿管理的本机壳，与 `web/`、`server/` 同仓并行开发。
 
+> **平台范围（2026-10-27 拍板）**：桌面端**只支持 Windows**（`bundle.targets = ["nsis"]`）。
+> 凭据存储依赖 Windows 凭据接口，macOS/Linux 不提供构建与支持；网站服务端仍可部署在 Linux（见根 README）。
+
 - 开发：`npm install` → `npm run tauri dev`（需 Rust stable 工具链；纯前端改动可只跑 `npm run dev`）
 - 门禁：`npm run lint` / `npm run test` / `npm run build`；Rust 侧另跑 `cd src-tauri && cargo check`
 - 状态与拍板事实源：[docs/STATUS.md](docs/STATUS.md)（先读顶部最新条）· 技术口径速查：[docs/CONTEXT.md](docs/CONTEXT.md)
