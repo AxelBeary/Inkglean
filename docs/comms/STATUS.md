@@ -200,64 +200,10 @@
 > - **留痕**：`AGENTS/artifacts/施工书-可做批-20261018/`（施工书 A/B + ledger-A/B + ledger-closeout + 门禁日志）。
 
 
->  📌 **2026-10-13 PR 与警报治理批（用户拍板：连 Rust 成对升级 / 桌面 TS 退回 5.6 / 改 bot 分支→门禁→合并代推）**
->
-> - **触发**：新通道首次交出的两份可审 PR（待办 U30）+ 唯一开放警报 #83 rustls（medium）。
-> - **#16 先合**：本地 `cargo check` exit=0（19.4s 增量）→ `gh pr merge 16 --merge`（master `7e6435f5`）；
->   警报 #83 随即 `state=fixed`（fixed_at 2026-10-13T06:44Z），**零 dismiss**。
-> - **#15 到手是红的**：CI web job 报一条 TS2339，本地按 PR 锁 `npm ci` 复现出同一条。
-> - **归因（三路侦察 + 一路推翻式复验，结论冲突时以复验为准）**：真凶是 vue-tsc 3.3.12 的 dotValue 双趟模板解包，不是 element-plus——
->   2.14.3 与 2.14.7 的 `message/index.d.ts` 逐字节相同、`onExceed` 契约未变，且该 PR 未动 vue/typescript。
->   上游 vuejs/language-tools 同型 issue #6237、修复 PR #6238 本日仍 open，3.3.13 的 codegen 文件与 3.3.12 哈希全同，等不到。
-> - **修法（改写法根治，零 any 零 @ts-ignore）**：`ManualOrderLeft.vue:45` 的 `:on-exceed` 抽成具名 `function handleRefExceed`；
->   同通道近失点 `AdminDashboard.vue:52` 抽 `artistStatusType()`；补 1 例哨兵，web 981→982 并同步 `accept-baseline.json`。
-> - **桌面端成对升级（本批最大面）**：官方要求核心同 minor、插件精确同号，而 dependabot 只跑 npm 生态、天然无法成对；
->   该比对只在 `tauri build/dev/info` 触发，CI desktop job 只跑 cargo check → **不配 Rust 就把雷埋进下次发版**。
->   6 条 `cargo update --precise` 配号：tauri 2.12.2 / updater 2.13.2 / sql 2.5.0 / notification 2.5.1 / dialog 2.8.1 / opener 2.7.0；
->   连带 wry 0.57.0、tao 0.37.1、muda 0.20.0、tray-icon 0.25.1、plugin-fs 2.7.0、windows 0.62.2；四个无 npm 对子的 Rust-only 插件不动。
-> - **独立复验定论**：Cargo.lock 版本集变动 50 项（29 升级 / 12 新增 / 9 删除）逐项可追溯到 6 条 --precise 及其传递面，**无本仓直接依赖被越范围推动**；
->   其中 cargo_toml 0.22→1.0.1、urlpattern 0.3→0.6、json-patch 3→4.2、brotli 8→9、ctor 0.8→1.0.13、window-vibrancy 0.6→0.8、webview2-com 0.38→0.39
->   属 semver-major 级传递跃迁（构建期链 = tauri-build 2.7.2 + cargo_toml 1.0.1），本仓无直接依赖；13 条权限标识在新版全部存在；tauri-utils 2.10.1 对本仓 conf 无解析风险。
-> - **行为保持核实**：updater 2.13.2 `restart_after_install` 默认 true + `install_mode` 默认 passive → NSIS 仍 `/P /R`，与 2.10.1 一致，故不动 conf。
-> - **登记已知行为变更**：tao 0.37 起 `WM_ENDSESSION` 直接退出进程，系统关机时「关闭到托盘」偏好不再拦截（非阻塞）。
-> - **机制关闸**：`.github/dependabot.yml` 拆 `/desktop` 独立条目并 ignore `@tauri-apps/*` + `typescript`；Rust 侧不建 version updates 通道。
->   并把桌面端 6 个 `@tauri-apps` JS 改为**精确版本**（与 Cargo.lock 同号）——成对不变量从“只靠 lockfile”抬到声明层，防人手 `npm install` 把 JS 单推（锁仅变 6 行 specifier，解析版本零变动）。
-> - **子代理交叉核验后补的两笔回写**：分组 PR 夹带的 **44 处传递依赖跳 major** 逐条清点并登记为已评审可接受（进生产包的只 @vueuse/core 与 content-disposition，两项均已核无害）；
->   `THIRD-PARTY-NOTICES.md` 实测回写 @simplewebauthn/server 13.3.2→13.3.3；`accept-baseline.json` 的 note/updatedAt 跟到 10-13；`AGENTS.md` 验证清单补上 tauri info 那一口；`docs/CONTEXT.md` 去掉写死的 E2E 条数。
-> - **验证**：`cargo check` exit=0；`npx tauri info` 无 mismatch；`npm run tauri dev` 起壳成功、`desktop.exe` 存活、日志零 panic 零 unknown permission；
->   **accept.ps1 十九道全绿 @ `d549798b`（再跑一遍也绿：server 1847 / web 982 / desktop 538 / shared 27 / E2E 14；首跑在代码三笔 `5e91cb44`，563s）**；五目录 `npm audit` 全 0；
->   磁盘实装核对 typescript 5.6.3 / vue-tsc 2.2.12 / @tauri-apps 逐条同号（声明=磁盘=crate 三方全等）；
->   真浏览器冒烟三轮（临时件跑完即删）：6 张参考图全不入队 + 弹「最多上传5张参考图」；收入导出真下 CSV（落盘含播种金额）；参考图上传成功路径且头为带 boundary 的 multipart；
->   截图两张存 `AGENTS/deps-pr15-pairing-20261013/smoke-*.png` 并已目视核对。登录/Passkey/管理员 step-up 由 E2E 14 例在真实 Chromium 下覆盖。
-> - **待你终验（只有真窗能判）**：标题栏拖拽/最小/最大/还原/关闭、托盘左键与菜单、通知是否重复弹、原生文件选择器 open/save、
->   本地记账读写与跨窗广播、撕悬浮三窗。代理侧只证到「能起壳、无 Rust 报错、无权限报错」。
-> - **遗留转待拍板**：U31 桌面工具链与 web/shared 收敛；U32 capabilities 两处既有缺口 `sql:allow-execute` / `opener:allow-open-path`；
->   U25 isomorphic-dompurify major；U26 server tsx 生产依赖；U27 STATUS 溢文归档（本批后正文 8 块）。
-> - **发版路径实跑（收口后补）**：本机 `npx tauri build --bundles nsis` 已验到两件事——release 编译通过（1m07s）与 **CLI 版本比对闸不报错**（日志进到 `Info Patching ... nsis` / `Verifying NSIS package`）；
->   卡在从 GitHub 下 NSIS 工具链（本机网络两次失败：TLS 意外断连 / global timeout），属环境不是代码。另 `cargo tree -i rustls` 实测 rustls 0.23.45 单副本且确实经 updater←reqwest 可达。
-> - **顺手探明的发版前置缺口（新立 U33）**：`desktop-release.yml` 运行记录为零、仓库 vars/secrets 各 0 条、无 `desktop-v*` tag；
->   且 conf 无 `bundle.createUpdaterArtifacts` 而流水线硬找 `*.nsis.zip`（官方口径只有 `"v1Compatible"` 才出该命名）——首版发布前须先配好，代理代不了。
-> - **体积提示**：changelog 活档本批收口后实测 **40524 B / 283 行**（阀值 40KB / 450 行），只剩不到 450 字节的余量；下批顶插前**先按口径把最旧段整搬分册**（逐行哈希零丢失），不要等撞线再做。
-> - **入库证据锚**：`docs/comms/evidence/证据-PR与警报治理批-20261013.md`；本机详单 `AGENTS/deps-pr15-pairing-20261013/`。
-> - **当日续单**：#15 合入后新通道按新配置立即重算，交出 #17（server @fastify/static 10.1.5→10.1.6、web vue-i18n 11.4.13→11.4.14、prettier 3.9.9→3.9.10，均为上游刚发的 patch）；
->   本地十九道全绿 @ `c39d14e6`（593s）+ CI 六项绿后合入。终态：开放警报 0、CodeQL 0、开放 PR 0；桌面 `@tauri-apps/*` 屏蔽后 #17 果然不再碰 JS SDK，关闸生效首证。
+> 📦 **2026-10-13 PR 与警报治理批（含当日续单）已归档 → `docs/comms/archive-20261027/STATUS-溢文-2026-10-13-PR与警报治理批.md`（2026-10-27 溢文归档批搬出，原文原样搬迁）。**
 
 
->  📌 **2026-10-12 依赖警报根治批（用户拍板三项：拆 axios / 四端 audit 全清零 / 加 dependabot.yml；含 web HTTP 层重写）**
->
-> - **触发**：11 条 Dependabot 开放警报（axios ×8、busboy ×1、dompurify ×2）+ 两个开放 PR；CodeQL 开放 0。
-> - **逐条研判**：axios 单周 12 个 GHSA、独占 8 条警报→判定整包删除而非升版；busboy/dompurify 属范围内可取已修版；
->   dompurify 公告只影响 IN_PLACE + 移除节点的 afterSanitize 钩子，本项目用 afterSanitizeAttributes 且非 IN_PLACE，实际不可利用但仍升级。
-> - **批A `8c80537a`**：四端锁 PATCH 定点刷新（fastify 5.12.5 / sharp 0.35.5 / busboy 3.2.3 / dompurify 3.4.16 / vue 3.5.43 / source-map-js 1.2.2 / postcss-selector-parser 7.1.6）；77 条目全 PATCH、0 major 0 增删。
-> - **批B `c2b3a18e`**：`web/src/api/modules/http.ts` 由 axios 实例+拦截器改为浏览器原生 fetch，对外契约逐字不变（251 处 helper 调用点与全部 view/store 不动）；锁内 axios 及传递依赖共 25 包移除。
-> - **测试**：新增 `http.test.ts` 14 例防再发锁；`bindRequired401` 只换驱动管道不改断言；web 967→981，`accept-baseline.json` 已同步。
-> - **验证**：accept.ps1 十九道全绿（685s；server 1847 / web 981 / desktop 538 / shared 27 / E2E 14）；五处 npm audit 归零；五条链路真机验通（登录 / 客户建单含查单链接 / 图片上传 / CSV 导出 / 管理后台含二次验证与筛选），控制台零 error、零脏查询串。
-> - **机制**：新增 `.github/dependabot.yml`（五目录 / 周一 02:00 / minor+patch 合并单 PR / major 不自动出）；PR #13/#14 已关并写明理由，开放 PR 归零。
-> - **同批前置两笔**：`0fb3cf82` 工具铺认领批补入库（侦察兵定性：已拍板、已逐件实跑、已三方合并，唯独从未 git add）；`dfaca136` changelog 撞 40KB 线，最旧两段整搬新分册（逐行哈希零丢失）。
-> - **踩坑两条**：`npm update --package-lock-only` 会连 `node_modules/.package-lock.json` 一起改，导致后续 `npm install` 误判 up-to-date 而磁盘仍旧版；`params` 收窄成 `Record` 会让无索引签名的 interface 编译不过。
-> - **数字订正**：本批开工时误记为「12 条 / axios ×7」（把 #76 一条警报里的两份公告当成两条），收口时 gh 实测为 **11 条 / axios ×8**，看板与 changelog 已同步改正。
-> - **入库证据锚**：`docs/comms/evidence/证据-依赖警报根治批-20261012.md`；本机详单 `AGENTS/workspace/temp/deps-zerobatch-20261012/`。
-> - **遗留待拍板**：isomorphic-dompurify 3.22.0→4.5.0（major）；server 以 tsx 作生产依赖使 source-map-js 进生产链路。
+> 📦 **2026-10-12 依赖警报根治批已归档 → `docs/comms/archive-20261027/STATUS-溢文-2026-10-12-依赖警报根治批.md`（2026-10-27 溢文归档批搬出，原文原样搬迁）。**
 
 > 📦 **9/29 记忆库维护批（D12/D10 待拍板锚）已归档 → `docs/comms/archive-20261021/STATUS-溢文-2026-09-29-记忆库维护批.md`（2026-10-21 原文原样搬迁）。**
 
