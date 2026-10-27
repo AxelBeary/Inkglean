@@ -26,22 +26,17 @@
  *   - baseline key = 相对路径 + 违规串原文；存量字符串未改即豁免，新增/修改即拦截
  */
 import { readdirSync, readFileSync, writeFileSync, existsSync } from 'fs'
-import { join, relative, resolve, sep } from 'path'
+import { join, relative, sep } from 'path'
 import { fileURLToPath } from 'url'
 
-/** 目录/自身路径解析：被单测 import 时 vite 会改写 new URL(..., import.meta.url)，失败退回 cwd */
+/** 目录/自身路径解析：被单测 import 时 vite 会改写 new URL(..., import.meta.url)，失败退回 cwd；
+ *  门禁环境解析失败必须响——退回 cwd 会扫错目录假绿 */
 function selfDir(): string {
   try {
     return fileURLToPath(new URL('.', import.meta.url))
-  } catch {
-    return process.cwd()
-  }
-}
-function selfFile(): string {
-  try {
-    return fileURLToPath(import.meta.url).toLowerCase()
-  } catch {
-    return ''
+  } catch (err) {
+    if (process.env.VITEST) return process.cwd()
+    throw err
   }
 }
 
@@ -460,6 +455,6 @@ async function main(): Promise<void> {
   process.exit(1)
 }
 
-// 被单测 import 时不执行扫描：只有 argv[1] 就是本文件才跑 main
-const invokedPath = process.argv[1] ? resolve(process.argv[1]).toLowerCase() : ''
-if (selfFile() && invokedPath === selfFile()) void main()
+// 被单测 import 时不执行扫描；门禁/CI/人工调用一律执行——按 argv 路径比对时
+// 一旦形态不符（软链、8.3 短路径、包装器）就静默 exit 0，门禁会空跑成假绿
+if (!process.env.VITEST) void main()

@@ -516,4 +516,13 @@ describe('issue #53-5：重绑冷却按 UTC 文本解析', () => {
     const res = await rebindInitStatus(artist.id, artist.token_version)
     expect(res.statusCode).toBe(200)
   })
+
+  it('TC-COOL-UTC-04: 列值无法解析 → 按冷却中处理（fail-closed，脏值不得变成绕过口）', async () => {
+    const artist = seedArtist({ qq_number: '99804', subdomain: 'cool-utc-bad' })
+    db.prepare("UPDATE artists SET totp_rebound_at = 'not-a-date' WHERE id = ?").run(artist.id)
+
+    const res = await rebindInitStatus(artist.id, artist.token_version)
+    expect(res.statusCode).toBe(429)
+    expect(res.json().code).toBe('REBIND_COOLDOWN')
+  })
 })

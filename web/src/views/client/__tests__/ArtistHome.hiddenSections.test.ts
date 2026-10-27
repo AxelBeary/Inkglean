@@ -145,4 +145,29 @@ describe('ArtistHome 预览横幅层级挂钩（issue #57）', () => {
     expect(wrapper.find('.artist-home').classes()).not.toContain('has-preview')
     wrapper.unmount()
   })
+
+  it('横幅实测高度写回 --preview-banner-h（英文窄屏折行 ≠ 40px 硬编码）', async () => {
+    routeState.query = { _tpl: 'folio' }
+    fetchArtistPublicProfile.mockResolvedValue({
+      id: 6, name: 'Fay', subdomain: 'fay', status: 'open',
+      tiers: [], artworks: [], rules: '', templateId: 'folio'
+    })
+    // happy-dom 无布局，offsetHeight 恒 0；抓住 ResizeObserver 回调手动送实测值
+    const ro: { cb: (() => void) | null } = { cb: null }
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(cb: () => void) { ro.cb = cb }
+      observe() {}
+      disconnect() {}
+    })
+    const wrapper = mountHome()
+    await flushPromises()
+
+    const banner = wrapper.find('.preview-banner')
+    Object.defineProperty(banner.element, 'offsetHeight', { value: 57, configurable: true })
+    ro.cb?.()
+
+    expect((wrapper.element as HTMLElement).style.getPropertyValue('--preview-banner-h')).toBe('57px')
+    wrapper.unmount()
+    vi.unstubAllGlobals()
+  })
 })

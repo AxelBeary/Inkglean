@@ -3,9 +3,10 @@
   <div>
     <h3 class="step-title">{{ t('orderForm.step3Title') }}</h3>
 
-    <!-- QQ号（issue #50-5：与服务端 5-15 位数字同口径；移动端弹数字键盘） -->
+    <!-- QQ号（issue #50-5：与服务端 5-15 位数字同口径；移动端弹数字键盘）
+         maxlength 留到 20：超长粘贴要被格式校验拦下，截到 15 位会静默变成另一个合法号 -->
     <el-form-item :label="t('orderForm.qqLabel')" prop="clientQq">
-      <el-input v-model="clientQq" maxlength="15" inputmode="numeric" :placeholder="t('orderForm.qqPlaceholder')" />
+      <el-input v-model="clientQq" maxlength="20" inputmode="numeric" :placeholder="t('orderForm.qqPlaceholder')" />
     </el-form-item>
 
     <!-- 昵称 -->
