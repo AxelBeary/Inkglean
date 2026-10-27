@@ -13,9 +13,11 @@ const getWorkflow = vi.fn()
 const getPublicStyles = vi.fn()
 const getPublicGallery = vi.fn()
 const getPlatforms = vi.fn()
+// #57: 预览横幅用例需要切换路由 query（预览参数决定 isPreview）
+const routeState = vi.hoisted(() => ({ query: {} as Record<string, string> }))
 
 vi.mock('vue-router', () => ({
-  useRoute: () => ({ params: { subdomain: 'alice' }, query: {} })
+  useRoute: () => ({ params: { subdomain: 'alice' }, query: routeState.query })
 }))
 const fetchArtistPublicProfile = vi.fn()
 vi.mock('../../../composables/useArtistPublicProfile', () => ({
@@ -55,6 +57,7 @@ function mountHome() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  routeState.query = {}
   getWorkflow.mockResolvedValue({ stages: [] })
   getPublicStyles.mockResolvedValue([])
   getPublicGallery.mockResolvedValue({ artworks: [], filterSizes: [] })
@@ -108,6 +111,38 @@ describe('ArtistHome hidden 态分块加载哨兵（N1 wart 修复）', () => {
     await flushPromises()
 
     expect(wrapper.find('.section-error-banner').exists()).toBe(true)
+    wrapper.unmount()
+  })
+})
+
+// #57 预览横幅与 Folio 固定导航重叠：横幅 sticky(top:0, z-index 200) 盖住导航 fixed(top:0, z-index 100)——
+// 层级本来就没冲突，是位置冲突。修复把「横幅可见」这一事实挂成根节点类 has-preview，
+// 由 ArtistHome 的 scoped 样式统一把导航下移到 --preview-banner-h 之下。
+describe('ArtistHome 预览横幅层级挂钩（issue #57）', () => {
+  it('预览参数在 → 根节点带 has-preview（Folio 导航下移的挂钩）', async () => {
+    routeState.query = { _tpl: 'folio' }
+    fetchArtistPublicProfile.mockResolvedValue({
+      id: 4, name: 'Dana', subdomain: 'dana', status: 'open',
+      tiers: [], artworks: [], rules: '', templateId: 'folio'
+    })
+    const wrapper = mountHome()
+    await flushPromises()
+
+    expect(wrapper.find('.preview-banner').exists()).toBe(true)
+    expect(wrapper.find('.artist-home').classes()).toContain('has-preview')
+    wrapper.unmount()
+  })
+
+  it('无预览参数 → 不带 has-preview，导航保持 top 0 口径', async () => {
+    fetchArtistPublicProfile.mockResolvedValue({
+      id: 5, name: 'Eve', subdomain: 'eve', status: 'open',
+      tiers: [], artworks: [], rules: '', templateId: 'folio'
+    })
+    const wrapper = mountHome()
+    await flushPromises()
+
+    expect(wrapper.find('.preview-banner').exists()).toBe(false)
+    expect(wrapper.find('.artist-home').classes()).not.toContain('has-preview')
     wrapper.unmount()
   })
 })

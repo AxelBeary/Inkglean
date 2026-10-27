@@ -22,7 +22,8 @@
 .tpl-reveal.tpl-visible {
   /* T 波豁免：0.42s 为滚动渐入容器级节奏，保留原值（不归三档），仅补注释 */
   animation: tpl-fade-up 0.42s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
-  animation-delay: calc(var(--i, 0) * 60ms);
+  /* #56: 阶梯压到 30ms/项并封顶 240ms——12 项时尾部不再等 660ms，整块入场仍保留克制递进 */
+  animation-delay: min(calc(var(--i, 0) * 30ms), 240ms);
 }
 
 /* 尊重系统"减少动态效果"偏好 */

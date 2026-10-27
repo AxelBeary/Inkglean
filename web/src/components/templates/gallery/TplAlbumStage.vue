@@ -1,6 +1,6 @@
 <template>
   <!-- v0.36 修正: 画廊布局按模板区分——album 画册翻页与瀑布流并存，用户拍板恢复 -->
-  <div class="tpl-gallery tpl-gallery--album tpl-reveal">
+  <div class="tpl-gallery tpl-gallery--album" :class="{ 'tpl-reveal': reveal }">
     <!-- v0.36: 画册模式 —— 一次一张大图居中，左右箭头翻页（单张作品时不渲染箭头） -->
     <button
       v-if="filteredArtworks.length > 1"
@@ -130,6 +130,8 @@ const props = defineProps({
   peek: { type: Boolean, default: false },
   /** 灯箱打开时键盘 ←/→ 让位给灯箱（父页 lightboxVisible 注入） */
   lightboxOpen: { type: Boolean, default: false },
+  /** #56: 是否挂载滚动渐入（首次渲染 true；切筛选后父页传 false，避免重建时重播入场动画） */
+  reveal: { type: Boolean, default: true },
   imgUrl: { type: Function as PropType<(path: string | null | undefined) => string>, required: true },
   isLiked: { type: Function as PropType<(id: number) => boolean>, required: true },
   displayLikeCount: { type: Function as PropType<(art: AlbumArtwork) => number>, required: true },
