@@ -156,6 +156,10 @@ async function submit() {
   gap: 12px;
 }
 .compliance-link {
+  /* WCAG 2.5.8：命中高 ≥24px。块化后行高约 21px，故用 inline-flex 撑足而不加行距 */
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
   padding: 4px 0;
   color: var(--text-footer, var(--pal-text-dim, #888));
   font-size: 13px;
