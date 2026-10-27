@@ -108,12 +108,14 @@ export interface DiscountResult {
   discountValue: number
 }
 
-/** 参考图文件列表项（el-upload :file-list 口径） */
+/** 参考图文件列表项（el-upload file-list 口径；点选条目与粘贴条目同形） */
 export interface RefFileItem {
   name: string
   url?: string | null
   uid: string | number
   status?: string | null
+  /** 服务端存储路径（点选条目上传成功后按 uid 回填、粘贴条目落条目即带；提交 references 只认它） */
+  filePath?: string | null
 }
 
 /** 流程节点（WorkflowOverviewStrip stages 口径；运行时数据即 WorkflowStageDTO，id 恒为 number） */

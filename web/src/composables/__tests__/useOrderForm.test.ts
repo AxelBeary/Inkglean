@@ -30,10 +30,16 @@ vi.mock('../../api/index.js', () => ({
   uploadApi: { reference: vi.fn() }
 }))
 
+// 粘贴回调捕获：usePasteUpload 内部注册 onFiles，这里抓住它才能从测试驱动粘贴链路
+const pasteCapture = vi.hoisted(() => ({ onFiles: null as ((files: File[]) => void | Promise<void>) | null }))
+
 vi.mock('../usePasteUpload.js', async () => {
   const { ref } = await import('vue')
   return {
-    usePasteUpload: () => ({ isPasteUploading: ref(false), pasteError: ref('') })
+    usePasteUpload: (opts: { onFiles: (files: File[]) => void | Promise<void> }) => {
+      pasteCapture.onFiles = opts.onFiles
+      return { isPasteUploading: ref(false), pasteError: ref('') }
+    }
   }
 })
 
@@ -50,6 +56,7 @@ vi.mock('../../utils/track.js', () => ({
 
 import { useOrderForm } from '../useOrderForm'
 import { artistPublicApi, orderApi, uploadApi } from '../../api/index'
+import { MAX_IMAGE_COUNT } from '../../constants/upload'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 // ─── 被 vi.mock 替换的 API 方法（断言为 Mock 以便读取调用记录） ───
@@ -139,7 +146,11 @@ function setupMocks({ profile = MOCK_PROFILE, pricing = MOCK_PRICING, workflow =
   getPublicStylesMock.mockResolvedValue(styles)
   calcPriceMock.mockResolvedValue(MOCK_STYLE_CALC_RESULT)
   orderCreateMock.mockResolvedValue({ orderNo: 'ALICE-001' })
-  refUploadMock.mockResolvedValue({ filePath: 'references/test.png', url: '/uploads/references/test.png' })
+  // 路径按文件名派生（reference 上传接口的真实形状：filePath + url）
+  refUploadMock.mockImplementation((file: File) => Promise.resolve({
+    filePath: `references/${file.name}`,
+    url: `/uploads/references/${file.name}`
+  }))
   confirmMock.mockResolvedValue('confirm')
 }
 
@@ -806,6 +817,26 @@ describe('提交', () => {
 })
 
 // ─── 参考图上传 ───
+// issue #50-3：点选与粘贴必须共用 useOrderForm.refFileList 一个数组（EP 走 v-model:file-list）。
+// 这里的 landRefItem 模拟 EP 的 onStart（选文件即把条目落进同一数组），随后调 http-request，
+// 与真实时序一致——回退到「两个数组」时，点选条目不会带 filePath，用例即转红。
+
+/** 模拟 EP onStart：选文件先把条目落进共享数组（真实由 v-model:file-list 回写） */
+function landRefItem(of: ReturnType<typeof useOrderForm>, name: string, uid: string) {
+  of.refFileList.value.push({ name, uid, status: 'ready' })
+}
+
+/** 模拟 EP 点选一张：落条目 → http-request（见 DetailStep.vue 的 v-model:file-list） */
+async function pickRefItem(of: ReturnType<typeof useOrderForm>, name: string, uid: string) {
+  landRefItem(of, name, uid)
+  const file = { size: 1024, name, uid } as unknown as File & { uid: string | number }
+  await of.handleRefUpload({ file })
+  return file
+}
+
+function makeRefFile(name: string): File {
+  return new File([new Uint8Array(8)], name, { type: 'image/png' })
+}
 
 describe('参考图上传', () => {
   it('文件超过 10MB → 警告且不上传', async () => {
@@ -824,20 +855,20 @@ describe('参考图上传', () => {
     expect(uploadApi.reference).toHaveBeenCalled()
   })
 
-  it('上传成功 → 提交时 references 带路径', async () => {
+  it('上传成功 → 按 uid 回填同一数组的条目（不新增），提交 references 取自该数组', async () => {
     const { of } = await createForm()
-    const file = new File(['x'], 'a.png', { type: 'image/png' })
-    await of.handleRefUpload({ file: file as File & { uid: string | number } })
+    await pickRefItem(of, 'a.png', 'u-a')
+    expect(of.refFileList.value).toHaveLength(1)
+    expect(of.refFileList.value[0].filePath).toBe('references/a.png')
     of.form.clientQq = '12345678'
     await of.submit()
-    expect(orderCreateMock.mock.calls[0][0].references).toEqual(['references/test.png'])
+    expect(orderCreateMock.mock.calls[0][0].references).toEqual(['references/a.png'])
   })
 
-  it('移除参考图 → 提交时 references 为空', async () => {
+  it('从同一数组移除条目（EP on-remove 即过滤数组）→ 提交不再带该路径', async () => {
     const { of } = await createForm()
-    const file = new File(['x'], 'a.png', { type: 'image/png' })
-    await of.handleRefUpload({ file: file as File & { uid: string | number } })
-    of.handleRefRemove({ uid: (file as File & { uid: string | number }).uid })
+    await pickRefItem(of, 'a.png', 'u-a')
+    of.refFileList.value.splice(0, 1)
     of.form.clientQq = '12345678'
     await of.submit()
     expect(orderCreateMock.mock.calls[0][0].references).toEqual([])
@@ -849,5 +880,32 @@ describe('参考图上传', () => {
     const file = new File(['x'], 'a.png', { type: 'image/png' })
     await expect(of.handleRefUpload({ file: file as File & { uid: string | number } })).rejects.toThrow('上传失败')
     expect(ElMessage.error).toHaveBeenCalledWith('上传失败')
+  })
+
+  it('点选 3 张 + 粘贴 3 张 → 合并后共 5 张，第 6 张被拒（上限只在同一数组判一次）', async () => {
+    const { of } = await createForm()
+    for (let i = 0; i < 3; i++) await pickRefItem(of, `pick${i}.png`, `u-pick-${i}`)
+    // 点选链路必须写进同一数组（旧实现只 push uploadedRefs，这里就是空的）
+    expect(of.refFileList.value).toHaveLength(3)
+    expect(of.refFileList.value.every(f => !!f.filePath)).toBe(true)
+
+    refUploadMock.mockClear()
+    await pasteCapture.onFiles!([makeRefFile('p0.png'), makeRefFile('p1.png'), makeRefFile('p2.png')])
+
+    // 3 张粘贴只剩 2 个名额：第 3 张在循环入口被上限拦下（break + 一次提示）
+    expect(refUploadMock).toHaveBeenCalledTimes(2)
+    expect(of.refFileList.value).toHaveLength(MAX_IMAGE_COUNT)
+    expect(ElMessage.warning).toHaveBeenCalledWith('orderForm.refExceed')
+  })
+
+  it('提交 payload 的 references 与 refFileList 同源（同一数组取 filePath，顺序一致）', async () => {
+    const { of } = await createForm()
+    await pickRefItem(of, 'a.png', 'u-a')
+    await pasteCapture.onFiles!([makeRefFile('b.png')])
+    of.form.clientQq = '12345678'
+    await of.submit()
+    const payload = orderCreateMock.mock.calls[0][0]
+    expect(payload.references).toEqual(['references/a.png', 'references/b.png'])
+    expect(payload.references).toEqual(of.refFileList.value.map(f => f.filePath))
   })
 })

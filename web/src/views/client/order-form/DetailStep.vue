@@ -27,11 +27,13 @@
           <el-icon class="ref-tip-icon"><InfoFilled /></el-icon>
         </el-tooltip>
       </template>
+      <!-- v-model:file-list 必须双向：EP 选文件时是整组换数组（uploadFiles.value = [...]），
+           单向 :file-list 一断就再也回不到父层——粘贴条目与上限计数都会各算各的 -->
       <el-upload
+        v-model:file-list="refFileList"
         :auto-upload="true" :http-request="uploadRequest"
         accept="image/*" list-type="picture-card" :limit="MAX_IMAGE_COUNT"
-        :file-list="refFileList" :on-exceed="onExceed"
-        :on-remove="uploadRemove"
+        :on-exceed="onExceed"
         @dragenter.capture="guardDragEnter"
         @dragover.capture="guardDragOver"
         @drop.capture="guardDrop"
@@ -76,11 +78,8 @@ defineProps<{
   workflowStages: WorkflowStageItem[]
   /** 画师修改说明（空串不显示） */
   revisionNote: string
-  refFileList: RefFileItem[]
   /** el-upload http-request（composable 参考图上传，含大小/类型/匿名凭证校验） */
   uploadRequest: (options: { file: File }) => Promise<void>
-  /** el-upload on-remove（composable 同步移除已上传记录） */
-  uploadRemove: (file: { uid: string | number }) => void
 }>()
 
 const emit = defineEmits<{
@@ -95,6 +94,9 @@ const MAX_DESC_LEN = 2000
 
 /** 需求描述（v-model 上报父层 form.description） */
 const description = defineModel<string>('description', { default: '' })
+
+/** 参考图条目（与父层 useOrderForm.refFileList 同一数组：展示、上限、提交全读它） */
+const refFileList = defineModel<RefFileItem[]>('refFileList', { default: () => [] })
 
 // G1: 页内拖拽守卫（参考图上传区统一防御；捕获阶段挂在 el-upload 上）
 const { guardDragEnter, guardDragOver, guardDrop } = useDropGuard()

@@ -178,9 +178,16 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
   let submitIdemKey: string | null = null
 
   // ─── 参考图上传 ───
+  /**
+   * 参考图条目唯一来源（el-upload 走 v-model:file-list）：展示、上限、token 判定、提交都读这一个数组。
+   * issue #50-3：旧实现另存一份 uploadedRefs，而 EP 选文件时整组换数组、点选链路从不写 refFileList，
+   * 两个数各算各的 → 上限双向失效（粘贴只看 refFileList、点选只写 uploadedRefs）。
+   */
   const refFileList = ref<RefFileItem[]>([])
-  const uploadedRefs = ref<string[]>([])
-  const refUidMap = ref(new Map<string | number, string>())
+  /** 上传成功的存储路径（顺序即展示顺序；在途/失败条目无 filePath，不进提交） */
+  const refFilePaths = computed(() => refFileList.value
+    .map(item => item.filePath)
+    .filter((p): p is string => typeof p === 'string' && p.length > 0))
   /** 本次会话成功上传参考图时实际使用的匿名凭证——下单提交必须与上传同源（F-10 归属校验） */
   let refUploadToken: string | null = null
 
@@ -475,8 +482,13 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
       // anonUpload 内部换新重试一次，避免公网用户被旧凭证卡死
       const { uploaded, token } = await uploadReferenceWithAnonToken(file)
       refUploadToken = token
-      uploadedRefs.value.push(uploaded.filePath)
-      refUidMap.value.set(file.uid, uploaded.filePath)
+      // 按 uid 回填 EP 已落进同一数组的条目（EP 的 onStart 先于 http-request）：
+      // 回填而非追加，否则同一张图会出现两条，上限与提交都会多算
+      const item = refFileList.value.find(f => String(f.uid) === String(file.uid))
+      if (item) {
+        item.filePath = uploaded.filePath
+        item.url = uploaded.url
+      }
     } catch (err) {
       if (err instanceof AnonTokenUnavailableError) {
         ElMessage.error(t('orderForm.anonTokenRequired'))
@@ -487,21 +499,13 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
     }
   }
 
-  function handleRefRemove(file: { uid: string | number }) {
-    const filePath = refUidMap.value.get(file.uid)
-    if (filePath) {
-      const idx = uploadedRefs.value.indexOf(filePath)
-      if (idx > -1) uploadedRefs.value.splice(idx, 1)
-      refUidMap.value.delete(file.uid)
-    }
-  }
-
   // ─── 粘贴上传（参考图） ───
   async function handlePasteRefFiles(files: File[]) {
     for (const file of files) {
+      // 上限只在合并后的同一数组判一次：点选与粘贴共用 refFileList
       if (refFileList.value.length >= MAX_IMAGE_COUNT) {
         ElMessage.warning(t('orderForm.refExceed'))
-        return
+        break // 已达上限提示后跳过剩余，不再中断已上传列表
       }
       const ext = (file.name || '').split('.').pop()!.toLowerCase()
       if (ext && !['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
@@ -510,10 +514,14 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
       try {
         const { uploaded, token } = await uploadReferenceWithAnonToken(file)
         refUploadToken = token
-        uploadedRefs.value.push(uploaded.filePath)
-        const uid = `paste-${generateId()}`
-        refUidMap.value.set(uid, uploaded.filePath)
-        refFileList.value.push({ name: file.name || 'pasted-image.png', url: uploaded.url, uid, status: 'success' })
+        // 与点选条目同形（含 filePath）：粘贴条目落进即带路径，无需回填
+        refFileList.value.push({
+          name: file.name || 'pasted-image.png',
+          url: uploaded.url,
+          uid: `paste-${generateId()}`,
+          status: 'success',
+          filePath: uploaded.filePath
+        })
       } catch (err) {
         if (err instanceof AnonTokenUnavailableError) {
           ElMessage.error(t('orderForm.anonTokenRequired'))
@@ -559,7 +567,7 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
     if (!submitIdemKey) submitIdemKey = generateId()
     // G-7: 有参考图时必须携带与上传同源的 x-anon-token（无参考图下单不带 token 照常）
     let anonToken: string | null = null
-    if (uploadedRefs.value.length > 0) {
+    if (refFilePaths.value.length > 0) {
       // 优先用上传成功时记录的凭证（即使期间埋点链路换过 token，下单仍与参考图同源）；
       // 兜底再取一次当前缓存
       anonToken = refUploadToken || await getAnonToken()
@@ -580,7 +588,7 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
         clientName: form.clientName.trim(),
         clientNotify: form.notifyEnabled,
         agreeRules: form.agreed,
-        references: uploadedRefs.value,
+        references: refFilePaths.value,
         // v0.31 F3: 折扣码传后端，后端负责验证+扣减+incrementUsage
         discountCode: form.discountCode.trim() || null
       }, {
@@ -709,7 +717,7 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
     // 提交状态
     submitting, showSuccess, resultNo, customerToken, trackUrl, submit,
     // 参考图
-    refFileList, handleRefUpload, handleRefRemove,
+    refFileList, handleRefUpload,
     // 须知预览
     sanitizedRules,
     // 折扣码
