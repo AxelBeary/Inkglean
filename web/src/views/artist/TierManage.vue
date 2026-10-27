@@ -12,7 +12,7 @@
 
     <!-- 流程与比例 -->
     <el-tab-pane :label="$t('tiers.tabWorkflow')" name="workflow" lazy>
-      <WorkflowPaymentEditor />
+      <WorkflowPaymentEditor ref="workflowRef" />
     </el-tab-pane>
 
     <!-- v0.31 F3: 折扣码 -->
@@ -29,10 +29,17 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
+import { ElMessageBox } from 'element-plus'
+import { useI18n } from 'vue-i18n'
+import { useArtistStore } from '../../stores/artist'
 import WorkflowPaymentEditor from '../../components/artist/WorkflowPaymentEditor.vue'
 import DiscountCodeManager from '../../components/artist/DiscountCodeManager.vue'
 import ArtStyleManager from '../../components/artist/ArtStyleManager.vue'
 import AddonTemplateManager from '../../components/artist/AddonTemplateManager.vue'
+
+const { t } = useI18n()
+const store = useArtistStore()
 
 // v0.35 波1 (REQ-024 F2): 默认落在「画风与价格」（原「档位」tab 已移除）
 const activeTab = ref('artStyles')
@@ -47,6 +54,20 @@ function onTabChange(name: string | number) {
     styleManagerRef.value?.reload()
   }
 }
+
+// issue #53-6：收款比例有未保存改动时拦路由离开（此前只挡关标签页/刷新，SPA 内跳转直接丢改动）
+const workflowRef = ref<{ hasUnsavedPayment: () => boolean } | null>(null)
+onBeforeRouteLeave((to) => {
+  // 登出路径（ArtistLayout.logout 先清态再 push）：账号已走，脏态无意义，不弹
+  if (!store.loggedIn || to.name === 'ArtistLogin') return true
+  // 流程 tab 未打开过（lazy）= 编辑器未挂载，无可丢改动
+  if (!workflowRef.value?.hasUnsavedPayment()) return true
+  return ElMessageBox.confirm(t('tiers.leaveUnsavedConfirm'), t('tiers.leaveUnsavedTitle'), {
+    confirmButtonText: t('tiers.leaveUnsavedOk'),
+    cancelButtonText: t('common.cancel'),
+    type: 'warning'
+  }).then(() => true).catch(() => false)
+})
 </script>
 
 <style scoped>
