@@ -117,6 +117,23 @@ describe('TplShowcase style 形态（画风柜）', () => {
     expect(wrapper.find('.tpl-style-display-desc').text()).toBe('半身彩绘')
   })
 
+  it('#54-3：起步价排除展示态/停用尺寸（与服务端可成交口径一致）', () => {
+    const withShowcase = [
+      {
+        id: 12,
+        name: '展示档画风',
+        cover_image: 'cover/12.png',
+        sizes: [
+          { id: 121, name: '展示款', base_price: 50, display_status: 'showcase' },
+          { id: 122, name: '可约款', base_price: 300, display_status: 'available' }
+        ]
+      },
+      { id: 13, name: '对照画风', cover_image: 'cover/13.png', sizes: [{ id: 131, name: '头像', base_price: 100 }] }
+    ]
+    const wrapper = mountShowcase({ mode: 'style', styles: withShowcase, subdomain: 'alice', artist: { status: 'open' } })
+    expect(wrapper.findAll('.tpl-style-menu-price')[0].text()).toBe('¥300+')
+  })
+
   it('菜单切换画风 → 新画风无残留高亮/提示（旧行为等价保留）', async () => {
     const wrapper = mountShowcase({ mode: 'style', styles, subdomain: 'alice', artist: { status: 'open' } })
     await wrapper.findAll('.tpl-style-size-row')[0].trigger('click')

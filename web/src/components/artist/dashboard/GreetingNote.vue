@@ -195,7 +195,10 @@ onUnmounted(() => clearTimers())
 .g-text-area { cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
 .g-text {
   font-size: calc(var(--font-scale, 1) * 19px); line-height: 1.9; color: var(--ink);
-  height: calc(var(--font-scale, 1) * 76px); overflow: hidden;
+  /* #56-7：原定高 76px + overflow:hidden 会把长句/放大字号的第二行裁在动画外；
+     改 min-height 撑底 + 两行 clamp，视觉上限不变但不再硬切 */
+  min-height: calc(var(--font-scale, 1) * 76px);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .g-text .ch { display: inline-block; opacity: 0; }
 .g-text.settled .ch { opacity: 1; transform: none; filter: none; animation: none; }

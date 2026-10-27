@@ -61,6 +61,10 @@ export function advanceStage(orderId: number, stageId: number | null, expectedVe
 
   // 关闭流程跟踪（单步写，无事务必要；只清 current_stage_id，不动状态，行为保持不变）
   if (stageId === null) {
+    // 审计 #21 补充 A：终态订单不得通过「关跟踪」改动节点状态（原实现早退绕过了下方终态守卫）
+    if (['delivered', 'cancelled'].includes(order.status)) {
+      throw new AppError(E.INVALID_TRANSITION, 400, { from: order.status, to: null })
+    }
     updateOrderChecked(orderId, expectedVersion, 'current_stage_id = NULL')
     return getOrder(orderId)!
   }

@@ -179,6 +179,7 @@ import { artistApi } from '../../../api/index'
 import { formatDateTime } from '../../../utils/datetime'
 import type { ScheduleBar } from '../../../api/types'
 import ScheduleScroll from './ScheduleScroll.vue'
+import { useScrollLock } from '../../../composables/useScrollLock'
 import {
   buildScheduleWindow,
   aggregateScheduleDays,
@@ -259,6 +260,8 @@ function goQueue() {
 
 // ─── 订单摘要浮层（照搬 ScheduleScroll E1：只用接口已返回字段） ───
 const popBar = ref<ScheduleBar | null>(null)
+// #56-6：浮层只挡点击不挡滚动——打开时锁页面滚动，关闭/卸载释放
+useScrollLock(computed(() => !!popBar.value))
 const popRef = ref<HTMLElement | null>(null)
 let lastFocused: HTMLElement | null = null
 

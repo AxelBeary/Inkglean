@@ -17,7 +17,7 @@
         :disabled="busy"
         @click="toggleStatus"
       >
-        <span class="plaque-3d" ref="plaque3d">
+        <span class="plaque-3d">
           <span class="plaque-face face-open" :class="{ 'face-full': isFull }">
             <span class="p-dot" aria-hidden="true"></span>
             <span class="p-main f-kai">{{ isFull ? t('dashboard.plaqueFullChar') : t('dashboard.statusOpen') }}</span>
@@ -83,7 +83,6 @@ const isBreak = computed(() => store.profile?.status === 'break')
 const busy = ref(false)
 const swingOn = ref(false)
 const sheenOn = ref(false)
-const plaque3d = ref<HTMLElement | null>(null)
 const ropeL = ref<HTMLElement | null>(null)
 const ropeR = ref<HTMLElement | null>(null)
 let syncRaf = 0
@@ -131,30 +130,49 @@ async function loadSlots() {
   } catch { /* 静默降级：名额条不显数字，不阻塞挂牌 */ }
 }
 
-// ─── 翻牌物理：绳角 = atan(挂点半宽·cosθ / 绳长)，rAF 与 CSS 过渡同帧同步 ───
+// ─── 翻牌物理：绳角 = atan(挂点半宽·cosθ / 绳长)，与 CSS 过渡同参数自行求角度 ───
+// #56-3：原实现每帧 getComputedStyle + DOMMatrix 回读（0.72s ≈ 47 次强制重算）；
+// 翻牌过渡的参数是已知常量，按同一时长/缓动解析计算即可，不再触发布局。
 const ATTACH_HALF = 44
 const ROPE_LEN = 58
-function syncRopes() {
-  const el = plaque3d.value
-  if (!el || !ropeL.value || !ropeR.value) return
-  const tr = getComputedStyle(el).transform
-  if (!tr || tr === 'none') return
-  const m = new DOMMatrixReadOnly(tr)
-  const cos = Math.max(-1, Math.min(1, m.m11))
-  const ang = Math.atan2(ATTACH_HALF * cos, ROPE_LEN) * 180 / Math.PI
+const FLIP_MS = 720
+const FLIP_BEZIER = [0.45, 0.05, 0.3, 1] as const
+
+function cubicBezierEase(t: number): number {
+  const [x1, y1, x2, y2] = FLIP_BEZIER
+  const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx
+  const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by
+  const sx = (u: number) => ((ax * u + bx) * u + cx) * u
+  const sy = (u: number) => ((ay * u + by) * u + cy) * u
+  const dx = (u: number) => (3 * ax * u + 2 * bx) * u + cx
+  let u = t
+  for (let i = 0; i < 6; i++) {
+    const err = sx(u) - t
+    const d = dx(u)
+    if (Math.abs(err) < 1e-5 || Math.abs(d) < 1e-6) break
+    u -= err / d
+  }
+  return sy(Math.min(1, Math.max(0, u)))
+}
+
+function syncRopesAt(progress: number) {
+  if (!ropeL.value || !ropeR.value) return
+  const fromDeg = isBreak.value ? 0 : 180
+  const deg = fromDeg + ((isBreak.value ? 180 : 0) - fromDeg) * cubicBezierEase(Math.min(1, Math.max(0, progress)))
+  const ang = Math.atan2(ATTACH_HALF * Math.cos(deg * Math.PI / 180), ROPE_LEN) * 180 / Math.PI
   ropeL.value.style.transform = `translateX(-50%) rotate(${ang}deg)`
   ropeR.value.style.transform = `translateX(-50%) rotate(${-ang}deg)`
 }
 function animateRopes() {
   // 必须调用时读：应用内开关由 ArtistLayout 挂载后写入 html[data-reduce-motion]，
   // 任何 setup/模块级常量都在它之前求值，只会读到系统偏好且恒为初值
-  if (isReducedMotion()) { syncRopes(); return }
+  if (isReducedMotion()) { syncRopesAt(1); return }
   cancelAnimationFrame(syncRaf)
   const t0 = performance.now()
   const frame = () => {
-    syncRopes()
-    if (performance.now() - t0 < 780) syncRaf = requestAnimationFrame(frame)
-    else syncRopes()
+    const p = Math.min(1, (performance.now() - t0) / FLIP_MS)
+    syncRopesAt(p)
+    if (p < 1) syncRaf = requestAnimationFrame(frame)
   }
   syncRaf = requestAnimationFrame(frame)
 }
@@ -187,7 +205,7 @@ onUnmounted(() => cancelAnimationFrame(syncRaf)) // a1: 卸载后 rAF 循环不�
 
 onMounted(() => {
   loadSlots()
-  syncRopes()
+  syncRopesAt(1)
 })
 </script>
 

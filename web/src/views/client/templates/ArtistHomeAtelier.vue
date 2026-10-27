@@ -170,8 +170,9 @@ watch(ctaVisible, (v) => { ctaRaised.value = v }, { immediate: true })
 .atelier-announcement:hover { box-shadow: 0 12px 28px color-mix(in srgb, var(--pal-text) 24%, transparent); }
 .atelier-announcement :deep(.tpl-announcement-text) { word-break: break-word; }
 
-/* U2: 窄屏公告回到文档流（absolute 会与展签/CTA 重叠） */
-@media (max-width: 640px) {
+/* U2: 窄屏公告回到文档流（absolute 会与展签/CTA 重叠）
+   #57-6：断点上提到 860px——641~830px 区间展签占 x∈[48,508]，便签仍会压上去 */
+@media (max-width: 860px) {
   .atelier-announcement {
     position: relative;
     top: auto; left: auto; right: auto; bottom: auto;
