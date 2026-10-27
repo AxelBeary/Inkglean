@@ -57,7 +57,6 @@ export function buildMockComposable(mode: 'single' | 'multi' | 'empty') {
     submit: vi.fn(),
     refFileList: ref([]),
     handleRefUpload: vi.fn(),
-    handleRefRemove: vi.fn(),
     sanitizedRules: ref(''),
     discountEnabled: ref(false),
     discountResult: ref(null as DiscountResult | null),
