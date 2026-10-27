@@ -16,7 +16,8 @@ import { TOTP_BIND_REQUIRED_NOTICE_KEY } from '../../constants/auth'
 // ============================================
 
 const API_BASE = '/api'
-const DEFAULT_TIMEOUT_MS = 15000
+/** 全仓请求超时口径（导出供路由守卫等裸 fetch 场景复用，避免两处各写一个魔数） */
+export const DEFAULT_TIMEOUT_MS = 15000
 
 /** 后端错误响应体（AppError 统一形状 { code, error, detail }） */
 interface ApiErrorBody {
@@ -163,9 +164,6 @@ async function fail(status?: number, data?: ApiErrorBody): Promise<never> {
   // 验证对话框内失败只提示，用户仍可重试；其余 401 维持既有登出语义
   const NO_LOGOUT_CODES = new Set([...LOGIN_CODES, 'STEP_UP_REQUIRED', 'WEBAUTHN_AUTHENTICATION_FAILED', 'WEBAUTHN_CHALLENGE_INVALID'])
   if (status === 401 && !(code !== undefined && NO_LOGOUT_CODES.has(code))) {
-    // P3-10: 存储禁用时 401 清标记也不得抛错（否则登出软跳转被吞）
-    safeRemoveItem('artist_logged_in')
-    safeRemoveItem('artist_is_admin')
     // 824: TOTP_BIND_REQUIRED（绑定失效/未完成）必须触发登出，但提示文案要带到登录页——
     // 跳登录页前写非敏感会话旗标，Login.vue 挂载时消费并以醒目样式展示后清除；
     // 已在登录页（如 Passkey 入口）时不写旗标，由调用方就地展示同一文案，避免重复噪音。
@@ -175,13 +173,17 @@ async function fail(status?: number, data?: ApiErrorBody): Promise<never> {
       const { useArtistStore } = await import('../../stores/artist')
       const { default: router } = await import('../../router/index')
       const store = useArtistStore()
-      store.$reset()
+      // #52-2: 走会话清理动作而非 $reset——resetSession 递增 sessionSeq，在途 fetchProfile 才拦得住回写
+      store.resetSession()
       if (router.currentRoute.value.name !== 'ArtistLogin') {
         if (bindRequired) safeSessionSetItem(TOTP_BIND_REQUIRED_NOTICE_KEY, '1')
         router.push({ name: 'ArtistLogin' })
       }
     } catch (err) {
       // L1: 兜底硬跳转（保留原行为，补 console.warn 避免静默吞错）
+      // 清理动作本身失败（如 store 模块加载失败）时兜底清标记，防旧标记残留过守卫
+      safeRemoveItem('artist_logged_in')
+      safeRemoveItem('artist_is_admin')
       if (bindRequired) safeSessionSetItem(TOTP_BIND_REQUIRED_NOTICE_KEY, '1')
       // eslint-disable-next-line no-console -- 错误处理兜底日志：避免 401 软跳转失败静默吞错
       console.warn('[api] 401 soft-redirect failed, falling back to hard redirect', err)

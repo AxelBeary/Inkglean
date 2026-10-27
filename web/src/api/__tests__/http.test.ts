@@ -15,7 +15,8 @@ vi.mock('../../i18n/index.js', () => ({
   i18n: { global: { t: (key: string) => key } }
 }))
 vi.mock('../../stores/artist.js', () => ({
-  useArtistStore: () => ({ $reset: h.reset })
+  // #52-2: 401 通路改调 resetSession（$reset 不再承担会话清理）
+  useArtistStore: () => ({ resetSession: h.reset })
 }))
 vi.mock('../../router/index.js', () => ({
   default: {
