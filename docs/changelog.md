@@ -12,6 +12,7 @@
 - **批次名额（#21 补充 B）**：手动递补与撤销取消都不得越 `batch_limit`，超限返回 409 `BATCH_FULL_ACTION`；旧用例「递补允许超 N」按新口径改写。
 - **桌面平台（#22-8）**：只支持 Windows，`bundle.targets=["nsis"]`，README/STATUS 写明。
 - **字体度量（#57-8）**：新增 KaiTi 回退度量面（size-adjust 100% / ascent 92.8% / descent 25.6% / line-gap 0），按实测文楷与楷体行盒对齐，首屏大标题换字不再跳高。
+- **验证**：十九道全绿 @ `ef0fb5b0`（489s；server 1993 / web 1167 / desktop 616 / shared 44 / E2E 14）。
 
 ## issue 剩余可做项批（2026-10-27）
 
