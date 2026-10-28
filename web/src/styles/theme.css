@@ -39,10 +39,12 @@
   --color-primary-hover: #2d5a58;
   --color-primary-soft: rgba(53, 107, 105, 0.10);
 
-  /* 功能色（固定，不跟随主色） */
-  --color-danger: #f56c6c;
-  --color-warning: #e6a23c;
-  --color-success: #67c23a;
+  /* 功能色（固定，不跟随主色）
+     issue #73-1：语义色统一到纸墨颜料盘（石绿/藤黄/朱砂，同 artist-tokens 后台口径），
+     替换 EP 出厂饱和绿橙红——公开页 --pal-* 柔和底上不再与状态色两套色。 */
+  --color-danger: #BC3A2B;   /* 朱砂 */
+  --color-warning: #966C0A;  /* 藤黄 */
+  --color-success: #2F7D54;  /* 石绿 */
   --color-info: #909399;
   --color-gold: #b08d1e;
 
@@ -92,9 +94,9 @@ html.dark {
   --border-color: #414243;
   --border-color-strong: #4c4d4f;
 
-  --color-danger: #f89898;
-  --color-warning: #eebe77;
-  --color-success: #95d475;
+  --color-danger: #E07B6B;   /* 朱砂·暗（同 artist ink 提亮口径） */
+  --color-warning: #D9B36A;  /* 藤黄·暗 */
+  --color-success: #6FBF93;  /* 石绿·暗 */
   --color-info: #a3a6ad;
   --color-gold: #d9b44a;
 
@@ -145,6 +147,35 @@ html.dark[data-accent="5"] { --color-primary: #4d5ce8; --color-primary-hover: #6
   --el-color-warning: var(--color-warning);
   --el-color-danger: var(--color-danger);
   --el-color-info: var(--color-info);
+
+  /* issue #73-1：EP 语义色派生档补齐（同 artist-tokens 口径，light-* 混 --bg-page、dark-2 混 --text-primary）。
+     此前只映基色，el-tag/el-alert 的 -light-9 背景落 EP 出厂色，与纸墨底割裂。
+     var 后期绑定：html.dark 下 --color-系与 --bg-page 换值，派生档自动跟随暗色；
+     artist 作用域内 --color-success=--sl、--bg-page=--paper，解析值与后台自有声明一致（零泄漏）。 */
+  --el-color-success-light-3: color-mix(in srgb, var(--color-success) 70%, var(--bg-page));
+  --el-color-success-light-5: color-mix(in srgb, var(--color-success) 50%, var(--bg-page));
+  --el-color-success-light-7: color-mix(in srgb, var(--color-success) 30%, var(--bg-page));
+  --el-color-success-light-8: color-mix(in srgb, var(--color-success) 20%, var(--bg-page));
+  --el-color-success-light-9: color-mix(in srgb, var(--color-success) 10%, var(--bg-page));
+  --el-color-success-dark-2: color-mix(in srgb, var(--color-success) 80%, var(--text-primary));
+  --el-color-warning-light-3: color-mix(in srgb, var(--color-warning) 70%, var(--bg-page));
+  --el-color-warning-light-5: color-mix(in srgb, var(--color-warning) 50%, var(--bg-page));
+  --el-color-warning-light-7: color-mix(in srgb, var(--color-warning) 30%, var(--bg-page));
+  --el-color-warning-light-8: color-mix(in srgb, var(--color-warning) 20%, var(--bg-page));
+  --el-color-warning-light-9: color-mix(in srgb, var(--color-warning) 10%, var(--bg-page));
+  --el-color-warning-dark-2: color-mix(in srgb, var(--color-warning) 80%, var(--text-primary));
+  --el-color-danger-light-3: color-mix(in srgb, var(--color-danger) 70%, var(--bg-page));
+  --el-color-danger-light-5: color-mix(in srgb, var(--color-danger) 50%, var(--bg-page));
+  --el-color-danger-light-7: color-mix(in srgb, var(--color-danger) 30%, var(--bg-page));
+  --el-color-danger-light-8: color-mix(in srgb, var(--color-danger) 20%, var(--bg-page));
+  --el-color-danger-light-9: color-mix(in srgb, var(--color-danger) 10%, var(--bg-page));
+  --el-color-danger-dark-2: color-mix(in srgb, var(--color-danger) 80%, var(--text-primary));
+  --el-color-info-light-3: color-mix(in srgb, var(--color-info) 70%, var(--bg-page));
+  --el-color-info-light-5: color-mix(in srgb, var(--color-info) 50%, var(--bg-page));
+  --el-color-info-light-7: color-mix(in srgb, var(--color-info) 30%, var(--bg-page));
+  --el-color-info-light-8: color-mix(in srgb, var(--color-info) 20%, var(--bg-page));
+  --el-color-info-light-9: color-mix(in srgb, var(--color-info) 10%, var(--bg-page));
+  --el-color-info-dark-2: color-mix(in srgb, var(--color-info) 80%, var(--text-primary));
 
   --el-border-radius-base: 8px;
   --el-border-radius-small: 6px;

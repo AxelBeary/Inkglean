@@ -36,6 +36,17 @@
   }
 }
 
+/* issue #73-3：打印/导出 PDF 时，首屏以下未进入视口的渐入区块 opacity 仍为 0 → 整段不可见。
+   同 reduced-motion 口径兜底：打印态强制全显、停动画（IntersectionObserver 在打印媒体下不触发）。 */
+@media print {
+  .tpl-reveal {
+    opacity: 1;
+  }
+  .tpl-reveal.tpl-visible {
+    animation: none;
+  }
+}
+
 /* ===== 吸底 CTA 过渡 ===== */
 .tpl-cta-enter-active,
 .tpl-cta-leave-active {
