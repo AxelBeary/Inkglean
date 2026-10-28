@@ -48,7 +48,7 @@
           <span v-if="isArtistFiltering" class="artist-filter-count">{{ $t('admin.artistFilterCount', { n: filteredArtists.length }) }}</span>
         </div>
       </div>
-      <el-table :data="filteredArtists" v-loading="loading" stripe>
+      <el-table :data="filteredArtists" v-loading="loading" stripe scrollbar-always-on>
         <el-table-column prop="name" :label="$t('admin.colName')" min-width="140">
           <template #default="{ row }">
             <span class="cell-name">{{ row.name }}</span>
