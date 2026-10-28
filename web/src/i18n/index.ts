@@ -23,6 +23,10 @@ export const i18n = createI18n({
   messages: { 'zh-CN': zhCN } as Record<string, LocaleMessage>   // en 不预载
 })
 
+// 首访同步 <html lang>：setLocale 只在切换时写，首访英文用户此前始终是 index.html 的 zh-CN
+// （读屏发音错误，且 html[lang='en'] 的排版覆盖不生效）
+document.documentElement.lang = i18n.global.locale.value === 'zh-CN' ? 'zh-CN' : 'en'
+
 // 懒加载 en（切英文时才 import；失败回落 zh-CN）
 let enPromise: Promise<LocaleMessage | null> | null = null
 function ensureEn(): Promise<LocaleMessage | null> {
