@@ -1202,6 +1202,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     timeJustNow: '刚刚', timeMinutesAgo: '{n} 分钟前', timeHoursAgo: '{n} 小时前', timeDaysAgo: '{n} 天前',
     // #4: 名额概览改版
     slotCombined: '已接 {used}/{total}',
+    slotUsedOnly: '已接 {used} 单',
   },
   queue: {
     title: '排期看板',

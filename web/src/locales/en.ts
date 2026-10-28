@@ -1204,6 +1204,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     timeJustNow: 'just now', timeMinutesAgo: '{n}m ago', timeHoursAgo: '{n}h ago', timeDaysAgo: '{n}d ago',
     // #4: slot overview revamp
     slotCombined: '{used}/{total} filled',
+    slotUsedOnly: '{used} booked',
   },
   queue: {
     title: 'Queue Board',
