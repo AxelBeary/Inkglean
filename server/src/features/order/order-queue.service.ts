@@ -28,10 +28,12 @@ export function getArtistQueue(artistId: number, options: { limit?: number; offs
            o.discount_amount_cents, o.created_at, o.updated_at,
            -- D-1: 队列行携带 version，前端时间条拖拽两步 PUT 用旧值起步、响应新值接力
            o.version,
+           st.name as current_stage_name,
            (ast.name || ' / ' || ss.name) as tier_name, ss.base_price as tier_price
     FROM orders o
     LEFT JOIN style_sizes ss ON o.style_size_id = ss.id
     LEFT JOIN art_styles ast ON ss.art_style_id = ast.id
+    LEFT JOIN artist_workflow_stages st ON o.current_stage_id = st.id
     WHERE o.artist_id = ? AND o.${ACTIVE_ORDER_SQL} AND o.queue_zone = 'formal'
     ORDER BY o.queue_position ASC
   `
@@ -95,10 +97,12 @@ export function getCompletedQueue(artistId: number, days: number = 7): ArtistOrd
   // L-13（审计 九#7）: 沉底窗口以 completed_at 判定（任意写操作不再刷新 updated_at 复活展示），
   // 无 completed_at 的存量订单回落 updated_at
   return db.prepare(`
-    SELECT o.*, (ast.name || ' / ' || ss.name) as tier_name, ss.base_price as tier_price
+    SELECT o.*, st.name as current_stage_name,
+           (ast.name || ' / ' || ss.name) as tier_name, ss.base_price as tier_price
     FROM orders o
     LEFT JOIN style_sizes ss ON o.style_size_id = ss.id
     LEFT JOIN art_styles ast ON ss.art_style_id = ast.id
+    LEFT JOIN artist_workflow_stages st ON o.current_stage_id = st.id
     WHERE o.artist_id = ? AND o.status = 'delivered'
       AND COALESCE(o.completed_at, o.updated_at) >= ?
     ORDER BY COALESCE(o.completed_at, o.updated_at) DESC

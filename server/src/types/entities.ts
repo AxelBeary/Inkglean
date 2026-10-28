@@ -199,6 +199,8 @@ export interface ArtistOrderRow {
   tier_price: number | null
   queue_position: number | null
   current_stage_id: number | null
+  /** 流程节点名（getArtistQueue/getCompletedQueue/buffer 查询经 LEFT JOIN 带出；看板标签消费） */
+  current_stage_name?: string | null
   start_date: string | null
   focus_image_path: string | null
   paid_total_cents: number | null
