@@ -182,6 +182,24 @@ html.dark[data-accent="5"] { --color-primary: #4d5ce8; --color-primary-hover: #6
   }
 }
 
+/* ===== 中文标题字距只在中文生效（issue #72）=====
+   下面这些 .2em~.3em 是按汉字标题排的；英文单词会被逐字母拉开
+   （实测 "Upcoming" 字距 4.46px，渲染成 U p c o m i n g）。
+   品牌字（.brand-sub / .brand-name 的 INKGLEAN）字距是有意设计，不在此列。 */
+html[lang='en'] .nav-title,
+html[lang='en'] .step-eyebrow,
+html[lang='en'] .sched-title,
+html[lang='en'] .sp-title,
+html[lang='en'] .sp-pop-title,
+html[lang='en'] .tl-pop-title,
+html[lang='en'] .ledger-title,
+html[lang='en'] .quick-title,
+html[lang='en'] .ann-prefix,
+html[lang='en'] .p-main,
+html[lang='en'] .p-sub {
+  letter-spacing: .02em;
+}
+
 /* ===== 状态徽章对比度修复（P2）：dark 模式改深字，只调对比度不改色相 ===== */
 /* 现状：el-tag success 绿底白字 #67C23A/#fff ≈ 2.24:1；warning 2.19:1；danger 2.90:1（12px 小字需 4.5:1） */
 /* 修复：dark 模式文字改深（success #0E3D20 on #67C23A = 5.48:1 / warning #4d320b on #e6a23c = 5.40:1 / danger #5c1616 on #f56c6c = 4.58:1） */

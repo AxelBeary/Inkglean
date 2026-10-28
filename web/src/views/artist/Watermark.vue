@@ -107,7 +107,7 @@
         <h3 class="wm-panel-title">{{ $t('watermark.watermarkSection') }}</h3>
         <p class="wm-panel-desc">{{ $t('watermark.watermarkDesc') }}</p>
 
-        <div class="wm-field">
+        <div class="wm-field wm-field--stack">
           <span class="wm-label">{{ $t('watermark.watermarkType') }}</span>
           <el-radio-group v-model="wmType">
             <el-radio-button value="text">{{ $t('watermark.text') }}</el-radio-button>
@@ -545,6 +545,10 @@ async function exportImage() {
   display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; align-items: center;
   margin-bottom: 16px;
 }
+
+/* 两枚分段按钮在 182px 控件列里放不下（90 + 104 = 194px），标签改到上方、控件占满整行（issue #72） */
+.wm-field--stack { grid-template-columns: 1fr; gap: 8px; align-items: start; }
+.wm-field--stack .el-radio-group { width: 100%; }
 .wm-label { margin: 0; font-size: 13px; color: var(--ink2); }
 .wm-text-input { margin-bottom: 0; }
 .wm-slider { margin-left: 0; }
