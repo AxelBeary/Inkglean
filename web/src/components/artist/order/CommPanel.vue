@@ -89,8 +89,9 @@ onUnmounted(() => {
 <style scoped>
 /* ─── plan-node-speech：客户沟通 ─── */
 .comm-body { display: flex; flex-direction: column; gap: 10px; }
-.comm-row { display: flex; align-items: baseline; gap: 8px; font-size: calc(var(--font-scale, 1) * 14px); }
-.comm-label { color: var(--ink2); flex-shrink: 0; }
+/* issue #70：窄屏下价格小结是单条长文本，flex-shrink:0 会整行顶出卡片，允许换行 */
+.comm-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; font-size: calc(var(--font-scale, 1) * 14px); }
+.comm-label { color: var(--ink2); flex-shrink: 1; min-width: 0; }
 .comm-value { color: var(--ink); font-weight: 600; }
 .comm-speech {
   padding: 10px 14px;

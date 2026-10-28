@@ -12,7 +12,7 @@
         </template>
       </CardHead>
     </template>
-    <el-descriptions :column="2" border>
+    <el-descriptions :column="narrow ? 1 : 2" :direction="narrow ? 'vertical' : 'horizontal'" border>
       <el-descriptions-item :label="$t('orderDetail.colOrderNo')">
         <span class="od-order-no">{{ order.order_no }}</span>
       </el-descriptions-item>
@@ -41,8 +41,8 @@
         </el-radio-group>
       </el-descriptions-item>
       <el-descriptions-item :label="$t('orderDetail.colSource')">{{ order.source === 'self' ? $t('common.source.clientSelf') : $t('common.source.manualEntry') }}</el-descriptions-item>
-      <el-descriptions-item :label="$t('orderDetail.colTime')" :span="2">{{ formatDate(order.created_at) }}</el-descriptions-item>
-      <el-descriptions-item :label="$t('orderDetail.colDesc')" :span="2">{{ order.description || $t('common.none') }}</el-descriptions-item>
+      <el-descriptions-item :label="$t('orderDetail.colTime')" :span="narrow ? 1 : 2">{{ formatDate(order.created_at) }}</el-descriptions-item>
+      <el-descriptions-item :label="$t('orderDetail.colDesc')" :span="narrow ? 1 : 2">{{ order.description || $t('common.none') }}</el-descriptions-item>
     </el-descriptions>
     <!-- F9 客户快查卡（发布前待办清单第 6 项·网页端回流）：复用录单页 mo-client-card 同款视觉，
          有标记/汇总才显示；数据随 order.client_qq 变化查 getToolsClient，失败静默不吵
@@ -63,6 +63,7 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted, onUnmounted, ref } from 'vue'
 import type { PropType } from 'vue'
 import type { ClientProfile, ClientSummary } from '../../../../api/types'
 import CardHead from '../../visual/CardHead.vue'
@@ -95,6 +96,15 @@ defineProps({
 const emit = defineEmits([
   'reorder', 'jump-qq', 'copy-qq', 'regenerate-link', 'change-priority'
 ])
+
+// 窄屏改单列纵排：两列时标签列被压到 ~50px，中文标签逐字竖排（issue #70）
+const narrowQuery = window.matchMedia('(max-width: 640px)')
+const narrow = ref(narrowQuery.matches)
+function syncNarrow(e: MediaQueryListEvent) {
+  narrow.value = e.matches
+}
+onMounted(() => narrowQuery.addEventListener('change', syncNarrow))
+onUnmounted(() => narrowQuery.removeEventListener('change', syncNarrow))
 </script>
 
 <style scoped>
