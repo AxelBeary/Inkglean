@@ -29,7 +29,7 @@
       </div>
       <div class="row">
         <div class="field-text">
-          <div class="lab">{{ t('account.totpSection') }}</div>
+          <!-- issue #73-4：删除与 group-head 同键的行内 lab（totpSection），保留 desc -->
           <div class="desc">{{ t('account.totpRowDesc') }}</div>
         </div>
         <div class="ctrl">
@@ -99,7 +99,7 @@
       </div>
       <div class="row">
         <div class="field-text">
-          <div class="lab">{{ t('account.passkeySection') }}</div>
+          <!-- issue #73-4：删除与 group-head 同键的行内 lab（passkeySection），保留 desc -->
           <div class="desc">{{ t('account.passkeyRowDesc') }}</div>
         </div>
         <div class="ctrl">
@@ -157,7 +157,7 @@
       </div>
       <div class="row">
         <div class="field-text">
-          <div class="lab">{{ t('account.devicesSection') }}</div>
+          <!-- issue #73-4：删除与 group-head 同键的行内 lab（devicesSection），保留 desc -->
           <div class="desc">{{ t('account.devicesRowDesc') }}</div>
         </div>
       </div>

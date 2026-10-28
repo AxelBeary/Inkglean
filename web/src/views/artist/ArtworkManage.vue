@@ -16,7 +16,7 @@
     <div class="group-head">{{ $t('artworks.uploadTitle') }}</div>
     <div class="row">
       <div class="field-text">
-        <div class="lab">{{ $t('artworks.dragUpload') }}</div>
+        <!-- issue #73-4：删除与拖拽框内 upload-main-text 同键的左侧 lab（dragUpload），保留格式 tip -->
         <div class="desc">{{ $t('artworks.tip') }}</div>
       </div>
       <div class="ctrl ctrl--upload">

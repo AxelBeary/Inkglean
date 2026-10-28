@@ -19,7 +19,7 @@
           <el-avatar :size="72" :src="avatarPreviewUrl" class="avatar-preview">
             {{ name?.charAt(0) || '?' }}
           </el-avatar>
-          <span class="avatar-upload-hint">{{ $t('settings.avatarHint') }}</span>
+          <!-- issue #73-4：删除控件内重复的 avatarHint（与左侧 .desc 同键同文），aria-label 保留供读屏 -->
         </div>
         <input ref="avatarInputEl" type="file" accept="image/*" hidden @change="onAvatarPick" />
       </div>
@@ -182,7 +182,6 @@ function onAvatarPick(event: Event) {
 .avatar-upload:focus-visible { outline: 2px solid var(--hq); outline-offset: 2px; border-radius: var(--r-m); }
 .avatar-preview { transition: box-shadow var(--dur-fast); }
 .avatar-upload:hover .avatar-preview { box-shadow: 0 0 0 3px color-mix(in srgb, var(--hq) 50%, transparent); }
-.avatar-upload-hint { font-size: calc(var(--font-scale, 1) * 12px); color: var(--ink2); }
 
 @media (max-width: 720px) {
   .row { grid-template-columns: 1fr; }
