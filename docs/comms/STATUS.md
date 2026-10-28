@@ -1,26 +1,23 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-10-29 刷新：PR #74~#78 + #68 批量合入收口）
+## 看板（2026-10-29 刷新：issue #73 四条 + zip 安全跳版收口）
 
-- **HEAD 与推送**：`c1c460ae` = PR 批量合入（#74~#78 修 issue #69~#72 + #68 rustls；十九道全绿 719s，报告 `accept-master-20261029-053840.md`）
-  - 上一笔 `6002bcf8` = v1.1.0 版本升档（661s）
+- **HEAD 与推送**：`968e4c74` = issue #73 四条 + zip 跳版（91e0c66a deps + 968e4c74 web；十九道全绿 619s，报告 `accept-master-20261029-065412.md`）
+  - 上一笔 `c1c460ae` = PR #74~#78+#68 批量合入（719s）
 - **发版**：**v1.1.0**（2026-10-28，稳交付·好管理版）已发布 —— 安装包 `inkglean-installer-v1.1.0.zip`（5.79 MB / 920 文件）；迁移 v71→v80 自动执行；说明见 `docs/changelog.md` 顶部与 GitHub Releases
 - **基线（accept.ps1 十九道全绿 @ 本批）**：server **1996**（175 文件）/ web **1167**（171）/ desktop **629**（45）/ shared **44** / E2E **14** / cargo test **39**（lib 28 + ACL 8 + release_config 3）
   - 迁移 **v80** 不变
   - 本批计数增长：server +3（queue-stage-name 三区节点名下发断言）
 - **拟物收敛射程不变**：只限排期块（ScheduleScroll）；挂牌 3D / 墨迹动画 / 登录纸艺山水**不动**
 - **GHSA-6pf3 安全批已闭合**：8 项加固全部落地并回函；披露处置＝**维持私密不公开**（详见「已拍板规则」）
-- **警报/PR 现状**：Code scanning open 0；**Dependabot open 1**（#102 critical：`zip` crate 锁 4.6.1、修复版 9.0.5，在 `desktop/src-tauri/Cargo.lock`）；**open PR 0**（#68/#74~#78 本批全合）
-  - ⚠ #102 是本批推送时新发现：跨 5 个大版本（→很可能上游 crate 传递依赖），非可直接跳的补丁号，待查依赖树后拍板（见下步 1c）
-  - issue 处置：#69~#72 已随对应 PR 关闭；**#73 保留 open**（公开页低危合集，含 2 条待你拍板：客户端语义色板取向、移动端悬浮件二选一方案）
+- **警报/PR 现状**：Code scanning open 0；**Dependabot open 0**（#102 critical 已解：updater 2.13.2→2.14.1 带 zip 4.6.1→9.1.3 ≥ 修复版 9.0.5，JS 精确同号，tauri info 已验）；**open PR 0**
+  - issue 处置：**#69~#73 全数关闭**（#73 四条＝语义色统一纸墨 / 悬浮小圆钮 / 打印态兜底 / 重复文案去重，均落地并 Playwright 无头实测）
 - 公网冻结现状不变；管理员判定只认库值
 - 🔴 **上线前置硬警告仍有效**：公网部署前**必须先确认 `platform_config.admin_qq` 非空**
 
 **下一步（按优先级）**
 
-1. ✅ **本批收口**：PR #74~#78 + #68 合入 + 十九道全绿；留痕 `AGENTS/workspace/temp/accept-pr-batch-74-78.log`
-1b. **待你拍板（issue #73 公开页低危合集）**：①客户端 EP 默认语义色是否补纸墨映射（需先定色板）②移动端右下悬浮件二选一（收单圆钮 / 下沉页脚）；③打印态渐入不可见、④重复文案属纯改可直接做
-1c. **待你拍板（Dependabot #102 critical）**：`zip` 4.6.1→9.0.5 跨大版，需先查 `cargo tree -i zip` 确认谁在拉它（疑为某 tauri 插件传递依赖）；若上游未适配新版，可能只能等上游或评估风险接受，不盲目跳版
+1. ✅ **本批收口**：issue #73 四条 + zip 跳版 + 十九道全绿；留痕 `AGENTS/workspace/temp/accept-issue73-zip.log`（视觉取证截图同目录 i73-*.png）
 2. **登记未施工（下批候选）**
    - 评审附带跟进：#61 10MB 超限静默 return + 无 filePath 拦提交 + objectURL 回收；#62 分片失败整批停 + 守卫 15s 无提示；#65 提交时二次校验接单状态
    - 待用户终验：发布包真人启动（asset 图缓存、模块 data 帧）；悬浮窗逐窗回执与贴回同步的真机一遍
