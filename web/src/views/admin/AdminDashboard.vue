@@ -270,6 +270,14 @@ onMounted(async () => {
   }
 }
 
+/* 留言筛选：右栏在桌面双栏下只有 ~455px，三个定宽下拉（372px）会把说明列压成竖排单字；
+   按容器宽（而不是视口宽）切上下排布，1440 桌面同样生效。 */
+.area-right { container-type: inline-size; }
+@container (max-width: 620px) {
+  .row.gb-filter-row { grid-template-columns: 1fr; }
+  .gb-filter-row .gb-filters { justify-content: flex-start; }
+}
+
 /* ─── 统计卡 ─── */
 .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4, 16px); }
 .stat-num {
