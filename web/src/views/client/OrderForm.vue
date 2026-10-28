@@ -1,5 +1,5 @@
 <template>
-  <div class="order-form-page">
+  <div class="order-form-page" :class="{ 'order-form-page--mobile-cta': artist && isStyleMode }">
     <ClientFloatingActions raised />
     <div class="form-container" v-loading="loading">
       <el-page-header @back="$router.push(`/artist/${subdomain}`)" :title="$t('orderForm.backHome')" :content="$t('orderForm.title')">
@@ -636,18 +636,25 @@ function goTrack() {
   .step-layout { grid-template-columns: 1fr; }
 }
 
-/* ─── P0-1: 移动端底部粘性操作条（sticky 底部；与原“下一步/提交”按钮并存） ─── */
+/* ─── P0-1: 移动端底部粘性操作条（sticky 底部；主操作只留这一处，步骤内同名主按钮隐藏） ─── */
 .mobile-cta-bar { display: none; }
 @media (max-width: 860px) {
+  /* issue #70：sticky 需要更高的包含块，否则短步骤下吸底条悬在内容末尾（390×844 实测留白 123px）。
+     页面/容器撑满视口高度后，条底边贴合屏幕底部。 */
+  .order-form-page { display: flex; flex-direction: column; }
+  .form-container { flex: 1; display: flex; flex-direction: column; }
   .mobile-cta-bar {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
     position: sticky; bottom: 0; z-index: 100;
     margin: 0 -16px -16px;
+    margin-top: auto;
     padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
     background: color-mix(in srgb, var(--bg-card, #fff) 92%, transparent);
     backdrop-filter: blur(10px);
     border-top: 1px solid var(--border-color, #e5e5e5);
   }
+  /* 吸底条已提供主操作时，步骤内的同名主按钮会与其状态打架（一个禁用、一个可用），隐藏之 */
+  .order-form-page--mobile-cta :deep(.step-nav .el-button--primary) { display: none; }
   .mobile-cta-amt { font-size: 20px; font-weight: 700; color: var(--color-primary, var(--el-color-primary)); font-variant-numeric: tabular-nums; }
   .mobile-cta-btn { min-width: 128px; min-height: 44px; }
 }

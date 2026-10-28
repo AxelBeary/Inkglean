@@ -168,6 +168,10 @@ function formatDate(str: string) {
 .pool-flow-revoked { color: var(--ink3); font-size: calc(var(--font-scale, 1) * 12px); white-space: nowrap; }
 .pool-ref { margin-top: 16px; }
 .pool-ref-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: calc(var(--font-scale, 1) * 13px); }
+/* issue #70：窄屏一行放不下「节点名 + 已收/应收/差额 + 状态 + 快捷收款」，
+   原实现不给换行，节点名会被压到单字竖排。允许整行换行，并保住节点名的最小宽度。 */
+.pool-ref-row--v2 { flex-wrap: wrap; row-gap: 6px; }
+.pool-ref-row--v2 .pool-ref-name { min-width: max-content; }
 .pool-ref-icon { width: 18px; text-align: center; flex-shrink: 0; }
 .pool-ref-name { flex: 1; color: var(--ink); }
 .pool-ref-amount { color: var(--ink2); flex-shrink: 0; }
