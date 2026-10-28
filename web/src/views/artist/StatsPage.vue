@@ -48,8 +48,8 @@
       {{ $t('stats.empty') }}
     </div>
 
-    <!-- 未开启/不显示：提示去管理后台开启 -->
-    <div v-if="!loadFailed && mode !== 'on'" class="stats-disabled">
+    <!-- 未开启/不显示：提示去管理后台开启（功能级关闭时上方已有提示，不重复） -->
+    <div v-if="!loadFailed && !featureDisabled && mode !== 'on'" class="stats-disabled">
       {{ $t('stats.disabledHint') }}
     </div>
   </div>

@@ -36,7 +36,7 @@
     <button class="slot-block" :class="{ 'is-full': isFull }" type="button" @click="goSlots">
       <span class="slot-top">
         <span>
-          {{ slotDisplay || t('dashboard.slotCombined', { used: usedCount, total: totalCapacity }) }}
+          {{ slotSummary }}
           <span v-if="isFull" class="slot-full-tag">{{ t('dashboard.statusFull') }}</span>
         </span>
         <span class="slot-arrow" aria-hidden="true">→</span>
@@ -98,6 +98,15 @@ const limitEnabled = computed(() =>
 )
 const usedCount = computed(() => formalCount.value + bufferCount.value)
 const totalCapacity = computed(() => batchLimit.value + bufferLimit.value)
+// 名额未配置时（batch_limit/buffer_limit 均为 NULL，服务端 slotDisplay 为 null）不能显示 "已接 4/0"；
+// 只有总量 > 0 才用占比文案，否则只报已接单数（issue #71-3）
+const slotSummary = computed(() => {
+  if (slotDisplay.value) return slotDisplay.value
+  const total = totalCapacity.value
+  return total > 0
+    ? t('dashboard.slotCombined', { used: usedCount.value, total })
+    : t('dashboard.slotUsedOnly', { used: usedCount.value })
+})
 // E2 补全（清扫批）：满态双轴——席位满（旧口径）或月度额度耗尽（quotaInfo 为 profile 端点清扫批补发，
 // 与公开主页 getMonthlyUsage 同口径）；仅启用额度未启用席位时名额条改显额度用量
 const quotaInfo = computed(() => store.profile?.quotaInfo ?? null)
