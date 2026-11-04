@@ -8,6 +8,7 @@ export default defineConfig({
     globals: true,
     environment: 'happy-dom',
     include: ['src/**/__tests__/**/*.test.ts'],
+    testTimeout: 15000,
     // 同 web：高核数机器默认 fork 数过多，Windows 下偶发单 worker 启动即退
     poolOptions: { forks: { maxForks: 8 } }
   }

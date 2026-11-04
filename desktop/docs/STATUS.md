@@ -1,9 +1,9 @@
 # 桌面端（拾绘桌面版）子项目状态
 
-## 看板（2026-10-28 刷新：#22 剩余五项收口）
+## 看板（2026-11-04 刷新：Issue #83 桌面端确认弹窗优化）
 
-- **HEAD** 随主仓 `master`（`5e00ec87`）；#22 五项（原子写 / 逐窗回执 / 退出清悬浮窗 / 偏好跨窗同步 / 发布包 asset+CSP）已合入
-- **基线 629**（45 文件；+13：回执 8 / 偏好同步 3 / 导入中止 2；十九道全绿 @ `5e00ec87` 685s）；版本 0.1.0，**尚未发布**（无 `desktop-v*` tag）
+- **HEAD** 随主仓 `master`；Issue #83（消除原生 window.confirm，接入 dialog:ask 异步桥）已落地
+- **基线 633**（46 文件；+4：dialog.test.ts 4 例；Issue #83）；版本 0.1.0，**尚未发布**（无 `desktop-v*` tag）
 - **Rust 测试 39**（lib 28 + `tests/acl.rs` 1 + `tests/app_acl.rs` 7 + `tests/release_config.rs` 3）；发布 release exe 已产出（`tauri build --no-bundle`，1m40s）
 - **U45 已闭合**：截稿悬浮窗走 `openLocalDbReadOnly()`（不建表）；`floating-deadline.json` 单独授 `sql:default`（无 execute），timer/todo 零 SQL；失败说「暂时取不到截稿」
 - **U46 防线**：`tests/acl.rs` 用 tauri::test mock runtime 走真 IPC/ACL；`build.rs` 把 Windows manifest 链进测试 exe；CI desktop job 由 `cargo check` 改 `cargo test`

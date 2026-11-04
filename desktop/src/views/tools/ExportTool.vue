@@ -14,7 +14,7 @@ import { hasLocalData, parseBackup, pickAndReadBackup, runImport } from '../../t
 import { buildWorklogCsv } from '../../tools/worklogCsv'
 import type { WorklogDayRow, WorklogOrderRow } from '../../tools/worklogCsv'
 import { useToolToast } from '../../tools/host'
-import { exportSaveB64, isDesktop } from '../../bridge'
+import { exportSaveB64, isDesktop, askConfirm } from '../../bridge'
 import { openLocalDb } from '../../bridge/db'
 
 const router = useRouter()
@@ -134,7 +134,11 @@ async function doImport() {
       ]
       if (parts.hasProfile) bits.push('档案已建')
       const msg = `⚠️ 你本地已有数据（${bits.join(' · ')}）。导入将替换它们。\n替换前会把当前数据自动备份为备份包，万一后悔可恢复。\n\n确定替换？`
-      if (!window.confirm(msg)) return
+      const ok = await askConfirm(msg, {
+        title: '拾绘 · 导入覆盖确认',
+        kind: 'warning'
+      })
+      if (!ok) return
     }
     const r = await runImport(allFiles, ledger.orders, preview, hasLocal)
     if (!r.ok) {

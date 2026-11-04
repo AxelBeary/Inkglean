@@ -7,6 +7,8 @@ import { BridgeUnavailableError } from './errors'
 
 export { isDesktop } from './env'
 export { BridgeUnavailableError } from './errors'
+export { askConfirm, ask } from './dialog'
+export type { AskOptions } from './dialog'
 export { checkAndDownloadUpdate, installPendingUpdate } from './updater'
 export { saveSecret, loadSecret, deleteSecret } from './secureStore'
 export { notify } from './notification'

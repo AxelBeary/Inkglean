@@ -14,7 +14,7 @@ import type { HomeMainView } from '../stores/prefs'
 import { useScheduleStore } from '../stores/schedule'
 import { PANEL_REGISTRY } from '../panels/contract'
 import type { PanelId } from '../panels/contract'
-import { checkAndDownloadUpdate, installPendingUpdate, isDesktop } from '../bridge'
+import { checkAndDownloadUpdate, installPendingUpdate, isDesktop, askConfirm } from '../bridge'
 import { openFloatingWindow } from '../bridge/window'
 import { useLocalLedgerStore } from '../stores/localLedger'
 import { useAutoTimeStore } from '../stores/autoTime'
@@ -209,8 +209,14 @@ async function silentUpdateCheck() {
   if (!isDesktop() || !auth.loggedIn) return
   try {
     const result = await checkAndDownloadUpdate()
-    if (result === 'downloaded' && window.confirm('新版本已下载，现在重启完成更新？')) {
-      await installPendingUpdate()
+    if (result === 'downloaded') {
+      const confirmed = await askConfirm('新版本已下载，现在重启完成更新？', {
+        title: '拾绘 · 发现新版本',
+        kind: 'info'
+      })
+      if (confirmed) {
+        await installPendingUpdate()
+      }
     }
   } catch {
     // 端点未配置/无网络/验签拒装：静默降级

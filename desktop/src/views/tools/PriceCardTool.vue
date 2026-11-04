@@ -43,6 +43,7 @@ import type { PriceCardDraft } from '@inkglean/shared'
 import { zhT } from '../../tools/i18n-zh'
 import { copyText, savePng, readDraft, writeDraft, useToolToast, useToolT } from '../../tools/host'
 import { useLocalLedgerStore } from '../../stores/localLedger'
+import { askConfirm } from '../../bridge'
 
 const router = useRouter()
 const toast = useToolToast()
@@ -90,7 +91,13 @@ async function onRequestImport({ hasContent }: { hasContent: boolean }) {
     toast.show('本地记账里还没有带金额的账目，先去记几笔', 'err')
     return
   }
-  if (hasContent && !window.confirm(zhT('priceCard.importConfirm'))) return
+  if (hasContent) {
+    const ok = await askConfirm(zhT('priceCard.importConfirm'), {
+      title: '拾绘 · 价目表导入',
+      kind: 'warning'
+    })
+    if (!ok) return
+  }
   importing.value = true
   try {
     coreRef.value?.applyImportedTiers(tiers)
