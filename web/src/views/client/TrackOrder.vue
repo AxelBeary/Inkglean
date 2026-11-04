@@ -233,7 +233,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { orderApi } from '../../api/index'
+import { orderApi, type ApiError } from '../../api/index'
 import type { ArtistPublicProfile, VisibleArtistProfile, OrderTrackResult } from '../../api/types'
 import { fetchArtistPublicProfile } from '../../composables/useArtistPublicProfile'
 import { ElMessage } from 'element-plus'
@@ -380,9 +380,12 @@ async function downloadDeliverable(id: number, fileName: string | null | undefin
       ElMessage.warning(t('delivery.confirmFailed'))
     }
   } catch (err) {
-    if ((err as { code?: string })?.code === 'DOWNLOAD_LOCKED') {
+    const apiErr = err as ApiError
+    if (apiErr?.code === 'DOWNLOAD_LOCKED' || apiErr?.status === 410) {
       pendingConfirmId.value = null
       ElMessage.warning(t('delivery.downloadLockedMsg'))
+    } else if (apiErr?.code === 'DOWNLOAD_COOLDOWN' || apiErr?.status === 423) {
+      ElMessage.warning(t('delivery.downloadCooldownMsg'))
     } else {
       ElMessage.error(t('delivery.downloadFailed'))
     }

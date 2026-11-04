@@ -98,10 +98,13 @@ async function downloadFile(d: OrderDeliveryResult['deliverables'][number]) {
       ElMessage.warning(t('delivery.confirmFailed'))
     }
   } catch (err) {
-    if ((err as ApiError)?.code === 'DOWNLOAD_LOCKED') {
+    const apiErr = err as ApiError
+    if (apiErr?.code === 'DOWNLOAD_LOCKED' || apiErr?.status === 410) {
       d.downloadLocked = true
       pendingConfirmId.value = null
       ElMessage.warning(t('delivery.downloadLockedMsg'))
+    } else if (apiErr?.code === 'DOWNLOAD_COOLDOWN' || apiErr?.status === 423) {
+      ElMessage.warning(t('delivery.downloadCooldownMsg'))
     } else {
       ElMessage.error(t('delivery.downloadFailed'))
     }
