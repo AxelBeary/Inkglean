@@ -36,6 +36,7 @@ export interface OrderFormDraft {
     usageId?: number | null
     rushId?: number | null
   }
+  refFiles?: Array<{ name?: unknown; url?: unknown; uid?: unknown; filePath?: unknown }>
 }
 
 /**
@@ -87,6 +88,15 @@ export function useOrderFormDraft(subdomain: string, state: OrderFormDraftState)
       return
     }
     try {
+      const savedRefFiles = state.refFileList?.value
+        ?.filter(f => typeof f.filePath === 'string' && f.filePath.length > 0)
+        .map(f => ({
+          name: f.name,
+          url: f.url ?? null,
+          uid: f.uid,
+          filePath: f.filePath
+        }))
+
       sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
         form: {
           description: state.form.description,
@@ -101,7 +111,8 @@ export function useOrderFormDraft(subdomain: string, state: OrderFormDraftState)
           addonSelections: { ...state.styleAddonSelections },
           usageId: state.selectedUsageId.value,
           rushId: state.selectedRushId.value
-        }
+        },
+        refFiles: savedRefFiles || []
       }))
     } catch { /* Ignore when sessionStorage is unavailable (private mode, etc.) */ }
   }
@@ -174,6 +185,19 @@ export function useOrderFormDraft(subdomain: string, state: OrderFormDraftState)
     state.form.clientName = typeof f.clientName === 'string' ? f.clientName : ''
     // REQ-028 过渡期：本项灰置不可勾，旧草稿里存的 true 一律不再回填（原写法会把缺省当勾选）
     state.form.notifyEnabled = false
+
+    // 恢复已上传成功的参考图列表（保留 filePath 供后续提交使用）
+    if (state.refFileList && Array.isArray(draft.refFiles)) {
+      state.refFileList.value = draft.refFiles
+        .filter(item => item && typeof item.filePath === 'string' && (item.filePath as string).length > 0)
+        .map(item => ({
+          name: typeof item.name === 'string' ? item.name : 'reference',
+          url: typeof item.url === 'string' ? item.url : null,
+          uid: typeof item.uid === 'string' || typeof item.uid === 'number' ? item.uid : `ref-${Date.now()}-${Math.random()}`,
+          status: 'success',
+          filePath: item.filePath as string
+        }))
+    }
   }
 
   /** 读出并解析草稿（缺失或损坏 → null，调用方静默丢弃） */

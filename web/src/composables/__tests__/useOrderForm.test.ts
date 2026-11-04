@@ -601,6 +601,38 @@ describe('草稿保存 / 恢复', () => {
     expect(of.selectedUsageId.value).toBeNull()
   })
 
+  it('saveDraft 与 restoreDraft：已上传参考图列表随草稿落盘并可完整恢复', async () => {
+    vi.useFakeTimers()
+    const { of } = await createForm()
+    of.refFileList.value.push({
+      name: 'cat.png',
+      url: '/uploads/references/cat.png',
+      uid: 'u-cat',
+      filePath: 'references/cat.png'
+    })
+    of.refFileList.value.push({
+      name: 'uploading.png',
+      uid: 'u-uploading',
+      filePath: null
+    })
+
+    await vi.advanceTimersByTimeAsync(800)
+    const raw = sessionStorage.getItem('orderForm_draft_alice')
+    expect(raw).toBeTruthy()
+    const draft = JSON.parse(raw!)
+    expect(draft.refFiles).toEqual([
+      { name: 'cat.png', url: '/uploads/references/cat.png', uid: 'u-cat', filePath: 'references/cat.png' }
+    ])
+
+    const { of: restoredOf } = await createForm({ draft })
+    expect(restoredOf.refFileList.value).toHaveLength(1)
+    expect(restoredOf.refFileList.value[0]).toMatchObject({
+      name: 'cat.png',
+      filePath: 'references/cat.png'
+    })
+    vi.useRealTimers()
+  })
+
   it('restoreDraft：旧版草稿（含 tierId/倍率字段）→ 过时字段静默忽略', async () => {
     const { of } = await createForm({
       draft: {
