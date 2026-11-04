@@ -185,8 +185,9 @@
           <div v-for="d in order.deliverables" :key="d.id" class="file-item">
             <span>{{ d.fileName }}</span>
             <!-- 260830 审计 H-4：下载统一走一次性下载链路（服务端不再下发列表直链） -->
-            <el-button v-if="pendingConfirmId === d.id" size="small" type="warning" :loading="downloadingId === d.id" @click="retryDeliverableConfirm(d)">{{ $t('delivery.retryConfirm') }}</el-button>
-            <el-button v-else size="small" type="primary" :loading="downloadingId === d.id" @click="downloadDeliverable(d.id, d.fileName)">{{ $t('common.download') }}</el-button>
+            <el-tag v-if="d.downloadLocked" type="info">{{ $t('delivery.downloadLocked') }}</el-tag>
+            <el-button v-else-if="pendingConfirmId === d.id" size="small" type="warning" :loading="downloadingId === d.id" @click="retryDeliverableConfirm(d)">{{ $t('delivery.retryConfirm') }}</el-button>
+            <el-button v-else size="small" type="primary" :loading="downloadingId === d.id" @click="downloadDeliverable(d)">{{ $t('common.download') }}</el-button>
           </div>
         </div>
 
@@ -233,7 +234,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { orderApi } from '../../api/index'
+import { orderApi, type ApiError } from '../../api/index'
 import type { ArtistPublicProfile, VisibleArtistProfile, OrderTrackResult } from '../../api/types'
 import { fetchArtistPublicProfile } from '../../composables/useArtistPublicProfile'
 import { ElMessage } from 'element-plus'
@@ -261,9 +262,14 @@ type TrackReference = { url: string; originalName?: string | null } & string
 
 /** 查单数据：OrderTrackResult + 模板额外读取的排队字段（后端随响应返回，类型定义未收录）；
  * currentStageId 规范化为 undefined（OrderTimeline prop 不收 null，各处均为 == null 宽松比较，行为不变） */
-type TrackOrderData = Omit<OrderTrackResult, 'currentStageId' | 'references'> & {
+type TrackDeliverable = OrderTrackResult['deliverables'][number] & {
+  downloadLocked?: boolean
+}
+
+type TrackOrderData = Omit<OrderTrackResult, 'currentStageId' | 'references' | 'deliverables'> & {
   currentStageId?: number | undefined
   references?: TrackReference[]
+  deliverables?: TrackDeliverable[]
   queueStatus?: string | null
   queuePosition?: number | null
 }
@@ -370,19 +376,25 @@ const trackNextDueCents = computed(() => {
 const downloadingId = ref<number | null>(null)
 const pendingConfirmId = ref<number | null>(null)
 
-async function downloadDeliverable(id: number, fileName: string | null | undefined) {
+async function downloadDeliverable(d: { id: number; fileName?: string | null; downloadLocked?: boolean }) {
   if (downloadingId.value !== null || !order.value) return
-  downloadingId.value = id
+  downloadingId.value = d.id
   try {
-    const result = await downloadOneTimeFile(order.value.orderNo, id, token.value, fileName, () => {})
+    const result = await downloadOneTimeFile(order.value.orderNo, d.id, token.value, d.fileName, () => {
+      d.downloadLocked = true
+    })
     if (result === 'confirm-failed') {
-      pendingConfirmId.value = id
+      pendingConfirmId.value = d.id
       ElMessage.warning(t('delivery.confirmFailed'))
     }
   } catch (err) {
-    if ((err as { code?: string })?.code === 'DOWNLOAD_LOCKED') {
+    const apiErr = err as ApiError
+    if (apiErr?.code === 'DOWNLOAD_LOCKED' || apiErr?.status === 410) {
+      d.downloadLocked = true
       pendingConfirmId.value = null
       ElMessage.warning(t('delivery.downloadLockedMsg'))
+    } else if (apiErr?.code === 'DOWNLOAD_COOLDOWN' || apiErr?.status === 423) {
+      ElMessage.warning(t('delivery.downloadCooldownMsg'))
     } else {
       ElMessage.error(t('delivery.downloadFailed'))
     }
@@ -391,11 +403,13 @@ async function downloadDeliverable(id: number, fileName: string | null | undefin
   }
 }
 
-async function retryDeliverableConfirm(d: { id: number }) {
+async function retryDeliverableConfirm(d: { id: number; downloadLocked?: boolean }) {
   if (downloadingId.value !== null || !order.value) return
   downloadingId.value = d.id
   try {
-    const result = await confirmOneTimeDownload(order.value.orderNo, d.id, token.value, () => {})
+    const result = await confirmOneTimeDownload(order.value.orderNo, d.id, token.value, () => {
+      d.downloadLocked = true
+    })
     if (result === 'confirmed') {
       pendingConfirmId.value = null
       ElMessage.success(t('delivery.confirmSuccess'))

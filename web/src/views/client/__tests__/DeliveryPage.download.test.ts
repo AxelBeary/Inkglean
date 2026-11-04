@@ -2,6 +2,7 @@
 // 否则 download-start/confirm 带空 token 必然 404（旧实现只写局部变量）。
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { ElMessage } from 'element-plus'
 
 const h = vi.hoisted(() => ({
   delivery: vi.fn(),
@@ -73,6 +74,7 @@ function mountPage() {
 }
 
 beforeEach(() => {
+  vi.clearAllMocks()
   h.delivery.mockReset().mockResolvedValue({
     orderNo: 'ALICE-001',
     artistName: 'Alice',
@@ -100,6 +102,38 @@ describe('DeliveryPage 一次性下载', () => {
     expect(h.downloadStart).toHaveBeenCalledWith('ALICE-001', 7, 'tok-123')
     expect(h.downloadAsset).toHaveBeenCalledWith('https://example.test/signed', 'final.png')
     expect(h.downloadConfirm).toHaveBeenCalledWith('ALICE-001', 7, 'tok-123')
+    wrapper.unmount()
+  })
+
+  it('遇到 DOWNLOAD_COOLDOWN 时提示冷却保护且不标记锁定', async () => {
+    h.downloadStart.mockRejectedValueOnce({ code: 'DOWNLOAD_COOLDOWN', status: 423 })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    const btn = wrapper.findAll('button').find(b => b.text() === 'delivery.download')
+    expect(btn).toBeTruthy()
+    await btn!.trigger('click')
+    await flushPromises()
+
+    expect(ElMessage.warning).toHaveBeenCalledWith('delivery.downloadCooldownMsg')
+    // 依然显示下载按钮，不被标记为已锁定
+    expect(wrapper.findAll('button').some(b => b.text() === 'delivery.download')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('遇到 DOWNLOAD_LOCKED 时提示已锁定并更新锁定状态', async () => {
+    h.downloadStart.mockRejectedValueOnce({ code: 'DOWNLOAD_LOCKED', status: 410 })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    const btn = wrapper.findAll('button').find(b => b.text() === 'delivery.download')
+    expect(btn).toBeTruthy()
+    await btn!.trigger('click')
+    await flushPromises()
+
+    expect(ElMessage.warning).toHaveBeenCalledWith('delivery.downloadLockedMsg')
+    // 锁定后显示为已下载标签
+    expect(wrapper.text()).toContain('delivery.downloadLocked')
     wrapper.unmount()
   })
 })

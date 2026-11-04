@@ -1082,6 +1082,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     // 815 decision #4: one-time download
     downloadLocked: 'Downloaded',
     downloadLockedMsg: 'This file has already been downloaded and locked. Please contact the artist for re-permission',
+    downloadCooldownMsg: 'Download attempts too frequent. The file is temporarily in cooldown (5 minutes), please try again later',
     confirmFailed: 'The file started saving, but the completion confirmation failed. Retry the confirmation instead of downloading again.',
     retryConfirm: 'Retry confirmation',
     confirmSuccess: 'Download confirmation completed'

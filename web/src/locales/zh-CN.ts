@@ -1079,6 +1079,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // 815 拍板 #4：一次性下载
     downloadLocked: '已下载',
     downloadLockedMsg: '该文件已下载过并被锁定，如需再次下载请联系画师再许可',
+    downloadCooldownMsg: '下载尝试过于频繁，文件已进入冷却保护（5 分钟），请稍后再试',
     confirmFailed: '文件已开始保存，但完成确认未成功。请点击「重试确认」，不要重新下载。',
     retryConfirm: '重试确认',
     confirmSuccess: '下载确认已完成'
