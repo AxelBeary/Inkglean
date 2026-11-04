@@ -905,7 +905,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     loadFailed: 'Failed to load artist info',
     // R57: draft recovery
     draftTitle: 'Restore draft', draftFound: 'An unsent draft was found. Restore it?',
-    draftRestore: 'Restore', draftDiscard: 'Discard', draftRestored: 'Draft restored',
+    draftRestore: 'Restore', draftDiscard: 'Discard', draftRestored: 'Draft restored', leaveConfirm: 'Your commission request has not been submitted yet. Are you sure you want to leave? Unsubmitted content is temporarily saved.',
     // R58-6: QQ jump + copy
     artistQqLabel: 'Artist QQ', jumpQq: 'Open QQ', copyQq: 'Copy QQ', qqCopied: 'QQ number copied', qqJumpHint: 'Opening QQ… If nothing happens, copy the QQ number and add the artist manually',
     // F1: success-page tracking link (full text + copy + QR)

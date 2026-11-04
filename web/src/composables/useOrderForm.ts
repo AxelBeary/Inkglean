@@ -493,7 +493,7 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
   } = useOrderFormDraft(subdomain, {
     form, styles, selectedStyleId, selectedSizeId, isMultiStyle,
     regularAddons, usageAddons, rushAddons, styleAddonSelections,
-    selectedUsageId, selectedRushId, queryPreselect,
+    selectedUsageId, selectedRushId, queryPreselect, refFileList,
     initStyleAddonDefaults, scheduleStyleCalc
   })
 

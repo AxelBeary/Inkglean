@@ -904,7 +904,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     loadFailed: '加载画师信息失败',
     // R57: 草稿恢复
     draftTitle: '恢复草稿', draftFound: '检测到未提交的草稿，是否恢复？',
-    draftRestore: '恢复', draftDiscard: '丢弃草稿', draftRestored: '草稿已恢复',
+    draftRestore: '恢复', draftDiscard: '丢弃草稿', draftRestored: '草稿已恢复', leaveConfirm: '您填写的约稿内容尚未提交，确定要离开吗？未提交的内容将在本次会话中暂存。',
     // R58-6: QQ 跳转 + 复制
     artistQqLabel: '画师QQ', jumpQq: '跳转QQ', copyQq: '复制QQ', qqCopied: 'QQ号已复制', qqJumpHint: '正在唤起 QQ…若未打开，请复制 QQ 号手动添加好友',
     // F1 围剿：成功态追踪链接（全文 + 复制 + 二维码）

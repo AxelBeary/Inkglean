@@ -17,6 +17,7 @@
 import { computed, watch } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
 import type { PublicArtStyle, PublicStyleAddon } from '../api/types'
+import type { RefFileItem } from '../views/client/order-form/types'
 
 /** 普通增项选择状态记录（{ [styleAddonId]: { toggled, quantity } }） */
 export interface AddonSelRecord {
@@ -56,6 +57,7 @@ export interface OrderFormDraftState {
   selectedRushId: Ref<number | null>
   /** v0.34 任务B：URL query 预选命中记录（reactive 代理；已预选项不被草稿覆盖） */
   queryPreselect: { styleId: number | null; sizeId: number | null }
+  refFileList?: Ref<RefFileItem[]>
   /** 补齐当前尺寸可用增项的默认值（模板 v-model 不接受 undefined） */
   initStyleAddonDefaults: () => void
   /** 300ms 防抖重算价格预览 */
@@ -76,6 +78,7 @@ export function useOrderFormDraft(subdomain: string, state: OrderFormDraftState)
     || state.selectedUsageId.value != null
     || state.selectedRushId.value != null
     || Object.values(state.styleAddonSelections).some(s => s && (s.toggled || s.quantity > 0))
+    || Boolean(state.refFileList?.value?.some(f => Boolean(f.filePath)))
   )
 
   function saveDraft() {
@@ -117,6 +120,7 @@ export function useOrderFormDraft(subdomain: string, state: OrderFormDraftState)
   watch(state.selectedSizeId, scheduleDraftSave)
   watch(state.styleAddonSelections, scheduleDraftSave, { deep: true })
   watch([state.selectedUsageId, state.selectedRushId], scheduleDraftSave)
+  if (state.refFileList) watch(state.refFileList, scheduleDraftSave, { deep: true })
 
   /**
    * 恢复草稿（styles 加载后调用）

@@ -296,7 +296,7 @@ const formRef = ref<FormRefLike | null>(null)
 const {
   artist: artistRaw, rulesContent, loading, loadError, retryLoad, workflowStages,
   form, rules,
-  submitting, showSuccess, resultNo, trackUrl, submit,
+  submitting, showSuccess, resultNo, trackUrl, submit, hasDraftContent,
   refFileList, handleRefUpload: rawHandleRefUpload,
   sanitizedRules,
   // 折扣码
@@ -484,6 +484,10 @@ function trackingEmitAbandon() {
 // SPA 路由离开（未提交）：入队 + 立即发送；关标签页/刷新：入队后由 track.js pagehide sendBeacon 带走
 onBeforeRouteLeave(() => {
   if (showSuccess.value) return
+  if (hasDraftContent.value) {
+    const ok = window.confirm(t('orderForm.leaveConfirm'))
+    if (!ok) return false
+  }
   trackingEmitAbandon()
   flushNow()
 })
