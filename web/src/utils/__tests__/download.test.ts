@@ -6,6 +6,8 @@ describe('downloadAsset', () => {
   let anchorClickSpy: ReturnType<typeof vi.fn<() => void>>
   let createObjectURLSpy: ReturnType<typeof vi.spyOn>
   let revokeObjectURLSpy: ReturnType<typeof vi.spyOn>
+  let appendChildSpy: ReturnType<typeof vi.spyOn>
+  let removeChildSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
     vi.useFakeTimers()
@@ -14,6 +16,8 @@ describe('downloadAsset', () => {
 
     createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:http://localhost/mock-blob-uuid')
     revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    appendChildSpy = vi.spyOn(document.body, 'appendChild')
+    removeChildSpy = vi.spyOn(document.body, 'removeChild')
 
     const origCreateElement = document.createElement.bind(document)
     vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
@@ -34,7 +38,7 @@ describe('downloadAsset', () => {
     vi.unstubAllGlobals()
   })
 
-  it('成功下载时创建 blob、设置 a 标签并延迟 10 秒释放 objectURL', async () => {
+  it('成功下载时创建 blob、挂载 a 标签、触发 click、移除节点并延迟 10 秒释放 objectURL', async () => {
     const mockBlob = new Blob(['test-data'], { type: 'image/png' })
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
@@ -50,7 +54,9 @@ describe('downloadAsset', () => {
     expect(createdAnchor).not.toBeNull()
     expect(createdAnchor!.download).toBe('artwork.png')
     expect(createdAnchor!.href).toBe('blob:http://localhost/mock-blob-uuid')
+    expect(appendChildSpy).toHaveBeenCalledWith(createdAnchor)
     expect(anchorClickSpy).toHaveBeenCalledTimes(1)
+    expect(removeChildSpy).toHaveBeenCalledWith(createdAnchor)
 
     // 执行完毕时尚未立即 revoke
     expect(revokeObjectURLSpy).not.toHaveBeenCalled()

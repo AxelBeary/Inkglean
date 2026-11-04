@@ -16,7 +16,9 @@ export async function downloadAsset(url: string, fileName?: string): Promise<voi
   const objectUrl = URL.createObjectURL(blob)
   a.href = objectUrl
   a.download = fileName || 'download'
+  document.body.appendChild(a)
   a.click()
+  document.body.removeChild(a)
   // 延迟释放 ObjectURL，避免在部分浏览器或并发环境中 click 异步派发前 URL 提前失效
   setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000)
 }
