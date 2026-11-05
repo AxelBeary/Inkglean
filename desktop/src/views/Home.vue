@@ -22,6 +22,7 @@ import { buildLocalDeadlineAlerts, buildLocalGlance, localDaysLeft } from '../co
 import { useHomeCloudData } from '../components/home/homeCloudData'
 import { setTrayTooltip } from '../bridge/tray'
 import { buildTraySnapshot } from '../tools/traySnapshot'
+import { confirmDialog } from '../tools/confirm'
 import { useModulesStore } from '../modules/store'
 import { moduleRenderable } from '../modules/registry'
 import type { ModuleEntry } from '../modules/registry'
@@ -209,7 +210,7 @@ async function silentUpdateCheck() {
   if (!isDesktop() || !auth.loggedIn) return
   try {
     const result = await checkAndDownloadUpdate()
-    if (result === 'downloaded' && window.confirm('新版本已下载，现在重启完成更新？')) {
+    if (result === 'downloaded' && await confirmDialog({ message: '新版本已下载，现在重启完成更新？' })) {
       await installPendingUpdate()
     }
   } catch {
@@ -684,7 +685,7 @@ onErrorCaptured((err, _instance, info) => {
   .body--three .flow { grid-row: 1; }
   .body--three .plugin-col { grid-column: 3; grid-row: 1; }
 }
-/* 窄窗（≤1020，保险丝；用户已定最小窗 1200×600）：塌单列顺流 */
+/* 窄窗（≤1020，保险丝；#83 起最小窗 768×600，原 1200 贴不上 Windows Snap）：塌单列顺流 */
 @media (max-width: 1020px) {
   .scroll { padding: 8px 22px 12px; }
   .body, .body--three, .body--side, .body--noside, .body--solo { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
