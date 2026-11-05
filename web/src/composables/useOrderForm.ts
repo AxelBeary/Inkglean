@@ -491,7 +491,9 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
   const {
     hasDraftContent, restoreDraft, loadStoredDraft, discardDraft, onBeforeUnload, flushDraft
   } = useOrderFormDraft(subdomain, {
-    form, styles, selectedStyleId, selectedSizeId, isMultiStyle,
+    // issue #82: 参考图列表也交给草稿单元（只传数组引用，落盘/恢复逻辑全在 orderFormHelpers）
+    form, refFileList,
+    styles, selectedStyleId, selectedSizeId, isMultiStyle,
     regularAddons, usageAddons, rushAddons, styleAddonSelections,
     selectedUsageId, selectedRushId, queryPreselect,
     initStyleAddonDefaults, scheduleStyleCalc
