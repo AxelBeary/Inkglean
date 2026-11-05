@@ -8,8 +8,16 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { ref } from 'vue'
 
 // ─── Mocks（vi.mock 自动提升） ───
+// t 仍返回裸 key（存量断言全按 key 写），另用 i18nCalls 记下插值参数：
+// 需要验证「文案真的带上了 {n}」的用例读它，不必把全局返回值改成拼接串去动存量断言。
+const i18nCalls = vi.hoisted(() => ({ args: [] as unknown[][] }))
 vi.mock('vue-i18n', () => ({
-  useI18n: () => ({ t: (key: string) => key })
+  useI18n: () => ({
+    t: (key: string, params?: unknown) => {
+      i18nCalls.args.push([key, params])
+      return key
+    }
+  })
 }))
 
 vi.mock('element-plus', () => ({
@@ -27,7 +35,7 @@ vi.mock('../../api/index.js', () => ({
     validateDiscount: vi.fn()
   },
   orderApi: { create: vi.fn() },
-  uploadApi: { reference: vi.fn() }
+  uploadApi: { reference: vi.fn(), signReferences: vi.fn() }
 }))
 
 // 粘贴回调捕获：usePasteUpload 内部注册 onFiles，这里抓住它才能从测试驱动粘贴链路
@@ -67,6 +75,7 @@ const getPublicStylesMock = artistPublicApi.getPublicStyles as unknown as Mock
 const calcPriceMock = artistPublicApi.calculateStylePrice as unknown as Mock
 const orderCreateMock = orderApi.create as unknown as Mock
 const refUploadMock = uploadApi.reference as unknown as Mock
+const refSignMock = uploadApi.signReferences as unknown as Mock
 const confirmMock = ElMessageBox.confirm as unknown as Mock
 
 // ─── 测试数据（SPEC-PRICE-2 公开结构：category 真实维度） ───
@@ -152,6 +161,10 @@ function setupMocks({ profile = MOCK_PROFILE, pricing = MOCK_PRICING, workflow =
     url: `/uploads/references/${file.name}`
   }))
   confirmMock.mockResolvedValue('confirm')
+  // issue #82 补：草稿参考图现签——默认回声（生产口径：签得出来才回，签不出的缺席）
+  refSignMock.mockImplementation((paths: string[]) => Promise.resolve({
+    items: paths.map(p => ({ filePath: p, url: `/uploads/${p}?sig=test` }))
+  }))
 }
 
 interface CreateFormOpts {
@@ -232,6 +245,7 @@ async function settlePrice() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  i18nCalls.args.length = 0
   sessionStorage.clear()
 })
 
@@ -655,7 +669,7 @@ describe('issue #82 参考图入草稿', () => {
     expect(sessionStorage.getItem('orderForm_draft_alice')).toBeNull()
   })
 
-  it('restoreDraft：重建 el-upload 条目（name + success + 稳定唯一 uid + url 为 null）', async () => {
+  it('restoreDraft：重建 el-upload 条目（name + success + 稳定唯一 uid），并自动现签缩略图', async () => {
     // 统一用假定时器：恢复动作会触发 500ms 草稿落盘，用例结束后不能让这枚定时器漏进下一个用例
     vi.useFakeTimers()
     const { of } = await createForm({
@@ -668,12 +682,73 @@ describe('issue #82 参考图入草稿', () => {
         ]
       }
     })
+    await flushPromises()
     expect(of.refFileList.value.map(f => f.filePath)).toEqual(['references/first.png', 'references/second.png'])
     expect(of.refFileList.value.map(f => f.uid)).toEqual(['draft-0', 'draft-1'])
     expect(of.refFileList.value.map(f => f.status)).toEqual(['success', 'success'])
-    expect(of.refFileList.value.map(f => f.url)).toEqual([null, null])
+    // issue #82 补：恢复后按路径现签 5 分钟预览 URL（落盘仍不存 url，见上一条用例）
+    expect(of.refFileList.value.map(f => f.url)).toEqual([
+      '/uploads/references/first.png?sig=test',
+      '/uploads/references/second.png?sig=test'
+    ])
+    expect(refSignMock).toHaveBeenCalledWith(
+      ['references/first.png', 'references/second.png'],
+      { headers: { 'x-anon-token': 'anon-token-test' } }
+    )
     // 不往条目里塞额外字段：上限判定读数组长度、凭证换新按 filePath 清旧批，都别被新字段带偏
     expect(Object.keys(of.refFileList.value[0]).sort()).toEqual(['filePath', 'name', 'status', 'uid', 'url'])
+  })
+
+  it('现签请求失败：条目原样保留（filePath 仍可提交），不误删、不弹失效提示', async () => {
+    vi.useFakeTimers()
+    // 现签失败会 console.warn 留痕（审计口径），这里静音，免得 CI 日志被堆栈刷屏
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    refSignMock.mockRejectedValueOnce(new Error('network down'))
+    const { of } = await createForm({
+      draft: { form: {}, styleState: {}, refFiles: [{ name: 'a.png', filePath: 'references/a.png' }] }
+    })
+    await flushPromises()
+    expect(of.refFileList.value.map(f => f.filePath)).toEqual(['references/a.png'])
+    expect(of.refFileList.value[0].url).toBeNull()
+    expect(ElMessage.warning).not.toHaveBeenCalled()
+    warnSpy.mockRestore()
+  })
+
+  it('签不出来的参考图：摘掉该条并提示一次（不让它在提交时才炸 ILLEGAL_PATH）', async () => {
+    vi.useFakeTimers()
+    refSignMock.mockResolvedValueOnce({
+      items: [{ filePath: 'references/ok.png', url: '/uploads/references/ok.png?sig=test' }]
+    })
+    const { of } = await createForm({
+      draft: {
+        form: {},
+        styleState: {},
+        refFiles: [
+          { name: 'ok.png', filePath: 'references/ok.png' },
+          { name: 'gone.png', filePath: 'references/gone.png' }
+        ]
+      }
+    })
+    await flushPromises()
+    expect(of.refFileList.value.map(f => f.filePath)).toEqual(['references/ok.png'])
+    expect(of.refFileList.value[0].url).toBe('/uploads/references/ok.png?sig=test')
+    expect(ElMessage.warning).toHaveBeenCalledWith('orderForm.refRestoreExpired')
+    // 失效张数必须真的带进文案参数（i18n mock 返回裸 key，靠调用日志核对插值）
+    expect(i18nCalls.args).toContainEqual(['orderForm.refRestoreExpired', { n: 1 }])
+  })
+
+  it('现签只补恢复出来的条目，不动恢复弹窗期间新贴的图', async () => {
+    vi.useFakeTimers()
+    const { of } = await createForm({
+      draft: { form: {}, styleState: {}, refFiles: [{ name: 'old.png', filePath: 'references/old.png' }] }
+    })
+    await flushPromises()
+    // 模拟恢复后又贴了一张（真实顺序：现签在恢复后立即发起，新条目可能先到）
+    of.refFileList.value.push({ name: 'new.png', uid: 'u-new', status: 'success', url: '/uploads/references/new.png', filePath: 'references/new.png' })
+    expect(of.refFileList.value.map(f => f.url)).toEqual([
+      '/uploads/references/old.png?sig=test',
+      '/uploads/references/new.png'
+    ])
   })
 
   it('restoreDraft：恢复后提交 references 与草稿顺序一致', async () => {

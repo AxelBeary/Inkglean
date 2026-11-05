@@ -185,8 +185,11 @@ export function useOrderFormDraft(subdomain: string, state: OrderFormDraftState)
    * name + status:'success' 决定卡片状态，uid 由下标派生（同一批内唯一、重建结果稳定，EP 用 uid 做 key）。
    * ⛔ 不恢复 url：签名 URL 只有 5 分钟有效期（server/src/shared/file-sign.ts:12），
    * 恢复出来必是裂图；上限判定（数组长度）与提交（filePath）都不读 url。
+   * 缩略图由调用方拿返回的路径去现签（utils/anonUpload.signReferenceUrlsWithAnonToken）——
+   * 本模块保持纯本地、不发请求，便于单测与复用。
+   * @returns 本次恢复出来的 filePath（顺序即展示/提交顺序），没有则空数组
    */
-  function restoreDraftRefFiles(raw: unknown) {
+  function restoreDraftRefFiles(raw: unknown): string[] {
     const list: unknown[] = Array.isArray(raw) ? raw : []
     const restored: RefFileItem[] = []
     for (const entry of list) {
@@ -201,16 +204,18 @@ export function useOrderFormDraft(subdomain: string, state: OrderFormDraftState)
     }
     // 追加入现有列表（恢复弹窗期间用户可能已贴了新图，不能整组替换把新图抹掉）；
     // 草稿内相对顺序即提交 references 的顺序，追加不改变它
-    if (!restored.length) return
+    if (!restored.length) return []
     state.refFileList.value.push(...restored)
+    return restored.flatMap(item => (item.filePath ? [item.filePath] : []))
   }
 
   /**
    * 恢复草稿（styles 加载后调用）
    * 画风/尺寸/增项若已被画师删除或尺寸转展示态则逐项丢弃。
    * 旧版本草稿（含 tierId 等字段）静默忽略过时字段。
+   * @returns 恢复出来的参考图路径（供调用方现签缩略图），无参考图则空数组
    */
-  function restoreDraft(draft: OrderFormDraft) {
+  function restoreDraft(draft: OrderFormDraft): string[] {
     const f = draft.form || {}
     const ss = draft.styleState || {}
 
@@ -258,8 +263,8 @@ export function useOrderFormDraft(subdomain: string, state: OrderFormDraftState)
     // REQ-028 过渡期：本项灰置不可勾，旧草稿里存的 true 一律不再回填（原写法会把缺省当勾选）
     state.form.notifyEnabled = false
 
-    // ── 参考图列表（issue #82）：只重建条目，不碰签名 url ──
-    restoreDraftRefFiles(draft.refFiles)
+    // ── 参考图列表（issue #82）：只重建条目，不碰签名 url（url 由调用方现签） ──
+    return restoreDraftRefFiles(draft.refFiles)
   }
 
   /** 读出并解析草稿（缺失或损坏 → null，调用方静默丢弃） */

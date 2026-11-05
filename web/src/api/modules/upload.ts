@@ -2,7 +2,7 @@
 // 由 api/index.ts（barrel）再导出，调用方 import 路径不变
 
 import { postJson } from './http'
-import type { UploadImageResult, UploadFileResult } from '../types'
+import type { UploadImageResult, UploadFileResult, SignReferenceResult } from '../types'
 // DTO 类型统一从 '../types'（barrel）按名取用；inline import('../types') 为原 import('./types') 的路径等价改写
 
 // ─── 上传 ───
@@ -29,6 +29,13 @@ export const uploadApi = {
     return postJson('/upload/reference', fd, {
       headers: { ...(options.headers || {}) },
       timeout: UPLOAD_TIMEOUT_MS
+    })
+  },
+  // issue #82 补: 草稿恢复按 filePath 现签预览 URL（后端只签本匿名凭证名下、未随订单提交的路径）
+  // 响应只含签得出来的条目，缺的按「已失效」处理；超时按普通请求（非大文件上传）
+  signReferences: (filePaths: string[], options: UploadOptions = {}): Promise<SignReferenceResult> => {
+    return postJson('/upload/reference/sign', { filePaths }, {
+      headers: { ...(options.headers || {}) }
     })
   },
   deliverable: (file: Blob): Promise<UploadFileResult> => {

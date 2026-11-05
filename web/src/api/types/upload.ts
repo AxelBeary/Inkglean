@@ -21,3 +21,12 @@ export interface UploadFileResult {
   mimeType: string
   size: number
 }
+
+/**
+ * 参考图现签响应（issue #82 补：草稿恢复补缩略图）
+ * ⚠️ 只包含签得出来的条目——他人上传的、已随订单提交的、文件已不存在的路径不会出现，
+ * 调用方须按「缺席 = 已失效」处理，不能假定顺序或长度与请求一致。
+ */
+export interface SignReferenceResult {
+  items: Array<{ filePath: string; url: string }>
+}

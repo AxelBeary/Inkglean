@@ -43,6 +43,7 @@ import { formatAddonPrice, formatYuanTrimmed, yuanToCents } from '../utils/money
 import { getAnonToken } from '../utils/track'
 import { generateId } from '../utils/id'
 import { uploadReferenceWithAnonToken, AnonTokenUnavailableError } from '../utils/anonUpload'
+import { hydrateDraftRefUrls } from './draftRefThumbs'
 import { MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../constants/upload'
 import { useOrderFormDraft } from './orderFormHelpers'
 import type { AddonSelRecord } from './orderFormHelpers'
@@ -707,8 +708,12 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
                 type: 'info'
               }
             )
-            restoreDraft(draft)
+            const restoredRefPaths = restoreDraft(draft)
             ElMessage.success(t('orderForm.draftRestored'))
+            // issue #82 补：缩略图后补——不 await，别让签名往返卡住「草稿已恢复」的收尾
+            void hydrateDraftRefUrls(refFileList, restoredRefPaths, (n) => {
+              ElMessage.warning(t('orderForm.refRestoreExpired', { n }))
+            })
           } catch {
             discardDraft()
           }
