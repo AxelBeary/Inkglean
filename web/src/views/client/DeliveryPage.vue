@@ -98,10 +98,17 @@ async function downloadFile(d: OrderDeliveryResult['deliverables'][number]) {
       ElMessage.warning(t('delivery.confirmFailed'))
     }
   } catch (err) {
-    if ((err as ApiError)?.code === 'DOWNLOAD_LOCKED') {
+    const apiErr = err as ApiError
+    if (apiErr?.code === 'DOWNLOAD_LOCKED') {
       d.downloadLocked = true
       pendingConfirmId.value = null
       ElMessage.warning(t('delivery.downloadLockedMsg'))
+    } else if (apiErr?.code === 'DOWNLOAD_COOLDOWN') {
+      // issue #81 A 路：423 冷却（冷却 ≠ 锁定）——只提示剩余秒数，**不得**把 downloadLocked 置 true；
+      // 秒数取自服务端 AppError.detail.retryAfterMs（order-gallery.service.ts:487），向上取整，缺失按 0 兜底
+      const retryMs = Number(apiErr.detail?.retryAfterMs)
+      const seconds = Number.isFinite(retryMs) && retryMs > 0 ? Math.ceil(retryMs / 1000) : 0
+      ElMessage.warning(t('delivery.downloadCooldown', { n: seconds }))
     } else {
       ElMessage.error(t('delivery.downloadFailed'))
     }
