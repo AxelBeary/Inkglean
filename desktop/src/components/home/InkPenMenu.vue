@@ -20,6 +20,7 @@ import {
 } from '../../bridge/window'
 import type { CloseBehavior } from '../../bridge/window'
 import { checkAndDownloadUpdate, installPendingUpdate, isDesktop } from '../../bridge'
+import { confirmDialog } from '../../tools/confirm'
 import { WEB_BASE } from '../../config'
 import { useTimerStore } from '../../stores/timer'
 
@@ -151,7 +152,7 @@ async function checkUpdate() {
   updateHint.value = '检查中…'
   try {
     const result = await checkAndDownloadUpdate()
-    if (result === 'downloaded' && window.confirm('新版本已下载，现在重启完成更新？')) {
+    if (result === 'downloaded' && await confirmDialog({ message: '新版本已下载，现在重启完成更新？' })) {
       await installPendingUpdate()
       return
     }
