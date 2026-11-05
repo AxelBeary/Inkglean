@@ -13,10 +13,25 @@
  * - 500ms 节流自动落盘；sessionStorage 不可用（隐私模式等）静默
  * - 恢复时逐项有效性过滤：画风/尺寸/增项/用途/加急被删或尺寸转展示态即丢弃
  * - 损坏草稿静默丢弃；beforeunload 拦截与解除
+ * - 参考图列表（issue #82）：只存 name + 服务端存储路径，⛔ 不存签名 url；恢复时重建 el-upload 条目
  */
 import { computed, watch } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
 import type { PublicArtStyle, PublicStyleAddon } from '../api/types'
+import { MAX_IMAGE_COUNT } from '../constants/upload'
+import type { RefFileItem } from '../views/client/order-form/types'
+
+/** 参考图存储路径前缀（服务端 references/ 下；落盘与恢复只认这个前缀） */
+const REF_STORAGE_PREFIX = 'references/'
+
+/** sessionStorage 草稿里的参考图条目：只留展示名 + 服务端路径 */
+interface OrderFormDraftRefFile {
+  name: string
+  filePath: string
+}
+
+/** 能进草稿的参考图条目（filePath 已收窄为非空字符串，提交只认它） */
+type DraftRefFile = RefFileItem & { filePath: string }
 
 /** 普通增项选择状态记录（{ [styleAddonId]: { toggled, quantity } }） */
 export interface AddonSelRecord {
@@ -35,6 +50,8 @@ export interface OrderFormDraft {
     usageId?: number | null
     rushId?: number | null
   }
+  /** issue #82：参考图列表（旧草稿无此字段 = 空列表；url 一律不落盘） */
+  refFiles?: OrderFormDraftRefFile[]
 }
 
 /**
@@ -43,6 +60,8 @@ export interface OrderFormDraft {
 export interface OrderFormDraftState {
   /** 表单文本/通知字段（reactive 代理；只取草稿关心的四项） */
   form: { description: string; clientQq: string; clientName: string; notifyEnabled: boolean }
+  /** 参考图条目（el-upload v-model:file-list 的同一数组，引用语义——不复制、不另建） */
+  refFileList: Ref<RefFileItem[]>
   styles: Ref<PublicArtStyle[]>
   selectedStyleId: Ref<number | null>
   selectedSizeId: Ref<number | null>
@@ -76,7 +95,32 @@ export function useOrderFormDraft(subdomain: string, state: OrderFormDraftState)
     || state.selectedUsageId.value != null
     || state.selectedRushId.value != null
     || Object.values(state.styleAddonSelections).some(s => s && (s.toggled || s.quantity > 0))
+    // issue #82：只传了参考图、一个字没写也算内容——否则刷新后草稿被「无内容即删键」清掉，
+    // 而图其实还在服务端 references/ 下（重建条目只需路径）。在途/失败条目没有 filePath，不算。
+    || state.refFileList.value.some(isDraftableRef)
   )
+
+  /**
+   * 参考图条目能不能进草稿：必须有服务端存储路径与非空文件名。
+   * 在途（status=uploading，尚无 filePath）、上传失败、被凭证换新清空的条目一律不存——
+   * 恢复出来既是裂图也无从提交（提交只认 filePath）。
+   */
+  function isDraftableRef(item: RefFileItem): item is DraftRefFile {
+    return typeof item.filePath === 'string'
+      && item.filePath.startsWith(REF_STORAGE_PREFIX)
+      && typeof item.name === 'string'
+      && item.name.trim().length > 0
+  }
+
+  /** 落盘用的参考图快照（name + filePath，顺序即展示/提交顺序） */
+  function collectDraftRefFiles(): OrderFormDraftRefFile[] {
+    return state.refFileList.value
+      .filter(isDraftableRef)
+      // 上限与参考图表单上限同源：MAX_IMAGE_COUNT = 5（web/src/constants/upload.ts。
+      // 施工书写的 9 是早期估值，以代码为准）。超出部分本就不该存在，这里只做防御性截断。
+      .slice(0, MAX_IMAGE_COUNT)
+      .map(item => ({ name: item.name, filePath: item.filePath }))
+  }
 
   function saveDraft() {
     if (!hasDraftContent.value) {
@@ -98,7 +142,9 @@ export function useOrderFormDraft(subdomain: string, state: OrderFormDraftState)
           addonSelections: { ...state.styleAddonSelections },
           usageId: state.selectedUsageId.value,
           rushId: state.selectedRushId.value
-        }
+        },
+        // issue #82: 参考图列表（⛔ 不存 url——签名 URL 只有 5 分钟有效期，恢复出来必是裂图）
+        refFiles: collectDraftRefFiles()
       }))
     } catch { /* Ignore when sessionStorage is unavailable (private mode, etc.) */ }
   }
@@ -117,6 +163,47 @@ export function useOrderFormDraft(subdomain: string, state: OrderFormDraftState)
   watch(state.selectedSizeId, scheduleDraftSave)
   watch(state.styleAddonSelections, scheduleDraftSave, { deep: true })
   watch([state.selectedUsageId, state.selectedRushId], scheduleDraftSave)
+  // issue #82: 参考图列表变化也要落盘——点选回填 filePath、粘贴 push、EP 整组换数组都会触发
+  watch(state.refFileList, scheduleDraftSave, { deep: true })
+
+  /**
+   * 草稿里单条参考图是否可信：非空文件名 + references/ 前缀的字符串路径。
+   * 其余（缺 name / 路径前缀不符 / 非字符串 / 条目根本不是对象）静默丢弃——
+   * 被篡改或旧版本残留的条目宁可少一张图，也不能把垃圾推进上传列表。
+   */
+  function isDraftRefRecord(entry: unknown): entry is OrderFormDraftRefFile {
+    if (!entry || typeof entry !== 'object') return false
+    const rec = entry as { name?: unknown; filePath?: unknown }
+    return typeof rec.name === 'string'
+      && rec.name.trim().length > 0
+      && typeof rec.filePath === 'string'
+      && rec.filePath.startsWith(REF_STORAGE_PREFIX)
+  }
+
+  /**
+   * 恢复参考图列表（issue #82）：重建 el-upload 能直接消化的条目形状——
+   * name + status:'success' 决定卡片状态，uid 由下标派生（同一批内唯一、重建结果稳定，EP 用 uid 做 key）。
+   * ⛔ 不恢复 url：签名 URL 只有 5 分钟有效期（server/src/shared/file-sign.ts:12），
+   * 恢复出来必是裂图；上限判定（数组长度）与提交（filePath）都不读 url。
+   */
+  function restoreDraftRefFiles(raw: unknown) {
+    const list: unknown[] = Array.isArray(raw) ? raw : []
+    const restored: RefFileItem[] = []
+    for (const entry of list) {
+      if (!isDraftRefRecord(entry)) continue
+      restored.push({
+        name: entry.name,
+        uid: `draft-${restored.length}`,
+        status: 'success',
+        url: null,
+        filePath: entry.filePath
+      })
+    }
+    // 追加入现有列表（恢复弹窗期间用户可能已贴了新图，不能整组替换把新图抹掉）；
+    // 草稿内相对顺序即提交 references 的顺序，追加不改变它
+    if (!restored.length) return
+    state.refFileList.value.push(...restored)
+  }
 
   /**
    * 恢复草稿（styles 加载后调用）
@@ -170,6 +257,9 @@ export function useOrderFormDraft(subdomain: string, state: OrderFormDraftState)
     state.form.clientName = typeof f.clientName === 'string' ? f.clientName : ''
     // REQ-028 过渡期：本项灰置不可勾，旧草稿里存的 true 一律不再回填（原写法会把缺省当勾选）
     state.form.notifyEnabled = false
+
+    // ── 参考图列表（issue #82）：只重建条目，不碰签名 url ──
+    restoreDraftRefFiles(draft.refFiles)
   }
 
   /** 读出并解析草稿（缺失或损坏 → null，调用方静默丢弃） */

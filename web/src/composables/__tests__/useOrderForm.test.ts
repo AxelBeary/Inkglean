@@ -630,6 +630,104 @@ describe('草稿保存 / 恢复', () => {
   })
 })
 
+// ─── issue #82：参考图入草稿 ───
+// #82 里「草稿完全缺失」不成立（R57 早就有 sessionStorage 草稿），成立的是这半条：
+// 草稿只存了文本/画风尺寸，没存参考图列表 refFileList，刷新后图没了（文件其实还在服务端 references/ 下）。
+
+describe('issue #82 参考图入草稿', () => {
+  it('只传了参考图、一个字没写 → 也算有内容，图片落进草稿（且不存 url）', async () => {
+    vi.useFakeTimers()
+    const { of } = await createForm()
+    await pickRefItem(of, 'mood.png', 'u-mood')
+    expect(of.hasDraftContent.value).toBe(true)
+    await vi.advanceTimersByTimeAsync(800)
+    const draft = JSON.parse(sessionStorage.getItem('orderForm_draft_alice')!) as { refFiles?: unknown }
+    // toEqual 是严格深比较：多存一个 url 字段就会红（签名 URL 仅 5 分钟有效，落盘即裂图）
+    expect(draft.refFiles).toEqual([{ name: 'mood.png', filePath: 'references/mood.png' }])
+  })
+
+  it('在途/失败条目（还没有 filePath）不算内容、不进草稿', async () => {
+    vi.useFakeTimers()
+    const { of } = await createForm()
+    of.refFileList.value.push({ name: 'inflight.png', uid: 'u-inflight', status: 'uploading' })
+    expect(of.hasDraftContent.value).toBe(false)
+    await vi.advanceTimersByTimeAsync(800)
+    expect(sessionStorage.getItem('orderForm_draft_alice')).toBeNull()
+  })
+
+  it('restoreDraft：重建 el-upload 条目（name + success + 稳定唯一 uid + url 为 null）', async () => {
+    // 统一用假定时器：恢复动作会触发 500ms 草稿落盘，用例结束后不能让这枚定时器漏进下一个用例
+    vi.useFakeTimers()
+    const { of } = await createForm({
+      draft: {
+        form: {},
+        styleState: {},
+        refFiles: [
+          { name: 'first.png', filePath: 'references/first.png' },
+          { name: 'second.png', filePath: 'references/second.png' }
+        ]
+      }
+    })
+    expect(of.refFileList.value.map(f => f.filePath)).toEqual(['references/first.png', 'references/second.png'])
+    expect(of.refFileList.value.map(f => f.uid)).toEqual(['draft-0', 'draft-1'])
+    expect(of.refFileList.value.map(f => f.status)).toEqual(['success', 'success'])
+    expect(of.refFileList.value.map(f => f.url)).toEqual([null, null])
+    // 不往条目里塞额外字段：上限判定读数组长度、凭证换新按 filePath 清旧批，都别被新字段带偏
+    expect(Object.keys(of.refFileList.value[0]).sort()).toEqual(['filePath', 'name', 'status', 'uid', 'url'])
+  })
+
+  it('restoreDraft：恢复后提交 references 与草稿顺序一致', async () => {
+    vi.useFakeTimers()
+    const { of } = await createForm({
+      draft: {
+        form: {},
+        styleState: {},
+        refFiles: [
+          { name: 'b.png', filePath: 'references/b.png' },
+          { name: 'a.png', filePath: 'references/a.png' }
+        ]
+      }
+    })
+    of.form.clientQq = '12345678'
+    await of.submit()
+    expect(orderCreateMock.mock.calls[0][0].references).toEqual(['references/b.png', 'references/a.png'])
+  })
+
+  it('restoreDraft：脏条目（缺 name / 前缀不符 / 非字符串 / 非对象）静默丢弃', async () => {
+    vi.useFakeTimers()
+    const { of } = await createForm({
+      draft: {
+        form: { clientQq: '12345678' },
+        styleState: {},
+        refFiles: [
+          { name: 'ok.png', filePath: 'references/ok.png' },
+          { filePath: 'references/no-name.png' },
+          { name: '   ', filePath: 'references/blank-name.png' },
+          { name: 'wrong-prefix.png', filePath: 'images/wrong.png' },
+          { name: 'no-path.png' },
+          { name: 'num-path.png', filePath: 42 },
+          'garbage',
+          null
+        ]
+      }
+    })
+    expect(of.refFileList.value.map(f => f.filePath)).toEqual(['references/ok.png'])
+    expect(of.refFileList.value[0].uid).toBe('draft-0')
+  })
+
+  it('提交成功仍清草稿键（只恢复出参考图也算内容）', async () => {
+    vi.useFakeTimers()
+    const { of } = await createForm({
+      draft: { form: {}, styleState: {}, refFiles: [{ name: 'a.png', filePath: 'references/a.png' }] }
+    })
+    expect(of.refFileList.value).toHaveLength(1)
+    of.form.clientQq = '12345678'
+    await of.submit()
+    expect(orderApi.create).toHaveBeenCalledTimes(1)
+    expect(sessionStorage.getItem('orderForm_draft_alice')).toBeNull()
+  })
+})
+
 // ─── URL query 预选 ───
 
 describe('URL query 预选', () => {
