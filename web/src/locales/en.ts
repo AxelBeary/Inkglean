@@ -1084,7 +1084,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     downloadLockedMsg: 'This file has already been downloaded and locked. Please contact the artist for re-permission',
     confirmFailed: 'The file started saving, but the completion confirmation failed. Retry the confirmation instead of downloading again.',
     retryConfirm: 'Retry confirmation',
-    confirmSuccess: 'Download confirmation completed'
+    confirmSuccess: 'Download confirmation completed',
+    // issue #81 A road: 423 cooldown (DOWNLOAD_COOLDOWN) — cooldown is not a lock, only report remaining seconds
+    downloadCooldown: 'Download is cooling down, please try again in {n} seconds'
   },
   login: {
     // REQ-040: Passkey login button
