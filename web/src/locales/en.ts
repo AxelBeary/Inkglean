@@ -906,6 +906,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     // R57: draft recovery
     draftTitle: 'Restore draft', draftFound: 'An unsent draft was found. Restore it?',
     draftRestore: 'Restore', draftDiscard: 'Discard', draftRestored: 'Draft restored',
+    // issue #82 follow-up: draft reference images that can no longer be signed are dropped
+    refRestoreExpired: '{n} reference image(s) are no longer available, please upload again',
     // R58-6: QQ jump + copy
     artistQqLabel: 'Artist QQ', jumpQq: 'Open QQ', copyQq: 'Copy QQ', qqCopied: 'QQ number copied', qqJumpHint: 'Opening QQ… If nothing happens, copy the QQ number and add the artist manually',
     // F1: success-page tracking link (full text + copy + QR)

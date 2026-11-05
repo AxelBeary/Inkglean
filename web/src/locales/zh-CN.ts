@@ -905,6 +905,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // R57: 草稿恢复
     draftTitle: '恢复草稿', draftFound: '检测到未提交的草稿，是否恢复？',
     draftRestore: '恢复', draftDiscard: '丢弃草稿', draftRestored: '草稿已恢复',
+    // issue #82 补：草稿参考图现签失败（他人文件/已提交/已被回收）→ 摘掉并提示
+    refRestoreExpired: '有 {n} 张参考图已失效，请重新上传',
     // R58-6: QQ 跳转 + 复制
     artistQqLabel: '画师QQ', jumpQq: '跳转QQ', copyQq: '复制QQ', qqCopied: 'QQ号已复制', qqJumpHint: '正在唤起 QQ…若未打开，请复制 QQ 号手动添加好友',
     // F1 围剿：成功态追踪链接（全文 + 复制 + 二维码）

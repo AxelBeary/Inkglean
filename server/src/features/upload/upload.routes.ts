@@ -18,6 +18,8 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 // ============================================
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB（图片/参考图）
 const DELIVER_MAX_SIZE = 50 * 1024 * 1024 // P2-A: 交付文件放宽到 50MB
+// 参考图张数上限：与下单 references maxItems 同源（order-client.routes.ts / order-list.routes.ts 请求 schema）
+const MAX_REFERENCE_COUNT = 5
 
 // 白名单：只允许图片扩展名（防 .html/.svg XSS）
 const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif']
@@ -102,6 +104,18 @@ function safeExt(filename: string | undefined, allowList: string[]): string | nu
   const ext = extname(basename(String(filename || ''))).toLowerCase()
   if (!/^\.[a-z0-9]{1,8}$/.test(ext)) return null
   return allowList.includes(ext) ? ext : null
+}
+
+/**
+ * 参考图路径归一：限定 references/ 前缀、拒绝穿越、resolve 后必须仍在 uploads 根内。
+ * 与 order-route-utils.assertReferenceFileExists 同口径；差别是这里返回 null 而不是抛错——
+ * 现签接口对「签不出来」的路径一律静默略过，不向匿名调用方区分「不存在 / 不归你 / 已提交」。
+ */
+function resolveReferencePath(uploadDir: string, filePath: string): string | null {
+  if (!filePath.startsWith('references/') || filePath.includes('..')) return null
+  const root = resolve(uploadDir)
+  const abs = resolve(root, filePath)
+  return abs.startsWith(root + sep) ? abs : null
 }
 
 function checkFileType(mimeType: string, fileName: string): { recommended: boolean; message: string | null } {
@@ -367,6 +381,55 @@ export default async function uploadRoutes(fastify: FastifyInstance, opts: { upl
       if (err instanceof AppError) return reply.code(err.statusCode).send({ code: err.code, error: err.message })
       throw err
     }
+  })
+
+  /**
+   * POST /api/upload/reference/sign — 草稿恢复时按 filePath 现签参考图预览 URL（公开，需 x-anon-token）
+   *
+   * 为什么要有：草稿只存 references/ 路径（签名 URL 5 分钟过期，存下来必是裂图），恢复后列表有
+   * 文件名却没有缩略图。这里按路径重签，TTL 仍走 signedUrl 的 5 分钟。
+   *
+   * 安全口径（与上传登记/下单归属同源；任一条不满足只是「不返回」，不区分原因、不泄露存在性）：
+   * ① 路径必须 references/ 前缀、不含 ..、resolve 后仍在 uploads 根内（同 assertReferenceFileExists 口径）；
+   * ② 必须命中 reference_uploads 且 anon_id = 当前凭证——他人上传的文件签不出来；
+   * ③ 只签 order_id IS NULL 的行：已随订单提交的参考图属于订单，不再走匿名通道重签。
+   * 一次最多 5 条（与下单 references maxItems 同源），重复路径去重。
+   * 限流 30 次/10 分钟：正常用户每次草稿恢复只调一次；被刷也签不出别人的图，且 5 分钟即过期。
+   */
+  fastify.post('/api/upload/reference/sign', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!rateLimit(`sign-ref:${request.ip}`, 30, 10 * 60_000)) {
+      return reply.code(429).send({ error: '请求过于频繁，请稍后再试' })
+    }
+
+    const anonToken = request.headers['x-anon-token']
+    const anonId = typeof anonToken === 'string' ? trackingService.resolveAnonToken(anonToken) : null
+    if (anonId == null) {
+      return reply.code(400).send({ code: 'INVALID_ANON_TOKEN', error: '缺少有效匿名凭证（x-anon-token）' })
+    }
+
+    const filePaths = (request.body as { filePaths?: unknown } | null)?.filePaths
+    if (!Array.isArray(filePaths) || filePaths.length === 0 || filePaths.length > MAX_REFERENCE_COUNT) {
+      return reply.code(400).send({
+        code: 'INVALID_FILE_PATHS',
+        error: `filePaths 需为 1~${MAX_REFERENCE_COUNT} 条的数组`
+      })
+    }
+
+    // 只返回签得出来的条目：调用方按「缺席 = 已失效」处理（前端据此摘掉死条目，避免提交时才报错）
+    const items: Array<{ filePath: string; url: string }> = []
+    const seen = new Set<string>()
+    for (const raw of filePaths) {
+      if (typeof raw !== 'string' || seen.has(raw)) continue
+      seen.add(raw)
+      const absPath = resolveReferencePath(UPLOAD_DIR, raw)
+      if (!absPath) continue
+      const row = db.prepare('SELECT anon_id, order_id FROM reference_uploads WHERE file_path = ?')
+        .get(raw) as { anon_id: number; order_id: number | null } | undefined
+      if (!row || row.anon_id !== anonId || row.order_id !== null) continue
+      if (!existsSync(absPath) || !statSync(absPath).isFile()) continue
+      items.push({ filePath: raw, url: signedUrl(raw) })
+    }
+    return { items }
   })
 
   /**
