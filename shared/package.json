@@ -23,15 +23,15 @@
     "@typescript-eslint/parser": "^8.67.0",
     "@vitejs/plugin-vue": "^5.2.1",
     "@vue/test-utils": "^2.5.1",
-    "eslint": "^10.13.0",
+    "eslint": "^10.14.0",
     "eslint-plugin-vue": "^10.12.0",
-    "globals": "^17.13.0",
+    "globals": "^17.14.0",
     "happy-dom": "^21.0.4",
     "jiti": "^2.7.0",
     "typescript": "~5.9.0",
     "vitest": "^4.1.12",
-    "vue": "^3.5.44",
-    "vue-tsc": "^3.3.13"
+    "vue": "^3.5.45",
+    "vue-tsc": "^3.3.14"
   },
   "allowScripts": {
     "esbuild@0.25.12": true
