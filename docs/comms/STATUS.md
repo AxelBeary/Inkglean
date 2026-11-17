@@ -1,15 +1,17 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-11-17 五次刷新：模块包批——桌面端模块导入/导出 + 三件摘要校验 + 静态体检）
+## 看板（2026-11-17 六次刷新：debug 遗留清账——A2 caption 400 / A3 skipped 摘图 / B4 类型收紧）
 
-- **HEAD 与推送**：本批工作提交 `74f26fcf` = 模块包批（桌面端模块导入/导出 + 三件摘要校验 + 静态体检；desktop 671 绿；报告 `AGENTS/artifacts/模块包-20261117/SUMMARY.md`）
-  - 本文件与桌面端 STATUS 的落档提交叠在其上（未 push；远端仍是旧 HEAD）
+- **HEAD 与推送**：本批工作提交 `4256a8b0` = debug 遗留清账（A2 caption 含标签改 400 / A3 客户页消费 skipped / B4 display_status 收紧；server 2050 / web 1233 / desktop 672 全绿；报告 `AGENTS/artifacts/清理批-20261117/SUMMARY.md`）
+  - 上一笔 `74f26fcf` = 模块包批（桌面端模块导入/导出 + 三件摘要校验 + 静态体检；desktop 671 绿；报告 `AGENTS/artifacts/模块包-20261117/SUMMARY.md`）
+  - 落档提交叠在工作提交之上（未 push；远端仍是旧 HEAD）
   - 上一笔 `5ab2e6d6` = debug 批修复（画师端过程稿续签 + 续签不再整批中毒；server 2048 / web 1232 全绿；交接 `AGENTS/artifacts/交接-20261117-2/HANDOFF.md`）
   - 上一笔 `48a0737c` = 查单页签名续签 + 下单页展示免费修改次数（修「停留 5 分钟图裂」；server 2045 / web 1231）
   - 再上两笔 `6b2bbf1e`/`7c0f458d` = 过程稿可见 + 免费修改次数（迁移 **v81**）+ 抽 `useTrackSignatureRefresh` 修 CI file-size 红
 - **发版**：**v1.1.0**（2026-10-28，稳交付·好管理版）已发布 —— 安装包 `inkglean-installer-v1.1.0.zip`（5.79 MB / 920 文件）；迁移 v71→v80 自动执行；说明见 `docs/changelog.md` 顶部与 GitHub Releases
-- **基线（2026-11-17 实测：本批只跑 desktop 三件；其余端与十九道未跑）**
-  - desktop **671**（48 文件，+36：pack 27 + zip 往返 4 + 来源判定 5）；server 2048 / web 1232 / shared 44 / E2E 14 / cargo 39 沿用上一批实测
+- **基线（2026-11-17 夜实测：server / web / desktop 三端 + cargo 实跑；shared、E2E、十九道未跑）**
+  - server **2050**（180 文件）/ web **1233**（181）/ desktop **672**（48）/ cargo **39**；shared 44 / E2E 14 沿用上一批实测
+  - 本批增长：server +2（caption 拒收 2）/ web +1（skipped 摘图）/ desktop +1（确定性组包）
   - 迁移 **v81**（order_previews 表 + orders 两个开关列 + style_sizes.free_revisions；幂等，存量库实测 8 单默认 0/0 行为零变化）
   - 本轮计数增长：模块包批 desktop +36（pack 27 / zip 往返 4 / 来源判定 5）；上一批 debug：server +3 / web +1
 - **拟物收敛射程不变**：只限排期块（ScheduleScroll）；挂牌 3D / 墨迹动画 / 登录纸艺山水**不动**
@@ -27,13 +29,13 @@
 **下一步（按优先级）**
 
 1. **本批待你终验**：桌面壳内「导入模块包 / 导出模块包」各点一次（真机选文件 + 另存为；摘要/体检/来源徽章在模块管理页可见）；`pwsh scripts/accept.ps1` 十九道未跑（AI 不许跑 .ps1），本批只交 desktop 三件 + cargo 39 + 三道防阀。
-2. **待处置：Dependabot 5 条 + open PR 7 条**（11-17 夜复核）：#110~#113 与 #104 四个 lock 各一，PR #89/#91/#92/#93 待审；外部 #84~#86 与本仓已修同题，先判关闭还是合入。
+2. **待处置：Dependabot 5 条 + open PR 7 条**（11-17 夜复核）：server 侧 glob 13.0.6 / minimatch 10.2.5 是**生产**依赖，其余三端 dev-only；修复版 glob 14.0.2 / minimatch 11.0.1 皆跨 major，按独立批走 PR #89/#91/#92/#93；外部 #84~#86 与本仓已修同题，先判关闭还是合入。
 3. ✅ **上一批收口**：issue #81/#82/#83 + 十九道全绿；报告 `AGENTS/workspace/temp/accept-master-20261106-052230.md`；回函草稿 `AGENTS/artifacts/issue-81-82-83-20261106/replies/`（待你点头再发）
 4. **登记未施工（下批候选）**
    - 评审附带跟进：#61 10MB 超限静默 return + 无 filePath 拦提交 + objectURL 回收；#62 分片失败整批停 + 守卫 15s 无提示；#65 提交时二次校验接单状态
-   - debug 批遗留（HANDOFF §三 A1/A2/A3）：过程稿上传缺磁盘水位与字节配额 / caption 含 HTML 被静默清空 / `skipped` 未消费
+   - debug 批遗留仅剩 **A1**（过程稿上传缺磁盘水位与字节配额）；A2/A3 已在 `4256a8b0` 清掉
    - 待用户终验：发布包真人启动（asset 图缓存、模块 data 帧）；悬浮窗逐窗回执与贴回同步的真机一遍
-5. **盘面清理已做（11-17 夜）**：7 条已并入的本地分支已删；`.qoder/worktrees/` 旧残目录早前已清；本轮无新增 worktree
+5. **盘面清理已做（11-17 夜）**：7 条已并入的本地分支已删；`.qoder/worktrees/` 旧残目录早前已清；本轮无新增 worktree；B5 复核确认 ban/unban 已有 STEP_UP_REQUIRED 排队重提交，未见无界循环
 6. **待你拍板的技术债（剩余）**：U26 server 以 tsx 作生产依赖；U33 桌面发版流水线从未跑过（缺 vars/secrets，首版必红）
 7. **待你终验 / 终审**：桌面真机 UI 清单（标题栏/托盘/通知/文件选择器/本地记账；opener 需真人点）；对外文案 W4/W6/U12/U13
 8. **剩红灯需拍板**：U16 板块级下架 / U17 数据服务 / G5 终验证据链复现性 / G7 F-09 二次重构 / U21 变更史深度 / U22 改稿上限 / U23 记忆库优先级边界 / U24 视觉判断通道归属
@@ -106,6 +108,16 @@
 
 **起手必读续二**：改桌面 UI 必跑 `huiyue-layout-audit` 自检循环（**宿主级技能**，住 `%USERPROFILE%\.agents\skills\huiyue-layout-audit\`，不在仓库属正常；VL 评审通道不可用，只能 measure.mjs + 人工逐项清单）。
 
+>  📌 **2026-11-17 夜 debug 遗留清账（用户：继续去清吧）**
+>
+> - **A2**：过程稿 caption 含 HTML 标签/实体时后端改返 400 `PREVIEW_CAPTION_INVALID`（原为剥标签存 null 还提示成功）；纯文本零误伤（「价格<100」放行），中英文案齐备。
+> - **A3**：客户查单页消费续签响应的 `skipped[]`，把失效过程稿从列表摘掉（不再留 403 裂图）；参考图不动。
+> - **B4**：`SizeDisplayStatus` 联合类型（available/showcase/closed）落到 `StyleSize` / `PublicStyleSize`，与后端 CHECK/enum 同口径。
+> - **OFM #3**：桌面端新增「同模块两次组包，除 generatedAt 外逐字节一致」用例（确定性构建单元级证据）。
+> - **验证**：server 2050 / web 1233 / desktop 672 / cargo 39 全绿；留痕 `AGENTS/artifacts/清理批-20261117/`。十九道与 E2E 未跑。
+> - **事故与纠偏（记）**：改 i18n 时整读整写把两个 2800+ 行 locale 截断到 ~1017 行（read 默认 2000 行），已用 `git show HEAD:` 逐字节恢复并复核 blob 哈希；教训：>2000 行文件禁整读整写，web 的类型门禁在 lint 不在 build。
+> - **文档位**：正文已 8 块（超 5），归档搬迁仍待单独一批。
+>
 >  📌 **2026-11-17 模块包批（用户：ofm 吸纳对方的插件模式，吸纳至我们桌面端的小功能里）**
 >
 > - **落点**：桌面端「模块（插件）」机制补一层分发最小切片——`.zip` 恰好三件（manifest.json / panel.js / pack.json），装前四道判（条目白名单 / 三道上限 / 摘要 / manifest 校验），任一不符拒装并给原因。
