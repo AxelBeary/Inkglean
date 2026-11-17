@@ -171,6 +171,9 @@ export const E = {
   FOCUS_IMAGE_NOT_OWNED: 'FOCUS_IMAGE_NOT_OWNED',
   INVALID_FOCUS_MODE: 'INVALID_FOCUS_MODE',
 
+  // 过程稿（v81）
+  PREVIEW_NOT_FOUND: 'PREVIEW_NOT_FOUND',
+
   // 外链（v0.12 R15）
   LINKS_TOO_MANY: 'LINKS_TOO_MANY',
   LINK_URL_INVALID: 'LINK_URL_INVALID',
@@ -424,6 +427,9 @@ export const ERROR_MESSAGES: Record<string, string> = {
   FOCUS_IMAGE_NOT_FOUND: '参考图不存在',
   FOCUS_IMAGE_NOT_OWNED: '该参考图不属于此订单',
   INVALID_FOCUS_MODE: '无效的焦点图模式（可选：off/small/large）',
+
+  // 过程稿（v81）
+  PREVIEW_NOT_FOUND: '过程稿不存在或不属于此订单',
 
   // 外链（v0.12 R15）
   LINKS_TOO_MANY: '外链数量不能超过8条',

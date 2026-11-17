@@ -114,6 +114,9 @@ export interface Order {
   current_stage_id: number | null
   deadline: string | null
   paid_total_cents: number
+  // v81: 过程稿对客户可见开关（0=关，客户看不到任何过程稿）+ 免费修改次数（0=不限）
+  preview_visible_to_client: number
+  free_revision_limit: number
   // D-1（R-5/P3-1）: 乐观锁版本号——写路径守卫（version = version + 1）
   version: number
   created_at: string
