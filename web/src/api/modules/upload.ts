@@ -48,5 +48,11 @@ export const uploadApi = {
     const fd = new FormData()
     fd.append('file', file)
     return postJson('/upload/note-image', fd, { timeout: UPLOAD_TIMEOUT_MS })
+  },
+  // 迁移 v81: 过程稿（previews/{artistId}/ 目录，白名单与备注附图同口径；传完再登记到订单，见 artistApi.addOrderPreview）
+  preview: (file: Blob): Promise<UploadFileResult> => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return postJson('/upload/preview', fd, { timeout: UPLOAD_TIMEOUT_MS })
   }
 }

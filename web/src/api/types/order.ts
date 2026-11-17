@@ -224,6 +224,57 @@ export interface CustomerTokenResult {
   trackUrl: string
 }
 
+// ─── 过程稿 + 免费修改次数（迁移 v81，契约 _CONTRACT.md §一~三） ───
+// 语义铁律：free_revision_limit = 0 → **不限**（迁移安全选择，存量订单全 0、行为零变化）；
+// 已用次数一律由后端从修改记录派生，前端不得自数（另立计数器必然与唯一真相漂）。
+
+/** 客户侧过程稿行（仅 preview_visible_to_client=1 且该图 visible=1 时下发） */
+export interface ClientOrderPreview {
+  id: number
+  url: string
+  caption: string | null
+  createdAt: string
+}
+
+/** 免费修改配额（GET /orders/track/:orderNo → revisionQuota） */
+export interface OrderRevisionQuota {
+  /** 0 = 不限（此时客户侧不显示配额徽标） */
+  limit: number
+  used: number
+  /** limit=0 → null（不限）；否则 max(0, limit - used) */
+  remaining: number | null
+}
+
+/** 画师侧过程稿行（多一个单图可见性开关） */
+export interface ArtistOrderPreview extends ClientOrderPreview {
+  /** 单图级：true=客户可见 false=仅画师可见（DB 列为 INTEGER，后端映射为 boolean） */
+  visible: boolean
+}
+
+/** 过程稿 + 免费修改额度设置（画师侧订单级开关） */
+export interface OrderPreviewSettings {
+  previewVisibleToClient: boolean
+  freeRevisionLimit: number
+}
+
+/** GET /artist/orders/:id/previews 响应 */
+export interface OrderPreviewsResult extends OrderPreviewSettings {
+  revisionUsed: number
+  previews: ArtistOrderPreview[]
+}
+
+/** POST /artist/orders/:id/previews 请求体 */
+export interface CreateOrderPreviewRequest {
+  filePath: string
+  caption?: string | null
+}
+
+/** PATCH /artist/orders/:id/previews/:pid 请求体 */
+export interface UpdateOrderPreviewRequest {
+  visible?: boolean
+  caption?: string | null
+}
+
 /** GET /orders/track/:orderNo 响应 */
 export interface OrderTrackResult {
   orderNo: string
@@ -246,6 +297,9 @@ export interface OrderTrackResult {
   deadline: string | null
   queueZone: string
   queueDisplay: string | null
+  /** 过程稿（订单未开放过程稿或该图仅画师可见时为空数组） */
+  previews: ClientOrderPreview[]
+  revisionQuota: OrderRevisionQuota
   createdAt: string
   updatedAt: string
 }

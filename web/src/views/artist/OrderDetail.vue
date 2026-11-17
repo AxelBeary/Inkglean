@@ -193,6 +193,9 @@
         @file-select="handleGalleryFileSelect"
       />
 
+      <!-- 迁移 v81: 过程稿（画师侧管理：上传/单图可见性/订单级开关/免费修改额度，卡内容自管） -->
+      <PreviewPanel :order-id="routeId" />
+
       <!-- R40: 备注时间线（卡内容已拆 NotesPanel，2026-08-10 拆分） -->
       <NotesPanel
         ref="notesPanelRef"
@@ -396,6 +399,8 @@ import DeliverDialog from '../../components/artist/DeliverDialog.vue'
 import CancelUndoToast from '../../components/artist/CancelUndoToast.vue'
 import PaymentPanel from '../../components/artist/order/PaymentPanel.vue'
 import GalleryPanel from '../../components/artist/order/GalleryPanel.vue'
+// 迁移 v81: 过程稿管理（上传/可见性/免费修改额度），自带取数不与 order 快照耦合
+import PreviewPanel from '../../components/artist/order/PreviewPanel.vue'
 // 2026-08-10 拆分批：五面板抽出（零行为变化）
 import LogPanel from '../../components/artist/order/LogPanel.vue'
 import CommPanel from '../../components/artist/order/CommPanel.vue'
