@@ -3,7 +3,7 @@
 ## 看板（2026-11-17 刷新：模块包批——模块导入/导出 + 摘要校验 + 静态体检）
 
 - **HEAD** 随主仓 `master`：本批 `74f26fcf`（模块包）；上一笔 `5e00ec87`（#22 五项）
-- **基线 671**（48 文件；本批 +36：pack 27 + zip 往返 4 + 来源判定 5；只跑 desktop 三件，十九道未跑）；版本 0.1.0，**尚未发布**（无 `desktop-v*` tag）
+- **基线 672**（48 文件；模块包批 +36 + 确定性组包 1；只跑 desktop 三件，十九道未跑）；版本 0.1.0，**尚未发布**（无 `desktop-v*` tag）
 - **Rust 测试 39**（lib 28 + `tests/acl.rs` 1 + `tests/app_acl.rs` 7 + `tests/release_config.rs` 3）；发布 release exe 已产出（`tauri build --no-bundle`，1m40s）
 - **U45 已闭合**：截稿悬浮窗走 `openLocalDbReadOnly()`（不建表）；`floating-deadline.json` 单独授 `sql:default`（无 execute），timer/todo 零 SQL；失败说「暂时取不到截稿」
 - **U46 防线**：`tests/acl.rs` 用 tauri::test mock runtime 走真 IPC/ACL；`build.rs` 把 Windows manifest 链进测试 exe；CI desktop job 由 `cargo check` 改 `cargo test`
