@@ -1,15 +1,14 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-11-17 二次刷新：过程稿可见 + 免费修改次数 v81）
+## 看板（2026-11-17 三次刷新：续签修图裂 + 下单页配额展示）
 
-- **HEAD 与推送**：`6b2bbf1e` = 过程稿可见 + 免费修改次数（迁移 **v81**；server 2036 / web 1223 全绿；施工 `AGENTS/artifacts/施工-过程稿与配额-20261117/`）
-  - 上一笔 `ec322f37` = 外部审计核验 + 5 个 High 修复（4 worktree 合并；server 2021 / web 1199；交接 `AGENTS/artifacts/交接-20261117/HANDOFF.md`）
-  - 再上一笔 `bdd32835` = #81/#82/#83 修复批 + #82 现签接口（十九道全绿 395s）
-  - 再上一笔 `968e4c74` = issue #73 四条 + zip 跳版（619s）
+- **HEAD 与推送**：`48a0737c` = 查单页签名续签 + 下单页展示免费修改次数（修「停留 5 分钟图裂」；server 2045 / web 1231 全绿）
+  - 上一笔 `6b2bbf1e` = 过程稿可见 + 免费修改次数（迁移 **v81**；server 2036 / web 1223；施工 `AGENTS/artifacts/施工-过程稿与配额-20261117/`）
+  - 再上一笔 `ec322f37` = 外部审计核验 + 5 个 High 修复（server 2021 / web 1199；交接 `AGENTS/artifacts/交接-20261117/HANDOFF.md`）
 - **发版**：**v1.1.0**（2026-10-28，稳交付·好管理版）已发布 —— 安装包 `inkglean-installer-v1.1.0.zip`（5.79 MB / 920 文件）；迁移 v71→v80 自动执行；说明见 `docs/changelog.md` 顶部与 GitHub Releases
-- **基线（2026-11-17 实测：仅 server/web 两端 npm 门禁，未跑 accept.ps1 十九道）**：server **2036**（179 文件）/ web **1223**（179）/ desktop **635**（46，本轮未跑）/ shared **44**（未跑）/ E2E **14**（未跑）/ cargo test **39**（未跑）
+- **基线（2026-11-17 实测：仅 server/web 两端 npm 门禁，未跑 accept.ps1 十九道）**：server **2045**（180 文件）/ web **1231**（181）/ desktop **635**（46，本轮未跑）/ shared **44**（未跑）/ E2E **14**（未跑）/ cargo test **39**（未跑）
   - 迁移 **v81**（order_previews 表 + orders 两个开关列 + style_sizes.free_revisions；幂等，存量库实测 8 单默认 0/0 行为零变化）
-  - 本轮计数增长：过程稿批 server +15 / web +24（含 1 例归属前缀加固、4 个前端契约/组件测试）
+  - 本轮计数增长：续签批 server +9 / web +8（续签 8+4 例、下单页配额 4 例）
 - **拟物收敛射程不变**：只限排期块（ScheduleScroll）；挂牌 3D / 墨迹动画 / 登录纸艺山水**不动**
 - **GHSA-6pf3 安全批已闭合**：8 项加固全部落地并回函；披露处置＝**维持私密不公开**（详见「已拍板规则」）
 - **警报/PR 现状**：Code scanning open 0；**Dependabot open 0**（#102 critical 已解：updater 2.13.2→2.14.1 带 zip 4.6.1→9.1.3 ≥ 修复版 9.0.5，JS 精确同号，tauri info 已验）；**open PR 0**
