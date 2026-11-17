@@ -129,6 +129,8 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
   // 文件才会在同轮的黑名单扫描里失去引用、按 72h 窗口被移入回收站。
   // 只删未绑定（order_id IS NULL）的行：已绑定的登记是订单归属凭据（F-10/v55），属业务数据。
   const REFERENCE_UPLOAD_TTL_DAYS = envPositiveInt(process.env.REFERENCE_UPLOAD_TTL_DAYS, 3)
+  // A1（v82）：过程稿未挂单台账行 TTL，与参考图同档（默认 3 天 = 孤儿回收窗口）。
+  const PREVIEW_UPLOAD_TTL_DAYS = envPositiveInt(process.env.PREVIEW_UPLOAD_TTL_DAYS, 3)
   // M-1 拆分动机：这几张表的清理不依赖文件系统，此前挂在 gcUploads 内、排在两处文件类
   // 早退（!existsSync(UPLOAD_ROOT) / 画师表为空）之后——首轮启动时甚至早于上传目录创建，
   // 导致开箱前永不清理。拆为独立函数后不受文件早退连坐，各表 try/catch 互不连坐。
@@ -165,6 +167,20 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
       }
     } catch (err) {
       app.log.warn(`参考图 TTL 清理失败: ${(err as Error).message}`)
+    }
+    try {
+      // A1（v82）：未挂单过程稿台账行 TTL。绑定事实以 order_previews.file_path 为准，
+      // 已挂单行是业务凭据不清；删行后文件才失去 DB 引用，由孤儿回收按 72h 窗接手。
+      const previewDeleted = db.prepare(
+        `DELETE FROM preview_uploads
+         WHERE created_at < datetime('now', ?)
+           AND NOT EXISTS (SELECT 1 FROM order_previews p WHERE p.file_path = preview_uploads.file_path)`
+      ).run(`-${PREVIEW_UPLOAD_TTL_DAYS} days`).changes
+      if (previewDeleted > 0) {
+        app.log.info(`过程稿 TTL 清理: preview_uploads 删除 ${previewDeleted} 条未挂单台账（窗 ${PREVIEW_UPLOAD_TTL_DAYS} 天）`)
+      }
+    } catch (err) {
+      app.log.warn(`过程稿 TTL 清理失败: ${(err as Error).message}`)
     }
   }
 

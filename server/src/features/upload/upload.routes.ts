@@ -92,8 +92,49 @@ function rejectQuota(reply: FastifyReply, usedBytes: number, maxBytes: number, s
 function rejectDisk(reply: FastifyReply, freeMb: number | null, minFreeMb: number) {
   return reply.code(507).send({
     code: 'DISK_WATERMARK_BLOCKED',
-    error: '服务器存储空间紧张，暂时无法接收新的参考图，请稍后再试，或直接把参考图发给画师',
+    error: '服务器存储空间紧张，暂时无法接收新的图片，请稍后再试，或直接把图片发给画师',
     detail: { freeMb, minFreeMb }
+  })
+}
+
+// ─── A1：过程稿上传守卫（v82）───
+// /api/upload/preview 此前只有次数限流 + 单文件 10MB：未挂单的过程稿在库里零行，
+// 配额无从求和、也无行可做 TTL，72h 孤儿回收窗内可无上限堆积（单画师最坏 ≈86GB）。
+// 三道闸与参考图同档：① 磁盘水位（复用 getDiskHeadroom/rejectDisk）
+// ② per-artist 未绑定字节配额（env PREVIEW_UPLOAD_MAX_TOTAL_MB，默认 200；0 = 关闭）
+// ③ 未绑定行 TTL（app.ts gcDatabaseTtl，PREVIEW_UPLOAD_TTL_DAYS 默认 3 天）
+// 只做 per-artist：入口是登录态，配额主体是画师；ip 列仅作取证。
+const PREVIEW_UNBOUND_MAX_MB_DEFAULT = 200
+
+/** 未挂单过程稿的累计字节上限（每次请求现读 env，运维不改码即可调档） */
+function previewUnboundMaxBytes(): number {
+  const raw = Number(process.env.PREVIEW_UPLOAD_MAX_TOTAL_MB)
+  const mb = Number.isFinite(raw) && raw >= 0 ? raw : PREVIEW_UNBOUND_MAX_MB_DEFAULT
+  return Math.floor(mb * 1024 * 1024)
+}
+
+/**
+ * 某画师名下「未绑定」过程稿台账的累计字节与条数。
+ * 绑定事实以 order_previews.file_path 为准：挂单后 EXISTS 命中即出额度；
+ * 删过程稿行后该台账行重新计入（磁盘文件仍在，宁严）。
+ */
+function unboundPreviewByArtist(artistId: number): { bytes: number; count: number } {
+  const row = db.prepare(
+    `SELECT COALESCE(SUM(u.file_size), 0) AS bytes, COUNT(*) AS count
+     FROM preview_uploads u
+     WHERE u.artist_id = ?
+       AND NOT EXISTS (SELECT 1 FROM order_previews p WHERE p.file_path = u.file_path)`
+  ).get(artistId) as { bytes: number; count: number }
+  return row
+}
+
+/** 配额拒绝响应（429 + 明确码：未挂单过程稿占满暂存额度，等挂单或 TTL 清理后再试） */
+function rejectPreviewQuota(reply: FastifyReply, usedBytes: number, maxBytes: number, unboundCount: number) {
+  const toMb = (n: number) => Math.round(n / 1048576 * 10) / 10
+  return reply.code(429).send({
+    code: 'PREVIEW_QUOTA_EXCEEDED',
+    error: `你还有 ${unboundCount} 张过程稿未加入订单，暂存额度已满；先挂到订单，或等旧图被暂存清理后再传`,
+    detail: { usedMb: toMb(usedBytes), maxMb: toMb(maxBytes), unboundCount }
   })
 }
 
@@ -475,10 +516,30 @@ export default async function uploadRoutes(fastify: FastifyInstance, opts: { upl
    * 照 note-image 的形状：图片白名单（JPG/PNG/WebP/GIF，10MB）+ 签名 URL；
    * 目录用 previews/{artistId}/——过程稿此时还没挂到订单（先传图再登记，同备注附图），
    * 故按画师分目录而非按订单。挂单走 POST /api/artist/orders/:id/previews。
+   * A1（v82）：写盘前加磁盘水位（507）+ per-artist 未绑定字节配额（429），落盘后写台账；
+   * 未绑定台账行的 TTL 清理在 app.ts gcDatabaseTtl。
    */
   fastify.post('/api/upload/preview', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!rateLimit(`upload-preview:${request.ip}`, 20, 10 * 60_000)) {
       return reply.code(429).send({ error: '上传过于频繁，请稍后再试' })
+    }
+
+    // 闸①：磁盘水位（探针故障不阻断，同参考图口径）
+    const headroom = await getDiskHeadroom(UPLOAD_DIR)
+    if (headroom.probeError) {
+      request.log.warn(`过程稿上传前磁盘水位探针不可用（不阻断）: ${headroom.probeError}`)
+    }
+    if (!headroom.ok) {
+      return rejectDisk(reply, headroom.freeMb, headroom.minFreeMb)
+    }
+
+    // 闸②：未挂单累计字节配额（预留本请求最坏 10MB，写盘前拒，不产生半文件）
+    const maxBytes = previewUnboundMaxBytes()
+    if (maxBytes > 0) {
+      const used = unboundPreviewByArtist(request.artist.id)
+      if (used.bytes + MAX_FILE_SIZE > maxBytes) {
+        return rejectPreviewQuota(reply, used.bytes, maxBytes, used.count)
+      }
     }
 
     const data = await request.file()
@@ -491,6 +552,10 @@ export default async function uploadRoutes(fastify: FastifyInstance, opts: { upl
     try {
       const result = await saveUpload(data, join('previews', String(request.artist.id)), UPLOAD_DIR)
       if (!result) return reply.code(400).send({ error: '文件大小超过10MB限制' })
+
+      // 落盘成功后登记真实字节数，供配额 SUM 与 TTL 使用（file_path 唯一，随机名不会撞）
+      db.prepare('INSERT INTO preview_uploads (artist_id, file_path, file_size, ip) VALUES (?, ?, ?, ?)')
+        .run(request.artist.id, result.filePath, result.size, request.ip)
 
       return {
         filePath: result.filePath,

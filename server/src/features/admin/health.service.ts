@@ -132,11 +132,11 @@ async function checkDisk(): Promise<HealthCheckResult> {
     if (!headroom.ok) {
       return {
         id: 'disk', name: '磁盘空间', status: 'warn',
-        summary: `剩余 ${freeGB} GB / 共 ${totalGB} GB，低于上传水位阈值 ${headroom.minFreeMb} MB——公开参考图上传已暂停接收`,
+        summary: `剩余 ${freeGB} GB / 共 ${totalGB} GB，低于上传水位阈值 ${headroom.minFreeMb} MB——上传已暂停接收（参考图/过程稿）`,
         detail: {
           path: UPLOAD_DIR, totalGB, freeGB, usedPct: `${usedPct}%`,
           freeMb: headroom.freeMb, minFreeMb: headroom.minFreeMb,
-          note: 'Docker 内值可能不准，仅供参考；低于阈值时上传守卫会拒绝公开参考图上传'
+          note: 'Docker 内值可能不准，仅供参考；低于阈值时上传守卫会拒绝参考图与过程稿上传'
         }
       }
     }

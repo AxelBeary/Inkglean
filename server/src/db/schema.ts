@@ -264,6 +264,19 @@ CREATE TABLE IF NOT EXISTS order_previews (
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
 
+-- 过程稿上传台账（v82）：未挂单的过程稿在 order_previews 里没有行，配额与 TTL 此前无从算。
+-- 本表按画师记落盘真实字节（10MB/张口径，非客户端声明）；绑定关系不在此复写——
+-- 「已挂单」以 order_previews.file_path 的 EXISTS 为唯一事实源（删过程稿行即重新计入配额）。
+-- 未绑定行由 app.ts gcDatabaseTtl 清理（默认 3 天）；删行后文件才失去 DB 引用、进入孤儿回收。
+CREATE TABLE IF NOT EXISTS preview_uploads (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  artist_id INTEGER NOT NULL,
+  file_path TEXT NOT NULL UNIQUE,
+  file_size INTEGER NOT NULL,
+  ip TEXT,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- 订单附加工作项表（SPEC-003）
 CREATE TABLE IF NOT EXISTS order_extra_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -624,4 +637,9 @@ CREATE INDEX IF NOT EXISTS idx_admin_actions_target ON admin_actions(target_type
 -- 老库升级与新装同径拿到（对照 v44 把索引写进迁移的做法，此处按「索引属查询侧优化」归口本段）。
 CREATE INDEX IF NOT EXISTS idx_reference_uploads_anon ON reference_uploads(anon_id);
 CREATE INDEX IF NOT EXISTS idx_reference_uploads_ip ON reference_uploads(ip);
+-- v82：过程稿未绑定额度两条查询——按画师求和、按 created_at 做 TTL；
+-- order_previews(file_path) 供「是否已挂单」的 EXISTS 反查走索引。
+CREATE INDEX IF NOT EXISTS idx_preview_uploads_artist ON preview_uploads(artist_id);
+CREATE INDEX IF NOT EXISTS idx_preview_uploads_created ON preview_uploads(created_at);
+CREATE INDEX IF NOT EXISTS idx_order_previews_file ON order_previews(file_path);
 `
