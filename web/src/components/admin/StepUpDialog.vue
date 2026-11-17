@@ -47,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Lock } from '@element-plus/icons-vue'
 import { stepUpApi, webauthnApi, authApi } from '../../api/index'
@@ -84,6 +84,28 @@ interface FlatPasskeyCredential {
   clientDataJSON: string
 }
 
+// ─── S083：取消/关闭后仍在飞的验证必须作废 ───
+// 只加一个「请求序号」能拦住迟到的 emit，却拦不住已经弹出的系统生物识别框——用户点了取消
+// 还要再刷一次指纹/人脸，等于没修好。故用 AbortController 表达「这次验证已作废」：
+// signal 直通 navigator.credentials.get，取消时能真正打断系统弹框。
+// 一个打开周期一个句柄（Passkey/TOTP 两个分支都在 loading 期间禁点，不会并发两场仪式）。
+let stepUpAbort: AbortController | null = null
+
+/** 取本次打开周期的句柄：以打开态直接挂载时 watch 不会触发（非 immediate），就地补建保证永不为空 */
+function stepUpController(): AbortController {
+  if (!stepUpAbort || stepUpAbort.signal.aborted) stepUpAbort = new AbortController()
+  return stepUpAbort
+}
+
+/** 作废本次验证：打断系统弹框，并让迟到的结果失去落点（不再 emit verified、不再改 error） */
+function abortStepUp() {
+  stepUpAbort?.abort()
+  stepUpAbort = null
+}
+
+// S083：组件被父级销毁（路由切换等）同样算取消，否则生物识别框会挂到页面之外
+onUnmounted(abortStepUp)
+
 /** 打开时重置状态 + 探测管理员 QQ 与 Passkey 凭据 */
 watch(() => props.modelValue, async (open) => {
   // U29(b)：关闭分支也要清空——component 常驻不销毁，el-dialog 的 destroy-on-close 只销毁内部 DOM，
@@ -91,8 +113,11 @@ watch(() => props.modelValue, async (open) => {
   if (!open) {
     code.value = ''
     error.value = ''
+    // S083：关闭即作废（含系统生物识别框），迟到的 verified 不得再落到父组件上
+    abortStepUp()
     return
   }
+  stepUpAbort = new AbortController()
   code.value = ''
   error.value = ''
   hasPasskey.value = false
@@ -123,12 +148,16 @@ async function submitTotp() {
     error.value = t('stepup.codeFormat')
     return
   }
+  const { signal } = stepUpController()
   loading.value = true
   error.value = ''
   try {
     await stepUpApi.verify({ method: 'totp', code: cd })
+    // S083：弹窗已关（用户取消）时不得再把「验证通过」回传父级，否则被取消的动作照样执行
+    if (signal.aborted) return
     onVerified()
   } catch (err) {
+    if (signal.aborted) return
     error.value = (err as Error).message || t('stepup.error')
   } finally {
     loading.value = false
@@ -137,14 +166,23 @@ async function submitTotp() {
 
 /** Passkey 分支：复用公开认证流程（login-options → navigator.credentials.get → step-up） */
 async function verifyPasskey() {
+  const { signal } = stepUpController()
   passkeyLoading.value = true
   error.value = ''
   try {
     // 当前登录管理员 QQ（/api/auth/me 以服务端为准；profile 可能仍是登录响应的 camelCase 形状）
     const me = await authApi.me()
+    // S083：三次 await 之间逐一校验——api 层不接受 signal（不改 api 层），只做本地作废检查
+    if (signal.aborted) return
     const options = await webauthnApi.loginOptions(me.qq_number)
+    if (signal.aborted) return
     // 812-B5: 后端下发 Base64URL 字符串 → 浏览器要求的 ArrayBuffer（challenge/allowCredentials[].id）
-    const credential = await navigator.credentials.get({ publicKey: toCredentialRequestOptions(options) })
+    // S083: signal 直通浏览器——用户取消时立刻打断系统生物识别框，而不是等它自然超时
+    const credential = await navigator.credentials.get({
+      publicKey: toCredentialRequestOptions(options),
+      signal
+    })
+    if (signal.aborted) return
     if (!credential) {
       error.value = t('common.passkeyCancelled')
       return
@@ -152,8 +190,11 @@ async function verifyPasskey() {
     const pubCred = credential as PublicKeyCredential
     const flat = credentialToFlat(pubCred)
     await stepUpApi.verify({ method: 'passkey', ...flat })
+    if (signal.aborted) return
     onVerified()
   } catch (err) {
+    // S083：已作废的验证连错误文案都不写——弹窗都关了，文案没有落点
+    if (signal.aborted) return
     // 812-B5: 取消/不支持/失败一律人话提示，禁止原始英文错误直出
     if (isWebAuthnCancellation(err)) {
       error.value = t('common.passkeyCancelled')
