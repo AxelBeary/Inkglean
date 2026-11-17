@@ -235,7 +235,9 @@ export default {
     ADDON_TEMPLATE_INVALID_PRICING: '无效的计价模式',
     STYLE_ADDON_NOT_FOUND: '画风增项不存在',
     STYLE_ADDON_DUPLICATE: '该增项已导入此画风',
-    SIZE_OVERRIDE_NOT_FOUND: '尺寸覆盖不存在'
+    SIZE_OVERRIDE_NOT_FOUND: '尺寸覆盖不存在',
+    // 迁移 v81: 过程稿（跨单 id / 不存在的 id 一律 404）
+    PREVIEW_NOT_FOUND: '过程稿不存在或不属于此订单'
   },
   pref: {
     theme: '主题设置', base: '底色', accent: '主色', auto: '随系统', light: '亮', dark: '暗',
@@ -1029,6 +1031,33 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     receiptPaid: '已付',
     receiptRemaining: '待付',
     receiptNote: '逐笔收款明细将在后续版本提供'
+  },
+
+  // 迁移 v81: 过程稿（客户侧展示 + 画师侧管理；键前缀 preview.）
+  preview: {
+    title: '过程稿',
+    alt: '过程稿',
+    allowClient: '允许客户查看过程稿',
+    allowClientHint: '只有显示「客户可见」的图会出现在客户的查询页',
+    upload: '上传过程稿',
+    uploading: '上传中…',
+    empty: '还没有过程稿',
+    captionPlaceholder: '一句话说明（客户可见）',
+    visibleToClient: '客户可见',
+    visibleSelf: '仅自己可见',
+    saved: '已保存',
+    settingsSaved: '设置已保存',
+    loadFailed: '过程稿加载失败'
+  },
+  // 迁移 v81: 免费修改次数（0 = 不限，见契约语义表；键前缀 revision.）
+  revision: {
+    quotaUsed: '免费修改：已用 {used} / {limit}',
+    quotaExhausted: '免费修改次数已用完，后续修改可与画师协商',
+    limitLabel: '含免费修改次数',
+    unlimitedHint: '0 = 不限',
+    usedCount: '已用 {used} 次',
+    overLimit: '本单免费修改已用 {used}/{limit}，本次修改将超出免费次数',
+    invalidLimit: '请输入 0-99 的整数'
   },
   // F4: 留言板（客户端留言墙，共享组件 TplGuestbook）
   guestbook: {
