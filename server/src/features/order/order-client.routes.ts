@@ -223,6 +223,73 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
   })
 
   /**
+   * POST /api/orders/track/:orderNo/refresh-signatures
+   * 查单页停留续签（客户侧对应画师端 POST /api/artist/refresh-signatures）
+   * 背景：签名 TTL 5 分钟（file-sign.ts FILE_TTL_MS = 5 * 60_000），而查单页只在 onMounted 取一次数据——
+   * 客户停留超过 5 分钟后参考图与过程稿全部 403。前端每 3 分钟 + 回到前台时调本端点续签。
+   * 鉴权/限流/画师可见性口径照抄上面的 track 路由；logLevel=silent：令牌在 body 里同样禁止进日志。
+   * 路径不属于本单一律 ILLEGAL_PATH（不按「订单不存在/无权」分码，避免被用来探测订单存在性）。
+   */
+  fastify.post('/api/orders/track/:orderNo/refresh-signatures', {
+    logLevel: 'silent',
+    schema: {
+      body: {
+        type: 'object',
+        required: ['token', 'paths'],
+        properties: {
+          token: { type: 'string' },
+          paths: {
+            type: 'array',
+            items: { type: 'string', minLength: 1, maxLength: 500 },
+            minItems: 1,
+            maxItems: 50
+          }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request: FastifyRequest) => {
+    guardRateLimit(`refresh-sig-track:${request.ip}`, 20, 5 * 60_000)
+
+    const { token, paths } = request.body as { token: string; paths: string[] }
+    const result = orderService.getClientQueuePosition((request.params as { orderNo: string }).orderNo, token)
+    if (!result) throw new AppError(E.ORDER_NOT_FOUND, 404)
+
+    const { order } = result
+    // audit-a P2-7 同款：订单所属画师不可见（hidden/封禁/已删除）→ 按订单不存在处理，不泄露画师
+    if (!isArtistVisibleById(order.artist_id)) {
+      throw new AppError(E.ORDER_NOT_FOUND, 404)
+    }
+
+    // 路径归属校验（核心，不许省）：只给本单自己的图续签。
+    // 参考图加 source='client' 是因为 track 本就只下发客户信源那一份——画师自用的私有参考图
+    // 不该被客户凭路径换来签名；过程稿那两个附加条件则是**刻意的安全要点**：
+    // 单图 visible=1 且订单级 preview_visible_to_client=1 必须同时成立，
+    // 画师关掉「允许客户查看过程稿」后，已发出的预览 URL 不能靠本接口继续续命。
+    const refOwned = db.prepare(
+      "SELECT 1 FROM order_references WHERE file_path = ? AND order_id = ? AND source = 'client' LIMIT 1"
+    )
+    const previewOwned = db.prepare(
+      `SELECT 1 FROM order_previews p
+         JOIN orders o ON o.id = p.order_id
+        WHERE p.file_path = ? AND p.order_id = ? AND p.visible = 1 AND o.preview_visible_to_client = 1
+        LIMIT 1`
+    )
+
+    const urls: Record<string, string> = {}
+    for (const p of paths) {
+      if (p.includes('..')) throw new AppError(E.ILLEGAL_PATH)
+      if (!refOwned.get(p, order.id) && !previewOwned.get(p, order.id)) {
+        throw new AppError(E.ILLEGAL_PATH)
+      }
+      // previews/ 与 references/ 都是普通签名目录（交付物的一次性载荷不适用）
+      urls[p] = signedUrl(p)
+    }
+
+    return { urls }
+  })
+
+  /**
    * GET /api/orders/my
    * F1 围剿：退役——QQ+订单号弱双因子已由高熵令牌取代，本端点不再提供。
    * 路由保留但返回 410 + MY_ORDERS_RETIRED，文案指引使用保存的追踪链接或联系画师补发。

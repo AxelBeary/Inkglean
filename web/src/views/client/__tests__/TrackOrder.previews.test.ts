@@ -17,7 +17,9 @@ vi.mock('vue-i18n', () => ({
 }))
 
 vi.mock('../../../api/index.js', () => ({
-  orderApi: { track: h.track }
+  orderApi: { track: h.track },
+  // TrackOrder 复用 useSignatureRefresh（默认换签函数引用画师端点），mock 需满足其具名导出
+  artistApi: { refreshSignatures: vi.fn() }
 }))
 
 vi.mock('../../../composables/useArtistPublicProfile.js', () => ({
