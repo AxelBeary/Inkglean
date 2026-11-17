@@ -130,15 +130,29 @@ export function signedUrl(filePath: string, claims?: FileTokenClaims): string {
 }
 
 /**
+ * 解码上传路径；畸形百分号编码返回 null（调用方按「链接无效」处理，不得抛到全局）
+ *
+ * U016：此前 /uploads/ 钩子直接裸调 decodeURIComponent，形如 `/uploads/a.png#%ZZ` 的请求
+ * （请求行里的裸 `#` 让路由层把后半段当查询串，从而跳过 URL 合法性预检）会在钩子里抛
+ * URIError，被全局错误处理器兜成 500 并上报 Sentry；该前缀无鉴权、无限流，匿名即可刷
+ * 500 与监控配额。收敛为唯一的安全解码入口后，调用方一律按 4xx 处理。
+ */
+export function safeDecodeUploadPath(urlPath: string): string | null {
+  try {
+    return decodeURIComponent(urlPath)
+  } catch {
+    return null
+  }
+}
+
+/**
  * 判断路径是否为公开目录（无需签名）
  */
 export function isPublicUploadPath(urlPath: string): boolean {
   // C-1 修复：先解码再判断，防止 %2E%2E 等编码绕过前缀匹配
-  let decoded: string
-  try {
-    decoded = decodeURIComponent(urlPath)
-  } catch (err) {
-    console.warn('上传路径解码失败（按非公开处理，走签名校验）', err)
+  const decoded = safeDecodeUploadPath(urlPath)
+  if (decoded === null) {
+    console.warn('上传路径解码失败（按非公开处理，走签名校验）')
     return false // 解码失败 → 视为非公开，走签名校验
   }
   // 安全：解码后含 .. 一律拒绝（路径穿越）

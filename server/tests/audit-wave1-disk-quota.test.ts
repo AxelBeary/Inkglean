@@ -24,6 +24,13 @@ import { migration as v77 } from '../src/db/migrations/v77-reference-uploads-quo
 const UPLOAD_DIR = process.env.UPLOAD_DIR as string
 const MB = 1024 * 1024
 
+/**
+ * U144：启动时的孤儿回收改为 setImmediate 延后执行（不再同步挡住 listen），
+ * 因此「buildApp 返回时文件已被回收」这个前提要显式等一轮空闲——
+ * setImmediate 队列 FIFO，这里排的回调必定排在启动回收之后。
+ */
+const flushStartupGc = (): Promise<void> => new Promise((resolve) => setImmediate(resolve))
+
 // statfs 只 mock 这一个出口：水位守卫的判据必须由测试给定，不能依赖跑分机的剩余空间
 vi.mock('fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof import('fs/promises')>()
@@ -201,6 +208,7 @@ describe('GHSA-6pf3 闸③：reference_uploads 未绑定行 TTL（先删行 → 
     expect(countUploads(rel)).toBe(1)
 
     await buildApp({ logger: false })
+    await flushStartupGc()
 
     expect(countUploads(rel)).toBe(0)
     expect(existsSync(join(UPLOAD_DIR, rel))).toBe(false)
@@ -214,6 +222,7 @@ describe('GHSA-6pf3 闸③：reference_uploads 未绑定行 TTL（先删行 → 
     insertUpload({ anonId: 2, filePath: rel, orderId: order.id, createdAtDaysAgo: 30, fileSize: 128, ip: '203.0.113.51' })
 
     await buildApp({ logger: false })
+    await flushStartupGc()
 
     expect(countUploads(rel)).toBe(1)
     expect(existsSync(join(UPLOAD_DIR, rel))).toBe(true)
@@ -226,6 +235,7 @@ describe('GHSA-6pf3 闸③：reference_uploads 未绑定行 TTL（先删行 → 
     insertUpload({ anonId: 3, filePath: rel, createdAtDaysAgo: 2, fileSize: 128, ip: '203.0.113.52' })
 
     await buildApp({ logger: false })
+    await flushStartupGc()
 
     expect(countUploads(rel)).toBe(1)
     expect(existsSync(join(UPLOAD_DIR, rel))).toBe(true)
@@ -238,6 +248,7 @@ describe('GHSA-6pf3 闸③：reference_uploads 未绑定行 TTL（先删行 → 
     insertUpload({ anonId: 4, filePath: rel, createdAtDaysAgo: 4, fileSize: 128, ip: '203.0.113.53' })
 
     await buildApp({ logger: false })
+    await flushStartupGc()
 
     expect(countUploads(rel)).toBe(1)
     expect(existsSync(join(UPLOAD_DIR, rel))).toBe(true)
@@ -251,6 +262,7 @@ describe('GHSA-6pf3 闸③：reference_uploads 未绑定行 TTL（先删行 → 
       createUploadFile(rel, 128, 5)
       insertUpload({ anonId: 5, filePath: rel, createdAtDaysAgo: daysAgo, fileSize: 128, ip: '203.0.113.54' })
       await buildApp({ logger: false })
+      await flushStartupGc()
       expect(countUploads(rel), `REFERENCE_UPLOAD_TTL_DAYS=${raw} 应按默认 3 天窗删除`).toBe(0)
     }
   })
@@ -264,6 +276,7 @@ describe('GHSA-6pf3 闸②：per-anon / per-IP 未绑定累计字节配额', () 
     db.exec('DELETE FROM reference_uploads')
     mockHealthyDisk()
     app = await buildApp({ logger: false })
+    await flushStartupGc()
     await app.ready()
   })
 
@@ -381,6 +394,7 @@ describe('GHSA-6pf3 闸①：statfs 水位接成上传前守卫', () => {
     db.exec('DELETE FROM reference_uploads')
     mockHealthyDisk()
     app = await buildApp({ logger: false })
+    await flushStartupGc()
     await app.ready()
   })
 

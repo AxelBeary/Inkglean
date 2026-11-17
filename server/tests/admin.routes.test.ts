@@ -35,6 +35,10 @@ describe('管理员路由 (Admin Routes)', () => {
   beforeEach(async () => {
     cleanDb()
     app = await buildApp({ logger: false })
+    // U144：启动孤儿回收改为 setImmediate 延后执行，这里先等它跑完再建回收站夹具——
+    // 否则延后的那一轮会按 30 天 TTL 把夹具里 2026-08-05 这种旧日期目录整目录删掉
+    // （修复前它是同步跑在 buildApp 里的，永远早于夹具创建）。
+    await new Promise<void>((resolve) => setImmediate(resolve))
     await app.ready()
   })
 
