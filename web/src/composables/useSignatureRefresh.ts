@@ -48,6 +48,18 @@ export const VISIBLE_REFRESH_THRESHOLD_MS = 2 * 60 * 1000
 // 整批超限会被 400 拒掉——长列表一次收集上百张图时全量刷新会整体失效，故按上限分片。
 export const SIGNATURE_REFRESH_BATCH_SIZE = 50
 
+/**
+ * 从签名 URL 取出存储路径（/uploads/<path>?sig=... → <path>）；非上传 URL 返回 null。
+ *
+ * 续签链路两端都要它：收集时把已渲染的 img src 反解成裸路径，写回时再按同一路径换上新 URL。
+ * 依赖 signedUrl() 不对路径做 URL 编码（server/src/shared/file-sign.ts 直接拼 /uploads/<filePath>?sig=）——
+ * 若将来那边改成 encodeURI，这里会静默失配（续签恒 400，表现为「图还是裂」），需同步改。
+ */
+export function uploadedPathFromUrl(url: string): string | null {
+  const matched = /^\/uploads\/([^?#]+)/.exec(url)
+  return matched ? matched[1] : null
+}
+
 export function useSignatureRefresh({ collect, apply, intervalMs = DEFAULT_INTERVAL_MS, request = (paths) => artistApi.refreshSignatures(paths) }: {
   collect: () => string[]
   apply: (urls: Record<string, string>) => void

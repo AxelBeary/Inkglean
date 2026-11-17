@@ -11,7 +11,7 @@
  * 整体替换会让在途查询的守卫误判。
  */
 import type { Ref } from 'vue'
-import { useSignatureRefresh } from './useSignatureRefresh'
+import { uploadedPathFromUrl, useSignatureRefresh } from './useSignatureRefresh'
 
 /** 查单页里可续签的最小结构（只取本 composable 关心的两个数组） */
 interface RefreshableOrder {
@@ -20,11 +20,6 @@ interface RefreshableOrder {
   previews?: Array<{ url?: string }>
 }
 
-/** 从签名 URL 取出存储路径（/uploads/<path>?sig=... → <path>）；非上传 URL 返回 null */
-export function uploadedPathFromUrl(url: string): string | null {
-  const matched = /^\/uploads\/([^?#]+)/.exec(url)
-  return matched ? matched[1] : null
-}
 
 /** 参考图 URL：对象行取 .url，字符串行取自身 */
 function referenceUrl(row: { url?: string } | string): string {

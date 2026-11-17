@@ -181,6 +181,9 @@ export interface AddPaymentResult {
 /** POST /artist/refresh-signatures 响应（R33）；客户侧 POST /orders/track/:orderNo/refresh-signatures 同形 */
 export interface RefreshSignaturesResult {
   urls: Record<string, string>
+  /** 客户侧续签专有：本次未获授权的路径（画师刚关开关/删图/单图转为不可见）。
+   *  后端不再为此整批 400——失效路径静默略过，避免一条死路径把同页其它图一起拖死。 */
+  skipped?: string[]
 }
 
 /** GET /artist/stats 响应（order-stats.service.ts） */

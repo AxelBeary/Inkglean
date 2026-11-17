@@ -10,6 +10,7 @@ const h = vi.hoisted(() => ({
   updatePreview: vi.fn(),
   deletePreview: vi.fn(),
   updateSettings: vi.fn(),
+  refresh: vi.fn(),
   upload: vi.fn(),
   success: vi.fn(),
   error: vi.fn(),
@@ -28,7 +29,8 @@ vi.mock('../../../../api/index.js', () => ({
     addOrderPreview: h.addPreview,
     updateOrderPreview: h.updatePreview,
     deleteOrderPreview: h.deletePreview,
-    updateOrderPreviewSettings: h.updateSettings
+    updateOrderPreviewSettings: h.updateSettings,
+    refreshSignatures: h.refresh
   },
   uploadApi: { preview: h.upload }
 }))
@@ -270,5 +272,29 @@ describe('PreviewPanel 过程稿管理（迁移 v81）', () => {
     expect(wrapper.find('.module-error').exists()).toBe(false)
     expect(wrapper.findAll('.preview-item')).toHaveLength(1)
     wrapper.unmount()
+  })
+
+  // v81 修正：过程稿 URL 是现签的（TTL 5 分钟），画师长停留必裂——复用 useSignatureRefresh 定时换签
+  it('长停留定时续签：过程稿缩略图 url 原地换新（不被整体替换）', async () => {
+    vi.useFakeTimers()
+    h.getPreviews.mockResolvedValue({
+      previewVisibleToClient: true,
+      freeRevisionLimit: 0,
+      revisionUsed: 0,
+      previews: [{ id: 7, url: '/uploads/previews/3/p1.png?sig=old', caption: '', visible: true, createdAt: '2026-11-17T00:00:00Z' }]
+    })
+    h.refresh.mockResolvedValue({ urls: { 'previews/3/p1.png': '/uploads/previews/3/p1.png?sig=new' } })
+
+    const wrapper = mountPanel()
+    await flushPromises()
+    expect(h.refresh).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(3 * 60 * 1000)
+    await flushPromises()
+
+    expect(h.refresh).toHaveBeenCalledWith(['previews/3/p1.png'])
+    expect(wrapper.html()).toContain('sig=new')
+    wrapper.unmount()
+    vi.useRealTimers()
   })
 })
