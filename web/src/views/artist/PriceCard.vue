@@ -136,8 +136,10 @@ async function onRequestImport({ hasContent }: { hasContent: boolean }) {
     const res = await artistPublicApi.getPricing(subdomain)
     const tiers: ImportedTier[] = []
     for (const style of res.styles) {
-      // showcase/hidden 尺寸不上公开价目（与客户端可见口径一致，只取 visible）
-      for (const size of style.sizes.filter(s => s.display_status === 'visible')) {
+      // 公开价目只取可下单的 available 档位：showcase 是展示用（可见但不可下单）、closed 是关闭。
+      // 注意真实枚举只有 available/showcase/closed（server/src/db/schema.ts CHECK）——
+      // 这里曾写成不存在的 'visible'，过滤恒假 → tiers 恒空 → 一键导入永远 0 条且不报错。
+      for (const size of style.sizes.filter(s => s.display_status === 'available')) {
         tiers.push({
           name: size.name.slice(0, 24),
           priceYuan: size.base_price,

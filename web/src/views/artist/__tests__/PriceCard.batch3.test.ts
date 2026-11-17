@@ -76,16 +76,19 @@ beforeEach(() => {
 })
 
 describe('PriceCard oimimo 吸纳批三', () => {
-  it('TC-PL3-01: 导入真实档位——按画风分组带出，showcase 尺寸不进价目', async () => {
+  // U130: 后端 CHECK 只有 available/showcase/closed（server/src/db/schema.ts），
+  // 本用例曾用不存在的 'visible' 造数据 → 过滤恒假也照样绿，掩盖了「一键导入永远 0 条」。
+  it('TC-PL3-01: 导入真实档位——按画风分组带出，只取 available（showcase/closed 不进价目）', async () => {
     getPricing.mockResolvedValue({
       styles: [
         {
           name: '头像', sizes: [
-            { name: '大头', base_price: 180, description: '简单背景', display_status: 'visible' },
-            { name: '内部档', base_price: 999, description: null, display_status: 'showcase' }
+            { name: '大头', base_price: 180, description: '简单背景', display_status: 'available' },
+            { name: '展示档', base_price: 999, description: null, display_status: 'showcase' },
+            { name: '关闭档', base_price: 888, description: null, display_status: 'closed' }
           ]
         },
-        { name: '立绘', sizes: [{ name: '全身', base_price: 600, description: '拆件', display_status: 'visible' }] }
+        { name: '立绘', sizes: [{ name: '全身', base_price: 600, description: '拆件', display_status: 'available' }] }
       ]
     })
     const { vm } = mountPriceCard()
@@ -96,10 +99,14 @@ describe('PriceCard oimimo 吸纳批三', () => {
     expect(vm.form.tiers).toHaveLength(2)
     expect(vm.form.tiers[0]).toMatchObject({ name: '大头', priceYuan: 180, note: '简单背景', group: '头像' })
     expect(vm.form.tiers[1]).toMatchObject({ name: '全身', priceYuan: 600, group: '立绘' })
+    // 展示用（showcase）与关闭（closed）档位不得被导入
+    const names = vm.form.tiers.map(t => t.name)
+    expect(names).not.toContain('展示档')
+    expect(names).not.toContain('关闭档')
   })
 
   it('TC-PL3-02: 已有内容导入需两步确认——取消则不覆盖', async () => {
-    getPricing.mockResolvedValue({ styles: [{ name: '头像', sizes: [{ name: '大头', base_price: 180, description: null, display_status: 'visible' }] }] })
+    getPricing.mockResolvedValue({ styles: [{ name: '头像', sizes: [{ name: '大头', base_price: 180, description: null, display_status: 'available' }] }] })
     const { vm } = mountPriceCard()
     // 预填 1 行内容（触发确认分支）
     vm.form.tiers[0].name = '私设'
