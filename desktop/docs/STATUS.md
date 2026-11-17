@@ -1,9 +1,9 @@
 # 桌面端（拾绘桌面版）子项目状态
 
-## 看板（2026-10-28 刷新：#22 剩余五项收口）
+## 看板（2026-11-17 刷新：模块包批——模块导入/导出 + 摘要校验 + 静态体检）
 
-- **HEAD** 随主仓 `master`（`5e00ec87`）；#22 五项（原子写 / 逐窗回执 / 退出清悬浮窗 / 偏好跨窗同步 / 发布包 asset+CSP）已合入
-- **基线 629**（45 文件；+13：回执 8 / 偏好同步 3 / 导入中止 2；十九道全绿 @ `5e00ec87` 685s）；版本 0.1.0，**尚未发布**（无 `desktop-v*` tag）
+- **HEAD** 随主仓 `master`：本批 `74f26fcf`（模块包）；上一笔 `5e00ec87`（#22 五项）
+- **基线 671**（48 文件；本批 +36：pack 27 + zip 往返 4 + 来源判定 5；只跑 desktop 三件，十九道未跑）；版本 0.1.0，**尚未发布**（无 `desktop-v*` tag）
 - **Rust 测试 39**（lib 28 + `tests/acl.rs` 1 + `tests/app_acl.rs` 7 + `tests/release_config.rs` 3）；发布 release exe 已产出（`tauri build --no-bundle`，1m40s）
 - **U45 已闭合**：截稿悬浮窗走 `openLocalDbReadOnly()`（不建表）；`floating-deadline.json` 单独授 `sql:default`（无 execute），timer/todo 零 SQL；失败说「暂时取不到截稿」
 - **U46 防线**：`tests/acl.rs` 用 tauri::test mock runtime 走真 IPC/ACL；`build.rs` 把 Windows manifest 链进测试 exe；CI desktop job 由 `cargo check` 改 `cargo test`
@@ -14,8 +14,16 @@
 - **本批新增待真机**：发布包启动后的 asset 图缓存与模块 data 帧、悬浮窗逐窗回执/贴回同步各一遍
 - **发布前必查**：`desktop/docs/发布前待办清单-825.md`（第 19/20 项发布流水线缺陷；第 1 项已改 v74→现状 v76）
 - 体例提示：9/05~8/26 五块已归档至 `desktop/docs/archive-20261021/`；新条目一律短标题 + 分组要点。
-- 细目见主 `docs/changelog.md` 2026-10-28 条与 `AGENTS/artifacts/issue22-desktop-20261028/`。
+- 细目见主 `docs/changelog.md` 2026-11-17 模块包条、2026-10-28 条与 `AGENTS/artifacts/模块包-20261117/`。
 
+> 📌 **2026-11-17 模块包批（模块 = 插件，补一层可分享的分发切片）**
+>
+> - **新增**：`src/modules/pack.ts`（纯逻辑：稳定化 JSON / SHA-256 / 静态扫描 / 组包与验包）、`packZip.ts`（jszip 编解码）、`packIo.ts`（取包 / 另存为 / 落盘）；模块管理页加「导入模块包」与每卡「导出模块包」，卡片显示来源徽章、短指纹、体检结果。
+> - **包三件**：manifest.json / panel.js（原样字节）+ pack.json（format / 生成时间 / module / manifestDigest / 两件 size+sha256）；装前四道判与三道上限（64KB / 512KB / 64KB，与 Rust 读侧同口径）。
+> - **来源四态**：官方 / 导入包 / 导入后已改 / 本地文件；装包账 `shihui-module-packs-v1` 只记摘要、时间、命中数。
+> - **安全边界（写清）**：摘要只防误改与传输损坏，不防恶意作者；模块照旧跑沙箱帧（CSP 断网 + opaque origin）；同名目录拒装、不覆盖画师改过的版本；zip 多余条目不解压。
+> - **验证**：lint 0 错 / vitest **671**（+36）/ build 绿；三道防阀绿；`cargo` 与真机点击未跑（本批零 Rust 改动）。留痕 `AGENTS/artifacts/模块包-20261117/`。
+>
 > 📌 **2026-10-28 #22 桌面端剩余五项（用户：那个留着的我们现在来一起处理掉）**
 >
 > - **2-残余a 原子写**：`write_atomic()`（同目录临时文件 → fsync → rename）接入 `desktop_save_file` 与导出对话框；被占/半途失败时原文件零改动。
