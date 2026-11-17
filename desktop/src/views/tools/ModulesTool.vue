@@ -343,7 +343,7 @@ async function exportPack(e: ModuleEntry) {
 
 <style scoped>
 .tool-page { min-height: var(--app-h); background: var(--paper); padding: 18px clamp(16px, 6vw, 72px) 48px; } /* 827：--app-h 不写 100vh（字号 zoom 超窗） */
-.tool-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.tool-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
 .back {
   font-size: 12.5px; color: var(--ink3); padding: 5px 12px;
   background: var(--paper2); border: 1px solid var(--line); border-radius: var(--r-s-hand);
@@ -373,7 +373,7 @@ async function exportPack(e: ModuleEntry) {
 .mod-sub code { font-size: 11.5px; color: var(--ink3); }
 .mod-empty { font-size: 12.5px; color: var(--ink4); font-family: var(--f-d); }
 
-.import-problems { margin: 0 0 12px; padding: 8px 10px 8px 24px; border: 1px solid var(--zs-t); background: var(--zs-t); border-radius: var(--r-s-hand); }
+.import-problems { margin: 0 0 12px; padding: 8px 8px 8px 24px; border: 1px solid var(--zs-t); background: var(--zs-t); border-radius: var(--r-s-hand); }
 .import-problems li { font-size: 12px; color: var(--zs-d); line-height: 1.6; }
 
 .mods { display: flex; flex-direction: column; gap: 12px; }
@@ -400,11 +400,11 @@ async function exportPack(e: ModuleEntry) {
 .mod--grey .m-state { color: var(--ink3); background: rgba(var(--ink-rgb), .08); }
 
 .m-desc { font-size: 12.5px; color: var(--ink2); margin-top: 6px; line-height: 1.6; }
-.m-fp { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 6px 0 0; font-size: 11px; color: var(--ink4); font-variant-numeric: tabular-nums; }
+.m-fp { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 8px 0 0; font-size: 11px; color: var(--ink4); font-variant-numeric: tabular-nums; }
 .m-fp-dot { color: var(--line2); }
 .scan-toggle { font-size: 11px; color: var(--ink3); padding: 1px 8px; border: 1px solid var(--line2); border-radius: var(--r-pill); background: var(--paper2); }
 .scan-toggle:disabled { cursor: default; color: var(--sl); border-color: var(--sl-t); background: var(--sl-t); opacity: 1; }
-.scan-list { margin: 6px 0 0; padding-left: 16px; }
+.scan-list { margin: 8px 0 0; padding-left: 16px; }
 .scan-list li { font-size: 11.5px; color: var(--ink3); line-height: 1.6; }
 .caps { margin: 8px 0 0; padding-left: 16px; display: flex; flex-direction: column; gap: 3px; }
 .caps li { font-size: 12px; color: var(--ink3); line-height: 1.5; }
