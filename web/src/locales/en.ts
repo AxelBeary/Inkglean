@@ -235,7 +235,9 @@ export default {
     ADDON_TEMPLATE_INVALID_PRICING: 'Invalid pricing mode',
     STYLE_ADDON_NOT_FOUND: 'Style addon not found',
     STYLE_ADDON_DUPLICATE: 'This addon is already imported into this style',
-    SIZE_OVERRIDE_NOT_FOUND: 'Size override not found'
+    SIZE_OVERRIDE_NOT_FOUND: 'Size override not found',
+    // v81: work-in-progress images (wrong-order id / unknown id -> 404)
+    PREVIEW_NOT_FOUND: 'Work in progress image not found or does not belong to this order'
   },
   pref: {
     theme: 'Theme', base: 'Base', accent: 'Accent', auto: 'Auto', light: 'Light', dark: 'Dark',
@@ -1031,6 +1033,33 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     receiptPaid: 'Paid',
     receiptRemaining: 'Remaining',
     receiptNote: 'Per-payment details are coming soon.'
+  },
+
+  // v81: work-in-progress images (client display + artist management; key prefix preview.)
+  preview: {
+    title: 'Work in progress',
+    alt: 'Work in progress image',
+    allowClient: 'Let the client see work in progress',
+    allowClientHint: 'Only images marked client-visible appear on the client tracking page',
+    upload: 'Upload preview',
+    uploading: 'Uploading…',
+    empty: 'No work-in-progress images yet',
+    captionPlaceholder: 'A short note (client-visible)',
+    visibleToClient: 'Client can see',
+    visibleSelf: 'Only me',
+    saved: 'Saved',
+    settingsSaved: 'Settings saved',
+    loadFailed: 'Failed to load work-in-progress images'
+  },
+  // v81: free revision allowance (0 = unlimited, see the contract's semantics table; key prefix revision.)
+  revision: {
+    quotaUsed: 'Free revisions: {used} / {limit} used',
+    quotaExhausted: 'Free revisions used up — further changes can be agreed with the artist',
+    limitLabel: 'Free revisions included',
+    unlimitedHint: '0 = unlimited',
+    usedCount: '{used} used',
+    overLimit: 'This order already used {used}/{limit} free revisions — this change goes beyond them',
+    invalidLimit: 'Enter a whole number from 0 to 99'
   },
 
   // F4: guestbook (client-facing message wall, shared component TplGuestbook)

@@ -27,6 +27,11 @@
       <el-form-item :label="$t('styleManage.sizeDaysLabel')">
         <el-input-number v-model="sizeForm.work_days" :min="1" :max="365" style="width: 100%" />
       </el-form-item>
+      <!-- 迁移 v81: 档位含几次免费修改（0 = 不限；下单时快照进订单，之后改档位不影响已有订单） -->
+      <el-form-item :label="$t('revision.limitLabel')">
+        <el-input-number v-model="sizeForm.free_revisions" :min="0" :max="99" :step="1" :precision="0" style="width: 100%" />
+        <p class="form-hint">{{ $t('revision.unlimitedHint') }}</p>
+      </el-form-item>
     </el-form>
     <template #footer>
       <el-button @click="visible = false">{{ $t('common.cancel') }}</el-button>
@@ -69,6 +74,8 @@ interface SizeEditTarget {
   image_artwork_id?: number | null
   description?: string | null
   work_days?: number | null
+  /** 该档位含几次免费修改（0 = 不限） */
+  free_revisions?: number | null
 }
 /** 作品集条目（挑选尺寸图用） */
 interface ArtworkLite {
@@ -97,7 +104,7 @@ const visible = computed({
 const editingSizeId = computed(() => props.size?.id ?? null)
 const sizeSaving = ref(false)
 const sizeUploading = ref(false)
-const sizeForm = reactive({ name: '', base_price: 0, image: '', image_artwork_id: null as number | null, description: '', work_days: null as number | null })
+const sizeForm = reactive({ name: '', base_price: 0, image: '', image_artwork_id: null as number | null, description: '', work_days: null as number | null, free_revisions: 0 })
 const pickDialogVisible = ref(false)
 
 /** 弹窗内当前预览图 */
@@ -120,10 +127,11 @@ watch(() => props.modelValue, (open) => {
       image: size.image || '',
       image_artwork_id: size.image_artwork_id || null,
       description: size.description || '',
-      work_days: size.work_days ?? null
+      work_days: size.work_days ?? null,
+      free_revisions: size.free_revisions ?? 0
     })
   } else {
-    Object.assign(sizeForm, { name: '', base_price: 0, image: '', image_artwork_id: null, description: '', work_days: null })
+    Object.assign(sizeForm, { name: '', base_price: 0, image: '', image_artwork_id: null, description: '', work_days: null, free_revisions: 0 })
   }
 })
 
@@ -216,13 +224,16 @@ async function saveSize() {
       base_price: number
       description: string | null
       work_days: number | null
+      free_revisions: number
       image_artwork_id?: number | null
       image?: string | null
     } = {
       name: sizeForm.name.trim(),
       base_price: sizeForm.base_price,
       description: sizeForm.description.trim() || null,
-      work_days: sizeForm.work_days
+      work_days: sizeForm.work_days,
+      // 0 = 不限（契约语义）；空值按 0 落库，避免前端留 null 让后端 default 生效前语义漂
+      free_revisions: sizeForm.free_revisions ?? 0
     }
     if (sizeForm.image_artwork_id) payload.image_artwork_id = sizeForm.image_artwork_id
     else payload.image = sizeForm.image || null

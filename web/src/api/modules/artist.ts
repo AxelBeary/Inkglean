@@ -1,9 +1,9 @@
 // 端点方法 · 画师后台端点（profile/作品/折扣/留言/散单/订单/队列/仪表盘/画风增项/工具）（F-09 自 web/src/api/index.ts 按域纯搬移拆分，端点 URL / 请求方法 / 参数名 / 注释一字未改）
 // 由 api/index.ts（barrel）再导出，调用方 import 路径不变
 
-import { getJson, postJson, putJson, deleteJson } from './http'
+import { getJson, postJson, putJson, patchJson, deleteJson } from './http'
 import type { RequestConfig } from './http'
-import type { PagedResult, HasMoreResult, PublicArtistDTO, AuthMeResult, Artwork, ArtworkWithTags, ArtworkWithWarning, PublishArtworkResult, SetArtworkTagsResult, DeleteArtworkResult, CommissionRule, GuestbookMessage, SimpleSuccessResult, WorkflowStageDTO, WorkflowResult, SavePaymentResult, DeleteStageResult, GreetingResult, DiscountCode, DiscountCodesResult, ToggleDiscountResult, DeleteDiscountResult, AddonTemplate, DeleteAddonTemplateResult, StyleSize, StyleAddonWithTemplate, ArtStyleWithDetails, SizeAddonOverride, SizeAddonOverrideBatchItem, DeletedResult, OrderStatus, OrderPriority, OrderDetail, EnrichedOrderDetail, DeliverResult, ArtistOrderItem, QueueOrderItem, ArtistOrdersResult, OrderLogsResult, PaymentsResult, AddPaymentResult, RefreshSignaturesResult, ArtistStats, CustomerTokenResult, RevenueResult, TodoResult, ScheduleResult, DashboardPrefs, ActivityResult, ArtistTrackingResult, ToolsClientsResult, ToolsClientResult, SaveToolsClientResult, OkResult, ReturningClientsResult, StandaloneIncomesResult, CreateStandaloneIncomeResult, IncomeSummaryResult, ArtistProfileResult, VersionedOptions, UpdateStatusOptions, PublishArtworkRequest, CreateDiscountCodeRequest, UpdateDiscountCodeRequest, CreateManualOrderRequest, AddNoteRequest, ExtraItemRequest, AddReferenceRequest, SetFocusImageRequest, UpdatePriceRequest, AddPaymentRequest, DeliverRequest, SavePaymentNode, AddonTemplateInput, ArtStyleInput, StyleSizeInput, StyleAddonSetItem, SizeOverrideSetItem, SaveToolsClientRequest, CreateStandaloneIncomeRequest, OnboardingState, PlatformAnnouncement } from '../types'
+import type { PagedResult, HasMoreResult, PublicArtistDTO, AuthMeResult, Artwork, ArtworkWithTags, ArtworkWithWarning, PublishArtworkResult, SetArtworkTagsResult, DeleteArtworkResult, CommissionRule, GuestbookMessage, SimpleSuccessResult, WorkflowStageDTO, WorkflowResult, SavePaymentResult, DeleteStageResult, GreetingResult, DiscountCode, DiscountCodesResult, ToggleDiscountResult, DeleteDiscountResult, AddonTemplate, DeleteAddonTemplateResult, StyleSize, StyleAddonWithTemplate, ArtStyleWithDetails, SizeAddonOverride, SizeAddonOverrideBatchItem, DeletedResult, OrderStatus, OrderPriority, OrderDetail, EnrichedOrderDetail, DeliverResult, ArtistOrderItem, QueueOrderItem, ArtistOrdersResult, OrderLogsResult, PaymentsResult, AddPaymentResult, RefreshSignaturesResult, ArtistStats, CustomerTokenResult, RevenueResult, TodoResult, ScheduleResult, DashboardPrefs, ActivityResult, ArtistTrackingResult, ToolsClientsResult, ToolsClientResult, SaveToolsClientResult, OkResult, ReturningClientsResult, StandaloneIncomesResult, CreateStandaloneIncomeResult, IncomeSummaryResult, ArtistProfileResult, VersionedOptions, UpdateStatusOptions, PublishArtworkRequest, CreateDiscountCodeRequest, UpdateDiscountCodeRequest, CreateManualOrderRequest, AddNoteRequest, ExtraItemRequest, AddReferenceRequest, SetFocusImageRequest, UpdatePriceRequest, AddPaymentRequest, DeliverRequest, SavePaymentNode, AddonTemplateInput, ArtStyleInput, StyleSizeInput, StyleAddonSetItem, SizeOverrideSetItem, SaveToolsClientRequest, CreateStandaloneIncomeRequest, OnboardingState, PlatformAnnouncement, OrderPreviewsResult, ArtistOrderPreview, OrderPreviewSettings, CreateOrderPreviewRequest, UpdateOrderPreviewRequest } from '../types'
 // DTO 类型统一从 '../types'（barrel）按名取用；inline import('../types') 为原 import('./types') 的路径等价改写
 
 /** getAllOrders in-flight 去重槽（同 q 共享一次全量分页循环） */
@@ -151,6 +151,17 @@ export const artistApi = {
     postJson(`/artist/orders/${id}/references`, data),
   deleteReference: (id: number, refId: number): Promise<EnrichedOrderDetail> =>
     deleteJson(`/artist/orders/${id}/references/${refId}`),
+  // 迁移 v81 过程稿（契约 _CONTRACT.md §三）：上传走 uploadApi.preview 拿 filePath，再在这里登记；
+  // 可见性/备注是单图级 PATCH，订单级开关与免费修改额度合在 preview-settings
+  getOrderPreviews: (id: number): Promise<OrderPreviewsResult> => getJson(`/artist/orders/${id}/previews`),
+  addOrderPreview: (id: number, data: CreateOrderPreviewRequest): Promise<ArtistOrderPreview> =>
+    postJson(`/artist/orders/${id}/previews`, data),
+  updateOrderPreview: (id: number, previewId: number, data: UpdateOrderPreviewRequest): Promise<ArtistOrderPreview> =>
+    patchJson(`/artist/orders/${id}/previews/${previewId}`, data),
+  deleteOrderPreview: (id: number, previewId: number): Promise<DeletedResult> =>
+    deleteJson(`/artist/orders/${id}/previews/${previewId}`),
+  updateOrderPreviewSettings: (id: number, data: Partial<OrderPreviewSettings>): Promise<OrderPreviewSettings> =>
+    patchJson(`/artist/orders/${id}/preview-settings`, data),
   // R4: 焦点图（off/small/large）
   setFocusImage: (id: number, data: SetFocusImageRequest): Promise<EnrichedOrderDetail> =>
     putJson(`/artist/orders/${id}/focus-image`, data),

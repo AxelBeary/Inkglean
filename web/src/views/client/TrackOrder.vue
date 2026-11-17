@@ -130,6 +130,24 @@
           <p class="timeline-hint" v-else-if="order.createdAt">{{ $t('track.timeline.orderedAt') }} {{ formatDateTime(order.createdAt) }}</p>
         </div>
 
+        <!-- 迁移 v81：免费修改次数（limit=0 = 不限 → 整块不渲染，存量订单零变化；
+             剩余为 0 时只用中性灰提示，不做红色告警——客户没有发起修改的入口，警告无意义且吓人） -->
+        <div v-if="revisionQuota && revisionQuota.limit > 0" class="revision-quota">
+          <span class="revision-quota-text">{{ $t('revision.quotaUsed', { used: revisionQuota.used, limit: revisionQuota.limit }) }}</span>
+          <span v-if="revisionQuota.remaining === 0" class="revision-quota-note">{{ $t('revision.quotaExhausted') }}</span>
+        </div>
+
+        <!-- 迁移 v81：过程稿（时间倒序平铺、不按阶段分组——用户已定；服务端只下发客户可见的图，空则整块不渲染） -->
+        <div v-if="sortedPreviews.length" class="preview-block">
+          <h4 class="preview-title">{{ $t('preview.title') }}</h4>
+          <div class="preview-refs">
+            <div v-for="p in sortedPreviews" :key="p.id" class="preview-ref">
+              <img :src="p.url" class="preview-ref-img" :alt="$t('preview.alt')" />
+              <p v-if="p.caption" class="preview-ref-caption">{{ p.caption }}</p>
+            </div>
+          </div>
+        </div>
+
         <!-- U1: 需求回顾（后端补字段前不显示，v-if 守卫） -->
         <div v-if="order.description || order.references?.length" class="brief-block">
           <h4 class="brief-title">{{ $t('track.briefTitle') }}</h4>
@@ -329,6 +347,19 @@ const stageProgress = computed(() => {
     total: sorted.length,
     pct: Math.round(((idx + 1) / sorted.length) * 100)
   }
+})
+
+// 迁移 v81: 免费修改配额（后端派生自修改记录，前端只展示，不自数）
+const revisionQuota = computed(() => order.value?.revisionQuota || null)
+// 迁移 v81: 过程稿时间倒序——契约只约定「时间倒序」而未钉服务端排序，这里兜住；
+// 同刻（并发上传）按 id 倒序，保证渲染顺序稳定不跳
+const sortedPreviews = computed(() => {
+  const list = order.value?.previews || []
+  return [...list].sort((a, b) => {
+    const ta = Date.parse(a.createdAt) || 0
+    const tb = Date.parse(b.createdAt) || 0
+    return tb - ta || b.id - a.id
+  })
 })
 
 // B7: 额度池——客户端付款进度（四项数据 + 进度条）
@@ -649,6 +680,31 @@ html:not(.dark) .track-page { --el-input-placeholder-color: #6c6e72; }
   cursor: pointer; transition: color var(--dur-fast), background var(--dur-fast);
 }
 .link-delete-btn:hover { color: var(--el-color-danger); background: var(--el-fill-color-light); }
+
+/* ─── 迁移 v81: 免费修改次数（中性灰，不用警示色） ─── */
+.revision-quota {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border-color);
+}
+.revision-quota-text { font-size: 13px; color: var(--text-primary); }
+.revision-quota-note { font-size: 12px; color: var(--text-secondary); }
+
+/* ─── 迁移 v81: 过程稿（形态对齐 .brief-refs/.brief-ref-img，独立成块） ─── */
+.preview-block {
+  margin-top: 20px; padding: 14px 16px; border-radius: 10px;
+  background: var(--el-fill-color-light);
+}
+.preview-title { margin-bottom: 10px; color: var(--text-primary); font-size: 14px; }
+.preview-refs { display: flex; flex-wrap: wrap; gap: 8px; }
+.preview-ref { display: flex; flex-direction: column; gap: 4px; width: 80px; }
+.preview-ref-caption {
+  margin: 0; font-size: 12px; line-height: 1.5;
+  color: var(--text-secondary); word-break: break-word;
+}
+.preview-ref-img {
+  width: 80px; height: 80px; object-fit: cover; border-radius: 8px;
+  border: 1px solid var(--border-color); background: var(--bg-page);
+}
 
 /* ─── U1: 需求回顾 ─── */
 .brief-block {
