@@ -184,6 +184,10 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
         fileName: d.original_name,
         url: ''
       })),
+      // v81: 过程稿（订单级开关关 → 一律 []；单图 visible=0 只在画师侧可见）
+      previews: orderGalleryService.getClientPreviews(order.id),
+      // v81: 免费修改次数（limit=0 → 不限，remaining=null，客户侧不显示配额徽标）
+      revisionQuota: orderGalleryService.getRevisionQuota(order),
       // SPEC-003 §5.5: 客户可见附加项（仅 name + priceCents）+ 最终价格 + 付款节点
       extraItems: (order.extraItems || []).map((item: { name: string; price_cents: number }) => ({
         name: item.name,

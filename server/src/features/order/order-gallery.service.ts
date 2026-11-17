@@ -2,13 +2,15 @@ import crypto from 'crypto'
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import { getOrder, compactQueue, tryAutoPromote, assertStatusTransition, updateOrderChecked, formatCents } from './order.service.js'
-import { logActivity } from './activity-log.service.js'
+import { getRevisionRecords, logActivity } from './activity-log.service.js'
 import { createArtwork } from '../artist/artist.service.js'
 import type { OrderDetail } from '../../types/entities.js'
 import { resolvePriceCents } from '../../utils/price.js'
 import { copyFileSync, existsSync, mkdirSync, statSync, unlinkSync } from 'fs'
 import { join, resolve, sep, extname, basename } from 'path'
 import { nanoid } from 'nanoid'
+import { signedUrl } from '../../shared/file-sign.js'
+import { sanitizeStoredText } from '../../shared/sanitize.js'
 
 // ============================================
 // 订单图库服务（从 order.service.js 拆出，v0.16）
@@ -521,4 +523,166 @@ export function repermitDeliverable(orderId: number, fileId: number): void {
     db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
       .run(orderId, `🔓 画师已再许可交付文件「${d.original_name}」的下载`)
   })()
+}
+
+// ============================================
+// v81: 过程稿（画师边画边给客户看）+ 免费修改次数
+// 语义见 _CONTRACT 与 v81 迁移注释；已用次数一律由 getRevisionRecords 派生，不落计数器
+// ============================================
+
+/** order_previews 行（DB 原样，snake_case） */
+interface OrderPreviewRow {
+  id: number
+  order_id: number
+  file_path: string
+  caption: string | null
+  visible: number
+  created_at: string
+}
+
+/** 画师视角过程稿（含 visible=0 的私稿；契约 GET /api/artist/orders/:id/previews） */
+export interface PreviewRow {
+  id: number
+  url: string
+  caption: string | null
+  visible: boolean
+  createdAt: string
+}
+
+/** 客户视角过程稿（契约 track.previews：只含开关开 + 单图 visible=1 的图） */
+export interface ClientPreview {
+  id: number
+  url: string
+  caption: string | null
+  createdAt: string
+}
+
+function toClientPreview(row: OrderPreviewRow): ClientPreview {
+  // 签名 URL 现签（previews/ 属私有目录，裸路径会被 /uploads 钩子 403）
+  return { id: row.id, url: signedUrl(row.file_path), caption: row.caption, createdAt: row.created_at }
+}
+
+function toPreviewRow(row: OrderPreviewRow): PreviewRow {
+  return { ...toClientPreview(row), visible: row.visible === 1 }
+}
+
+/**
+ * 过程稿路径校验（契约 §3 + 归属）：previews/{artistId}/ 前缀 + 拒绝穿越 + 文件真实存在。
+ * 与 assertReferenceFileExists 同一套思路，但前缀带到画师目录——交付物走的是
+ * `deliverables/{artistId}/` 同款归属口径，过程稿上传本来就落在 `previews/{artistId}/`，
+ * 这个归属校验是白赚的（只放进「前缀里有 artistId」这一层，服务层签名拿得到它）。
+ */
+function assertPreviewFilePath(artistId: number, filePath: string): void {
+  if (filePath.includes('..') || !filePath.startsWith(`previews/${artistId}/`)) {
+    throw new AppError(E.ILLEGAL_PATH)
+  }
+  const uploadDir = resolve(process.env.UPLOAD_DIR || './uploads')
+  const abs = resolve(join(uploadDir, filePath))
+  if (!abs.startsWith(uploadDir + sep) || !existsSync(abs) || !statSync(abs).isFile()) {
+    throw new AppError(E.ILLEGAL_PATH)
+  }
+}
+
+/**
+ * 添加过程稿，返回新行 id（路由层据此从列表视图回读同一份形状）
+ * artistId 只用于归属校验（参数序对齐 publishArtwork：订单 → 画师 → 内容），
+ * 调用方必须先确认订单属于该画师（路由层 requireOwnOrder 已做，此处只做路径归属）
+ * caption 是客户可见文本——与订单备注同口径过 sanitizeStoredText，防存进 HTML/脚本
+ */
+export function addPreview(orderId: number, artistId: number, filePath: string, caption: string | null): number {
+  assertPreviewFilePath(artistId, filePath)
+  const result = db.prepare('INSERT INTO order_previews (order_id, file_path, caption) VALUES (?, ?, ?)')
+    .run(orderId, filePath, sanitizeStoredText(caption) || null)
+  return Number(result.lastInsertRowid)
+}
+
+/** 画师视角过程稿列表（含 visible=0；时间倒序，新图在前） */
+export function listPreviews(orderId: number): PreviewRow[] {
+  const rows = db.prepare(
+    'SELECT * FROM order_previews WHERE order_id = ? ORDER BY created_at DESC, id DESC'
+  ).all(orderId) as OrderPreviewRow[]
+  return rows.map(toPreviewRow)
+}
+
+/**
+ * 单图更新（visible / caption）——两字段各自可选，一条 UPDATE 落库避免半态
+ * WHERE 带 order_id：跨单 id 命中 0 行 → PREVIEW_NOT_FOUND（不泄露他人订单的图）
+ */
+export function updatePreview(orderId: number, previewId: number, patch: { visible?: boolean; caption?: string | null }): void {
+  const sets: string[] = []
+  const params: Array<string | number | null> = []
+  if (patch.visible !== undefined) {
+    sets.push('visible = ?')
+    params.push(patch.visible ? 1 : 0)
+  }
+  if (patch.caption !== undefined) {
+    sets.push('caption = ?')
+    params.push(sanitizeStoredText(patch.caption) || null)
+  }
+  if (sets.length === 0) return
+  const r = db.prepare(`UPDATE order_previews SET ${sets.join(', ')} WHERE id = ? AND order_id = ?`)
+    .run(...params, previewId, orderId)
+  if (r.changes === 0) throw new AppError(E.PREVIEW_NOT_FOUND, 404)
+}
+
+/**
+ * 删过程稿行（**不删磁盘文件**：与 deliverables 一致，磁盘由 gcUploads 黑名单扫描兜底回收；
+ * 在这里删文件会让「误删后可恢复」与「交付/参考图」两条路径口径分叉）
+ */
+export function removePreview(orderId: number, previewId: number): void {
+  const r = db.prepare('DELETE FROM order_previews WHERE id = ? AND order_id = ?').run(previewId, orderId)
+  if (r.changes === 0) throw new AppError(E.PREVIEW_NOT_FOUND, 404)
+}
+
+/**
+ * 订单级设置：过程稿对客户可见开关 + 免费修改次数
+ * freeRevisionLimit 只收 0..99 整数——0 = 不限（不计数、客户不显示徽标），
+ * 上限 99 只为挡住「1e9 次免费修改」这类无意义值，不是业务硬约束。
+ * orders 直写路径一律推进 version（F5 版本链：带 version 的调用方能感知一切变更）
+ */
+export function updatePreviewSettings(orderId: number, patch: { previewVisibleToClient?: boolean; freeRevisionLimit?: number }): void {
+  const sets: string[] = []
+  const params: number[] = []
+  if (patch.previewVisibleToClient !== undefined) {
+    sets.push('preview_visible_to_client = ?')
+    params.push(patch.previewVisibleToClient ? 1 : 0)
+  }
+  if (patch.freeRevisionLimit !== undefined) {
+    const limit = patch.freeRevisionLimit
+    if (!Number.isInteger(limit) || limit < 0 || limit > 99) {
+      throw new AppError(E.VALIDATION, 400, { field: 'freeRevisionLimit', message: '免费修改次数须为 0..99 的整数（0 = 不限）' })
+    }
+    sets.push('free_revision_limit = ?')
+    params.push(limit)
+  }
+  if (sets.length === 0) return
+  db.prepare(`UPDATE orders SET ${sets.join(', ')}, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+    .run(...params, orderId)
+}
+
+/**
+ * 客户视角过程稿（契约 §2 track.previews）
+ * 双层开关：订单级 preview_visible_to_client=0 → 一张都不下发（连"有几张"都不泄露）；
+ * 单图 visible=0 → 该图只在画师侧可见。
+ */
+export function getClientPreviews(orderId: number): ClientPreview[] {
+  const order = db.prepare('SELECT preview_visible_to_client FROM orders WHERE id = ?')
+    .get(orderId) as { preview_visible_to_client: number } | undefined
+  if (!order?.preview_visible_to_client) return []
+  const rows = db.prepare(
+    'SELECT * FROM order_previews WHERE order_id = ? AND visible = 1 ORDER BY created_at DESC, id DESC'
+  ).all(orderId) as OrderPreviewRow[]
+  return rows.map(toClientPreview)
+}
+
+/**
+ * 修改次数配额（契约 §2 revisionQuota）
+ * used 一律取 getRevisionRecords()——它是修改记录的唯一真相（status_change→revision 排除 undo
+ * + 阶段打回），另立计数器必然与它漂。limit=0 → 不限：remaining 为 null，客户侧不显示配额徽标。
+ * 超用不出现负数（max(0, ...)）：已用 5 / 限 3 时只显示 0，具体超了几次由前端文案兜。
+ */
+export function getRevisionQuota(order: OrderDetail): { limit: number; used: number; remaining: number | null } {
+  const limit = order.free_revision_limit ?? 0
+  const used = getRevisionRecords(order.id).length
+  return { limit, used, remaining: limit > 0 ? Math.max(0, limit - used) : null }
 }

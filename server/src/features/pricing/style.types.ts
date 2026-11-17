@@ -29,6 +29,8 @@ export interface StyleSize {
   work_days: number | null
   // v49 (REQ-036): 尺寸三态 available/showcase/closed
   display_status: string
+  // v81: 该档位含 N 次免费修改（0 = 不限），下单时快照进 orders.free_revision_limit
+  free_revisions: number
 }
 
 export interface SizeAddonOverride {

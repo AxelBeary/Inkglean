@@ -169,7 +169,9 @@ export default async function styleRoutes(fastify: FastifyInstance) {
           description: { type: ['string', 'null'], maxLength: 500 },
           work_days: { type: ['integer', 'null'], minimum: 1, maximum: 365 },
           // v49 (REQ-036): 尺寸三态
-          display_status: { type: 'string', enum: ['available', 'showcase', 'closed'], default: 'available' }
+          display_status: { type: 'string', enum: ['available', 'showcase', 'closed'], default: 'available' },
+          // v81: 该档位含 N 次免费修改（0 = 不限）
+          free_revisions: { type: 'integer', minimum: 0, maximum: 99 }
         },
         additionalProperties: false
       }
@@ -195,7 +197,9 @@ export default async function styleRoutes(fastify: FastifyInstance) {
           description: { type: ['string', 'null'], maxLength: 500 },
           work_days: { type: ['integer', 'null'], minimum: 1, maximum: 365 },
           // v49 (REQ-036): 尺寸三态
-          display_status: { type: 'string', enum: ['available', 'showcase', 'closed'] }
+          display_status: { type: 'string', enum: ['available', 'showcase', 'closed'] },
+          // v81: 该档位含 N 次免费修改（0 = 不限）；只改默认值，历史订单是快照
+          free_revisions: { type: 'integer', minimum: 0, maximum: 99 }
         },
         additionalProperties: false
       }

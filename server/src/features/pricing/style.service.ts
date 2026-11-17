@@ -203,6 +203,18 @@ interface CreateStyleSizeInput {
   description?: string | null
   work_days?: number | null
   display_status?: string
+  free_revisions?: number
+}
+
+/**
+ * v81: 档位免费修改次数取值校验（0..99 整数，0 = 不限）
+ * 路由 schema 已拦一遍，服务层兑底——本函数也被将来可能的批量/导入路径复用，
+ * 不能把「合法值」这件事只托在 HTTP 层。
+ */
+function assertFreeRevisions(value: number): void {
+  if (!Number.isInteger(value) || value < 0 || value > 99) {
+    throw new AppError(E.VALIDATION, 400, { field: 'free_revisions', hint: 'free_revisions 只能是 0..99 的整数（0 = 不限）' })
+  }
 }
 
 /**
@@ -253,14 +265,19 @@ export function createStyleSize(artistId: number, styleId: number, input: Create
     'SELECT MAX(sort_order) AS m FROM style_sizes WHERE art_style_id = ?'
   ).get(styleId) as { m: number | null }).m ?? -1
 
+  // v81: 未传 = 0（不限），与迁移默认值同义
+  const freeRevisions = input.free_revisions ?? 0
+  assertFreeRevisions(freeRevisions)
+
   const result = db.prepare(`
-    INSERT INTO style_sizes (art_style_id, name, base_price, sort_order, image, image_artwork_id, description, work_days, display_status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO style_sizes (art_style_id, name, base_price, sort_order, image, image_artwork_id, description, work_days, display_status, free_revisions)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     styleId, sanitizeStoredText(input.name).trim(), input.base_price, maxOrder + 1,
     img.image, img.image_artwork_id,
     sanitizeStoredText(input.description) || null, input.work_days ?? null,
-    input.display_status && VALID_DISPLAY_STATUS.includes(input.display_status as typeof VALID_DISPLAY_STATUS[number]) ? input.display_status : 'available'
+    input.display_status && VALID_DISPLAY_STATUS.includes(input.display_status as typeof VALID_DISPLAY_STATUS[number]) ? input.display_status : 'available',
+    freeRevisions
   )
 
   return db.prepare('SELECT * FROM style_sizes WHERE id = ?').get(Number(result.lastInsertRowid)) as StyleSize
@@ -275,6 +292,7 @@ interface UpdateStyleSizeFields {
   description?: string | null
   work_days?: number | null
   display_status?: string
+  free_revisions?: number
 }
 
 /** 更新尺寸 */
@@ -315,6 +333,11 @@ export function updateStyleSize(artistId: number, styleId: number, sizeId: numbe
         throw new AppError(E.VALIDATION, 400, { field: 'display_status', hint: 'display_status 只能是 available/showcase/closed' })
       }
       db.prepare('UPDATE style_sizes SET display_status = ? WHERE id = ?').run(fields.display_status, sizeId)
+    }
+    // v81: 只改档位默认值——已下单订单的 free_revision_limit 是快照，不回头改
+    if (fields.free_revisions !== undefined) {
+      assertFreeRevisions(fields.free_revisions)
+      db.prepare('UPDATE style_sizes SET free_revisions = ? WHERE id = ?').run(fields.free_revisions, sizeId)
     }
 
     return db.prepare('SELECT * FROM style_sizes WHERE id = ?').get(sizeId) as StyleSize
