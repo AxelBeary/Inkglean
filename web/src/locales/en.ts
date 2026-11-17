@@ -956,6 +956,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     multOptionalHintInParens: ' (optional)',
     sizeShowcaseTag: 'Showcase · not bookable',
     sizeShowcaseBlocked: 'This size is on display and not bookable right now',
+    // v81: free revisions included in this size (0 = unlimited; both states shown — pre-sale info, not a warning)
+    freeRevisionsIncluded: 'Includes {n} free revisions',
+    freeRevisionsUnlimited: 'Unlimited free revisions',
     pctOfBase: 'of base price',
     pctOfBaseInParens: ' (of base price)',
     priceCalcFailed: 'Price calculation failed — please try again later',

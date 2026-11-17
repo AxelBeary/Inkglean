@@ -547,6 +547,18 @@ describe('公开配置 (getPublicStyles)', () => {
     const pubPerson = result[0].sizes[0].addons.find(a => a.category === 'add')!
     expect(pubPerson.price).toBe(120)
   })
+
+  it('TC-PUB-06: 档位 free_revisions 随公开配置下发（下单页「含 N 次免费修改」的售前数据源）', () => {
+    const style = styleService.createArtStyle(artist.id, { name: '日系' })
+    styleService.createStyleSize(artist.id, style.id, { name: '头像', base_price: 200, free_revisions: 3 })
+    styleService.createStyleSize(artist.id, style.id, { name: '半身', base_price: 400 })
+
+    const sizes = styleService.getPublicStyles(artist.id)[0].sizes
+    const byName = new Map(sizes.map(s => [s.name, s]))
+    expect(byName.get('头像')!.free_revisions).toBe(3)
+    // 未设置 → 建列默认 0（= 不限），前端据此显示「免费修改次数不限」
+    expect(byName.get('半身')!.free_revisions).toBe(0)
+  })
 })
 
 // ─── 路由层集成测试 ───

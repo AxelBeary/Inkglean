@@ -182,6 +182,8 @@ export interface PublicStyleSize {
   artwork_image_path: string | null
   description: string | null
   work_days: number | null
+  /** v81: 本档位含几次免费修改（0 = 不限）。下单页售前就要看得见，下单时快照进 orders.free_revision_limit */
+  free_revisions: number
   display_status: string
   addons: PublicStyleAddon[]
 }
@@ -332,6 +334,7 @@ export function getPublicStyles(artistId: number): PublicArtStyle[] {
         artwork_image_path: size.image_artwork_id != null ? (artworkPathMap.get(size.image_artwork_id) ?? null) : null,
         description: size.description,
         work_days: size.work_days,
+        free_revisions: size.free_revisions,
         display_status: size.display_status,
         addons
       }

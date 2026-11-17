@@ -140,7 +140,7 @@ describe('815 P-1 公开画风批量预取', () => {
     expect(result[0].sizes[0].addons.find(a => a.category === 'add')!.price).toBe(200)
     expect(result[1].sizes[0].addons.find(a => a.category === 'add')).toBeUndefined()
     expect(Object.keys(result[0].sizes[0]).sort()).toEqual([
-      'addons', 'artwork_image_path', 'base_price', 'description', 'display_status',
+      'addons', 'artwork_image_path', 'base_price', 'description', 'display_status', 'free_revisions',
       'id', 'image', 'image_artwork_id', 'name', 'sort_order', 'work_days'
     ])
   })

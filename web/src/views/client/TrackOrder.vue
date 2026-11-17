@@ -260,6 +260,7 @@ import { formatDateTime } from '../../utils/datetime'
 import { formatCents } from '../../utils/money'
 import { ORDER_STATUS_TYPE } from '../../constants/order'
 import { confirmOneTimeDownload, downloadOneTimeFile } from '../../composables/useOneTimeDownload'
+import { useSignatureRefresh } from '../../composables/useSignatureRefresh'
 import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
 import OrderTimeline from '../../components/shared/OrderTimeline.vue'
 import { usePalette } from '../../composables/usePalette'
@@ -575,6 +576,63 @@ function resetSearch() {
   searchError.value = false
   linkInput.value = ''
 }
+
+// ─── 停留续签 ───
+// 签名 TTL 5 分钟（server/src/shared/file-sign.ts FILE_TTL_MS），而本页只在 onMounted 取一次数据——
+// 客户停留超过 5 分钟后参考图/过程稿全部 403。复用画师端同一套 composable（3 分钟一轮 + 回前台补刷 +
+// 防重入 + 失败静默），只把端点换成客户侧（身份是订单令牌，画师端点要登录态用不了）。
+
+/** 从签名 URL 取出存储路径（/uploads/<path>?sig=... → <path>）；非上传 URL 返回 null */
+function uploadedPathFromUrl(url: string): string | null {
+  const matched = /^\/uploads\/([^?#]+)/.exec(url)
+  return matched ? matched[1] : null
+}
+
+/** 参考图 URL（对象行取 .url；旧版字符串行取自身，与模板 `r.url || r` 同口径） */
+function referenceUrl(row: unknown): string {
+  if (typeof row === 'string') return row
+  const url = (row as { url?: unknown } | null)?.url
+  return typeof url === 'string' ? url : ''
+}
+
+/** 当前已渲染图片的路径（参考图 + 过程稿，去重）；空数组 = 本次无需续签 */
+function collectSignedPaths(): string[] {
+  const current = order.value
+  if (!current) return []
+  const paths = new Set<string>()
+  for (const ref of current.references || []) {
+    const path = uploadedPathFromUrl(referenceUrl(ref))
+    if (path) paths.add(path)
+  }
+  for (const preview of current.previews || []) {
+    const path = uploadedPathFromUrl(preview.url)
+    if (path) paths.add(path)
+  }
+  return [...paths]
+}
+
+/** 续签结果原地写回 url 字段（不整体替换 order——那会打断 search 的 seq 竞态守卫） */
+function applyRefreshedUrls(urls: Record<string, string>): void {
+  const current = order.value
+  if (!current) return
+  // 旧版字符串行没有可写字段，只更新对象行
+  const refs = (current.references || []) as unknown as Array<{ url?: string } | string>
+  for (const ref of refs) {
+    if (typeof ref === 'string') continue
+    const next = urls[uploadedPathFromUrl(referenceUrl(ref)) || '']
+    if (next) ref.url = next
+  }
+  for (const preview of current.previews || []) {
+    const next = urls[uploadedPathFromUrl(preview.url) || '']
+    if (next) preview.url = next
+  }
+}
+
+useSignatureRefresh({
+  collect: collectSignedPaths,
+  apply: applyRefreshedUrls,
+  request: (paths) => orderApi.refreshTrackSignatures(orderNo.value, token.value, paths)
+})
 
 // 支持从下单成功页跳转过来（?no=&token=）自动查询并保存
 onMounted(() => {

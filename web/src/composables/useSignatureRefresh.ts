@@ -4,7 +4,7 @@
  * 签名 URL 有效期 5 分钟（事实源 server/src/shared/file-sign.ts 的 FILE_TTL_MS，
  * 260830 审计 H-4 已从 15 分钟缩短），长停留页面图片会 403。
  * 本 composable 每 intervalMs（默认 3 分钟）收集当前页面所有裸路径，
- * 调 POST /api/artist/refresh-signatures 批量换新，静默写回响应式数据。
+ * 调换签端点（默认 POST /api/artist/refresh-signatures）批量换新，静默写回响应式数据。
  * G1 裁决（2026-09-27）：取候选 (a)+(c)——旧值（10 分钟间隔 / 8 分钟补刷阈）按 15 分钟 TTL
  * 设计，均已超过现行 5 分钟 TTL，页面停 5~10 分钟必裂图（仅靠 @error 兜底）；
  * 压间隔安全性已核（交接档 G1：限流 20 次/5min，双实例同开仅约 2.5 次→3 分钟间隔亦在限内）。
@@ -15,6 +15,10 @@
  *     apply: (urlMap) => { ... 把新 URL 写回 order ... },
  *   })
  *   // el-image @error="() => refreshNow(path)" 作为兜底（加载失败立即刷新该图）
+ *
+ * 客户查单页（TrackOrder）复用同一套定时/回前台/防重入逻辑，只把换签端点换成客户侧
+ * POST /api/orders/track/:orderNo/refresh-signatures（身份是订单令牌，画师端点用不了），
+ * 故 request 可注入；默认仍是画师端点，既有调用方零变化。
  *
  * BUG-5 修复（按图刷新，治本）：
  * - refreshNow(path) 接受出错图片的 path，只刷新该图——其他图 src 不变，
@@ -44,10 +48,12 @@ export const VISIBLE_REFRESH_THRESHOLD_MS = 2 * 60 * 1000
 // 整批超限会被 400 拒掉——长列表一次收集上百张图时全量刷新会整体失效，故按上限分片。
 export const SIGNATURE_REFRESH_BATCH_SIZE = 50
 
-export function useSignatureRefresh({ collect, apply, intervalMs = DEFAULT_INTERVAL_MS }: {
+export function useSignatureRefresh({ collect, apply, intervalMs = DEFAULT_INTERVAL_MS, request = (paths) => artistApi.refreshSignatures(paths) }: {
   collect: () => string[]
   apply: (urls: Record<string, string>) => void
   intervalMs?: number
+  /** 换签请求（默认画师端 refresh-signatures；客户查单页注入 track 版端点，响应同形 { urls }） */
+  request?: (paths: string[]) => Promise<{ urls: Record<string, string> }>
 }) {
   let refreshing = false
   let debounceTimer: number | null = null
@@ -78,7 +84,7 @@ export function useSignatureRefresh({ collect, apply, intervalMs = DEFAULT_INTER
       // #52-5: 按服务端上限分片、串行提交（并发会撞 refresh-sig 限流 20 次/5min）
       for (let i = 0; i < targets.length; i += SIGNATURE_REFRESH_BATCH_SIZE) {
         const chunk = targets.slice(i, i + SIGNATURE_REFRESH_BATCH_SIZE)
-        const { urls } = await artistApi.refreshSignatures(chunk)
+        const { urls } = await request(chunk)
         apply(urls)
         done = i + chunk.length
       }
