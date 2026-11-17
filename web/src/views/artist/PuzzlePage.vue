@@ -275,9 +275,14 @@ async function buildCanvas(imgs: PickImage[]) {
     const rowW = rowWidths[ri]
     const x0 = (canvasW - rowW) / 2
     const y = ri * (TARGET_H + GAP)
-    row.forEach((it, ci) => {
-      ctx.drawImage(it.el, x0 + ci * (it.w + GAP), y, it.w, TARGET_H)
-    })
+    // U090: 横坐标按前面每张的真实宽度游标累加。曾用 x0 + ci*(it.w+GAP)，
+    // 等于假设同行每张都与「当前这张」等宽——异宽是常态，窄后接宽会重叠、宽后接窄会留白；
+    // 而 canvasW 走的是真累加（rowWidths），于是画布尺寸对、内容错，导出成品破损且无报错。
+    let x = x0
+    for (const it of row) {
+      ctx.drawImage(it.el, x, y, it.w, TARGET_H)
+      x += it.w + GAP
+    }
   })
   return canvas
 }
