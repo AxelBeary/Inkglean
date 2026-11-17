@@ -172,6 +172,10 @@ CREATE TABLE IF NOT EXISTS orders (
   paid_total_cents INTEGER DEFAULT 0,
   discount_code_id INTEGER DEFAULT NULL,
   discount_amount_cents INTEGER DEFAULT 0,
+  -- v81 的两列（preview_visible_to_client / free_revision_limit）故意不在此声明：
+  -- v50 的 orders 重建按「当前列清单」抄进固定列定义的 orders_new，本表提前带新列会
+  -- 在 v50 处报「orders_new has no column named ...」。与 download_fail_total 同轨——
+  -- 新装库同样由 v81 迁移补齐（PRAGMA 守卫幂等），两路径结构仍一致。
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE,
@@ -245,6 +249,18 @@ CREATE TABLE IF NOT EXISTS deliverables (
   -- 260830 审计 H-4（v74）: 一次性下载签名 nonce——每次 download-start 签发换新、
   -- 画师再许可时清空；/uploads 钩子凭签名载荷与本列对账，令旧链接彻底失效
   download_nonce TEXT,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
+
+-- 订单过程稿表（v81）：画师边画边放的图，订单级开关（orders.preview_visible_to_client）
+-- + 单图开关（visible）双层决定客户看不看得见；删单级联删行，磁盘文件由 GC 黑名单扫描回收
+CREATE TABLE IF NOT EXISTS order_previews (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id INTEGER NOT NULL,
+  file_path TEXT NOT NULL,
+  caption TEXT DEFAULT NULL,
+  visible INTEGER NOT NULL DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
 
@@ -511,6 +527,8 @@ CREATE TABLE IF NOT EXISTS style_sizes (
   description TEXT DEFAULT NULL,
   work_days INTEGER DEFAULT NULL,
   display_status TEXT NOT NULL DEFAULT 'available' CHECK(display_status IN ('available','showcase','closed')),
+  -- v81: 该档位含 N 次免费修改（0=不限），下单时快照进 orders.free_revision_limit
+  free_revisions INTEGER NOT NULL DEFAULT 0,
   FOREIGN KEY (art_style_id) REFERENCES art_styles(id) ON DELETE CASCADE,
   FOREIGN KEY (image_artwork_id) REFERENCES artworks(id) ON DELETE SET NULL
 );
