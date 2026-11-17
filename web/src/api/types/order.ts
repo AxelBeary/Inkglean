@@ -178,7 +178,7 @@ export interface AddPaymentResult {
   installments: OrderInstallment[]
 }
 
-/** POST /artist/refresh-signatures 响应（R33） */
+/** POST /artist/refresh-signatures 响应（R33）；客户侧 POST /orders/track/:orderNo/refresh-signatures 同形 */
 export interface RefreshSignaturesResult {
   urls: Record<string, string>
 }

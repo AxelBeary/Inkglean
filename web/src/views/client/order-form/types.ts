@@ -37,6 +37,8 @@ export interface StyleSize {
   /** E13: 档位描述/工期/示意图（公开契约可选字段，缺失=摘要卡对应块不渲染） */
   description?: string | null
   work_days?: number | null
+  /** v81: 含几次免费修改（0/缺失 = 不限；公开契约字段，老后端响应没有也照常渲染） */
+  free_revisions?: number | null
   image?: string | null
   artwork_image_path?: string | null
 }

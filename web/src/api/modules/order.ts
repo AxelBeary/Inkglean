@@ -3,7 +3,7 @@
 
 import { getJson, postJson } from './http'
 import type { RequestConfig } from './http'
-import type { OrderCreateResult, OrderTrackResult, OrderDeliveryResult, CreateOrderRequest } from '../types'
+import type { OrderCreateResult, OrderTrackResult, OrderDeliveryResult, CreateOrderRequest, RefreshSignaturesResult } from '../types'
 // DTO 类型统一从 '../types'（barrel）按名取用；inline import('../types') 为原 import('./types') 的路径等价改写
 
 // ─── 客户端订单 ───
@@ -14,6 +14,9 @@ export const orderApi = {
   // F1 围剿：客户访问凭高熵令牌（QQ+订单号弱双因子已退役）
   track: (orderNo: string, token: string): Promise<OrderTrackResult> =>
     getJson(`/orders/track/${orderNo}`, { params: { token } }),
+  /** 查单页停留续签（客户侧对应画师端 /artist/refresh-signatures）：令牌在 body，无 query 明文 */
+  refreshTrackSignatures: (orderNo: string, token: string, paths: string[]): Promise<RefreshSignaturesResult> =>
+    postJson(`/orders/track/${orderNo}/refresh-signatures`, { token, paths }),
   delivery: (orderNo: string, token: string): Promise<OrderDeliveryResult> =>
     getJson(`/orders/delivery/${orderNo}`, { params: { token } }),
   /** 815 拍板 #4：一次性下载——开始（签发一次性 URL）与确认（完整接收后锁定） */
