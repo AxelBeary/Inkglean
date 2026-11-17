@@ -2,7 +2,7 @@
 
 ## 看板（2026-11-17 四次刷新：debug 批修复两处 High/Medium）
 
-- **HEAD 与推送**：`5ab2e6d6` = debug 批修复（画师端过程稿续签 + 续签不再整批中毒；server 2048 / web 1232 全绿）
+- **HEAD 与推送**：`5ab2e6d6` = debug 批修复（画师端过程稿续签 + 续签不再整批中毒；server 2048 / web 1232 全绿；交接 `AGENTS/artifacts/交接-20261117-2/HANDOFF.md`）
   - 上一笔 `48a0737c` = 查单页签名续签 + 下单页展示免费修改次数（修「停留 5 分钟图裂」；server 2045 / web 1231）
   - 再上两笔 `6b2bbf1e`/`7c0f458d` = 过程稿可见 + 免费修改次数（迁移 **v81**）+ 抽 `useTrackSignatureRefresh` 修 CI file-size 红
 - **发版**：**v1.1.0**（2026-10-28，稳交付·好管理版）已发布 —— 安装包 `inkglean-installer-v1.1.0.zip`（5.79 MB / 920 文件）；迁移 v71→v80 自动执行；说明见 `docs/changelog.md` 顶部与 GitHub Releases
