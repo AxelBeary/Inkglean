@@ -1,13 +1,14 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-11-06 刷新：下游 issue #81/#82/#83 修复批 + #82 补现签接口）
+## 看板（2026-11-17 刷新：外部审计核验 361 条 + 5 个 High 修复）
 
-- **HEAD 与推送**：`bdd32835` = #81/#82/#83 修复批 + #82 现签接口（c81306ae 下载 / 88b9d433 草稿 / b647b3de 确认框 / 2b800aec 现签；十九道全绿 395s，报告 `accept-master-20261106-055852.md`）
-  - 上一笔 `968e4c74` = issue #73 四条 + zip 跳版（619s）
+- **HEAD 与推送**：`ec322f37` = 外部审计核验 + 5 个 High 修复（4 worktree 合并 + 并入 dependabot #79/#80；server 2021 / web 1199 全绿；交接 `AGENTS/artifacts/交接-20261117/HANDOFF.md`）
+  - 上一笔 `bdd32835` = #81/#82/#83 修复批 + #82 现签接口（十九道全绿 395s，报告 `accept-master-20261106-055852.md`）
+  - 再上一笔 `968e4c74` = issue #73 四条 + zip 跳版（619s）
 - **发版**：**v1.1.0**（2026-10-28，稳交付·好管理版）已发布 —— 安装包 `inkglean-installer-v1.1.0.zip`（5.79 MB / 920 文件）；迁移 v71→v80 自动执行；说明见 `docs/changelog.md` 顶部与 GitHub Releases
-- **基线（accept.ps1 十九道全绿 @ 本批）**：server **2004**（176 文件）/ web **1188**（173）/ desktop **635**（46）/ shared **44** / E2E **14** / cargo test **39**（lib 28 + ACL 8 + release_config 3）
+- **基线（2026-11-17 实测：仅 server/web 两端 npm 门禁，未跑 accept.ps1 十九道）**：server **2021**（178 文件）/ web **1199**（175）/ desktop **635**（46，本轮未跑）/ shared **44**（未跑）/ E2E **14**（未跑）/ cargo test **39**（未跑）
   - 迁移 **v80** 不变
-  - 本批计数增长：server +8（reference-sign 8 例）/ web +12（现签链路 12 例）；desktop/shared/e2e 未动
+  - 本轮计数增长：server +17（解码 6 / 备份 8 / 回收 2 / 缓存 1）/ web +11（拼图 1 / Passkey 取消 7 / 订单动作 3；价目卡只改既有用例不加数）
 - **拟物收敛射程不变**：只限排期块（ScheduleScroll）；挂牌 3D / 墨迹动画 / 登录纸艺山水**不动**
 - **GHSA-6pf3 安全批已闭合**：8 项加固全部落地并回函；披露处置＝**维持私密不公开**（详见「已拍板规则」）
 - **警报/PR 现状**：Code scanning open 0；**Dependabot open 0**（#102 critical 已解：updater 2.13.2→2.14.1 带 zip 4.6.1→9.1.3 ≥ 修复版 9.0.5，JS 精确同号，tauri info 已验）；**open PR 0**
