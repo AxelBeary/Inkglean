@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { buildApp } from '../src/app.js'
 import { cleanDb } from './setup.js'
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'fs'
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync, utimesSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 
@@ -86,5 +86,31 @@ describe('SPA 静态资源缓存头 (B1)', () => {
 
     const upRes = await app.inject({ method: 'GET', url: '/uploads/images/1/nope.png' })
     expect(upRes.statusCode).toBe(404)
+  })
+
+  it('TC-ENV-12: index.html 走 mtime 缓存——mtime 未变不重读，mtime 变了下一次请求即生效', async () => {
+    const indexFile = join(dist, 'index.html')
+    const t0 = new Date('2021-01-01T00:00:00Z')
+    const t1 = new Date('2021-06-01T00:00:00Z')
+    const headers = { accept: 'text/html' }
+
+    writeFileSync(indexFile, '<!doctype html><title>MARKER-A</title>')
+    utimesSync(indexFile, t0, t0)
+    const first = await app.inject({ method: 'GET', url: '/artist/alice', headers })
+    expect(first.statusCode).toBe(200)
+    expect(first.body).toContain('MARKER-A')
+
+    // 内容换成 B，但把 mtime 拨回同一时刻：只有「每次请求都重读整份文件」才会看到 B
+    // （U144 修复前正是如此），缓存命中则仍发 A
+    writeFileSync(indexFile, '<!doctype html><title>MARKER-B</title>')
+    utimesSync(indexFile, t0, t0)
+    const cached = await app.inject({ method: 'GET', url: '/artist/alice', headers })
+    expect(cached.body).toContain('MARKER-A')
+    expect(cached.body).not.toContain('MARKER-B')
+
+    // mtime 变了 → 下一次请求即读到新内容（Cache-Control: no-cache 的「发版即生效」不能丢）
+    utimesSync(indexFile, t1, t1)
+    const refreshed = await app.inject({ method: 'GET', url: '/artist/alice', headers })
+    expect(refreshed.body).toContain('MARKER-B')
   })
 })

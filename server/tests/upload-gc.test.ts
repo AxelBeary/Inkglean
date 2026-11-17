@@ -35,6 +35,18 @@ function findRecursive(dir: string, rel: string): boolean {
   return false
 }
 
+/**
+ * U144：启动时的孤儿回收改为 setImmediate 延后执行，buildApp 返回时它可能还没跑。
+ * setImmediate 队列 FIFO——这里排的回调必定排在启动回收之后，等它就等于等回收跑完。
+ */
+const flushStartupGc = (): Promise<void> => new Promise((resolve) => setImmediate(resolve))
+
+/** buildApp + 等启动那一轮延后的孤儿回收跑完（旧用例默认「buildApp 返回时已回收」） */
+async function buildAppAndFlush(): Promise<void> {
+  await buildApp({ logger: false })
+  await flushStartupGc()
+}
+
 describe('孤儿文件回收 GC（黑名单 + 回收站 TTL）', () => {
   beforeEach(() => {
     cleanDb()
@@ -54,7 +66,7 @@ describe('孤儿文件回收 GC（黑名单 + 回收站 TTL）', () => {
     db.prepare('INSERT INTO artworks (artist_id, image_path, title) VALUES (?, ?, ?)')
       .run(artist.id, rel, 'GC 测试作品')
 
-    await buildApp({ logger: false })
+    await buildAppAndFlush()
 
     expect(existsSync(join(UPLOAD_DIR, rel))).toBe(true)
     // 不应被移入回收站
@@ -70,7 +82,7 @@ describe('孤儿文件回收 GC（黑名单 + 回收站 TTL）', () => {
     const order = seedOrder(artist.id, { order_no: 'GC-ORD' })
     db.prepare('UPDATE orders SET focus_image_path = ? WHERE id = ?').run(rel, order.id)
 
-    await buildApp({ logger: false })
+    await buildAppAndFlush()
 
     expect(existsSync(join(UPLOAD_DIR, rel))).toBe(true)
   })
@@ -80,7 +92,7 @@ describe('孤儿文件回收 GC（黑名单 + 回收站 TTL）', () => {
     const rel = 'images/9/orphan.png'
     createOldFile(rel)
 
-    await buildApp({ logger: false })
+    await buildAppAndFlush()
 
     // 原位置已移走
     expect(existsSync(join(UPLOAD_DIR, rel))).toBe(false)
@@ -95,7 +107,7 @@ describe('孤儿文件回收 GC（黑名单 + 回收站 TTL）', () => {
     mkdirSync(join(abs, '..'), { recursive: true })
     writeFileSync(abs, 'fresh') // mtime = now，未超 72h（R-6 窗口）
 
-    await buildApp({ logger: false })
+    await buildAppAndFlush()
 
     expect(existsSync(abs)).toBe(true)
     expect(findRecursive(join(UPLOAD_DIR, '.recycle-bin'), rel)).toBe(false)
@@ -114,7 +126,7 @@ describe('孤儿文件回收 GC（黑名单 + 回收站 TTL）', () => {
     const order = seedOrder(artist.id, { order_no: 'GC-TTL-ORD' })
     db.prepare("INSERT INTO order_activity_logs (order_id, action_type, actor, created_at) VALUES (?, 'note_update', 'artist', datetime('now', '-200 days'))").run(order.id)
 
-    await buildApp({ logger: false })
+    await buildAppAndFlush()
 
     expect((db.prepare("SELECT COUNT(*) AS c FROM events WHERE name = 'dashboard_view'").get() as { c: number }).c).toBe(0)
     expect((db.prepare("SELECT COUNT(*) AS c FROM events WHERE name = 'queue_view'").get() as { c: number }).c).toBe(1)
@@ -133,7 +145,7 @@ describe('孤儿文件回收 GC（黑名单 + 回收站 TTL）', () => {
       createOldFile(rel)
       db.prepare('INSERT INTO gc_probe_refs (file_path) VALUES (?)').run(rel)
 
-      await buildApp({ logger: false })
+      await buildAppAndFlush()
 
       expect(existsSync(join(UPLOAD_DIR, rel))).toBe(true)
       expect(findRecursive(join(UPLOAD_DIR, '.recycle-bin'), rel)).toBe(false)
@@ -154,7 +166,7 @@ describe('孤儿文件回收 GC（黑名单 + 回收站 TTL）', () => {
     // 目录 mtime 也设成过去（防止目录本身 mtime 干扰；TTL 按目录名日期判断）
     utimesSync(join(oldAbs, '..'), oldDate, oldDate)
 
-    await buildApp({ logger: false })
+    await buildAppAndFlush()
 
     expect(existsSync(join(UPLOAD_DIR, '.recycle-bin', oldDirName))).toBe(false)
   })
@@ -168,9 +180,49 @@ describe('孤儿文件回收 GC（黑名单 + 回收站 TTL）', () => {
     mkdirSync(join(abs, '..'), { recursive: true })
     writeFileSync(abs, 'keep')
 
-    await buildApp({ logger: false })
+    await buildAppAndFlush()
 
     expect(existsSync(join(UPLOAD_DIR, '.recycle-bin', recentName))).toBe(true)
     expect(existsSync(abs)).toBe(true)
+  })
+
+  it('TC-GC-09: 反斜杠分隔符的入库值同样算引用（U144 谓词下推分支回归）', async () => {
+    const artist = seedArtist()
+    const rel = 'images/4/backslash.png'
+    createOldFile(rel)
+    // Windows 风格反斜杠入库（历史导入数据里真实存在）：下推谓词必须同时认 '/' 与 '\'，
+    // 漏掉反斜杠分支 = 这类引用全部失效，文件会被当孤儿移走（U144 改动最容易踩的点）
+    db.prepare('INSERT INTO artworks (artist_id, image_path, title) VALUES (?, ?, ?)')
+      .run(artist.id, rel.replace(/\//g, '\\'), '反斜杠引用')
+
+    await buildAppAndFlush()
+
+    expect(existsSync(join(UPLOAD_DIR, rel))).toBe(true)
+    expect(findRecursive(join(UPLOAD_DIR, '.recycle-bin'), rel)).toBe(false)
+  })
+
+  it('TC-GC-10: 启动不再同步跑全库扫描——延到事件循环空闲期，且不会丢这一轮', async () => {
+    seedArtist()
+    createOldFile('images/9/deferred.png')
+
+    // U144：用 db.prepare 探针观察「启动阶段有没有跑孤儿回收的全表 DISTINCT 扫描」。
+    // 修复前 gcUploads() 同步跑在 buildApp 里 → buildApp 返回时扫描早已执行完；
+    // 修复后扫描排在 setImmediate → buildApp 返回时一次都还没跑，等一轮空闲才跑。
+    const origPrepare = db.prepare
+    const seenSql: string[] = []
+    db.prepare = ((sql: string) => {
+      seenSql.push(sql)
+      return origPrepare.call(db, sql)
+    }) as typeof db.prepare
+    const scanned = () => seenSql.some((sql) => sql.includes('SELECT DISTINCT "'))
+
+    try {
+      await buildApp({ logger: false })
+      expect(scanned()).toBe(false) // 修复前必为 true：启动被同步扫描挡住
+      await flushStartupGc()
+      expect(scanned()).toBe(true) // 延后不等于不跑：空闲期照样扫一轮
+    } finally {
+      db.prepare = origPrepare
+    }
   })
 })
