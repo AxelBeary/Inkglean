@@ -28,6 +28,8 @@ export interface PublicStyleSize {
   artwork_image_path: string | null
   description: string | null
   work_days: number | null
+  /** v81: 本档位含几次免费修改（0 = 不限），下单页选档位时给客户的售前信息 */
+  free_revisions: number
   display_status: string
   addons: PublicStyleAddon[]
 }

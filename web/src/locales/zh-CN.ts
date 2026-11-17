@@ -954,6 +954,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     multOptionalHintInParens: '（可不选）',
     sizeShowcaseTag: '展示中 · 暂不可约',
     sizeShowcaseBlocked: '该尺寸展示中，暂不可约稿',
+    // v81: 档位含几次免费修改（0 = 不限，两态都显示——售前信息，不是告警）
+    freeRevisionsIncluded: '含 {n} 次免费修改',
+    freeRevisionsUnlimited: '免费修改次数不限',
     pctOfBase: '按基础价计算',
     pctOfBaseInParens: '（按基础价计算）',
     priceCalcFailed: '价格计算失败，请稍后重试',

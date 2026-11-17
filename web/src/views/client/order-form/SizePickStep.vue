@@ -22,7 +22,11 @@
           :aria-label="sz.name"
           @click="emit('select', sz.id)"
         >
-          <span class="size-pick-name">{{ sz.name }}</span>
+          <span class="size-pick-main">
+            <span class="size-pick-name">{{ sz.name }}</span>
+            <!-- v81: 含几次免费修改——对客户是好事信息，两种状态都显示，跟随名称的次要层级 -->
+            <span class="size-pick-revisions">{{ revisionHint(sz) }}</span>
+          </span>
           <!-- SPEC-PRICE-2: 展示态尺寸可见但不可约（后端同步拒单） -->
           <span v-if="sz.display_status === 'showcase'" class="size-pick-showcase">{{ t('orderForm.sizeShowcaseTag') }}</span>
           <span class="size-pick-price">{{ formatYuanValue(sz.base_price) }}</span>
@@ -65,6 +69,17 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+/**
+ * v81: 档位含几次免费修改（0 = 不限）。
+ * 两态都要显示：这是给客户的售前信息（画师设了 0 代表不限次，不能说成「0 次」）。
+ */
+function revisionHint(sz: StyleSize): string {
+  const limit = sz.free_revisions ?? 0
+  return limit > 0
+    ? t('orderForm.freeRevisionsIncluded', { n: limit })
+    : t('orderForm.freeRevisionsUnlimited')
+}
 </script>
 
 <style scoped>
@@ -98,7 +113,11 @@ const { t } = useI18n()
 .size-pick:hover { border-color: var(--color-primary-light-5); }
 .size-pick--on { border-color: var(--color-primary); background: var(--color-primary-soft); }
 .size-pick--showcase { opacity: 0.75; }
+/* v81: 档位主信息列（名称 + 免费修改次数）；次数与描述/天数同层次（12px 次要色） */
+.size-pick-main { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .size-pick-name { flex: 1; font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.size-pick-main .size-pick-name { flex: none; }
+.size-pick-revisions { font-size: 12px; color: var(--text-secondary); }
 .size-pick-price { font-size: 18px; font-weight: 700; color: var(--color-primary); font-variant-numeric: tabular-nums; }
 .size-pick-check { font-size: 16px; color: var(--color-primary); font-weight: 700; }
 /* 展示态尺寸徽标（可见但不可约） */
