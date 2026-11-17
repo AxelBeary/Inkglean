@@ -25,6 +25,7 @@ import { mkdirSync, readdirSync, unlinkSync } from 'fs'
 import { resolve, dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 import { createRequire } from 'module'
+import { resolveBackupDir } from '../src/shared/backup-paths.js'
 
 const require = createRequire(import.meta.url)
 const Database = require('better-sqlite3')
@@ -32,7 +33,9 @@ const Database = require('better-sqlite3')
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..') // 仓库根目录
 // 容器内由 compose 注入 DB_PATH=/app/data/commission.db；本地开发默认仓库根 data/
 const DB_PATH = process.env.DB_PATH || resolve(ROOT, 'data/commission.db')
-const BACKUP_DIR = process.env.BACKUP_DIR || resolve(ROOT, 'data/backups')
+// U044：备份目录口径统一由 shared/backup-paths.ts 给出（BACKUP_DIR 优先，默认 <数据目录>/backups），
+// 健康检查 checkBackup() 取的是同一个函数——「备份写在哪」与「健康检查看哪」不再各算一套
+const BACKUP_DIR = resolveBackupDir(dirname(DB_PATH))
 const KEEP_BY_TIER = {
   daily: 7, // 2026-08-15 拍板：每日档留存 7 份
   deploy: 2, // 2026-08-15 拍板：部署档留存 2 份
