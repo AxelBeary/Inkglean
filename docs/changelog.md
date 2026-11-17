@@ -6,6 +6,15 @@
 > - 滚动分册：活档体积门 `scripts/check-changelog-size.mjs`（≤40KB / ≤450 行，单段 ≤4KB，accept 第 19 道）；撞线即搬 oldest 段入 `docs/changelog-archive/` 新卷（整段零改动 + 逐行哈希校验，禁调高阈值续命）。
 > - v0.x 时代（v0.1~v0.46+）全量台账在 `docs/changelog-archive/changelog-v0-20260927.md`，只读历史。
 
+## debug 批遗留清账：caption 拒收 / skipped 摘图 / 类型收紧（2026-11-17 夜）
+
+- **A2 过程稿备注不再静默吞内容**：caption 含 HTML 标签或实体时后端改返 **400 `PREVIEW_CAPTION_INVALID`**（原实现剥标签后存 `null`、接口仍 200 并提示「已保存」）；正常纯文本零误伤（「价格<100」这类小于号原样通过）。判据＝消毒结果与原文（去首尾空白）不一致即拒收，中英错误文案齐备。
+- **A3 客户查单页消费 `skipped`**：续签响应里未获授权的路径（画师关开关/删图）对应摘掉该过程稿，不再留一张永远 403 的裂图；参考图不动（客户输入不擅自删）。画师端与客户页共用的 `useSignatureRefresh` 新增可选 `onSkipped`。
+- **B4 `display_status` 收紧**：新增 `SizeDisplayStatus` 联合类型（available/showcase/closed），`StyleSize` 与 `PublicStyleSize` 同步，与后端 CHECK 约束/Schema enum 同口径。
+- **OFM #3 单元级切片**：新增「同一模块两次组包，除 `generatedAt` 外逐字节一致」测试（确定性构建第一层证据；CLI 级 `--check` 留待下批）。
+- **验证**：server typecheck/lint 绿 + **2050**（+2）；web lint/typecheck 绿 + **1233**（+1）+ check:i18n 绿 + build 绿；desktop lint/build 绿 + **672**（+1）。留痕 `AGENTS/artifacts/清理批-20261117/gates.log`。
+- **未做（如实）**：Dependabot 5 条未动（server 的 glob 13.0.6 / minimatch 10.2.5 是**生产**依赖，web/desktop/shared 为 dev-only；修法跨 major，属独立批）；A1（过程稿上传磁盘水位/字节配额）仍登记；B2（.bat/.ps1 硬编码 `data/backups`）AI 禁区；B3/B5 复核后未改（B5 主链路已有 STEP_UP_REQUIRED 排队重提交，未见无界循环入口）。
+
 ## 模块包：桌面端模块的导入 / 导出与校验（2026-11-17）
 
 - **吸纳点**：把 OFM 扩展模式里与「本机透明文件 + 沙箱帧」不冲突的四条挪进桌面端模块机制——规范化 JSON 语义摘要、逐件内联 `{path,size,sha256}`、静态扫描闸、来源由壳判定；**不做签名、不做商店、不联网**（模块规范 §八「首发不采资源签名」不翻案，§十一 记口径）。

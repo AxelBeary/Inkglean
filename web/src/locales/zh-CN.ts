@@ -237,7 +237,8 @@ export default {
     STYLE_ADDON_DUPLICATE: '该增项已导入此画风',
     SIZE_OVERRIDE_NOT_FOUND: '尺寸覆盖不存在',
     // 迁移 v81: 过程稿（跨单 id / 不存在的 id 一律 404）
-    PREVIEW_NOT_FOUND: '过程稿不存在或不属于此订单'
+    PREVIEW_NOT_FOUND: '过程稿不存在或不属于此订单',
+    PREVIEW_CAPTION_INVALID: '备注是客户可见纯文本，请不要带 HTML 标签或转义字符；原样写普通文字即可'
   },
   pref: {
     theme: '主题设置', base: '底色', accent: '主色', auto: '随系统', light: '亮', dark: '暗',

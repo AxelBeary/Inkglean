@@ -173,6 +173,8 @@ export const E = {
 
   // 过程稿（v81）
   PREVIEW_NOT_FOUND: 'PREVIEW_NOT_FOUND',
+  /** v81 过程稿备注：含 HTML 标签/实体时拒收（不再静默清空，debug 批 A2） */
+  PREVIEW_CAPTION_INVALID: 'PREVIEW_CAPTION_INVALID',
 
   // 外链（v0.12 R15）
   LINKS_TOO_MANY: 'LINKS_TOO_MANY',
@@ -430,6 +432,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
 
   // 过程稿（v81）
   PREVIEW_NOT_FOUND: '过程稿不存在或不属于此订单',
+  PREVIEW_CAPTION_INVALID: '备注是客户可见纯文本，请不要带 HTML 标签或转义字符；原样写普通文字即可',
 
   // 外链（v0.12 R15）
   LINKS_TOO_MANY: '外链数量不能超过8条',

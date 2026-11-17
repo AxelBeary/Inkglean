@@ -188,6 +188,31 @@ describe('TrackOrder 停留续签（客户侧 refresh-signatures）', () => {
     wrapper.unmount()
   })
 
+  it('续签返回 skipped 时摘掉对应过程稿（不再留裂图），参考图不动', async () => {
+    h.track.mockResolvedValue(buildTrack({
+      references: [{ url: '/uploads/references/1/a.png?sig=old', originalName: 'a.png' }],
+      previews: [
+        { id: 7, url: '/uploads/previews/1/p.png?sig=old', caption: null, createdAt: '2026-11-01T10:00:00Z' },
+        { id: 8, url: '/uploads/previews/1/q.png?sig=old', caption: null, createdAt: '2026-11-01T09:00:00Z' }
+      ]
+    }))
+    h.refresh.mockResolvedValue({
+      urls: { 'previews/1/q.png': '/uploads/previews/1/q.png?sig=new' },
+      skipped: ['previews/1/p.png']
+    })
+    const wrapper = mountPage()
+    await settle()
+    await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL_MS + 10)
+    await nextTick()
+
+    const previewImgs = wrapper.findAll('.preview-ref-img')
+    expect(previewImgs.length).toBe(1)
+    expect(previewImgs[0].attributes('src')).toBe('/uploads/previews/1/q.png?sig=new')
+    // 参考图不动：客户自己给的输入，不因续签失败擅自删
+    expect(wrapper.find('.brief-ref-img').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
   it('卸载后定时器与可见性监听都被清理', async () => {
     h.track.mockResolvedValue(buildTrack({
       references: [{ url: '/uploads/references/1/a.png?sig=old', originalName: 'a.png' }]

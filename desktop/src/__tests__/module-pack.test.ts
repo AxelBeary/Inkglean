@@ -129,6 +129,15 @@ describe('buildPack（组包）', () => {
     expect(pack.generatedAt).toBe('2026-11-17T00:00:00.000Z')
   })
 
+  it('确定性：同一模块两次组包，除 generatedAt 外逐字节一致（OFM #3 的单元级切片）', () => {
+    const a = buildPack(MANIFEST_TEXT, ENTRY, new Date('2026-11-17T00:00:00Z'))!
+    const b = buildPack(MANIFEST_TEXT, ENTRY, new Date('2026-11-18T12:34:56Z'))!
+    const strip = (p: typeof a): string => JSON.stringify({ ...p, generatedAt: '' })
+    expect(strip(a)).toBe(strip(b))
+    expect(a.files).toEqual(b.files)
+    expect(a.manifestDigest).toBe(b.manifestDigest)
+  })
+
   it('manifest 坏 JSON → null', () => {
     expect(buildPack('{oops', ENTRY)).toBe(null)
   })

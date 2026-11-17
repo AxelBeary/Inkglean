@@ -1,6 +1,8 @@
 // API 边界 DTO · 公开价目与价格计算（F-09 自 web/src/api/types.ts 按域纯搬移拆分，原段落文字一字未改）
 // 形状以后端 routes/service 代码为唯一事实源；本文件经 api/types.ts（barrel）再导出，下游 import 路径不变
 
+import type { SizeDisplayStatus } from './style'
+
 // ─── 画风 / 尺寸 / 增项（style.service.ts） ───
 
 /** 公开增项（嵌套于 PublicStyleSize） */
@@ -30,7 +32,7 @@ export interface PublicStyleSize {
   work_days: number | null
   /** v81: 本档位含几次免费修改（0 = 不限），下单页选档位时给客户的售前信息 */
   free_revisions: number
-  display_status: string
+  display_status: SizeDisplayStatus
   addons: PublicStyleAddon[]
 }
 

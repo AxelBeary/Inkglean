@@ -60,12 +60,14 @@ export function uploadedPathFromUrl(url: string): string | null {
   return matched ? matched[1] : null
 }
 
-export function useSignatureRefresh({ collect, apply, intervalMs = DEFAULT_INTERVAL_MS, request = (paths) => artistApi.refreshSignatures(paths) }: {
+export function useSignatureRefresh({ collect, apply, onSkipped, intervalMs = DEFAULT_INTERVAL_MS, request = (paths) => artistApi.refreshSignatures(paths) }: {
   collect: () => string[]
   apply: (urls: Record<string, string>) => void
+  /** 本次未获授权的路径（客户侧续签专有）：页面据此摘掉已失效的图，不再留一张裂图 */
+  onSkipped?: (paths: string[]) => void
   intervalMs?: number
-  /** 换签请求（默认画师端 refresh-signatures；客户查单页注入 track 版端点，响应同形 { urls }） */
-  request?: (paths: string[]) => Promise<{ urls: Record<string, string> }>
+  /** 换签请求（默认画师端 refresh-signatures；客户查单页注入 track 版端点，响应同形 { urls, skipped? }） */
+  request?: (paths: string[]) => Promise<{ urls: Record<string, string>; skipped?: string[] }>
 }) {
   let refreshing = false
   let debounceTimer: number | null = null
@@ -96,8 +98,10 @@ export function useSignatureRefresh({ collect, apply, intervalMs = DEFAULT_INTER
       // #52-5: 按服务端上限分片、串行提交（并发会撞 refresh-sig 限流 20 次/5min）
       for (let i = 0; i < targets.length; i += SIGNATURE_REFRESH_BATCH_SIZE) {
         const chunk = targets.slice(i, i + SIGNATURE_REFRESH_BATCH_SIZE)
-        const { urls } = await request(chunk)
-        apply(urls)
+        const res = await request(chunk)
+        apply(res.urls)
+        // 失效路径（画师关开关/删图）：交给页面摘掉对应图，避免留一张 403 裂图
+        if (res.skipped && res.skipped.length > 0) onSkipped?.(res.skipped)
         done = i + chunk.length
       }
       lastRefreshAt = Date.now() // 只按成功刷新计时（失败不推迟补刷）
