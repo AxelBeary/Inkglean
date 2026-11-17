@@ -12,7 +12,7 @@ import { resolve, join, relative, sep } from 'path'
 import { existsSync, readdirSync, statSync, renameSync, rmdirSync, createReadStream, mkdirSync, readFileSync, rmSync } from 'fs'
 import { initDatabase } from './db/init.js'
 import db from './db/connection.js'
-import { verifyFileTokenDetailed, isPublicUploadPath } from './shared/file-sign.js'
+import { verifyFileTokenDetailed, isPublicUploadPath, safeDecodeUploadPath } from './shared/file-sign.js'
 import { pruneIdempotencyKeys } from './shared/idempotency.js'
 import { isWeakSessionSecret } from './shared/secrets.js'
 import { ERROR_MESSAGES } from './shared/errors.js'
@@ -33,6 +33,25 @@ import { buildOgMeta, injectOgMeta } from './features/og/og-meta.service.js'  //
 function envPositiveInt(raw: string | undefined, fallback: number): number {
   const n = Number(raw)
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback
+}
+
+/**
+ * index.html 缓存（U144）
+ *
+ * /artist/:subdomain 的 OG 注入分支此前每个 HTML 请求都 readFileSync 整个 index.html。
+ * 不能无条件长期缓存内容：该路由的 Cache-Control: no-cache 就是要「发版即生效」，
+ * 所以先 statSync 比 mtimeMs——一次 syscall 换掉一次整文件读，mtime 变了才重读。
+ * 缓存连文件路径一起比对：同一进程内可能先后构建多个 WEB_DIST（测试如此），
+ * 只认 mtime 会把 A 站点的 index.html 发给 B 站点。
+ */
+let indexHtmlCache: { file: string; mtimeMs: number; html: string } | null = null
+function readIndexHtmlCached(file: string): string {
+  const { mtimeMs } = statSync(file)
+  const cached = indexHtmlCache
+  if (cached && cached.file === file && cached.mtimeMs === mtimeMs) return cached.html
+  const html = readFileSync(file, 'utf8')
+  indexHtmlCache = { file, mtimeMs, html }
+  return html
 }
 
 /** logger 入参：省略/布尔 = 默认控制台；stream = 写入指定流（测试捕获用）；对象 = pino 选项透传 */
@@ -166,7 +185,6 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
         return
       }
 
-      const refs = new Set<string>()
       // ── 黑名单动态扫描（P0-2 修复；P3-24 审计批E收敛）──
       // 历史：早期是「显式 collect 清单 + 动态全表扫描」双轨。R19 备注附图、v0.35 画风封面
       // 都是显式清单漏登记导致的误删事故；动态扫描已覆盖全部 TEXT 列，双轨功能重叠，
@@ -176,28 +194,41 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
       // 凡是非空且带路径分隔符（/ 或 \\）的值都视为「DB 仍引用」——被引用则文件绝不回收。
       // 漏登记新表/新字段最多多留垃圾，绝不丢数据（两次事故教训：R19 备注附图、v0.35 画风封面）。
       // 黑名单判定需查的表：不维护清单，动态遍历 sqlite_master 全部业务表（排除 sqlite_% 系统表）。
-      const tableRows = db.prepare(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-      ).all() as Array<{ name: string }>
-      for (const t of tableRows) {
-        const tableName = t.name.replace(/"/g, '""')
-        const colRows = db.prepare(`PRAGMA table_info("${tableName}")`).all() as Array<{ name: string; type: string }>
-        for (const c of colRows) {
-          // 只扫文本类列（路径值必然 TEXT/CLOB；跳过 INTEGER/REAL 等）
-          if (!/TEXT|CLOB/i.test(c.type)) continue
-          const colName = c.name.replace(/"/g, '""')
-          // 路径一般较短；>512 字符的值（如长 JSON/正文）不可能是文件相对路径，跳过省内存
-          const pathRows = db.prepare(
-            `SELECT DISTINCT "${colName}" AS v FROM "${tableName}" WHERE "${colName}" IS NOT NULL AND "${colName}" != '' AND length("${colName}") <= 512`
-          ).all() as Array<{ v: unknown }>
-          for (const r of pathRows) {
-            const v = r.v
-            if (typeof v === 'string' && (v.includes('/') || v.includes('\\'))) {
-              refs.add(v.replace(/\\/g, '/'))
+      // U144：整轮扫描包进单个只读事务——
+      // ① 此前每条 SELECT 各自开隐式事务，业务表/文本列一多就是几百次提交，启动时把主线程焊死；
+      // ② 包住后整轮读到同一个快照：扫描中途若有写入落库，不会出现「A 表已见新引用、B 表还没见」
+      //    的半截引用集，避免把刚落库的引用判成孤儿。
+      // 事务只包扫描：后面的 stat/rename/删空目录是 I/O，不能长时间持有事务。
+      const collectDbRefs = db.transaction((): Set<string> => {
+        const refs = new Set<string>()
+        const tableRows = db.prepare(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+        ).all() as Array<{ name: string }>
+        for (const t of tableRows) {
+          const tableName = t.name.replace(/"/g, '""')
+          const colRows = db.prepare(`PRAGMA table_info("${tableName}")`).all() as Array<{ name: string; type: string }>
+          for (const c of colRows) {
+            // 只扫文本类列（路径值必然 TEXT/CLOB；跳过 INTEGER/REAL 等）
+            if (!/TEXT|CLOB/i.test(c.type)) continue
+            const colName = c.name.replace(/"/g, '""')
+            // U144：谓词下推——「值里含路径分隔符」压进 SQL 先过滤，别把整列值捞回 JS 再筛。
+            // 注意源码里的 '\\' 是 JS 转义，SQL 看到的是单字符 '\'（SQLite 字符串字面量不处理
+            // 反斜杠转义）；分隔符条件因此只在这里出现一次，JS 侧不再重复判 includes。
+            // 路径一般较短；>512 字符的值（如长 JSON/正文）不可能是文件相对路径，跳过省内存。
+            const pathRows = db.prepare(
+              `SELECT DISTINCT "${colName}" AS v FROM "${tableName}"
+               WHERE "${colName}" IS NOT NULL AND "${colName}" != ''
+                 AND length("${colName}") <= 512
+                 AND (instr("${colName}", '/') > 0 OR instr("${colName}", '\\') > 0)`
+            ).all() as Array<{ v: unknown }>
+            for (const r of pathRows) {
+              if (typeof r.v === 'string') refs.add(r.v.replace(/\\/g, '/'))
             }
           }
         }
-      }
+        return refs
+      })
+      const refs = collectDbRefs()
 
       // R-6（审计批E）：孤儿回收窗口 24h → 72h。
       // 复合炸弹：手工恢复旧 DB 备份后，备份时点之后新上传且已关联订单的文件在新 DB 里「无引用」，
@@ -283,8 +314,14 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
     }
   }
   gcDatabaseTtl() // 启动时立即执行一次（不依赖上传目录存在，先于文件回收跑）
-  gcUploads() // 启动时立即执行一次
-  const _gcTimer = setInterval(() => { gcDatabaseTtl(); gcUploads() }, 24 * 60 * 60 * 1000)
+  // U144：孤儿回收要扫全库 TEXT 列 + walk 整个上传目录 + 逐文件 stat/rename，
+  // 此前同步跑在 buildApp 里会一路挡住 listen——冷启动窗口内健康检查/首屏全挂，
+  // 上传目录越大挡得越久。延到事件循环空闲后再跑：语义仍是「启动后不久跑一次」，
+  // 只是不再阻塞监听。顺序不变：gcDatabaseTtl 仍先同步执行（先删未绑定登记行，
+  // 文件才会在同一轮失去引用，见上方「顺序即防线」），被延后的只有文件回收。
+  setImmediate(() => gcUploads())
+  // 24h 定时器同样延后：定时器回调正好落在请求高峰时，同步全表扫描会顶住事件循环。
+  const _gcTimer = setInterval(() => { setImmediate(() => { gcDatabaseTtl(); gcUploads() }) }, 24 * 60 * 60 * 1000)
   _gcTimer.unref()
 
   // 815 拍板 #1⑥：启动时扫描已过期的取消撤销窗口并补执行队列重排/递补
@@ -384,7 +421,14 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
     if (isPublicUploadPath(request.url)) return
 
     const sig = (request.query as { sig?: string } | undefined)?.sig
-    const filePath = decodeURIComponent(request.url.slice('/uploads/'.length).split('?')[0])
+    // U016：此前这里裸调 decodeURIComponent，畸形百分号编码（如请求行带裸 # 的
+    // /uploads/a.png#%ZZ）会抛 URIError，被全局错误处理器兜成 500 + Sentry 上报。
+    // 解码失败按 400 收口：这是请求语法错误（链接根本解不出路径），不是权限判定，
+    // 故不走 403、更不得漏到全局错误处理器。
+    const filePath = safeDecodeUploadPath(request.url.slice('/uploads/'.length).split('?')[0])
+    if (filePath === null) {
+      return reply.code(400).send({ error: '文件链接无效或已过期' })
+    }
     // 815 拍板 #4：交付文件不支持分段下载（防多线程下载器乱序绕过一次性下载）；
     // 下载器场景由服务层 60 秒兜底锁定兼顾
     if (filePath.startsWith('deliverables/') && request.headers.range) {
@@ -585,7 +629,8 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
       // REQ-043 I1: 画师主页 HTML 请求注入 OG（未找到画师返回默认 OG，不报错）
       if (OG_ARTIST_ROUTE_RE.test(urlPath) && wantsHtml(request)) {
         const subdomain = urlPath.slice('/artist/'.length)
-        const html = readFileSync(resolve(WEB_DIST, 'index.html'), 'utf8')
+        // U144：改走 mtime 缓存（原每次请求同步读整份 index.html）
+        const html = readIndexHtmlCached(resolve(WEB_DIST, 'index.html'))
         return reply.send(injectOgMeta(html, buildOgMeta(subdomain)))
       }
       return reply.send(createReadStream(resolve(WEB_DIST, 'index.html')))
