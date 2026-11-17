@@ -198,6 +198,62 @@ describe('ArtistManage 更换管理员动作级再验（REQ-041）', () => {
     expect(wrapper.find('.dialog-stub').exists()).toBe(true)
   })
 
+  // ─── S083：取消后迟到的 verified 不得把已取消的动作执行掉 ───
+  it('取消验证后迟到的 verified → 不得触发更换管理员', async () => {
+    h.transferAdmin.mockRejectedValueOnce(stepUpRequiredError())
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await openTransferAndSubmit(wrapper)
+    expect(wrapper.find('.stepup-stub').exists()).toBe(true)
+
+    const dialog = wrapper.getComponent({ name: 'StepUpDialog' })
+    dialog.vm.$emit('cancel')
+    await flushPromises()
+    // 模拟修复前 StepUpDialog 的迟到 verified：父级必须自己免疫（纵深防御）
+    dialog.vm.$emit('verified')
+    await flushPromises()
+
+    expect(h.transferAdmin).toHaveBeenCalledTimes(1)
+    expect(h.msgSuccess).not.toHaveBeenCalled()
+    // 更换管理员弹窗保持打开，用户可改后再试
+    expect(wrapper.find('.dialog-stub').exists()).toBe(true)
+  })
+
+  it('验证通过只执行一次：重复 verified 不重复提交', async () => {
+    h.transferAdmin.mockRejectedValueOnce(stepUpRequiredError())
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await openTransferAndSubmit(wrapper)
+    const dialog = wrapper.getComponent({ name: 'StepUpDialog' })
+    dialog.vm.$emit('verified')
+    await flushPromises()
+    expect(h.transferAdmin).toHaveBeenCalledTimes(2)
+
+    dialog.vm.$emit('verified')
+    await flushPromises()
+
+    expect(h.transferAdmin).toHaveBeenCalledTimes(2)
+  })
+
+  it('重试仍被 STEP_UP_REQUIRED 拦截 → 不再弹验证框，按失败提示收口', async () => {
+    h.transferAdmin.mockRejectedValue(stepUpRequiredError())
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await openTransferAndSubmit(wrapper)
+    expect(wrapper.find('.stepup-stub').exists()).toBe(true)
+
+    wrapper.getComponent({ name: 'StepUpDialog' }).vm.$emit('verified')
+    await flushPromises()
+
+    expect(h.transferAdmin).toHaveBeenCalledTimes(2)
+    expect(wrapper.find('.stepup-stub').exists()).toBe(false)
+    expect(h.msgError).toHaveBeenCalledWith('need step-up')
+    expect(h.msgSuccess).not.toHaveBeenCalled()
+  })
+
   it('被封禁画师解封：填原因 → STEP_UP_REQUIRED → 弹 StepUpDialog；验证通过自动重提交', async () => {
     h.unbanArtist.mockRejectedValueOnce(stepUpRequiredError())
     const wrapper = mountPage()

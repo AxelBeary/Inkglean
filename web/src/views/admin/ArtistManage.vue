@@ -307,7 +307,7 @@
         <el-button v-if="transferStep === 1" type="primary" :disabled="!currentCode" @click="transferStep = 2">
           {{ $t('admin.nextStep') }}
         </el-button>
-        <el-button v-else type="primary" :disabled="!newCode" @click="confirmTransfer" :loading="transferring">
+        <el-button v-else type="primary" :disabled="!newCode" @click="confirmTransfer()" :loading="transferring">
           {{ $t('admin.confirmTransfer') }}
         </el-button>
       </template>
@@ -575,10 +575,16 @@ function openTransfer() {
 
 // REQ-041 集成接线：动作级再验对话框状态（仅更换管理员提交链路使用，与 AdminLayout 入口级守卫互不干扰）
 const actionStepUpVisible = ref(false)
-// 815-b3-ban：被 STEP_UP_REQUIRED 拦下的动作重试队列（更换管理员走 confirmTransfer 自身重试，此处仅封禁/解封使用）
+// 815-b3-ban：被 STEP_UP_REQUIRED 拦下的动作重试队列（S083 起更换管理员也显式登记到这里，
+// 不再靠 onActionStepUpVerified 的 else 兜底）
 let pendingStepUpAction: (() => void) | null = null
 
-async function confirmTransfer() {
+/**
+ * @param allowStepUp 遇 STEP_UP_REQUIRED 时是否允许再弹验证框。
+ *   S083：验证通过后的重提交传 false——升级已刷新仍被拦说明环境有问题，再弹一次只会
+ *   变成「取消 → 重提交」的循环；此时按普通失败提示收口。
+ */
+async function confirmTransfer(allowStepUp = true) {
   transferring.value = true
   try {
     const res = await adminApi.transferAdmin({
@@ -592,6 +598,13 @@ async function confirmTransfer() {
   } catch (err) {
     // 动作级再验：刚验证过（≤60s）才放行；否则弹 StepUpDialog，验证通过后自动重提交
     if ((err as ApiError)?.code === 'STEP_UP_REQUIRED') {
+      if (!allowStepUp) {
+        ElMessage.error((err as Error).message)
+        return
+      }
+      // S083：更换管理员也显式登记重试（原先靠 onActionStepUpVerified 的 else 兜底，
+      // 用户取消后迟到的 verified 会把已取消的更换动作真的执行掉）
+      pendingStepUpAction = () => confirmTransfer(false)
       actionStepUpVisible.value = true
       return
     }
@@ -601,13 +614,14 @@ async function confirmTransfer() {
   }
 }
 
-/** 动作级验证通过：admin_verified_at 刚刷新；优先重提交被拦下的封禁/解封，否则自动重提交更换管理员 */
+/** 动作级验证通过：admin_verified_at 刚刷新，重提交被拦下的那个动作 */
 function onActionStepUpVerified() {
   actionStepUpVisible.value = false
   const retry = pendingStepUpAction
   pendingStepUpAction = null
-  if (retry) retry()
-  else confirmTransfer()
+  // S083：只执行显式登记的重试；没有登记就什么都不做。
+  // 原实现的 else confirmTransfer() 让「取消 → 迟到的 verified」这条链能真的换掉管理员
+  retry?.()
 }
 
 /** 取消验证：关闭对话框并释放挂起的封禁/解封重试 */
