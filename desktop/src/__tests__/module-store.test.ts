@@ -1,7 +1,7 @@
 // 档②波17 三件测试：模块 store 四态合成与偏好归一（口径哨兵）。
 import { describe, it, expect, beforeEach } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { composeState, useModulesStore } from '../modules/store'
+import { composeSource, composeState, useModulesStore } from '../modules/store'
 import type { ModuleEntry } from '../modules/registry'
 
 const T0 = 1_000_000_000
@@ -92,5 +92,41 @@ describe('模块 store 偏好', () => {
     setActivePinia(createPinia())
     const store = useModulesStore()
     expect(store.openModulesDirHint()).toContain('modules')
+  })
+})
+
+describe('来源判定（壳判定，不采信模块自报）', () => {
+  const record = { manifestDigest: 'aaa', entryDigest: 'bbb', installedAt: '2026-11-17T00:00:00Z', findings: 0 }
+
+  it('官方模块恒为 official（即使装过包）', () => {
+    const e = entry('mood-weather')
+    e.manifest!.source = 'official' // parseManifest 对第一方 ID 钉死的结果
+    expect(composeSource(e, record, { manifest: 'aaa', entry: 'bbb' })).toBe('official')
+  })
+
+  it('没装包账 → local', () => {
+    expect(composeSource(entry('a'), undefined, { manifest: 'aaa', entry: 'bbb' })).toBe('local')
+  })
+
+  it('装包账与当前指纹一致 → pack；不一致 → edited', () => {
+    const e = entry('a')
+    expect(composeSource(e, record, { manifest: 'aaa', entry: 'bbb' })).toBe('pack')
+    expect(composeSource(e, record, { manifest: 'aaa', entry: 'ccc' })).toBe('edited')
+    expect(composeSource(e, record, { manifest: 'zzz', entry: 'bbb' })).toBe('edited')
+  })
+
+  it('装过包但指纹算不出（读文件失败）→ edited（保守）', () => {
+    expect(composeSource(entry('a'), record, undefined)).toBe('edited')
+  })
+
+  it('store.markPackInstalled 落账后 sourceOf 认导入包', () => {
+    setActivePinia(createPinia())
+    const store = useModulesStore()
+    const e = entry('packed-mod')
+    // 直接注入指纹（等价于 scan 后的结果），避免依赖桥
+    store.fingerprints['packed-mod'] = { manifest: 'aaa', entry: 'bbb', short: 'aaa' }
+    expect(store.sourceOf(e)).toBe('local')
+    store.markPackInstalled('packed-mod', { manifest: 'aaa', entry: 'bbb' }, 0)
+    expect(store.sourceOf(e)).toBe('pack')
   })
 })
