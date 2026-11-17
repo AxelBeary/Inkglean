@@ -14,6 +14,9 @@ export interface ArtStyle {
   created_at: string
 }
 
+/** 尺寸三态（与后端 CHECK 约束一致：available / showcase / closed） */
+export type SizeDisplayStatus = 'available' | 'showcase' | 'closed'
+
 export interface StyleSize {
   id: number
   art_style_id: number
@@ -24,7 +27,7 @@ export interface StyleSize {
   image_artwork_id: number | null
   description: string | null
   work_days: number | null
-  display_status: string
+  display_status: SizeDisplayStatus
   /** 该档位含几次免费修改；0 = 不限（下单时快照进 orders.free_revision_limit，迁移 v81） */
   free_revisions?: number
 }

@@ -3,6 +3,7 @@ import * as orderGalleryService from './order-gallery.service.js'
 import { requireOwnOrder } from './order-route-utils.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
 import { AppError, E } from '../../shared/errors.js'
+import { sanitizeStoredText } from '../../shared/sanitize.js'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 
 // ============================================
@@ -19,6 +20,21 @@ function pickPreview(previews: orderGalleryService.PreviewRow[], previewId: numb
   const row = previews.find(p => p.id === previewId)
   if (!row) throw new AppError(E.PREVIEW_NOT_FOUND, 404)
   return row
+}
+
+/**
+ * caption 是客户可见纯文本：**含标签/实体时拒收并说明**，不再「静默吞掉还提示已保存」。
+ * 判据=清洗结果与原文（去首尾空白后）不一致——纯文本（含「价格<100」这类正常小于号）原样通过；
+ * <b>线稿</b>、<svg onload=x>…、&amp; 这类会被剥/解码的写法一律 400，让画师自己改。
+ * 空串 / null 表示清空，不拦。
+ */
+function assertPlainCaption(caption: string | null | undefined): void {
+  if (caption === null || caption === undefined) return
+  const text = caption.trim()
+  if (!text) return
+  if (sanitizeStoredText(caption).trim() !== text) {
+    throw new AppError(E.PREVIEW_CAPTION_INVALID, 400)
+  }
 }
 
 export async function orderPreviewRoutes(fastify: FastifyInstance) {
@@ -58,6 +74,7 @@ export async function orderPreviewRoutes(fastify: FastifyInstance) {
     }
   }, async (request: FastifyRequest) => {
     const { filePath, caption } = request.body as { filePath: string; caption?: string | null }
+    assertPlainCaption(caption)
     // 归属前缀校验用 request.artist.id（订单归属已由 requireOwnOrder 保证）
     const id = orderGalleryService.addPreview(request.order.id, request.artist.id, filePath, caption ?? null)
     return pickPreview(orderGalleryService.listPreviews(request.order.id), id)
@@ -83,6 +100,7 @@ export async function orderPreviewRoutes(fastify: FastifyInstance) {
     const previewId = parseInt((request.params as { pid: string }).pid, 10)
     if (isNaN(previewId)) throw new AppError(E.ORDER_INVALID_ID)
     const { visible, caption } = request.body as { visible?: boolean; caption?: string | null }
+    assertPlainCaption(caption)
     orderGalleryService.updatePreview(request.order.id, previewId, { visible, caption })
     return pickPreview(orderGalleryService.listPreviews(request.order.id), previewId)
   })

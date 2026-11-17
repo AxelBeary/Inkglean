@@ -317,6 +317,45 @@ describe('v81 过程稿 + 免费修改次数', () => {
     expect(applied).toEqual({ version: 81 })
   })
 
+  // ─── debug 批 A2：caption 含标签/实体不再静默清空（400 让画师自己改） ───
+
+  it('TC-V81-13: POST/PATCH caption 含标签或实体 → 400 PREVIEW_CAPTION_INVALID，且不落库', async () => {
+    const filePath = ensurePreviewFile(artist.id, 'caption-guard.png')
+    const badPost = await app.inject({
+      method: 'POST',
+      url: `/api/artist/orders/${order.id}/previews`,
+      headers: { Authorization: 'Bearer ' + token },
+      payload: { filePath, caption: '<b>线稿</b>' }
+    })
+    expect(badPost.statusCode).toBe(400)
+    expect(badPost.json().code).toBe('PREVIEW_CAPTION_INVALID')
+    expect(listPreviews(order.id).length).toBe(0)
+
+    const created = addPreview(order.id, artist.id, filePath, '线稿')
+    const badPatch = await app.inject({
+      method: 'PATCH',
+      url: `/api/artist/orders/${order.id}/previews/${created}`,
+      headers: { Authorization: 'Bearer ' + token },
+      payload: { caption: '<svg onload=alert(1)>线稿</svg>' }
+    })
+    expect(badPatch.statusCode).toBe(400)
+    expect(badPatch.json().code).toBe('PREVIEW_CAPTION_INVALID')
+    const row = listPreviews(order.id).find(p => p.id === created)!
+    expect(row.caption).toBe('线稿')
+  })
+
+  it('TC-V81-14: 正常纯文本（含小于号/和号）不被误拦', async () => {
+    const filePath = ensurePreviewFile(artist.id, 'caption-ok.png')
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/artist/orders/${order.id}/previews`,
+      headers: { Authorization: 'Bearer ' + token },
+      payload: { filePath, caption: '价格<100 & 细修' }
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().caption).toBe('价格<100 & 细修')
+  })
+
   // ─── 上传端点 ───
 
   it('TC-V81-11: POST /api/upload/preview 落 previews/{artistId}/ 并回签名 URL', async () => {

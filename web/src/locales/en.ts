@@ -237,7 +237,8 @@ export default {
     STYLE_ADDON_DUPLICATE: 'This addon is already imported into this style',
     SIZE_OVERRIDE_NOT_FOUND: 'Size override not found',
     // v81: work-in-progress images (wrong-order id / unknown id -> 404)
-    PREVIEW_NOT_FOUND: 'Work in progress image not found or does not belong to this order'
+    PREVIEW_NOT_FOUND: 'Work in progress image not found or does not belong to this order',
+    PREVIEW_CAPTION_INVALID: 'Captions are plain text shown to the client; HTML tags or entities are not allowed'
   },
   pref: {
     theme: 'Theme', base: 'Base', accent: 'Accent', auto: 'Auto', light: 'Light', dark: 'Dark',

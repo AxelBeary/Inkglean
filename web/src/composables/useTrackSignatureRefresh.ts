@@ -37,8 +37,8 @@ export function useTrackSignatureRefresh<T extends RefreshableOrder>({
   order: Ref<T | null>
   orderNo: Ref<string>
   token: Ref<string>
-  /** 换签请求（注入而非在此 import api，便于单测替换）；响应与画师端同形 { urls } */
-  request: (orderNo: string, token: string, paths: string[]) => Promise<{ urls: Record<string, string> }>
+  /** 换签请求（注入而非在此 import api，便于单测替换）；响应与画师端同形 { urls, skipped? } */
+  request: (orderNo: string, token: string, paths: string[]) => Promise<{ urls: Record<string, string>; skipped?: string[] }>
 }): void {
   /** 当前已渲染图片的路径（参考图 + 过程稿，去重）；空数组 = 本次无需续签 */
   const collect = (): string[] => {
@@ -71,9 +71,19 @@ export function useTrackSignatureRefresh<T extends RefreshableOrder>({
     }
   }
 
+  /** 失效路径：把对应过程稿从列表摘掉（客户页不再显示一张永远 403 的裂图）。
+   *  参考图不清：那是客户自己给的输入，宁可留占位也不擅自删客户数据。 */
+  const dropSkipped = (paths: string[]): void => {
+    const current = order.value
+    if (!current?.previews?.length) return
+    const gone = new Set(paths)
+    current.previews = current.previews.filter(p => !gone.has(uploadedPathFromUrl(p.url ?? '') || ''))
+  }
+
   useSignatureRefresh({
     collect,
     apply,
+    onSkipped: dropSkipped,
     request: (paths) => request(orderNo.value, token.value, paths),
   })
 }
