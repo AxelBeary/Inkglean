@@ -6,6 +6,15 @@
 > - 滚动分册：活档体积门 `scripts/check-changelog-size.mjs`（≤40KB / ≤450 行，单段 ≤4KB，accept 第 19 道）；撞线即搬 oldest 段入 `docs/changelog-archive/` 新卷（整段零改动 + 逐行哈希校验，禁调高阈值续命）。
 > - v0.x 时代（v0.1~v0.46+）全量台账在 `docs/changelog-archive/changelog-v0-20260927.md`，只读历史。
 
+## A1：过程稿上传磁盘水位 / 未绑定配额 / TTL（2026-11-18）
+
+- **新增迁移 v82 `preview_uploads`**：按画师记录每次落盘真实字节（artist_id / file_path / file_size / ip / created_at）；绑定关系不复写，「已挂单」以 `order_previews.file_path` 的 EXISTS 为唯一事实源。
+- **三闸**：写盘前 **507** 磁盘水位（复用 `UPLOAD_DISK_MIN_FREE_MB`，参考图/过程稿共用）；per-artist **429** 未挂单配额（`PREVIEW_UPLOAD_MAX_TOTAL_MB` 默认 200，0=关闭）；未挂单台账行 **TTL**（`PREVIEW_UPLOAD_TTL_DAYS` 默认 3 天，挂 `gcDatabaseTtl`；删行后文件才进入 72h 孤儿回收）。
+- **语义**：挂单即出额度（EXISTS 命中不算）；删过程稿行立即重新计入（文件仍在，宁严）；存量文件不回填台账。
+- **附带**：水位告警文案改「上传已暂停接收（参考图/过程稿）」；`.env.example` 补齐 5 条上传水位/配额 env。
+- **验证**：server typecheck/lint 绿 + **2058**（+8，新 `preview-upload-quota.test.ts`）；web 1233 / desktop 672 / shared 44 / E2E 14 未动；**十九道全绿 @ `36e8402b`（481s）**，报告 `AGENTS/workspace/temp/accept-master-20261118-040125.md`。
+- **未做（如实）**：前端未加 429/507 专用提示（通用失败提示兜底，另排）；未跑桌面/真机流程。
+
 ## debug 批遗留清账：caption 拒收 / skipped 摘图 / 类型收紧（2026-11-17 夜）
 
 - **A2 过程稿备注不再静默吞内容**：caption 含 HTML 标签或实体时后端改返 **400 `PREVIEW_CAPTION_INVALID`**（原实现剥标签后存 `null`、接口仍 200 并提示「已保存」）；正常纯文本零误伤（「价格<100」这类小于号原样通过）。判据＝消毒结果与原文（去首尾空白）不一致即拒收，中英错误文案齐备。

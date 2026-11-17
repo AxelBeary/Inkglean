@@ -1,8 +1,9 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-11-18 01:50 八次刷新：依赖 #91/#92/#94/#95 全合入 + 交接-20261118）
+## 看板（2026-11-18 04:12 九次刷新：A1 过程稿三闸落地 + 十九道全绿 @ `36e8402b`）
 
-- **HEAD 与推送**：`c599e4cf`（#94 合入后），与 origin 齐平；**十九道全绿 @ `3b54d714`（357s）**；交接 `AGENTS/artifacts/交接-20261118/HANDOFF.md`
+- **HEAD 与推送**：`36e8402b`（A1 批，领先 origin/master 1 个提交，**待推送**）；**十九道全绿 @ `36e8402b`（481s，19/19）**；报告 `AGENTS/workspace/temp/accept-master-20261118-040125.md`
+  - 本笔 `36e8402b` = A1 过程稿上传三闸（v82 台账 + 507 水位 + per-artist 429 配额 + 未挂单 TTL；server +8）；交接 `AGENTS/artifacts/交接-20261118-2/HANDOFF.md`
   - 上一笔 `9b24e555`/`c599e4cf` = dependabot #95（三目录 17 项含 minimatch 11）/ #94（desktop 例行 6 项）
   - 再上 `655a7bf2` = 十九道全绿落档（看板）
   - 上一笔 `4256a8b0` = debug 遗留清账（A2 caption 400 / A3 skipped 摘图 / B4 类型收紧；报告 `AGENTS/artifacts/清理批-20261117/SUMMARY.md`）
@@ -12,11 +13,11 @@
   - 上一笔 `48a0737c` = 查单页签名续签 + 下单页展示免费修改次数（修「停留 5 分钟图裂」；server 2045 / web 1231）
   - 再上两笔 `6b2bbf1e`/`7c0f458d` = 过程稿可见 + 免费修改次数（迁移 **v81**）+ 抽 `useTrackSignatureRefresh` 修 CI file-size 红
 - **发版**：**v1.1.0**（2026-10-28，稳交付·好管理版）已发布 —— 安装包 `inkglean-installer-v1.1.0.zip`（5.79 MB / 920 文件）；迁移 v71→v80 自动执行；说明见 `docs/changelog.md` 顶部与 GitHub Releases
-- **基线（2026-11-18 01:22 十九道全绿 @ `3b54d714`，357s；本批数字全部实跑）**
-  - server **2050**（180 文件）/ web **1233**（181）/ desktop **672**（48）/ shared **44** / E2E **14**；cargo **39** 另计
-  - 本批增长：server +2（caption 拒收）/ web +1（skipped 摘图）/ desktop +1（确定性组包）
-  - 迁移 **v81**（order_previews 表 + orders 两个开关列 + style_sizes.free_revisions；幂等，存量库实测 8 单默认 0/0 行为零变化）
-  - 本轮计数增长：模块包批 desktop +36（pack 27 / zip 往返 4 / 来源判定 5）；上一批 debug：server +3 / web +1
+- **基线（2026-11-18 04:12 十九道全绿 @ `36e8402b`，481s；本批数字全部实跑）**
+  - server **2058**（181 文件）/ web **1233**（181）/ desktop **672**（48）/ shared **44** / E2E **14**；cargo **39** 另计
+  - 本批增长：server +8（A1 三闸 8 例）；web / desktop / shared / E2E 未动
+  - 迁移 **v82**（preview_uploads 台账 + order_previews(file_path) 索引；幂等，存量库首次启动自建）
+  - 上一批：debug server +2 / web +1；模块包 desktop +36（pack 27 / zip 往返 4 / 来源判定 5）
 - **拟物收敛射程不变**：只限排期块（ScheduleScroll）；挂牌 3D / 墨迹动画 / 登录纸艺山水**不动**
 - **GHSA-6pf3 安全批已闭合**：8 项加固全部落地并回函；披露处置＝**维持私密不公开**（详见「已拍板规则」）
 - **警报/PR 现状（2026-11-18 02:25 二次复核）**
@@ -31,12 +32,12 @@
 
 **下一步（按优先级）**
 
-1. **新会话先读交接**：`AGENTS/artifacts/交接-20261118/HANDOFF.md`（现状/本轮四批/口径/待办/踩坑齐全）；再按待办第 1 条（A1 施工口径）开工。
-2. **待处置：A1（过程稿上传磁盘水位/字节配额/TTL）+ 2 条 dev-only 警报（#112/#113）**；A1 口径草案 `AGENTS/artifacts/A1-过程稿配额-20261118/DESIGN-A1.md`（待拍 3 参数）
+1. **新会话先读交接**：`AGENTS/artifacts/交接-20261118-2/HANDOFF.md`（外发收口 + A1 口径 + 宿主限制）；A1 已完成，收口件见 `AGENTS/artifacts/A1-过程稿配额-20261118/SUMMARY.md`。
+2. **待处置：2 条 dev-only 警报（#112/#113）**；A1 已落 `36e8402b`（200MB / 3 天 / per-artist），前端 429/507 专用提示另排。
 3. ✅ **上一批收口**：issue #81/#82/#83 + 十九道全绿；报告 `AGENTS/workspace/temp/accept-master-20261106-052230.md`；回函草稿 `AGENTS/artifacts/issue-81-82-83-20261106/replies/`（已发，见上方评论链接）
 4. **登记未施工（下批候选）**
    - 评审附带跟进：#61 10MB 超限静默 return + 无 filePath 拦提交 + objectURL 回收；#62 分片失败整批停 + 守卫 15s 无提示；#65 提交时二次校验接单状态
-   - debug 批遗留仅剩 **A1**（过程稿上传缺磁盘水位与字节配额）；A2/A3 已在 `4256a8b0` 清掉
+   - debug 批遗留 **A1 已清**（`36e8402b`）；A2/A3 已在 `4256a8b0` 清掉
    - 待用户终验：发布包真人启动（asset 图缓存、模块 data 帧）；悬浮窗逐窗回执与贴回同步的真机一遍
 5. **盘面清理已做（11-17 夜）**：7 条已并入的本地分支已删；`.qoder/worktrees/` 旧残目录早前已清；本轮无新增 worktree；B5 复核确认 ban/unban 已有 STEP_UP_REQUIRED 排队重提交，未见无界循环
 6. **待你拍板的技术债（剩余）**：U26 server 以 tsx 作生产依赖；U33 桌面发版流水线从未跑过（缺 vars/secrets，首版必红）
@@ -56,6 +57,7 @@
 
 **已拍板规则**
 
+- A1 过程稿上传三参数（2026-11-18，用户拍板）：**配额 200MB / TTL 3 天 / 维度 per-artist**。依据：10MB/张≈20 张未挂单；TTL 与 72h 孤儿回收同窗；登录态入口按画师计。env `PREVIEW_UPLOAD_MAX_TOTAL_MB` / `PREVIEW_UPLOAD_TTL_DAYS`，0=关闭配额。
 - 桌面端最小窗（2026-11-06，本批）：**1200×600 → 768×600**。理由：1080P@125% 逻辑宽 1536、半屏仅 768，原值使 Windows Snap 贴靠必然失败；768 宽视觉待真机终验。
 - 桌面端平台范围（2026-10-27，用户拍板）：**只支持 Windows**。`bundle.targets = ["nsis"]`，macOS/Linux 不构建、不承诺；凭据存储依赖 Windows 接口，不另做跨平台实现。网站服务端仍可跑 Linux（根 README 不变）。
 - 交付文件下载失败处置（2026-10-27，用户拍板，修订 issue #21-8）：每 3 次半途 → **5 分钟冷却、冷却后可重试**（不再永久锁）；同时保留**彻底锁死线**——累计失败 9 次永久锁定，需画师再许可（防故意刷）。原实现「3 次即永久锁 + 冷却字段不可达」作废。
