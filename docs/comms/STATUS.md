@@ -1,25 +1,26 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-11-17 六次刷新：debug 遗留清账——A2 caption 400 / A3 skipped 摘图 / B4 类型收紧）
+## 看板（2026-11-18 01:28 七次刷新：十九道全绿 @ 3b54d714，dependabot #91/#92 已合入）
 
-- **HEAD 与推送**：本批工作提交 `4256a8b0` = debug 遗留清账（A2 caption 含标签改 400 / A3 客户页消费 skipped / B4 display_status 收紧；server 2050 / web 1233 / desktop 672 全绿；报告 `AGENTS/artifacts/清理批-20261117/SUMMARY.md`）
-  - 上一笔 `74f26fcf` = 模块包批（桌面端模块导入/导出 + 三件摘要校验 + 静态体检；desktop 671 绿；报告 `AGENTS/artifacts/模块包-20261117/SUMMARY.md`）
-  - 落档提交叠在工作提交之上（未 push；远端仍是旧 HEAD）
+- **HEAD 与推送**：`3b54d714`（= #91/#92 两条 dependabot 合入后）；**十九道全绿 @ `3b54d714`（357s）**；报告 `AGENTS/workspace/temp/accept-master-20261118-012229.md`；本地与 origin 齐平
+  - 上一笔 `4256a8b0` = debug 遗留清账（A2 caption 400 / A3 skipped 摘图 / B4 类型收紧；报告 `AGENTS/artifacts/清理批-20261117/SUMMARY.md`）
+  - 再上 `acbbb43a` = accept-baseline.json 非法 JSON 修复（read 超长行截断事故）+ 纪律一条
+  - 再上 `74f26fcf` = 模块包批（桌面端模块导入/导出 + 三件摘要校验 + 静态体检；报告 `AGENTS/artifacts/模块包-20261117/SUMMARY.md`）
   - 上一笔 `5ab2e6d6` = debug 批修复（画师端过程稿续签 + 续签不再整批中毒；server 2048 / web 1232 全绿；交接 `AGENTS/artifacts/交接-20261117-2/HANDOFF.md`）
   - 上一笔 `48a0737c` = 查单页签名续签 + 下单页展示免费修改次数（修「停留 5 分钟图裂」；server 2045 / web 1231）
   - 再上两笔 `6b2bbf1e`/`7c0f458d` = 过程稿可见 + 免费修改次数（迁移 **v81**）+ 抽 `useTrackSignatureRefresh` 修 CI file-size 红
 - **发版**：**v1.1.0**（2026-10-28，稳交付·好管理版）已发布 —— 安装包 `inkglean-installer-v1.1.0.zip`（5.79 MB / 920 文件）；迁移 v71→v80 自动执行；说明见 `docs/changelog.md` 顶部与 GitHub Releases
-- **基线（2026-11-17 夜实测：server / web / desktop 三端 + cargo 实跑；shared、E2E、十九道未跑）**
-  - server **2050**（180 文件）/ web **1233**（181）/ desktop **672**（48）/ cargo **39**；shared 44 / E2E 14 沿用上一批实测
-  - 本批增长：server +2（caption 拒收 2）/ web +1（skipped 摘图）/ desktop +1（确定性组包）
+- **基线（2026-11-18 01:22 十九道全绿 @ `3b54d714`，357s；本批数字全部实跑）**
+  - server **2050**（180 文件）/ web **1233**（181）/ desktop **672**（48）/ shared **44** / E2E **14**；cargo **39** 另计
+  - 本批增长：server +2（caption 拒收）/ web +1（skipped 摘图）/ desktop +1（确定性组包）
   - 迁移 **v81**（order_previews 表 + orders 两个开关列 + style_sizes.free_revisions；幂等，存量库实测 8 单默认 0/0 行为零变化）
   - 本轮计数增长：模块包批 desktop +36（pack 27 / zip 往返 4 / 来源判定 5）；上一批 debug：server +3 / web +1
 - **拟物收敛射程不变**：只限排期块（ScheduleScroll）；挂牌 3D / 墨迹动画 / 登录纸艺山水**不动**
 - **GHSA-6pf3 安全批已闭合**：8 项加固全部落地并回函；披露处置＝**维持私密不公开**（详见「已拍板规则」）
-- **警报/PR 现状（2026-11-17 夜复核：修正「open 0」过期口径）**
-  - Code scanning open **0**；**Dependabot open 5**（全 medium：#104 glob@server；#110~#113 minimatch@desktop/shared/server/web，修复版 11.0.1 / 14.0.2）
-  - **open PR 7**：4 条 dependabot（#89/#91/#92/#93）+ 3 条外部 Mistwhisker（#84~#86，与 issue #81~#83 同题，本仓已另行修复，PR 待处置）
-  - 旧口径「Dependabot open 0 / open PR 0」作废（11-06 后新增，看板未跟上；#102 的解已含在上一口径里）
+- **警报/PR 现状（2026-11-18 01:28 复核）**
+  - Code scanning open **0**；**Dependabot open 3**（全 medium：#111 server / #112 shared / #113 web，均 minimatch；#95 已带 ^11.0.5）
+  - **open PR 5**：#94（desktop 例行 6 项）/#95（三目录 17 项，含 minimatch 11）+ 3 条外部 Mistwhisker（#84~#86）
+  - #91/#92 已合入，#104（glob）/ #110（desktop minimatch）两条警报随之关闭
   - issue 处置：**#81~#83 已核查并修复**（#81 根因不成立、补 423 冷却提示；#82 主体不成立、补参考图入草稿；#83 属实、已换纸墨确认框）；回函草稿待发
   - **#82 补**：草稿参考图恢复后按 filePath 现签补缩略图（`POST /api/upload/reference/sign`，只签本凭证未绑定路径）
   - **#69~#73 已全部关闭**（#73 四条＝语义色统一纸墨 / 悬浮小圆钮 / 打印态兜底 / 重复文案去重，均落地并 Playwright 无头实测）
@@ -28,8 +29,8 @@
 
 **下一步（按优先级）**
 
-1. **本批待你终验**：桌面壳内「导入模块包 / 导出模块包」各点一次（真机选文件 + 另存为；摘要/体检/来源徽章在模块管理页可见）；`pwsh scripts/accept.ps1` 十九道未跑（AI 不许跑 .ps1），本批只交 desktop 三件 + cargo 39 + 三道防阀。
-2. **待处置：Dependabot 5 条 + open PR 7 条**（11-17 夜复核）：server 侧 glob 13.0.6 / minimatch 10.2.5 是**生产**依赖，其余三端 dev-only；修复版 glob 14.0.2 / minimatch 11.0.1 皆跨 major，按独立批走 PR #89/#91/#92/#93；外部 #84~#86 与本仓已修同题，先判关闭还是合入。
+1. **待你终验（真机）**：桌面壳内「导入模块包 / 导出模块包」各点一次；画师端过程稿备注输 `<b>线稿</b>` 应弹「不要带 HTML」；客户页停留 3 分钟后被关可见性的过程稿应自动消失。十九道已全绿 @ `3b54d714`。
+2. **待处置：Dependabot 3 条 + open PR 5 条**（11-18 复核）：#91/#92 已合入；剩 #111~#113（minimatch）由 PR #95 覆盖（^11.0.5），#94 为 desktop 例行 minor；外部 #84~#86 与本仓已修同题，先判关闭还是合入。
 3. ✅ **上一批收口**：issue #81/#82/#83 + 十九道全绿；报告 `AGENTS/workspace/temp/accept-master-20261106-052230.md`；回函草稿 `AGENTS/artifacts/issue-81-82-83-20261106/replies/`（待你点头再发）
 4. **登记未施工（下批候选）**
    - 评审附带跟进：#61 10MB 超限静默 return + 无 filePath 拦提交 + objectURL 回收；#62 分片失败整批停 + 守卫 15s 无提示；#65 提交时二次校验接单状态
@@ -115,7 +116,8 @@
 > - **A3**：客户查单页消费续签响应的 `skipped[]`，把失效过程稿从列表摘掉（不再留 403 裂图）；参考图不动。
 > - **B4**：`SizeDisplayStatus` 联合类型（available/showcase/closed）落到 `StyleSize` / `PublicStyleSize`，与后端 CHECK/enum 同口径。
 > - **OFM #3**：桌面端新增「同模块两次组包，除 generatedAt 外逐字节一致」用例（确定性构建单元级证据）。
-> - **验证**：server 2050 / web 1233 / desktop 672 / cargo 39 全绿；留痕 `AGENTS/artifacts/清理批-20261117/`。十九道与 E2E 未跑。
+> - **验证**：**十九道全绿 @ `3b54d714`（357s）**：server 2050 / web 1233 / desktop 672 / shared 44 / E2E 14。
+>   - cargo 39 另计；留痕 `AGENTS/artifacts/清理批-20261117/` + `AGENTS/workspace/temp/accept-master-20261118-012229.md`。
 > - **事故与纠偏（记）**：改 i18n 时整读整写把两个 2800+ 行 locale 截断到 ~1017 行（read 默认 2000 行），已用 `git show HEAD:` 逐字节恢复并复核 blob 哈希；教训：>2000 行文件禁整读整写，web 的类型门禁在 lint 不在 build。
 > - **文档位**：正文已 8 块（超 5），归档搬迁仍待单独一批。
 >
