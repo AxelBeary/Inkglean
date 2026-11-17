@@ -176,9 +176,18 @@ export function createOrder({ artistId, clientQq, clientName, description, prior
       ? buildStyleQuoteSnapshot(styleCalc, totalPriceCents ?? 0)
       : null
 
+    // ─── v81: 免费修改次数快照 ───
+    // 档位的 free_revisions → orders.free_revision_limit（0 = 不限：无档位的手写单、
+    // 档位没设、以及全部存量订单都是 0，行为零变化）。
+    // 快照而非实时 JOIN：档位事后改数字不该倒改历史订单已给出的承诺。
+    const freeRevisionLimit = styleSizeId
+      ? (db.prepare('SELECT free_revisions FROM style_sizes WHERE id = ?')
+          .get(styleSizeId) as { free_revisions: number } | undefined)?.free_revisions ?? 0
+      : 0
+
     const result = db.prepare(`
-      INSERT INTO orders (order_no, artist_id, style_size_id, client_qq, client_name, description, priority, status, source, client_notify, queue_position, price_snapshot, total_price_cents, quote_snapshot, final_price_cents, queue_zone, discount_code_id, discount_amount_cents, customer_token_hash)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO orders (order_no, artist_id, style_size_id, client_qq, client_name, description, priority, status, source, client_notify, queue_position, price_snapshot, total_price_cents, quote_snapshot, final_price_cents, queue_zone, discount_code_id, discount_amount_cents, customer_token_hash, free_revision_limit)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       orderNo, artistId, styleSizeId || null, clientQq,
       sanitizeStoredText(clientName) || null,
@@ -192,7 +201,8 @@ export function createOrder({ artistId, clientQq, clientName, description, prior
       queueZone,
       discountCodeId,
       discountAmountCents,
-      customerTokenHash
+      customerTokenHash,
+      freeRevisionLimit
     )
 
     const orderId = Number(result.lastInsertRowid)

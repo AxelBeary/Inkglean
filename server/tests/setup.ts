@@ -42,6 +42,7 @@ export { db }
  */
 export function cleanDb(): void {
   db.exec(`
+    DELETE FROM order_previews;
     DELETE FROM deliverables;
     DELETE FROM order_notes;
     DELETE FROM order_references;

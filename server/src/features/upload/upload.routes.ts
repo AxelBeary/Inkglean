@@ -471,6 +471,41 @@ export default async function uploadRoutes(fastify: FastifyInstance, opts: { upl
   })
 
   /**
+   * POST /api/upload/preview — 过程稿（v81，需登录）
+   * 照 note-image 的形状：图片白名单（JPG/PNG/WebP/GIF，10MB）+ 签名 URL；
+   * 目录用 previews/{artistId}/——过程稿此时还没挂到订单（先传图再登记，同备注附图），
+   * 故按画师分目录而非按订单。挂单走 POST /api/artist/orders/:id/previews。
+   */
+  fastify.post('/api/upload/preview', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!rateLimit(`upload-preview:${request.ip}`, 20, 10 * 60_000)) {
+      return reply.code(429).send({ error: '上传过于频繁，请稍后再试' })
+    }
+
+    const data = await request.file()
+    if (!data) return reply.code(400).send({ error: '未收到文件' })
+
+    if (safeExt(data.filename, ALLOWED_EXTENSIONS) === null || !ALLOWED_MIME_TYPES.includes(data.mimetype)) {
+      return reply.code(400).send({ error: '仅支持 JPG / PNG / WebP / GIF 格式的图片' })
+    }
+
+    try {
+      const result = await saveUpload(data, join('previews', String(request.artist.id)), UPLOAD_DIR)
+      if (!result) return reply.code(400).send({ error: '文件大小超过10MB限制' })
+
+      return {
+        filePath: result.filePath,
+        url: signedUrl(result.filePath),
+        originalName: data.filename,
+        mimeType: data.mimetype,
+        size: result.size
+      }
+    } catch (err) {
+      if (err instanceof AppError) return reply.code(err.statusCode).send({ code: err.code, error: err.message })
+      throw err
+    }
+  })
+
+  /**
    * POST /api/upload/note-image — 备注附图（R19，需登录）
    * 存入 notes/{artistId}/ 目录，签名 URL 返回
    * 白名单：图片格式（同 references，JPG/PNG/WebP/GIF，10MB）
