@@ -25,6 +25,8 @@ export interface StyleSize {
   description: string | null
   work_days: number | null
   display_status: string
+  /** 该档位含几次免费修改；0 = 不限（下单时快照进 orders.free_revision_limit，迁移 v81） */
+  free_revisions?: number
 }
 
 /** 画风增项（含模板快照列 + detached 标记） */
@@ -85,6 +87,8 @@ export interface StyleSizeInput {
   description?: string | null
   work_days?: number | null
   display_status?: 'available' | 'showcase' | 'closed'
+  /** 该档位含几次免费修改（0..99，0 = 不限） */
+  free_revisions?: number
 }
 
 /** PUT /artist/art-styles/:id/addons 单项 */
