@@ -488,6 +488,42 @@ describe('路由层测试 (Route Integration)', () => {
       expect(res.json().code).toBe('ILLEGAL_PATH')
     })
 
+    it('TC-RT-15c2: v81 本画师订单的过程稿路径可续签', async () => {
+      const artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
+      const token = createSession(artist.id, artist.token_version)
+      const order = seedOrder(artist.id)
+      db.prepare('INSERT INTO order_previews (order_id, file_path, caption, visible) VALUES (?, ?, ?, ?)')
+        .run(order.id, `previews/${artist.id}/p1.png`, null, 1)
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/artist/refresh-signatures',
+        headers: { Authorization: `Bearer ${token}` },
+        payload: { paths: [`previews/${artist.id}/p1.png`] }
+      })
+      expect(res.statusCode).toBe(200)
+      expect(res.json().urls[`previews/${artist.id}/p1.png`]).toContain(`/uploads/previews/${artist.id}/p1.png?sig=`)
+    })
+
+    it('TC-RT-15c3: v81 目录名对了但不是本画师订单的过程稿 → 仍拒', async () => {
+      const artist = seedArtist({ qq_number: '12345', subdomain: 'alice' })
+      const other = seedArtist({ qq_number: '67890', subdomain: 'bob' })
+      const token = createSession(artist.id, artist.token_version)
+      // 文件落在 alice 目录名下，但登记在 bob 的订单上 —— 前缀校验会放过，JOIN 归属必须拦住
+      const otherOrder = seedOrder(other.id)
+      db.prepare('INSERT INTO order_previews (order_id, file_path, caption, visible) VALUES (?, ?, ?, ?)')
+        .run(otherOrder.id, `previews/${artist.id}/planted.png`, null, 1)
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/artist/refresh-signatures',
+        headers: { Authorization: `Bearer ${token}` },
+        payload: { paths: [`previews/${artist.id}/planted.png`] }
+      })
+      expect(res.statusCode).toBe(400)
+      expect(res.json().code).toBe('ILLEGAL_PATH')
+    })
+
     it('TC-RT-15d: 无 token 返回 401', async () => {
       const res = await app.inject({
         method: 'POST',

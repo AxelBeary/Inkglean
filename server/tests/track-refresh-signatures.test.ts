@@ -67,38 +67,64 @@ describe('客户侧签名续签（track refresh-signatures）', () => {
     expect(urls[previewPath]).toMatch(/^\/uploads\/previews\/.+\?sig=/)
   })
 
-  it('TC-RS-02: 画师关掉过程稿开关后，同一 previews 路径续签 → 4xx（不再续命）', async () => {
+  // v81 语义修订（debug 批 D1-High）：续签**不做整批原子**。一条已失效的路径
+  // （画师刚关掉开关/刚删图/单图刚设为不可见）若让整批 400，同页其它仍有效的图
+  // （尤其参考图）会一起停止续签，5 分钟后 403 且永不自愈。故失效路径静默略过。
+  it('TC-RS-02: 画师关掉过程稿开关后，同一路径不再返回签名（200，路径进 skipped）', async () => {
     const previewPath = ensurePreviewFile(artist.id, 'p2.png')
     addPreview(order.id, artist.id, previewPath, null)
     updatePreviewSettings(order.id, { previewVisibleToClient: true })
-    // 开关开时可通过
     expect((await refresh([previewPath])).statusCode).toBe(200)
 
     updatePreviewSettings(order.id, { previewVisibleToClient: false })
     const res = await refresh([previewPath])
-    expect(res.statusCode).toBe(400)
-    expect(res.json().code).toBe('ILLEGAL_PATH')
+    expect(res.statusCode).toBe(200)
+    const body = res.json() as { urls: Record<string, string>, skipped?: string[] }
+    expect(body.urls[previewPath]).toBeUndefined()
+    expect(body.skipped).toContain(previewPath)
   })
 
-  it('TC-RS-03: 单图 visible=0 的过程稿续签 → 4xx', async () => {
+  it('TC-RS-03: 单图 visible=0 的过程稿同样不返回签名', async () => {
     const previewPath = ensurePreviewFile(artist.id, 'p3.png')
     const previewId = addPreview(order.id, artist.id, previewPath, null)
     updatePreviewSettings(order.id, { previewVisibleToClient: true })
     updatePreview(order.id, previewId, { visible: false })
 
     const res = await refresh([previewPath])
-    expect(res.statusCode).toBe(400)
-    expect(res.json().code).toBe('ILLEGAL_PATH')
+    expect(res.statusCode).toBe(200)
+    const body = res.json() as { urls: Record<string, string>, skipped?: string[] }
+    expect(body.urls[previewPath]).toBeUndefined()
+    expect(body.skipped).toContain(previewPath)
   })
 
-  it('TC-RS-04: 他人订单的路径 → 4xx（本单未持有该行）', async () => {
+  it('TC-RS-04: 他人订单的路径不返回签名（本单未持有该行）', async () => {
     const other = seedOrder(artist.id, { order_no: 'TEST-RS02', status: 'wip' })
     db.prepare('INSERT INTO order_references (order_id, file_path, original_name, source) VALUES (?, ?, ?, ?)')
       .run(other.id, 'references/other-order.png', 'o.png', 'client')
 
     const res = await refresh(['references/other-order.png'])
-    expect(res.statusCode).toBe(400)
-    expect(res.json().code).toBe('ILLEGAL_PATH')
+    expect(res.statusCode).toBe(200)
+    const body = res.json() as { urls: Record<string, string>, skipped?: string[] }
+    expect(body.urls['references/other-order.png']).toBeUndefined()
+    expect(body.skipped).toContain('references/other-order.png')
+  })
+
+  it('TC-RS-09（D1-High 回归）: 一批里混入已失效过程稿，参考图仍拿到签名（不整批中毒）', async () => {
+    const refPath = 'references/client-poison.png'
+    addReference(refPath)
+    const deadPreview = ensurePreviewFile(artist.id, 'p-poison.png')
+    addPreview(order.id, artist.id, deadPreview, null)
+    updatePreviewSettings(order.id, { previewVisibleToClient: true })
+    expect((await refresh([refPath, deadPreview])).statusCode).toBe(200)
+
+    // 画师关掉开关 —— 客户端此刻仍持有该预览路径（未刷新页面），下一轮续签名会带上它
+    updatePreviewSettings(order.id, { previewVisibleToClient: false })
+    const res = await refresh([refPath, deadPreview])
+    expect(res.statusCode).toBe(200)
+    const body = res.json() as { urls: Record<string, string>, skipped?: string[] }
+    expect(body.urls[refPath]).toMatch(/^\/uploads\/references\/client-poison\.png\?sig=/)
+    expect(body.urls[deadPreview]).toBeUndefined()
+    expect(body.skipped).toContain(deadPreview)
   })
 
   it('TC-RS-05: 含 .. 的路径 → 4xx（穿越一律先拒）', async () => {
@@ -118,8 +144,10 @@ describe('客户侧签名续签（track refresh-signatures）', () => {
   it('TC-RS-07: 画师私有参考图（source=artist）不给客户续签', async () => {
     addReference('references/artist-private.png', 'artist')
     const res = await refresh(['references/artist-private.png'])
-    expect(res.statusCode).toBe(400)
-    expect(res.json().code).toBe('ILLEGAL_PATH')
+    expect(res.statusCode).toBe(200)
+    const body = res.json() as { urls: Record<string, string>, skipped?: string[] }
+    expect(body.urls['references/artist-private.png']).toBeUndefined()
+    expect(body.skipped).toContain('references/artist-private.png')
   })
 
   it('TC-RS-08: paths 走 schema 边界（1..50 项）', async () => {

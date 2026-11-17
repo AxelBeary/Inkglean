@@ -276,17 +276,26 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
         LIMIT 1`
     )
 
+    // 逐条判定，**不做整批原子**：需要续签的路径里只要有一条已失效（画师刚关掉
+    // 「允许客户查看过程稿」、刚删了某张图、或刚把单图设为不可见），整批 400 会让
+    // 同一页面上其它仍然有效的图（尤其参考图）一起停止续签——那些图 5 分钟后 403
+    // 且永不自愈（前端一失败即停，见 useSignatureRefresh 的分片中断语义）。
+    // 故失效路径**静默略过**：不返回它的 URL 即等于不续签，不泄露任何额外信息；
+    // 只有 '..' 这种明确的攻击特征仍然整批拒绝。
     const urls: Record<string, string> = {}
+    const skipped: string[] = []
     for (const p of paths) {
       if (p.includes('..')) throw new AppError(E.ILLEGAL_PATH)
       if (!refOwned.get(p, order.id) && !previewOwned.get(p, order.id)) {
-        throw new AppError(E.ILLEGAL_PATH)
+        skipped.push(p)
+        continue
       }
       // previews/ 与 references/ 都是普通签名目录（交付物的一次性载荷不适用）
       urls[p] = signedUrl(p)
     }
 
-    return { urls }
+    // skipped 只回显调用方自己传来的路径，不含任何库内信息
+    return skipped.length > 0 ? { urls, skipped } : { urls }
   })
 
   /**

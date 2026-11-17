@@ -102,6 +102,7 @@ import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import CardHead from '../visual/CardHead.vue'
 import { artistApi, uploadApi } from '../../../api/index'
+import { uploadedPathFromUrl, useSignatureRefresh } from '../../../composables/useSignatureRefresh'
 import type { ArtistOrderPreview } from '../../../api/types'
 
 /** 列表行：caption 归一为空串（el-input 不接 null）、visible 归一为布尔
@@ -135,6 +136,22 @@ const uploadInputEl = ref<HTMLInputElement | null>(null)
 const overLimit = computed(() => {
   const limit = freeLimit.value
   return typeof limit === 'number' && limit > 0 && revisionUsed.value >= limit
+})
+
+/**
+ * 签名续签：过程稿 URL 是现签的（TTL 5 分钟，见 server/src/shared/file-sign.ts），
+ * 画师在本页停留超过 5 分钟后缩略图会整片 403。与客户查单页用同一套 composable，
+ * 这里不注入 request——默认就是画师端 POST /api/artist/refresh-signatures。
+ */
+useSignatureRefresh({
+  collect: () => previews.value.map(row => uploadedPathFromUrl(row.url) || '').filter(Boolean),
+  apply: (urls) => {
+    for (const row of previews.value) {
+      const path = uploadedPathFromUrl(row.url)
+      const next = path ? urls[path] : undefined
+      if (next) row.url = next
+    }
+  }
 })
 
 function normalize(row: ArtistOrderPreview): PreviewRow {

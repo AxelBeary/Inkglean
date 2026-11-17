@@ -257,7 +257,8 @@ export async function orderListRoutes(fastify: FastifyInstance) {
     const artistId = String(request.artist.id)
 
     // 安全：路径归属校验 — 只允许本画师有权访问的目录
-        const allowedPrefixes = ['references/', `deliverables/${artistId}/`, `notes/${artistId}/`]
+        // v81: 过程稿（previews/{artistId}/）同属画师私有目录，与备注附图同口径按 artistId 隔离
+        const allowedPrefixes = ['references/', `deliverables/${artistId}/`, `notes/${artistId}/`, `previews/${artistId}/`]
         const urls: Record<string, string> = {}
         for (const p of paths) {
           if (p.includes('..') || !allowedPrefixes.some((prefix: string) => p.startsWith(prefix))) {
@@ -272,6 +273,13 @@ export async function orderListRoutes(fastify: FastifyInstance) {
           }
           // 260830 审计 H-4：deliverables/ 路径带预览载荷签发（仅 deliverableId，访问层查账本行存在即放行）；
           // 裸签名在交付目录会被钩子 403。归属校验同 references 口径（目录前缀已含画家 id，JOIN 双保险）。
+          // v81: 过程稿目录含 artistId 前缀，仍需 JOIN 订单二次确认（防同机多画师/伪造目录名）
+          if (p.startsWith('previews/')) {
+            const owned = db.prepare(
+              'SELECT 1 FROM order_previews pr JOIN orders o ON pr.order_id = o.id WHERE pr.file_path = ? AND o.artist_id = ? LIMIT 1'
+            ).get(p, request.artist.id)
+            if (!owned) throw new AppError(E.ILLEGAL_PATH)
+          }
           if (p.startsWith('deliverables/')) {
             const owned = db.prepare(
               'SELECT d.id FROM deliverables d JOIN orders o ON d.order_id = o.id WHERE d.file_path = ? AND o.artist_id = ? LIMIT 1'
