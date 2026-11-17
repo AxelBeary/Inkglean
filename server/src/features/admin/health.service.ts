@@ -3,6 +3,7 @@ import { constants, readdirSync, statSync } from 'fs'
 import type { StatsFs } from 'fs'
 import { access, statfs } from 'fs/promises'
 import { resolve, join } from 'path'
+import { isDbBackupFile, resolveBackupDir } from '../../shared/backup-paths.js'
 
 // ============================================
 // 系统自检服务（HC）
@@ -188,38 +189,84 @@ function checkIntegrity(): HealthCheckResult {
   }
 }
 
-/** 6. 备份状态：扫描 data/*.bak.* 最新文件 */
+/**
+ * 6. 备份状态：扫描真实备份目录（U044）
+ *
+ * 事故：本函数原扫 DATA_DIR（由 DB_PATH 推出的数据目录，readdirSync 非递归），而正式备份产物
+ * 写在 BACKUP_DIR（默认 <数据目录>/backups，见 scripts/backup-db.ts）——子目录里的新备份永远
+ * 扫不到，健康页恒显示「备份正常」；只挂 BACKUP_DIR 的部署反倒误报「未找到备份」。
+ * 路径口径现由 shared/backup-paths.ts 统一给出，与 backup-db.ts 取的是同一个函数。
+ *
+ * 为什么两处都扫：正式备份在备份目录，而迁移前自动备份（db/migrate.ts 的 .bak.vN）与老部署的
+ * 历史备份留在数据目录根下——只认一处就会把「有备份」误报成「没备份」。
+ */
 function checkBackup(): HealthCheckResult {
+  const backupDir = resolveBackupDir(DATA_DIR)
   try {
-    let latest: string | null = null
-    let latestTime = 0
-    try {
-      const files = readdirSync(DATA_DIR)
-      for (const f of files) {
-        if (f.includes('.bak.')) {
-          const st = statSync(join(DATA_DIR, f))
-          if (st.mtimeMs > latestTime) {
-            latestTime = st.mtimeMs
-            latest = f
-          }
-        }
-      }
-    } catch { /* DATA_DIR 不存在 */ }
+    const { latest, backupDirExists } = scanLatestBackup(backupDir, DATA_DIR)
+    const base = { path: DATA_DIR, backupDir, backupDirExists }
 
     if (!latest) {
-      return { id: 'backup', name: '备份状态', status: 'warn', summary: '未找到备份文件', detail: { path: DATA_DIR } }
+      // 「从未备份」（备份目录都不存在）与「备份失败」（目录在、却一个产物都没有）是两种健康状态：
+      // backup-db.ts 先 mkdirSync 再 VACUUM INTO，备份失败就只剩一个空目录，前端文案须能区分。
+      return backupDirExists
+        ? { id: 'backup', name: '备份状态', status: 'warn', summary: '备份目录存在但没有任何备份文件（备份任务可能失败）', detail: { ...base, state: 'failed' } }
+        : { id: 'backup', name: '备份状态', status: 'warn', summary: '从未执行过备份（备份目录不存在）', detail: { ...base, state: 'never' } }
     }
-    const age = Date.now() - latestTime
+
+    const age = Date.now() - latest.time
     const ageDays = (age / 86400000).toFixed(1)
+    const stale = age > 7 * 86400000
     return {
       id: 'backup', name: '备份状态',
-      status: age > 7 * 86400000 ? 'warn' : 'ok',
-      summary: `最近备份：${latest}（${ageDays} 天前）`,
-      detail: { path: DATA_DIR, latestFile: latest, latestTime: new Date(latestTime).toISOString(), ageDays }
+      status: stale ? 'warn' : 'ok',
+      summary: `最近备份：${latest.file}（${ageDays} 天前）`,
+      detail: {
+        ...base,
+        state: stale ? 'stale' : 'ok',
+        latestFile: latest.file,
+        latestPath: join(latest.dir, latest.file),
+        latestTime: new Date(latest.time).toISOString(),
+        ageDays
+      }
     }
   } catch (err) {
     return { id: 'backup', name: '备份状态', status: 'warn', summary: '检查失败', detail: { error: (err as Error).message } }
   }
+}
+
+/**
+ * 扫备份目录 + 数据目录根，取 mtime 最新的备份产物。
+ * 目录不存在、扫描期间文件被轮转删掉都只跳过（不抛错）——目录不存在是全新部署的正常形态，
+ * 不能把健康检查整项打成「检查失败」。
+ */
+function scanLatestBackup(backupDir: string, dataDir: string): {
+  latest: { dir: string; file: string; time: number } | null
+  backupDirExists: boolean
+} {
+  let backupDirExists = false
+  let latest: { dir: string; file: string; time: number } | null = null
+
+  for (const dir of [backupDir, dataDir]) {
+    let files: string[]
+    try {
+      files = readdirSync(dir)
+    } catch {
+      continue // 该位置不存在 = 全新部署还没跑过备份（或老部署本就没有）
+    }
+    if (dir === backupDir) backupDirExists = true
+    for (const f of files) {
+      if (!isDbBackupFile(f)) continue
+      let st: ReturnType<typeof statSync>
+      try {
+        st = statSync(join(dir, f))
+      } catch {
+        continue
+      }
+      if (!latest || st.mtimeMs > latest.time) latest = { dir, file: f, time: st.mtimeMs }
+    }
+  }
+  return { latest, backupDirExists }
 }
 
 /** 7. JWT_SECRET：检查是否为默认值/空值 */
