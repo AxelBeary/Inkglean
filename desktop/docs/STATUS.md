@@ -22,7 +22,8 @@
 > - **包三件**：manifest.json / panel.js（原样字节）+ pack.json（format / 生成时间 / module / manifestDigest / 两件 size+sha256）；装前四道判与三道上限（64KB / 512KB / 64KB，与 Rust 读侧同口径）。
 > - **来源四态**：官方 / 导入包 / 导入后已改 / 本地文件；装包账 `shihui-module-packs-v1` 只记摘要、时间、命中数。
 > - **安全边界（写清）**：摘要只防误改与传输损坏，不防恶意作者；模块照旧跑沙箱帧（CSP 断网 + opaque origin）；同名目录拒装、不覆盖画师改过的版本；zip 多余条目不解压。
-> - **验证**：lint 0 错 / vitest **671**（+36）/ build 绿；三道防阀绿；`cargo` 与真机点击未跑（本批零 Rust 改动）。留痕 `AGENTS/artifacts/模块包-20261117/`。
+> - **验证**：lint 0 错 / vitest **671**（+36）/ build 绿；三道防阀绿；cargo test **39** 全过（补跑）；布局 measure 与基线同集（零新增离栅值）。
+> - **未跑**：真机点击导入/导出（壳内页）；截图/VL 未跑（浏览器只有兜底态，VL 通道按 STATUS 既有口径不可用）。留痕 `AGENTS/artifacts/模块包-20261117/`。
 >
 > 📌 **2026-10-28 #22 桌面端剩余五项（用户：那个留着的我们现在来一起处理掉）**
 >
