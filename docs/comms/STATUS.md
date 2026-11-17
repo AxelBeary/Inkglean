@@ -47,6 +47,7 @@
 - 改 `desktop/src-tauri/` 必本地跑 `cargo test`（含真 IPC/ACL）：`tauri-build` 用**严格 JSON 解析器**，9/12 那笔 `//` 注释就是只跑 server/web 就交、CI 单红 desktop job 换来的（本地“全绿”是假全绿）
 - **动桌面端 `@tauri-apps/*` JS SDK 必同批把 `Cargo.lock` 配到同号**（核心同 minor、插件精确同号），并跑 `npx tauri info` 留证：该比对只在 `tauri build/dev/info` 触发，**CI 四 job 全绿不等于发版流水线不红**（10-13 靠 dependabot 单边跳版换来的）
 - **模板区禁写「内联箭头函数/闭包内访问 import 绑定的属性或元素」**：vue-tsc 3.3.12/3.3.13 有 dotValue 误插 `.value` 的回归（上游 #6238 未合并），须抽成 `<script setup>` 具名 `function`；复发点见 10-13 批条
+- **禁整读整写「单行 >2000 字符」的文件**：read 会把超长行截断并写入 `(line truncated to 2000 chars)` 标记——`scripts/accept-baseline.json` 曾因此变成非法 JSON（accept.ps1 崩在 ConvertFrom-Json）。改这类文件用 node 脚本 parse→stringify，改完必须 `JSON.parse` 复核。
 - 门禁缺口已清：`check-file-size.mjs` SCOPES 已覆盖 server/web/desktop/shared 四层（F-44），**ALLOWLIST 现为空表**（Home.vue 10-21 清偿、PriceCard.vue 10-26 拆至 692 行清偿）；禁止用调高冻结值给长胖文件续命
 - **悬浮投影窗 SQL 最小权限**：只有截稿窗可授 `sql:default`，永不给 execute；改悬浮窗数据面必跑 `cargo test`（`desktop/src-tauri/tests/acl.rs` 真 ACL）。
 
