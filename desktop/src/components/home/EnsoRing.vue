@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 墨环（enso）：今日在画的一笔圈成圆相，飞白留口——视觉照原型 proto-desktop-home-r2-A.html 逐段移植。
+// 墨环（enso）：今日在画的一笔圈成圆相，飞白留口（原型 HTML 已按 2026-11-19 拍板删除）。
 // 数据源＝本地手动计时器（stores/timer.ts），F8 数据永不上传。
 import { computed, useId } from 'vue'
 import { formatSeconds } from '../../stores/timer'

@@ -2,7 +2,8 @@
 
 ## 看板（2026-11-19 历史瘦身批：origin 重写强推、master 与 tag 全量换哈希、内容零变化；CI 重跑中）
 
-- **HEAD 与推送**：历史瘦身批落档已推 origin/master（force）；重写校验＝master 树哈希与 8 个发版 tag 快照**逐字节一致**（`507a7004`）
+- **HEAD 与推送**：原型 HTML 删除批落档已推 origin/master；重写校验＝master 树哈希与 8 个发版 tag 快照**逐字节一致**（`507a7004`，指历史瘦身批）
+  - 原型 HTML 删除批（2026-11-19 用户拍板）：7 个 `proto-desktop-home-*.html`（根 4＋design/r2 回稿 3）全删；桌面三处「视觉真值」注释改指实装；推翻旧拍板「不得删」并改写记录（见「已拍板规则」）
   - 历史瘦身（用户拍板「尽可能清理」）：filter-repo 剥 383 个死路径（旧整版字体 3.4MB／审计截图／旧问题清单，合计 29.4MB 未压缩）；提交 2733→2119，pack 42.8→21MB
   - 保护口径：曾出现在任一发版 tag 快照里的 1059 个路径一律不剥——checkout 任一旧版本仍完整可跑
   - 后果：旧哈希引用全部失效（新旧映射在 `AGENTS/history-cleanup-20261119/mirror2.git/filter-repo/commit-map`）；已有克隆须重 clone；GitHub 实际瘦身待其后台 GC
@@ -105,7 +106,7 @@
   - `.gitignore` 加 `AGENTS/*` + `!AGENTS/README.md` 例外；旧 `temp/`、`workspace/` 两行保留作防回退。子目录约定与纪律见 `AGENTS/README.md`（唯一入库件），AGENTS.md「注意事项」已同步一条归口纪律。
   - 硬编码路径同步改 2 处：`accept.ps1:45,47`（门禁报告与日志）、`post-merge-deploy.ps1:111,118`（验收报告查找）；实测新路径生效、根目录无误建、50 份 accept-master 报告仍可被找到。
   - 文档指针改 6 处（本文件）+ README·changelog·待办 U19 各 1 处；原 237 字的超长行按防阀口径拆短，去空白字符差恰为 +44（6×`AGENTS/` + 拆行前缀）零丢失。
-  - ⚠️ 根目录 4 个 `proto-desktop-home-*.html` **不是冗余、不得删**：`design/r2/README.md` 明载「功能安放的定稿是仓库根同名三件」，A 为选定方向终验件；design/r2/ 下三件是外部回稿原件（缺墨笔菜单等六件功能安放）。
+  - 原型 HTML 已删（2026-11-19 用户拍板「这种东西不应出现在仓库」）：根 4 件＋`design/r2/` 回稿 3 件共 7 个 `proto-desktop-home-*.html` 全部删除，**推翻本条旧拍板「不得删」**；视觉真值改以实装为准（`desktop/src/views/Home.vue`），桌面三处代码注释已同步；历史工单与归档件里的旧路径描述不改史。
   - 收拾：`.pytest_cache`（5 文件）、`test-results`（1）、`playwright-report`（1）三处可再生残留搬入 `AGENTS/temp/cleanup-20260927/`，7 文件 566212 字节零丢失；`.pytest_cache/` 补进 .gitignore 作仓库级防御。
   - 不动项：`design/`、`.impeccable/` 是在库设计资产（`.impeccable` 系 `3c5533c3` 有意留档的核查截图；9/27 复核订正：实为 2 处活引用——本文件与审计工单，桌面侧引用已随归档搬动；PRODUCT.md 无路径引用，原「4 份文档引用」说法不实）。
   - 不动项续：playwright 两个输出目录**位置不改**——`.github/workflows/e2e.yml:66-75` 硬依赖其根目录位置上传排障 artifact，改位置须连 CI 一起改，属单独批。

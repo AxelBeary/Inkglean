@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // 独立排期页三视图（9/4 主页重设计落码波1 · 路A）：列表 / 月历 / 时间条，波1 只读。
-// 视觉真值＝proto-desktop-home-redesign.html #view-schedule（像素级照搬）。
+// 原型 HTML 已删（2026-11-19 拍板），本页为视觉真值。
 // 取数一律走 useScheduleStore（不自己写 fetch、不直接调 api/artist.ts）。
 // 窗高吃 var(--app-h) 不写 100vh（827 报障根治）。
 import { computed, onMounted, ref, watch } from 'vue'
