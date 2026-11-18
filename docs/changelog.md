@@ -6,6 +6,13 @@
 > - 滚动分册：活档体积门 `scripts/check-changelog-size.mjs`（≤40KB / ≤450 行，单段 ≤4KB，accept 第 19 道）；撞线即搬 oldest 段入 `docs/changelog-archive/` 新卷（整段零改动 + 逐行哈希校验，禁调高阈值续命）。
 > - v0.x 时代（v0.1~v0.46+）全量台账在 `docs/changelog-archive/changelog-v0-20260927.md`，只读历史。
 
+## 设置页两个标签页跟随页面宽度（2026-11-18）
+
+- **根因**：`主页展示`/`模板与风格` 两个 tab 根容器各带页级限宽（860/900px），盖住了 ArtistLayout 统一下发的 `--page-max-w`；`基本资料` 无此限宽，故只有它跟随偏好。
+- **修复**：移除两处页级限宽，页宽仍由内容容器单一生效点管理（与 AccountSecurity / DeliveryChecklist 同口径）。
+- **验证**：隔离栈实机量宽——2560 视口下中心 1350 / 1680 / 不限宽，两 tab 均与容器同宽（1350 / 1680 / 2274）；768 下 648 不破版；`measure.mjs` 0 野生圆角 / 0 离栅 / 阻塞=false；web lint + 1233 测试 + check:i18n + build 绿；**十九道全绿 @ `58fff979`（333s）**；CI / E2E / CodeQL 全绿。
+- **未做**：未改行内栅格（右侧控件仍 480/640），1680 / 不限宽时左列留白变大属既有版式；VL 通道 403，按兜底走 measure + 人工清单（见 `AGENTS/artifacts/SETTINGS-WIDTH-20261118/SUMMARY.md`）。
+
 ## A1：过程稿上传磁盘水位 / 未绑定配额 / TTL（2026-11-18）
 
 - **新增迁移 v82 `preview_uploads`**：按画师记录每次落盘真实字节（artist_id / file_path / file_size / ip / created_at）；绑定关系不复写，「已挂单」以 `order_previews.file_path` 的 EXISTS 为唯一事实源。

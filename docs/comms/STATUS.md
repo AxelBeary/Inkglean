@@ -2,9 +2,9 @@
 
 ## 看板（2026-11-18 04:12 九次刷新：A1 过程稿三闸落地 + 十九道全绿 @ `36e8402b`）
 
-- **HEAD 与推送**：A1 批已推 origin/master（代码 `36e8402b`，文档收口提交在其上）；CI / E2E / CodeQL 全 success @ `aac4e745`
-  - 验收：**十九道全绿 @ `36e8402b`（481s，19/19）**；报告 `AGENTS/workspace/temp/accept-master-20261118-040125.md`
-  - CI 耗时：CI 4m58s / E2E 1m24s / CodeQL 5m26s
+- **HEAD 与推送**：设置页页宽修复 `58fff979` 已推 origin/master；**CI / E2E / CodeQL 全 success @ `58fff979`**（6m10s / 1m27s / 5m55s）
+  - 修复：`主页展示`/`模板与风格` 移除页级 860/900px 限宽，跟随 `--page-max-w`；**十九道全绿 @ `58fff979`（333s）**，报告 `AGENTS/workspace/temp/accept-master-20261118-200850.md`
+  - 上一批 A1：代码 `36e8402b`，十九道 @ `36e8402b`（481s）；收口件 `AGENTS/artifacts/A1-过程稿配额-20261118/SUMMARY.md`
   - 本笔 `36e8402b` = A1 过程稿上传三闸（v82 台账 + 507 水位 + per-artist 429 配额 + 未挂单 TTL；server +8）；交接 `AGENTS/artifacts/交接-20261118-2/HANDOFF.md`
   - 上一笔 `9b24e555`/`c599e4cf` = dependabot #95（三目录 17 项含 minimatch 11）/ #94（desktop 例行 6 项）
   - 再上 `655a7bf2` = 十九道全绿落档（看板）
@@ -15,9 +15,9 @@
   - 上一笔 `48a0737c` = 查单页签名续签 + 下单页展示免费修改次数（修「停留 5 分钟图裂」；server 2045 / web 1231）
   - 再上两笔 `6b2bbf1e`/`7c0f458d` = 过程稿可见 + 免费修改次数（迁移 **v81**）+ 抽 `useTrackSignatureRefresh` 修 CI file-size 红
 - **发版**：**v1.1.0**（2026-10-28，稳交付·好管理版）已发布 —— 安装包 `inkglean-installer-v1.1.0.zip`（5.79 MB / 920 文件）；迁移 v71→v80 自动执行；说明见 `docs/changelog.md` 顶部与 GitHub Releases
-- **基线（2026-11-18 04:12 十九道全绿 @ `36e8402b`，481s；本批数字全部实跑）**
+- **基线（2026-11-18 20:10 十九道全绿 @ `58fff979`，333s；本批数字全部实跑）**
   - server **2058**（181 文件）/ web **1233**（181）/ desktop **672**（48）/ shared **44** / E2E **14**；cargo **39** 另计
-  - 本批增长：server +8（A1 三闸 8 例）；web / desktop / shared / E2E 未动
+  - 本批：设置页页宽修复（web 两行 CSS，零测试数变化）；上一批 A1：server +8
   - 迁移 **v82**（preview_uploads 台账 + order_previews(file_path) 索引；幂等，存量库首次启动自建）
   - 上一批：debug server +2 / web +1；模块包 desktop +36（pack 27 / zip 往返 4 / 来源判定 5）
 - **拟物收敛射程不变**：只限排期块（ScheduleScroll）；挂牌 3D / 墨迹动画 / 登录纸艺山水**不动**
