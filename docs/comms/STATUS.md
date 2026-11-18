@@ -2,7 +2,9 @@
 
 ## 看板（2026-11-18 04:12 九次刷新：A1 过程稿三闸落地 + 十九道全绿 @ `36e8402b`）
 
-- **HEAD 与推送**：`aac4e745`（A1 文档收口），与 origin 齐平；**CI / E2E / CodeQL 全 success @ `aac4e745`**（4m58s / 1m24s / 5m26s）；**十九道全绿 @ `36e8402b`（481s，19/19）**；报告 `AGENTS/workspace/temp/accept-master-20261118-040125.md`
+- **HEAD 与推送**：A1 批已推 origin/master（代码 `36e8402b`，文档收口提交在其上）；CI / E2E / CodeQL 全 success @ `aac4e745`
+  - 验收：**十九道全绿 @ `36e8402b`（481s，19/19）**；报告 `AGENTS/workspace/temp/accept-master-20261118-040125.md`
+  - CI 耗时：CI 4m58s / E2E 1m24s / CodeQL 5m26s
   - 本笔 `36e8402b` = A1 过程稿上传三闸（v82 台账 + 507 水位 + per-artist 429 配额 + 未挂单 TTL；server +8）；交接 `AGENTS/artifacts/交接-20261118-2/HANDOFF.md`
   - 上一笔 `9b24e555`/`c599e4cf` = dependabot #95（三目录 17 项含 minimatch 11）/ #94（desktop 例行 6 项）
   - 再上 `655a7bf2` = 十九道全绿落档（看板）
