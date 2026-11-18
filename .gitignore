@@ -98,3 +98,6 @@ scripts/scan-latest.txt
 
 # 本机 docker 覆盖配置（825：桌面端本地冒烟临时映射 3000 端口，仅本机生效，严禁入库）
 docker-compose.override.yml
+
+# 原型评审截图等视觉核查留档（2026-11-19 用户拍板：此类中间产物不入仓库，同批已删 .impeccable/review 10 张）
+.impeccable/

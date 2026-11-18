@@ -3,7 +3,7 @@
 ## 看板（2026-11-19 历史瘦身批：origin 重写强推、master 与 tag 全量换哈希、内容零变化；CI 重跑中）
 
 - **HEAD 与推送**：原型 HTML 删除批落档已推 origin/master；重写校验＝master 树哈希与 8 个发版 tag 快照**逐字节一致**（`507a7004`，指历史瘦身批）
-  - 原型 HTML 删除批（2026-11-19 用户拍板）：7 个 `proto-desktop-home-*.html`（根 4＋design/r2 回稿 3）全删；桌面三处「视觉真值」注释改指实装；推翻旧拍板「不得删」并改写记录（见「已拍板规则」）
+  - 原型 HTML 删除批（2026-11-19 用户拍板）：7 个 `proto-desktop-home-*.html`（根 4＋design/r2 回稿 3）全删＋`.impeccable/review` 10 张评审截图（3.1MB）同批删，`.gitignore` 加防回填；桌面三处「视觉真值」注释改指实装；推翻旧拍板「不得删」并改写记录（见「已拍板规则」）
   - 历史瘦身（用户拍板「尽可能清理」）：filter-repo 剥 383 个死路径（旧整版字体 3.4MB／审计截图／旧问题清单，合计 29.4MB 未压缩）；提交 2733→2119，pack 42.8→21MB
   - 保护口径：曾出现在任一发版 tag 快照里的 1059 个路径一律不剥——checkout 任一旧版本仍完整可跑
   - 后果：旧哈希引用全部失效（新旧映射在 `AGENTS/history-cleanup-20261119/mirror2.git/filter-repo/commit-map`）；已有克隆须重 clone；GitHub 实际瘦身待其后台 GC
