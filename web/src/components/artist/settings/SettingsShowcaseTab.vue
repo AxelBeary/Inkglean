@@ -237,7 +237,7 @@ const notReady = computed(() => {
 
 <style scoped>
 /* 818-H 三原则：分组卡片收纳，组头带朱砂小印点 */
-.sc-tabs { max-width: 860px; }
+/* 页宽归一批：移除页级限宽 860px，交给 ArtistLayout 内容容器统一管（--page-max-w） */
 .group {
   margin-top: 16px;
   padding: 4px 24px 16px;
