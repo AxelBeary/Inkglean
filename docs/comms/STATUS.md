@@ -1,8 +1,13 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-11-18 04:12 九次刷新：A1 过程稿三闸落地 + 十九道全绿 @ `36e8402b`）
+## 看板（2026-11-19 历史瘦身批：origin 重写强推、master 与 tag 全量换哈希、内容零变化；CI 重跑中）
 
-- **HEAD 与推送**：设置页页宽修复 `58fff979` 已推 origin/master；**CI / E2E / CodeQL 全 success @ `58fff979`**（6m10s / 1m27s / 5m55s）
+- **HEAD 与推送**：历史瘦身批落档已推 origin/master（force）；重写校验＝master 树哈希与 8 个发版 tag 快照**逐字节一致**（`507a7004`）
+  - 历史瘦身（用户拍板「尽可能清理」）：filter-repo 剥 383 个死路径（旧整版字体 3.4MB／审计截图／旧问题清单，合计 29.4MB 未压缩）；提交 2733→2119，pack 42.8→21MB
+  - 保护口径：曾出现在任一发版 tag 快照里的 1059 个路径一律不剥——checkout 任一旧版本仍完整可跑
+  - 后果：旧哈希引用全部失效（新旧映射在 `AGENTS/history-cleanup-20261119/mirror2.git/filter-repo/commit-map`）；已有克隆须重 clone；GitHub 实际瘦身待其后台 GC
+  - fork 残留：Mistwhisker 仓库无删权限（本机仅 AxelBeary 账号），8 条垃圾分支 + 旧历史仍在，待可登录后处理
+  - 上一批：设置页页宽修复（旧哈希 `58fff979`，CI 三绿）；再上 A1 过程稿三闸
   - 修复：`主页展示`/`模板与风格` 移除页级 860/900px 限宽，跟随 `--page-max-w`；**十九道全绿 @ `58fff979`（333s）**，报告 `AGENTS/workspace/temp/accept-master-20261118-200850.md`
   - 部署（2026-11-18 20:35）：重建 `commission-web:latest` 并重启；迁移 **v82 已应用到真实库**，health 200、容器 healthy
   - 上一批 A1：代码 `36e8402b`，十九道 @ `36e8402b`（481s）；收口件 `AGENTS/artifacts/A1-过程稿配额-20261118/SUMMARY.md`
