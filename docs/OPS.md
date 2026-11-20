@@ -16,9 +16,10 @@ Linux 服务器（项目目录内）：
 bash scripts/update.sh
 ```
 
-脚本自动完成全链路（无需手工步骤）：更新前 DB 备份（VACUUM INTO 不停服，保留 2 份轮转）→ `git pull --ff-only` 拉新代码 → 写版本标记（data/version.json，管理后台「系统更新」面板据此显示）→ 重建容器 → 等 healthy（150 秒上限）→ 体检（健康接口 + 迁移版本）→ 汇报新旧版本与回滚命令。
+脚本自动完成全链路（无需手工步骤）：更新前 DB 备份（VACUUM INTO 不停服，保留 2 份轮转）→ `git fetch` + 快进合并拉新代码（分叉时按原因给对齐指令）→ 写版本标记（data/version.json，管理后台「系统更新」面板据此显示）→ 重建容器 → 等 healthy（150 秒上限）→ 体检（健康接口 + 迁移版本）→ 汇报新旧版本与回滚命令。
 
 - 任一步骤失败即停，并直接给出回滚命令（`git reset --hard <旧版本> && docker compose up -d --build`）；备份失败会给警告与 5 秒取消窗口。
+- 拉取环节按原因分诊、各给对应指令：连不上远端 → 网络/代理/凭据；本地未提交改动挡住快进 → 先 stash；**远端 master 被改写历史（force-push / rebase / filter-repo）** → 识别后打印「备份分支 → `git reset --hard origin/master` → 重跑脚本」三条对齐命令，并提示先核对 `git log --oneline origin/master..HEAD`，不再笼统甩一句「检查服务器网络」。脚本自身只打印指令，不建分支、不 reset。
 - 前提：服务器目录是 git 仓库（v124 起安装已默认 git 克隆；早期 ZIP 安装需先按《维护说明书》切换为 git 安装）+ docker 可用。
 - 更新后请打开网站抽查一遍（脚本末尾也会提示）；管理后台「系统更新」面板可核对当前版本是否已追上 GitHub master。
 - Windows 宿主开发机不走本脚本（开发环境直接 git pull + 本地起服即可）；本脚本面向 Linux 生产部署。
