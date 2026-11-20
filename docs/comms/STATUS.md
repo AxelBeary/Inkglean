@@ -1,8 +1,14 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-11-19 历史瘦身批：origin 重写强推、master 与 tag 全量换哈希、内容零变化；CI 重跑中）
+## 看板（2026-11-21 minimatch 整改批已推、Dependabot 清零；CI 复跑中）
 
-- **HEAD 与推送**：原型 HTML 删除批落档已推 origin/master；重写校验＝master 树哈希与 8 个发版 tag 快照**逐字节一致**（`507a7004`，指历史瘦身批）
+- **HEAD 与推送**：`cadfdb85`（minimatch 整改批）+ `e55dabe7`（update.sh 拉取分诊）已推；历史瘦身批重写校验＝master 树与 8 个 tag 快照**逐字节一致**（`507a7004`）
+  - 本批 `cadfdb85` = minimatch 10.2.6 → 11.0.9（Dependabot #112/#113 关闭；web 1233 / shared 44 / desktop build 全绿）
+    - 手法：`@typescript-eslint/*` 8.73.0 走正常升级；glob@13/editorconfig@3 精准 overrides 强制 `^11.0.9`
+    - 根因修正：旧记录「来自 eslint 链路」不准——eslint 早已 11；真凶是 `@vue/test-utils → js-beautify@2.0.3` 拉入的 glob/editorconfig
+    - 撤销条件：js-beautify 升到 glob>=14 / editorconfig>=4 后删两条 overrides 重算 lock
+    - 报告：`AGENTS/artifacts/deps-minimatch-20261121/`（SUMMARY / verify.log / gate.log）
+  - 上一笔 `e55dabe7` = update.sh 拉取分诊（fetch 失败 / 脏改动挡快进 / 远端历史改写 三路各给指令）
   - 原型 HTML 删除批（2026-11-19 用户拍板）：7 个 `proto-desktop-home-*.html`（根 4＋design/r2 回稿 3）全删＋`.impeccable/review` 10 张评审截图（3.1MB）同批删，`.gitignore` 加防回填；桌面三处「视觉真值」注释改指实装；推翻旧拍板「不得删」并改写记录（见「已拍板规则」）
   - 历史瘦身（用户拍板「尽可能清理」）：filter-repo 剥 383 个死路径（旧整版字体 3.4MB／审计截图／旧问题清单，合计 29.4MB 未压缩）；提交 2733→2119，pack 42.8→21MB
   - 保护口径：曾出现在任一发版 tag 快照里的 1059 个路径一律不剥——checkout 任一旧版本仍完整可跑
@@ -29,8 +35,8 @@
   - 上一批：debug server +2 / web +1；模块包 desktop +36（pack 27 / zip 往返 4 / 来源判定 5）
 - **拟物收敛射程不变**：只限排期块（ScheduleScroll）；挂牌 3D / 墨迹动画 / 登录纸艺山水**不动**
 - **GHSA-6pf3 安全批已闭合**：8 项加固全部落地并回函；披露处置＝**维持私密不公开**（详见「已拍板规则」）
-- **警报/PR 现状（2026-11-18 02:25 二次复核）**
-  - Code scanning open **0**；**Dependabot open 2**（全 medium、`development`：#112 shared / #113 web；lock 里仍有嵌套 minimatch 10.2.6，来自 eslint 链路）
+- **警报/PR 现状（2026-11-21 复核）**
+  - Code scanning open **0**；**Dependabot open 0**（`cadfdb85` 推送后 #112/#113 自动关闭；原 10.2.6 实为 js-beautify→glob13/editorconfig3 链路，非 eslint）
   - **open PR 0**：#84/#85/#86 已于 2026-11-18 关闭并留言（本仓已另修，细节见 issue #81~#83 回复）
   - #91/#92/#94/#95 全部合入；`a8371a9c` 的 CI/E2E/CodeQL 2026-11-18 02:20 全绿（CI 6m26s）
   - issue 处置：**#81~#83 已核查并修复**（#81 根因不成立、补 423 冷却提示；#82 主体不成立、补参考图入草稿；#83 属实、已换纸墨确认框）；回函 2026-11-18 已发（评论 6956814231 / 6956814904 / 6956815541）
@@ -42,7 +48,7 @@
 **下一步（按优先级）**
 
 1. **新会话先读交接**：`AGENTS/artifacts/交接-20261118-2/HANDOFF.md`（外发收口 + A1 口径 + 宿主限制）；A1 已完成，收口件见 `AGENTS/artifacts/A1-过程稿配额-20261118/SUMMARY.md`。
-2. **待处置：2 条 dev-only 警报（#112/#113）**；A1 已落 `36e8402b`（200MB / 3 天 / per-artist），前端 429/507 专用提示另排。
+2. ✅ **2 条 dev-only 警报（#112/#113）已清**（`cadfdb85`，minimatch → 11.0.9）；A1 已落 `36e8402b`，前端 429/507 专用提示另排。
 3. ✅ **上一批收口**：issue #81/#82/#83 + 十九道全绿；报告 `AGENTS/workspace/temp/accept-master-20261106-052230.md`；回函草稿 `AGENTS/artifacts/issue-81-82-83-20261106/replies/`（已发，见上方评论链接）
 4. **登记未施工（下批候选）**
    - 评审附带跟进：#61 10MB 超限静默 return + 无 filePath 拦提交 + objectURL 回收；#62 分片失败整批停 + 守卫 15s 无提示；#65 提交时二次校验接单状态
