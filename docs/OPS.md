@@ -361,6 +361,7 @@ tls /etc/caddy/certs/你的域名.crt /etc/caddy/certs/你的域名.key {
 > ① 现装 Caddy（2.10.x）上 client_auth 的 CA 写法只有 `trusted_ca_cert_file` 能过验证（带 deprecation WARN 但无害）；`trust_pool` / `ca_pool` 新写法均报解析错误，不要为消警告去试。
 > ② Caddy 铁律：`caddy validate` 通过后只用 `systemctl reload caddy`——reload 失败保留旧配置、网站不掉线；在未验证通过时 `restart` 会令服务直接停摆、该 Caddy 承载的所有站点全 502。
 > ③ 源站证书（Origin CA 的 .crt/.key）在 Strict 模式下是**必需品**不是可选项，误删会致 reload 失败/526；私钥权限 `chmod 640` + caddy 组可读，root 独享 600 会让 Caddy 进程读不到。
+> ④ 该端口若另有 **DNS-only 直连站点**（测试站等），则上一条「只放行 CF 网段」的替代方案不成立——会误伤直连站；此时 AOP 是该机唯一可行的防绕开手段，「全局」开关属基线配置，建议截图留档。
 
 ### 12.3 验证方法
 
@@ -394,8 +395,15 @@ services:
 
 - **全站 502 + 重建报 `address already in use`（0.0.0.0:80）**：容器 Caddy 与系统 Caddy 撞车；`docker ps -a` 会冒出 `commission-caddy`。
 - **全站 502 + 无重建报错**：看 `docker ps` 的 web 条目 PORTS——只有裸 `3000/tcp`（无 `127.0.0.1:3000->3000`）即 3000 回环映射丢失，系统 Caddy 敲空门。
+- **全站 520（Cloudflare 只写 `unknown error`、不提示证书）+ 站内应用健康**：`curl -s http://127.0.0.1:3000/api/health` 正常、`docker compose ps` 也 healthy 却全站 520，先怀疑 **AOP 链路断了**，别去查网络 / 源站证书 / 应用。判别顺序（2026-11-21 实战）：
+  1. 看外网响应头 `Server-Timing: cfEdge;dur=…,cfOrigin;dur=0`——源站耗时 0ms 就断，问题在 CF→源站这一跳；
+  2. 源站本机带目标 SNI 直连 443 抽证书：`echo | openssl s_client -connect 127.0.0.1:443 -servername <域名> 2>/dev/null | openssl x509 -noout -subject -issuer -enddate`。TLS 建立后报 `certificate_required`，说明 Caddy 的 `client_auth` 正在生效，缺的是 CF 那侧没交客户端证书；
+  3. 查 Cloudflare 面板 SSL/TLS → Origin Server → **Authenticated Origin Pulls 的「全局」开关**——被关掉正是这个症状；同页「区域级」「按主机名」两栏是自定义证书用的，别只看那两栏就下结论；
+  4. 应急：把站点块 `tls` 里 `client_auth { … }` 整段注释 → `caddy validate` + `systemctl reload caddy` 先恢复访问（注意这会同时解除 strict SNI-Host 强制，源站 443 变成可直连，恢复窗口越短越好）→ 打开 CF 开关 → 把 `client_auth` 恢复 → 按下方自检口径复验。
+- **520 与 526 别混**：**526 `Invalid SSL certificate` 是源站证书不被 CF 接受**（域名不覆盖 / 过期 / Strict 模式下证书不合格），与 AOP 开关无关；520 是 CF 拿不到有效 HTTP 响应。两者都会让人误以为「证书坏了」，先按上一条判别，再考虑动证书。
 
 自检口径（AOP 开启的机器）：
+- **直连源站带目标 SNI 必须被拒**（`certificate_required`）；若直连能拿到 200，说明 AOP 没生效——任何拿到源站 IP 的人都能绕 CF 直连并伪造 `CF-Connecting-IP`。这是「站点能打开」之外的独立验收项。
 - 本机 `curl https://127.0.0.1` 返回 **000 是正常**——AOP client_auth 在 TLS 层拒掉一切无 Cloudflare 客户端证书的直连，本机裸敲必被拒，**不能据此判故障**；
 - 服务器内正确自检：`ss -ltn | grep :3000` 应见 127.0.0.1:3000 LISTEN；`curl -s http://127.0.0.1:3000/api/health` 应返回 `{"status":"ok",...}`；
 - 全链路验收走浏览器（经 Cloudflare），不要用服务器本机 curl 443 替代。
