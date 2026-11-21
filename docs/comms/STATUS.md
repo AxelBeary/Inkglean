@@ -2,9 +2,9 @@
 
 ## 看板（2026-11-22 历史交付连续性批已合入 master；十九道全绿）
 
-- **HEAD 与推送**：`5ce5c7f2`（历史交付连续性 + 管理员补发批）已合入 master 并推送；本批 = 已付款客户在画师不可见后仍可领取已有交付、签名按原有效期失效、管理员逐文件补签
-  - 门禁：`scripts/accept.ps1` 十九道全绿 @ `5ce5c7f2`（187s；server 2096 / web 1283 / desktop 672 / shared 44 / E2E 15）
-  - 报告：`AGENTS/temp/inkglean-delivery-20261122/AGENTS/workspace/temp/accept-delivery-paid-continuity-20261122-065500.md`
+- **HEAD 与推送**：`59366674`（历史交付连续性 + 管理员补发批，含交叉 debug 修复）已合入 master；本批 = 已付款客户在画师不可见后仍可领取已有交付、签名按原有效期失效、管理员逐文件补签
+  - 门禁：`scripts/accept.ps1` 十九道全绿 @ `59366674`（184s；server 2096 / web 1284 / desktop 672 / shared 44 / E2E 15）
+  - 报告：`AGENTS/workspace/temp/accept-master-20261122-071332.md`
   - 上一笔 `cadfdb85`（minimatch 整改批）+ `e55dabe7`（update.sh 拉取分诊）已推；历史瘦身批重写校验＝master 树与 8 个 tag 快照**逐字节一致**（`507a7004`）
   - 本批 `cadfdb85` = minimatch 10.2.6 → 11.0.9（Dependabot #112/#113 关闭；web 1233 / shared 44 / desktop build 全绿）
     - 手法：`@typescript-eslint/*` 8.73.0 走正常升级；glob@13/editorconfig@3 精准 overrides 强制 `^11.0.9`
