@@ -307,9 +307,13 @@ export interface OrderTrackResult {
   updatedAt: string
 }
 
+/** 主页不可见时，只允许从有效查单链接进入取件。 */
+export type OrderTrackResponse = OrderTrackResult | { orderNo: string; deliveryOnly: true }
+
 /** GET /orders/delivery/:orderNo 响应 */
 export interface OrderDeliveryResult {
   orderNo: string
+  deliveryOnly?: true
   status: OrderStatus
   artistName: string | undefined
   deliverables: Array<{

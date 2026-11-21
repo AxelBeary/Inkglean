@@ -1,7 +1,9 @@
+import { statSync } from 'fs'
+import { resolve, sep } from 'path'
 import * as orderService from './order.service.js'
 import * as orderWorkflowService from './order-workflow.service.js'
 import * as orderGalleryService from './order-gallery.service.js'
-import { assertReferenceFileExists, guardRateLimit } from './order-route-utils.js'
+import { assertReferenceFileExists, guardRateLimit, UPLOAD_ROOT } from './order-route-utils.js'
 import { getRules, requireVisibleArtist, isArtistVisibleById } from '../artist/artist.service.js'
 import { getWorkflow } from '../artist/workflow.service.js'
 import { clamp } from '../../shared/validate.js'
@@ -10,11 +12,53 @@ import { AppError, E } from '../../shared/errors.js'
 import { withIdempotency, readIdempotencyKey } from '../../shared/idempotency.js'
 import { resolveAnonToken } from '../tracking/tracking.service.js'
 import db from '../../db/connection.js'
+import type { OrderDetail } from '../../types/entities.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 
 // ============================================
 // 订单路由 - 客户端公开端点子插件（从 order.routes.ts 拆出）
 // ============================================
+
+const DELIVERABLE_ROOT = resolve(UPLOAD_ROOT, 'deliverables') + sep
+
+/** 历史订单只列出实际还在的交付文件；路径来自本单的交付记录。 */
+function isStoredDeliverable({ file_path }: { file_path: string }): boolean {
+  if (!file_path.startsWith('deliverables/')) return false
+  const absolutePath = resolve(UPLOAD_ROOT, file_path)
+  if (!absolutePath.startsWith(DELIVERABLE_ROOT)) return false
+  try {
+    return statSync(absolutePath).isFile()
+  } catch {
+    return false
+  }
+}
+
+/** 已验证令牌的订单：画师可见时不加限制，不可见时仅允许有净实收的既有交付。 */
+function requireClientDeliveryAccess(order: OrderDetail | null) {
+  if (!order) throw new AppError(E.ORDER_NOT_FOUND, 404)
+  const deliveryOnly = !isArtistVisibleById(order.artist_id)
+  const deliverables = order.deliverables ?? []
+  if (deliveryOnly && !(order.status === 'delivered' && order.paid_total_cents > 0 && deliverables.length > 0)) {
+    throw new AppError(E.ORDER_NOT_FOUND, 404)
+  }
+  return { order, deliveryOnly, deliverables }
+}
+
+function requireDeliveryOrder(request: FastifyRequest) {
+  const { token } = (request.query || {}) as { token?: string }
+  const { orderNo } = request.params as { orderNo: string }
+  return requireClientDeliveryAccess(orderService.getClientOrderByToken(orderNo, token))
+}
+
+function requireDeliveryFile(request: FastifyRequest) {
+  const { order, deliveryOnly, deliverables } = requireDeliveryOrder(request)
+  const fileId = parseInt((request.params as { fileId: string }).fileId, 10)
+  if (isNaN(fileId)) throw new AppError(E.ORDER_INVALID_ID)
+  if (deliveryOnly && !deliverables.some(file => file.id === fileId && isStoredDeliverable(file))) {
+    throw new AppError(E.ORDER_NOT_FOUND, 404)
+  }
+  return { orderId: order.id, fileId }
+}
 
 export async function orderClientRoutes(fastify: FastifyInstance) {
 
@@ -148,9 +192,10 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
     if (!result) throw new AppError(E.ORDER_NOT_FOUND, 404)
 
     const { order, position, total } = result
-    // audit-a P2-7: 订单所属画师不可见（hidden/封禁/已删除）→ 按订单不存在处理，不泄露画师
-    if (!isArtistVisibleById(order.artist_id)) {
-      throw new AppError(E.ORDER_NOT_FOUND, 404)
+    const { deliveryOnly, deliverables } = requireClientDeliveryAccess(order)
+    if (deliveryOnly) {
+      if (!deliverables.some(isStoredDeliverable)) throw new AppError(E.ORDER_NOT_FOUND, 404)
+      return { orderNo: order.order_no, deliveryOnly: true }
     }
 
     // R11: 流程阶段列表 + 当前阶段（需迁移 v12 后才有真实值）
@@ -327,20 +372,16 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
   fastify.get('/api/orders/delivery/:orderNo', { logLevel: 'silent' }, async (request: FastifyRequest) => {
     guardRateLimit(`delivery:${request.ip}`, 20, 5 * 60_000)
 
-    const { token } = (request.query || {}) as { token?: string }
-    const order = orderService.getClientOrderByToken(
-      (request.params as { orderNo: string }).orderNo,
-      token || ''
-    )
-    if (!order) {
-      throw new AppError(E.ORDER_NOT_FOUND, 404)
-    }
+    const { order, deliveryOnly, deliverables } = requireDeliveryOrder(request)
+    const files = deliveryOnly ? deliverables.filter(isStoredDeliverable) : deliverables
+    if (deliveryOnly && files.length === 0) throw new AppError(E.ORDER_NOT_FOUND, 404)
 
     return {
       orderNo: order.order_no,
       status: order.status,
       artistName: order.artist_name,
-      deliverables: (order.deliverables || []).map((d: { id: number; original_name?: string | null; file_size?: number | null; file_path: string; download_locked?: number }) => ({
+      ...(deliveryOnly ? { deliveryOnly: true } : {}),
+      deliverables: files.map((d: { id: number; original_name?: string | null; file_size?: number | null; file_path: string; download_locked?: number }) => ({
         id: d.id,
         fileName: d.original_name,
         fileSize: d.file_size,
@@ -361,17 +402,8 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
   fastify.post('/api/orders/delivery/:orderNo/file/:fileId/download-start', { logLevel: 'silent' }, async (request: FastifyRequest) => {
     guardRateLimit(`delivery-dl:${request.ip}`, 20, 5 * 60_000)
 
-    const { token } = (request.query || {}) as { token?: string }
-    const order = orderService.getClientOrderByToken(
-      (request.params as { orderNo: string }).orderNo,
-      token || ''
-    )
-    if (!order) throw new AppError(E.ORDER_NOT_FOUND, 404)
-
-    const fileId = parseInt((request.params as { fileId: string }).fileId, 10)
-    if (isNaN(fileId)) throw new AppError(E.ORDER_INVALID_ID)
-
-    const { filePath, deliverableId, nonce } = orderGalleryService.startDeliverableDownload(order.id, fileId)
+    const { orderId, fileId } = requireDeliveryFile(request)
+    const { filePath, deliverableId, nonce } = orderGalleryService.startDeliverableDownload(orderId, fileId)
     // 260830 审计 H-4：一次性下载链接携带载荷（deliverableId+本次 nonce），
     // 访问层凭它对账：锁定/再许可/再次 start 后旧链接即 403。
     return { url: signedUrl(filePath, { deliverableId, nonce }) }
@@ -384,17 +416,8 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
   fastify.post('/api/orders/delivery/:orderNo/file/:fileId/download-confirm', { logLevel: 'silent' }, async (request: FastifyRequest) => {
     guardRateLimit(`delivery-dl:${request.ip}`, 20, 5 * 60_000)
 
-    const { token } = (request.query || {}) as { token?: string }
-    const order = orderService.getClientOrderByToken(
-      (request.params as { orderNo: string }).orderNo,
-      token || ''
-    )
-    if (!order) throw new AppError(E.ORDER_NOT_FOUND, 404)
-
-    const fileId = parseInt((request.params as { fileId: string }).fileId, 10)
-    if (isNaN(fileId)) throw new AppError(E.ORDER_INVALID_ID)
-
-    orderGalleryService.confirmDeliverableDownload(order.id, fileId, request.ip)
+    const { orderId, fileId } = requireDeliveryFile(request)
+    orderGalleryService.confirmDeliverableDownload(orderId, fileId, request.ip)
     return { locked: true }
   })
 }

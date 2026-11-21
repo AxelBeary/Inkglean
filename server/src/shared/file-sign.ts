@@ -9,7 +9,7 @@ import crypto from 'crypto'
 // 260830 审计 H-4：15 分钟缩至 5 分钟——交付文件下载为即时行为（点「开始下载」即整取），
 // 缩短签名窗口压缩 URL 被转发/盗链的利用面；慢网下载失败的兜底是「再点一次开始」
 //（重新签发新链接），不靠长窗口苟活。参考图/备注附图等其余签名路径同步受益。
-const FILE_TTL_MS = 5 * 60 * 1000 // 签名有效期 5 分钟
+export const FILE_TTL_MS = 5 * 60 * 1000 // 签名有效期 5 分钟
 
 // P3-23（审计批E）：开发密钥策略对齐 auth.service 会话密钥（P1-3 同款）——
 // 固定串 'dev-secret-change-in-production' 可被离线爆破伪造签名 URL；
@@ -59,9 +59,10 @@ export interface FileTokenClaims {
  * 为文件路径生成带时效的签名 token
  * 格式: base64url(payload).base64url(hmac)
  * claims 可选：不携带载荷的旧式调用（参考图/备注附图等）行为完全不变
+ * issuedAt 可与签发账本共用时间起点。
  */
-export function signFilePath(filePath: string, claims?: FileTokenClaims): string {
-  const expires = Date.now() + FILE_TTL_MS
+export function signFilePath(filePath: string, claims?: FileTokenClaims, issuedAt = Date.now()): string {
+  const expires = issuedAt + FILE_TTL_MS
   const body = claims
     ? { p: filePath, e: expires, d: claims.deliverableId, ...(claims.nonce ? { n: claims.nonce } : {}) }
     : { p: filePath, e: expires }
@@ -125,8 +126,8 @@ export function verifyFileToken(token: string | null | undefined): string | null
  * 生成带签名的完整 URL（用于 API 响应）
  * claims 可选：交付文件一次性下载链接携带载荷，其余路径旧式签名不变
  */
-export function signedUrl(filePath: string, claims?: FileTokenClaims): string {
-  return `/uploads/${filePath}?sig=${signFilePath(filePath, claims)}`
+export function signedUrl(filePath: string, claims?: FileTokenClaims, issuedAt?: number): string {
+  return `/uploads/${filePath}?sig=${signFilePath(filePath, claims, issuedAt)}`
 }
 
 /**

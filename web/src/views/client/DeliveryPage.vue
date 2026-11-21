@@ -39,6 +39,9 @@
             <el-button v-else type="primary" size="small" :loading="downloadingId === d.id" :disabled="downloadingId !== null && downloadingId !== d.id" @click="downloadFile(d)">{{ $t('delivery.download') }}</el-button>
           </div>
         </div>
+        <p v-if="delivery.deliveryOnly && delivery.deliverables.some(file => file.downloadLocked)" class="delivery-support">
+          {{ $t('delivery.supportLockedMsg') }}
+        </p>
       </el-card>
 
       <!-- 未交付 -->
@@ -102,7 +105,7 @@ async function downloadFile(d: OrderDeliveryResult['deliverables'][number]) {
     if (apiErr?.code === 'DOWNLOAD_LOCKED') {
       d.downloadLocked = true
       pendingConfirmId.value = null
-      ElMessage.warning(t('delivery.downloadLockedMsg'))
+      ElMessage.warning(t(delivery.value?.deliveryOnly ? 'delivery.supportLockedMsg' : 'delivery.downloadLockedMsg'))
     } else if (apiErr?.code === 'DOWNLOAD_COOLDOWN') {
       // issue #81 A 路：423 冷却（冷却 ≠ 锁定）——只提示剩余秒数，**不得**把 downloadLocked 置 true；
       // 秒数取自服务端 AppError.detail.retryAfterMs（order-gallery.service.ts:487），向上取整，缺失按 0 兜底
@@ -201,4 +204,5 @@ onMounted(() => {
 .file-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .file-name { color: var(--text-primary); font-weight: 500; overflow-wrap: anywhere; }
 .file-size { color: var(--text-secondary); font-size: 12px; }
+.delivery-support { margin: 12px 0 0; color: var(--text-primary); font-size: 0.875rem; }
 </style>

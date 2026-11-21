@@ -49,9 +49,10 @@ const EP_STUBS = {
   'el-select': {
     props: ['modelValue'],
     emits: ['update:modelValue', 'change'],
+    name: 'AuditSelectStub',
     template: '<div class="select-stub"><slot /></div>'
   },
-  'el-option': { template: '<div />' },
+  'el-option': { props: ['value', 'label'], template: '<div :data-option="value">{{ label }}</div>' },
   'el-empty': { name: 'ElEmpty', props: ['description'], template: '<div class="empty-stub">{{ description }}</div>' }
 }
 
@@ -101,6 +102,21 @@ describe('AdminActions 处置留痕页（v75 W1）', () => {
     const wrapper = await mountPage()
     expect(wrapper.text()).toContain('home_takedown')
     expect(wrapper.text()).not.toContain('compliance.admin.action.home_takedown')
+  })
+
+  it('可按补发交付链接动作和交付文件对象组合筛选', async () => {
+    const wrapper = await mountPage()
+    const [action, target] = wrapper.findAllComponents({ name: 'AuditSelectStub' })
+    expect(action?.find('[data-option="delivery_link_reissue"]').exists()).toBe(true)
+    expect(target?.find('[data-option="deliverable"]').exists()).toBe(true)
+    action?.vm.$emit('update:modelValue', 'delivery_link_reissue')
+    action?.vm.$emit('change')
+    target?.vm.$emit('update:modelValue', 'deliverable')
+    target?.vm.$emit('change')
+    await flushPromises()
+    expect(hoisted.getAdminActions).toHaveBeenLastCalledWith({
+      limit: 100, action: 'delivery_link_reissue', targetType: 'deliverable'
+    })
   })
 
   it('加载失败 → 清空数据并回退到空态（非静默）', async () => {

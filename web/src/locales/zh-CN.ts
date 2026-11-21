@@ -1114,6 +1114,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // 815 拍板 #4：一次性下载
     downloadLocked: '已下载',
     downloadLockedMsg: '该文件已下载过并被锁定，如需再次下载请联系画师再许可',
+    supportLockedMsg: '该交付文件已锁定，请联系平台管理员补发取件链接',
     confirmFailed: '文件已开始保存，但完成确认未成功。请点击「重试确认」，不要重新下载。',
     retryConfirm: '重试确认',
     confirmSuccess: '下载确认已完成',
@@ -2062,6 +2063,30 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     ]
   },
   admin: {
+    delivery: {
+      title: '交付取件',
+      orderNoLabel: '完整订单号',
+      search: '查询',
+      lookupMissing: '未找到符合条件的已交付订单',
+      lookupFailed: '查询失败，请重试',
+      orderTitle: '订单 {orderNo}',
+      noFiles: '没有交付文件',
+      unnamedFile: '未命名文件',
+      locked: '下载已锁定',
+      unlocked: '下载未锁定',
+      issue: '补发链接',
+      confirmTitle: '确认补发取件链接',
+      confirmBody: '为订单 {orderNo} 的文件「{fileName}」（#{fileId}）补发取件链接？该文件原有的下载链接将失效。',
+      issueMissing: '订单或文件已不可用，请重新查询订单',
+      issueBusy: '该文件正在下载或等待下载确认，请稍后再补发',
+      issueFailed: '未收到有效的补发回执，请稍后重试',
+      linkLabel: '一次性取件链接',
+      ttlMinutes: '仅可下载一次，签发后 {n} 分钟内有效。',
+      ttlSeconds: '仅可下载一次，签发后 {n} 秒内有效。',
+      expired: '链接已过期',
+      copy: '复制链接',
+      copied: '链接已复制'
+    },
     navGroupOverview: '概览', navGroupOps: '运营', navGroupConfig: '配置与监控',
     backToAdmin: '返回后台', panelTitle: '管理员面板',
     artistCount: '画师数', totalOrders: '总订单', activeOrders: '活跃订单',
@@ -2550,13 +2575,15 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
         home_takedown: '下架主页',
         home_restore: '恢复主页',
         artist_status_set: '设置画师状态',
-        artist_remove: '移除画师'
+        artist_remove: '移除画师',
+        delivery_link_reissue: '补发交付链接'
       },
       targetType: {
         report: '举报',
         artwork: '作品',
         message: '留言',
-        artist: '画师'
+        artist: '画师',
+        deliverable: '交付文件'
       }
     }  },
 

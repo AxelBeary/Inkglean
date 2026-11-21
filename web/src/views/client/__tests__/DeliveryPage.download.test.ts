@@ -97,6 +97,19 @@ beforeEach(() => {
 })
 
 describe('DeliveryPage 一次性下载', () => {
+  it('画师不可见时，已锁定文件引导客户联系管理员补发', async () => {
+    h.delivery.mockResolvedValue({
+      orderNo: 'ALICE-001', artistName: 'Alice', deliveryOnly: true,
+      deliverables: [{ id: 7, fileName: 'final.png', fileSize: 1024, downloadLocked: true }]
+    })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('delivery.supportLockedMsg')
+    expect(wrapper.findAll('button').map(b => b.text())).not.toContain('delivery.download')
+    wrapper.unmount()
+  })
+
   it('验证后下载带同一枚令牌（旧实现 token 恒为空串）', async () => {
     const wrapper = mountPage()
     await flushPromises()

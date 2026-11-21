@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import type { ServerResponse } from 'http'
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
 import { getOrder, compactQueue, tryAutoPromote, assertStatusTransition, updateOrderChecked, formatCents } from './order.service.js'
@@ -9,7 +10,7 @@ import { resolvePriceCents } from '../../utils/price.js'
 import { copyFileSync, existsSync, mkdirSync, statSync, unlinkSync } from 'fs'
 import { join, resolve, sep, extname, basename } from 'path'
 import { nanoid } from 'nanoid'
-import { signedUrl } from '../../shared/file-sign.js'
+import { FILE_TTL_MS, signedUrl } from '../../shared/file-sign.js'
 import { sanitizeStoredText } from '../../shared/sanitize.js'
 
 // ============================================
@@ -390,12 +391,36 @@ export const DOWNLOAD_COOLDOWN_MS = 5 * 60_000
 /** 彻底锁死线：累计未完成下载达 9 次 → 永久锁定，需画师再许可（防故意刷） */
 export const HARD_LOCK_FAIL_TOTAL = 9
 
+// 同一账本槽位区分管理端直链与普通客户 start/confirm 两阶段下载。
+const ADMIN_DELIVERY_NONCE_PREFIX = 'admin:'
+
+export function isAdminDeliveryNonce(nonce: string | null): boolean {
+  return nonce?.startsWith(ADMIN_DELIVERY_NONCE_PREFIX) ?? false
+}
+
+const activeDeliverableTransfers = new Map<number, number>()
+
+/** 数据在服务端传输期间禁止同文件补发。finish/close 任一个到达后释放计数。 */
+export function trackDeliverableTransfer(fileId: number, response: ServerResponse): void {
+  activeDeliverableTransfers.set(fileId, (activeDeliverableTransfers.get(fileId) ?? 0) + 1)
+  const finish = () => {
+    response.off('finish', finish)
+    response.off('close', finish)
+    const remaining = (activeDeliverableTransfers.get(fileId) ?? 1) - 1
+    if (remaining === 0) activeDeliverableTransfers.delete(fileId)
+    else activeDeliverableTransfers.set(fileId, remaining)
+  }
+  response.once('finish', finish)
+  response.once('close', finish)
+}
+
 interface DeliverableDownloadRow {
   id: number
   order_id: number
   file_path: string
   original_name: string
   download_locked: number
+  download_nonce: string | null
   download_attempts: number
   download_fail_total: number
   last_started_at: number | null
@@ -404,10 +429,40 @@ interface DeliverableDownloadRow {
 
 function getDeliverableDownloadRow(orderId: number, fileId: number): DeliverableDownloadRow {
   const row = db.prepare(
-    'SELECT id, order_id, file_path, original_name, download_locked, download_attempts, download_fail_total, last_started_at, cooldown_until FROM deliverables WHERE id = ? AND order_id = ?'
+    'SELECT id, order_id, file_path, original_name, download_locked, download_nonce, download_attempts, download_fail_total, last_started_at, cooldown_until FROM deliverables WHERE id = ? AND order_id = ?'
   ).get(fileId, orderId) as DeliverableDownloadRow | undefined
   if (!row) throw new AppError(E.ORDER_NOT_FOUND)
   return row
+}
+
+/** 清掉旧链接和防护计数，保留历史下载时间与 IP。 */
+function resetDeliverableDownload(fileId: number, nonce: string | null, issuedAt: number | null = null): void {
+  db.prepare(`
+    UPDATE deliverables SET download_locked = 0, download_attempts = 0, download_fail_total = 0,
+      cooldown_until = NULL, last_started_at = ?, download_nonce = ? WHERE id = ?
+  `).run(issuedAt, nonce, fileId)
+}
+
+/** 管理员补发时，带 admin 标记的账本行以 last_started_at 记签发时间。 */
+export function issueAdminDeliverableDownload(orderId: number, fileId: number): { nonce: string; issuedAt: number } {
+  const d = getDeliverableDownloadRow(orderId, fileId)
+  const issuedAt = Date.now()
+  const awaitingConfirmation = !d.download_locked && d.download_nonce === null &&
+    d.last_started_at !== null && issuedAt - d.last_started_at < DOWNLOAD_GRACE_MS
+  if (activeDeliverableTransfers.has(fileId) || awaitingConfirmation) {
+    throw new AppError(E.ORDER_CONFLICT, 409)
+  }
+  const nonce = ADMIN_DELIVERY_NONCE_PREFIX + crypto.randomBytes(16).toString('hex')
+  resetDeliverableDownload(d.id, nonce, issuedAt)
+  return { nonce, issuedAt }
+}
+
+/** 管理链接已开始发送文件：原子消费并置锁，仍保留已有的确认记录。 */
+export function consumeAdminDeliverableDownload(fileId: number, nonce: string): boolean {
+  return db.prepare(`
+    UPDATE deliverables SET download_locked = 1, download_nonce = NULL, last_started_at = NULL
+    WHERE id = ? AND download_locked = 0 AND download_nonce = ?
+  `).run(fileId, nonce).changes === 1
 }
 
 type DownloadStartOutcome =
@@ -416,6 +471,7 @@ type DownloadStartOutcome =
   | { outcome: 'grace-locked' }
   | { outcome: 'attempts-locked' }
   | { outcome: 'cooldown'; retryAfterMs: number }
+  | { outcome: 'admin-pending' }
 
 /**
  * 客户开始下载（start）：结算上次未确认的尝试后返回文件路径（路由层再签名）。
@@ -434,11 +490,15 @@ export function startDeliverableDownload(orderId: number, fileId: number): { fil
     const now = Date.now()
 
     if (d.download_locked) return { outcome: 'locked' }
+    const adminIssued = isAdminDeliveryNonce(d.download_nonce)
+    if (adminIssued && d.last_started_at !== null && now - d.last_started_at <= FILE_TTL_MS) {
+      return { outcome: 'admin-pending' }
+    }
     if (d.cooldown_until && d.cooldown_until > now) {
       return { outcome: 'cooldown', retryAfterMs: d.cooldown_until - now }
     }
 
-    if (d.last_started_at) {
+    if (!adminIssued && d.last_started_at) {
       if (now - d.last_started_at >= DOWNLOAD_GRACE_MS) {
         // 下载器兜底：上次开始超过 60 秒未回报确认，按已发出锁定（拍板②）
         db.prepare(
@@ -487,6 +547,8 @@ export function startDeliverableDownload(orderId: number, fileId: number): { fil
       throw new AppError(E.DOWNLOAD_LOCKED, 410)
     case 'cooldown':
       throw new AppError(E.DOWNLOAD_COOLDOWN, 423, { retryAfterMs: result.retryAfterMs })
+    case 'admin-pending':
+      throw new AppError(E.ORDER_CONFLICT, 409)
     case 'ok':
       return { filePath: result.filePath, deliverableId: result.deliverableId, nonce: result.nonce }
   }
@@ -500,6 +562,8 @@ export function confirmDeliverableDownload(orderId: number, fileId: number, ip: 
   db.transaction(() => {
     const d = getDeliverableDownloadRow(orderId, fileId)
     if (d.download_locked) return
+    // 管理链接待领取时，早先客户尝试的迟到确认不能锁住新链接或覆盖历史。
+    if (isAdminDeliveryNonce(d.download_nonce)) throw new AppError(E.ORDER_CONFLICT, 409)
     db.prepare(
       'UPDATE deliverables SET download_locked = 1, downloaded_at = CURRENT_TIMESTAMP, download_ip = ?, last_started_at = NULL WHERE id = ?'
     ).run(ip, d.id)
@@ -517,9 +581,7 @@ export function confirmDeliverableDownload(orderId: number, fileId: number, ip: 
 export function repermitDeliverable(orderId: number, fileId: number): void {
   db.transaction(() => {
     const d = getDeliverableDownloadRow(orderId, fileId)
-    db.prepare(
-      'UPDATE deliverables SET download_locked = 0, download_attempts = 0, download_fail_total = 0, cooldown_until = NULL, last_started_at = NULL, download_nonce = NULL WHERE id = ?'
-    ).run(d.id)
+    resetDeliverableDownload(d.id, null)
     db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
       .run(orderId, `🔓 画师已再许可交付文件「${d.original_name}」的下载`)
   })()

@@ -133,6 +133,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'reports', name: 'AdminReports', component: () => import('../views/admin/ReportManage.vue'), meta: { titleKey: 'compliance.admin.reportManage', requiresAdmin: true } },
       // v75 W1: 管理动作处置留痕
       { path: 'admin-actions', name: 'AdminActions', component: () => import('../views/admin/AdminActions.vue'), meta: { titleKey: 'compliance.admin.adminActions', requiresAdmin: true } },
+      { path: 'delivery', name: 'AdminDelivery', component: () => import('../views/admin/AdminDelivery.vue'), meta: { titleKey: 'admin.delivery.title', requiresAdmin: true } },
       // REQ-043 I4: 公告编辑
       { path: 'announcement', name: 'AdminAnnouncement', component: () => import('../views/admin/AnnouncementManage.vue'), meta: { titleKey: 'announcement.admin.manage', requiresAdmin: true } }
     ]

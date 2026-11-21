@@ -74,10 +74,10 @@ const { t } = useI18n()
 const ACTION_OPTIONS = [
   'report_resolve', 'content_remove', 'content_restore',
   'artist_ban', 'artist_unban', 'home_takedown', 'home_restore',
-  'artist_status_set', 'artist_remove'
+  'artist_status_set', 'artist_remove', 'delivery_link_reissue'
 ] as const
 /** 对象类型取值（后端 writeAdminAction 实际写入的 target_type） */
-const TARGET_TYPE_OPTIONS = ['report', 'artwork', 'message', 'artist'] as const
+const TARGET_TYPE_OPTIONS = ['report', 'artwork', 'message', 'artist', 'deliverable'] as const
 const LIMIT_OPTIONS = [50, 100, 200, 500] as const
 
 const rows = ref<AdminActionItem[]>([])

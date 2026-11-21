@@ -7,6 +7,7 @@ import { adminAddonTemplateRoutes } from './admin-addon-template.routes.js'
 import { adminWorkflowRoutes } from './admin-workflow.routes.js'
 import { adminArtistSettingsRoutes } from './admin-artist-settings.routes.js'
 import { adminPlatformRoutes } from './admin-platform.routes.js'
+import { adminDeliveryRoutes } from './admin-delivery.routes.js'
 import type { FastifyInstance } from 'fastify'
 
 // ============================================
@@ -24,6 +25,7 @@ import type { FastifyInstance } from 'fastify'
 //   6. admin-workflow.routes.ts          默认流程模板 + 画师流程与比例代理
 //   7. admin-artist-settings.routes.ts   画师全设置代理（资料/价格概览/作品/须知）
 //   8. admin-platform.routes.ts          社交平台字典 CRUD
+//   9. admin-delivery.routes.ts          历史交付查询与单文件补发
 // 统一 params schema 与 requireExistingArtist 见 admin-route-utils.ts
 // ============================================
 
@@ -41,4 +43,5 @@ export default async function adminRoutes(fastify: FastifyInstance) {
   await adminWorkflowRoutes(fastify)
   await adminArtistSettingsRoutes(fastify)
   await adminPlatformRoutes(fastify)
+  await adminDeliveryRoutes(fastify)
 }

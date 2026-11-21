@@ -2,12 +2,17 @@
 // 由 api/index.ts（barrel）再导出，调用方 import 路径不变
 
 import { getJson, postJson, putJson, deleteJson } from './http'
+import type { AdminDeliveryLookupResult, AdminDeliveryReissueResult } from '../types'
 import type { PublicArtistDTO, ArtistStatus, Artwork, CommissionRule, AdminGuestbookMessage, SimpleSuccessResult, PlatformDTO, DeletePlatformResult, WorkflowStageDTO, WorkflowResult, SavePaymentResult, DeleteStageResult, DefaultWorkflowNode, GreetingTemplate, SpecialDay, SpecialDayListItem, SpecialDayInput, AddonTemplate, AdminAddonTemplate, AdminAddonTemplateInput, AdminAddonTemplateUpdate, DeleteAdminAddonTemplateResult, AdminOrdersResult, StatsMode, TrackingSummary, TrackingConfig, AdminArtistItem, DeleteArtistResult, DeletedArtistItem, RestoreArtistResult, SystemVersionResult, GlobalStats, TotpBindInitResult, TotpActionResult, TransferAdminResult, RecycleBinResult, EmptyRecycleBinResult, ArtistPricingOverviewItem, HealthResult, SavePaymentNode, GreetingInput, CreateArtistRequest, TransferAdminRequest, PlatformInput, AdminMessageFilters, GenerateInviteCodesRequest, GenerateInviteCodesResult, AdminInviteCodeQuery, AdminInviteCodesResult, InviteCodeUsesResult, RevokeInviteCodeResult, PlatformAnnouncement, SaveAnnouncementRequest } from '../types'
 // DTO 类型统一从 '../types'（barrel）按名取用；inline import('../types') 为原 import('./types') 的路径等价改写
 
 // ─── 管理员 ───
 export const adminApi = {
   getArtists: (): Promise<AdminArtistItem[]> => getJson('/admin/artists'),
+  lookupDelivery: (orderNo: string): Promise<AdminDeliveryLookupResult> =>
+    getJson(`/admin/delivery/${encodeURIComponent(orderNo)}`),
+  reissueDeliveryFile: (orderNo: string, fileId: number): Promise<AdminDeliveryReissueResult> =>
+    postJson(`/admin/delivery/${encodeURIComponent(orderNo)}/files/${fileId}/reissue`),
   createArtist: (data: CreateArtistRequest): Promise<PublicArtistDTO> => postJson('/admin/artists', data),
   deleteArtist: (id: number): Promise<DeleteArtistResult> => deleteJson(`/admin/artists/${id}`),
   // 0817：已移除画师清单 + 恢复（软删兜底闭环，用户拍板）

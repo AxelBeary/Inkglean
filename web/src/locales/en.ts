@@ -1117,6 +1117,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     // 815 decision #4: one-time download
     downloadLocked: 'Downloaded',
     downloadLockedMsg: 'This file has already been downloaded and locked. Please contact the artist for re-permission',
+    supportLockedMsg: 'This delivery file is locked. Contact a platform administrator for a new pickup link.',
     confirmFailed: 'The file started saving, but the completion confirmation failed. Retry the confirmation instead of downloading again.',
     retryConfirm: 'Retry confirmation',
     confirmSuccess: 'Download confirmation completed',
@@ -2067,6 +2068,30 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     ]
   },
   admin: {
+    delivery: {
+      title: 'Delivery pickup',
+      orderNoLabel: 'Full order number',
+      search: 'Search',
+      lookupMissing: 'No eligible delivered order found',
+      lookupFailed: 'Could not look up the order. Try again.',
+      orderTitle: 'Order {orderNo}',
+      noFiles: 'No delivery files',
+      unnamedFile: 'Unnamed file',
+      locked: 'Download locked',
+      unlocked: 'Download unlocked',
+      issue: 'Reissue link',
+      confirmTitle: 'Reissue pickup link?',
+      confirmBody: 'Reissue a pickup link for “{fileName}” (#{fileId}) on order {orderNo}? This will invalidate any previous download link for this file.',
+      issueMissing: 'The order or file is no longer available. Look up the order again.',
+      issueBusy: 'This file is being downloaded or is awaiting download confirmation. Try again later.',
+      issueFailed: 'No valid reissue receipt was received. Try again later.',
+      linkLabel: 'Single-use pickup link',
+      ttlMinutes: 'One download only. Valid for {n} min after issue.',
+      ttlSeconds: 'One download only. Valid for {n} sec after issue.',
+      expired: 'Link expired',
+      copy: 'Copy link',
+      copied: 'Link copied'
+    },
     navGroupOverview: 'Overview', navGroupOps: 'Operations', navGroupConfig: 'Config & Monitor',
     backToAdmin: 'Back to dashboard', panelTitle: 'Admin panel',
     artistCount: 'Artists', totalOrders: 'Total orders', activeOrders: 'Active orders',
@@ -2556,13 +2581,15 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
         home_takedown: 'Take home down',
         home_restore: 'Restore home',
         artist_status_set: 'Set artist status',
-        artist_remove: 'Remove artist'
+        artist_remove: 'Remove artist',
+        delivery_link_reissue: 'Reissue delivery link'
       },
       targetType: {
         report: 'Report',
         artwork: 'Artwork',
         message: 'Message',
-        artist: 'Artist'
+        artist: 'Artist',
+        deliverable: 'Delivery file'
       }
     }
   },

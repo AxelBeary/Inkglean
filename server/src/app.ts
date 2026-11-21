@@ -1,7 +1,7 @@
 import Fastify from 'fastify'
-import type { FastifyInstance, FastifyError, FastifyRequest } from 'fastify'
+import type { FastifyInstance, FastifyError, FastifyLoggerOptions, FastifyRequest } from 'fastify'
 import type { LoggerOptions } from 'pino'
-import type { Writable } from 'stream'
+import { Readable, type Writable } from 'stream'
 import Ajv from 'ajv'
 import fastifyStatic from '@fastify/static'
 import fastifyCors from '@fastify/cors'
@@ -13,6 +13,7 @@ import { existsSync, readdirSync, statSync, renameSync, rmdirSync, createReadStr
 import { initDatabase } from './db/init.js'
 import db from './db/connection.js'
 import { verifyFileTokenDetailed, isPublicUploadPath, safeDecodeUploadPath } from './shared/file-sign.js'
+import { consumeAdminDeliverableDownload, isAdminDeliveryNonce, trackDeliverableTransfer } from './features/order/order-gallery.service.js'
 import { pruneIdempotencyKeys } from './shared/idempotency.js'
 import { isWeakSessionSecret } from './shared/secrets.js'
 import { ERROR_MESSAGES } from './shared/errors.js'
@@ -54,7 +55,16 @@ function readIndexHtmlCached(file: string): string {
   return html
 }
 
-/** logger 入参：省略/布尔 = 默认控制台；stream = 写入指定流（测试捕获用）；对象 = pino 选项透传 */
+function isUploadRequestUrl(url: string): boolean {
+  return /^(?:https?:\/\/[^/]+)?\/uploads\//.test(url)
+}
+
+/** 上传文件签名放在查询参数中，访问日志只记录路径。 */
+function requestLogUrl(url: string): string {
+  return isUploadRequestUrl(url) ? url.split('?', 1)[0] : url
+}
+
+/** logger 入参：省略/布尔 = 默认控制台；stream = 写入指定流（测试捕获用）；对象 = pino 选项 */
 export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptions } = {}): Promise<FastifyInstance> {
   // trustProxy：Docker 部署时 Caddy 和 web 在不同容器，需信任 Docker 网段
   // 安全：默认只信任私有网段，防止攻击者伪造 X-Forwarded-For 绕过限流
@@ -86,12 +96,31 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
   })
 
   // logger：测试可传 Writable 捕获日志（如 origin 推断类只落日志的安全错误）
-  const loggerOpt = typeof opts.logger === 'object' && opts.logger !== null && 'write' in opts.logger
-    ? { level: 'info', stream: opts.logger }
-    : (opts.logger ?? true)
+  const loggerOptions: FastifyLoggerOptions & LoggerOptions = typeof opts.logger === 'object' && opts.logger !== null
+    ? ('write' in opts.logger ? { level: 'info', stream: opts.logger } : opts.logger)
+    : {}
 
   const app = Fastify({
-    logger: loggerOpt,
+    logger: opts.logger === false ? false : {
+      ...loggerOptions,
+      serializers: {
+        ...loggerOptions.serializers,
+        req(request: FastifyRequest) {
+          const url = requestLogUrl(request.url)
+          const custom = loggerOptions.serializers?.req
+          if (url === request.url && custom) return custom(request)
+          const version = request.headers?.['accept-version']
+          return {
+            method: request.method,
+            url,
+            version: typeof version === 'string' ? version : version?.[0],
+            host: request.host,
+            remoteAddress: request.ip,
+            remotePort: request.socket?.remotePort
+          }
+        }
+      }
+    },
     trustProxy
   })
   // 自定义校验编译器：用带 moneyPrecision 关键字的独立 ajv 实例（配置与 fastify 默认同款；
@@ -430,6 +459,8 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
   // ENV-1 修复：确保上传目录存在（全新部署时不存在，首次上传会失败）
   mkdirSync(UPLOAD_DIR, { recursive: true })
 
+  const adminUploadDownloads = new WeakMap<FastifyRequest, { fileId: number; nonce: string }>()
+
   // 安全：签名校验 — references/ 和 deliverables/ 需要有效签名才能访问
   // images/ 保持公开（画师作品集/头像/档位示例图）
   // 261122（B13 BE-01 / B32 BE-02 / B33 BE-03 同题）：一次性交付凭证只在客户实际读取（GET）
@@ -485,6 +516,11 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
         // 261122：到此已确认凭证有效且未锁定。只有 GET 有实际读取语义，才原子消费；
         // HEAD 等只读方法返回元数据，凭证原样留给随后的 GET。
         if (request.method !== 'GET') return
+        if (isAdminDeliveryNonce(verified.claims.nonce)) {
+          // 管理补发直链在静态服务确定会发送文件后才消费。
+          adminUploadDownloads.set(request, { fileId: verified.claims.deliverableId, nonce: verified.claims.nonce })
+          return
+        }
         // SRV-10: 原子消费 nonce——UPDATE WHERE 同时校验 nonce 值，
         // changes=0 表示已被并发请求抢先消费（同一签名 URL 第二次重放）→ 403。
         // 消费后 nonce 置 NULL，TTL 内同一 URL 不可再用；
@@ -495,9 +531,35 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
         if (consumed.changes === 0) {
           return reply.code(403).send({ error: '文件链接无效或已过期' })
         }
+        trackDeliverableTransfer(verified.claims.deliverableId, reply.raw)
       }
       // 预览模式（仅 deliverableId 无 nonce）：只查行存在即放行，不消费 nonce
     }
+  })
+
+  app.addHook('onSend', async (request, reply, payload) => {
+    const download = adminUploadDownloads.get(request)
+    if (!download || reply.statusCode !== 200 || !(payload instanceof Readable)) return payload
+    if (reply.raw.destroyed) {
+      payload.destroy()
+      return null
+    }
+    try {
+      if (consumeAdminDeliverableDownload(download.fileId, download.nonce)) {
+        trackDeliverableTransfer(download.fileId, reply.raw)
+        return payload
+      }
+    } catch (error) {
+      payload.destroy()
+      throw error
+    }
+    // 文件查找期间凭证被更新或被另一请求消费，丢弃文件流和静态响应头。
+    payload.destroy()
+    for (const header of ['content-length', 'content-disposition', 'etag', 'last-modified', 'accept-ranges']) {
+      reply.removeHeader(header)
+    }
+    reply.code(403).type('application/json; charset=utf-8')
+    return JSON.stringify({ error: '文件链接无效或已过期' })
   })
 
   await app.register(fastifyStatic, {
@@ -536,7 +598,15 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
       release,
       environment: process.env.NODE_ENV || 'production',
       sendDefaultPii: false, // S-AC6: 不上传用户 IP
-      tracesSampleRate: 0 // 不做性能追踪，只捕获错误
+      tracesSampleRate: 0, // 不做性能追踪，只捕获错误
+      beforeSend(event) {
+        const request = event.request
+        if (request?.url && isUploadRequestUrl(request.url)) {
+          request.url = requestLogUrl(request.url)
+          delete request.query_string
+        }
+        return event
+      }
     })
     app.log.info(`Sentry 已启用（release=${release}）`)
   }
@@ -553,7 +623,7 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
     const status = error.statusCode || 500
     // 安全：500 级别错误不透传 message（可能泄露表名/列名/路径），仅记日志
     if (status >= 500) {
-      request.log.error({ err: error, url: request.url }, '未处理的服务端错误')
+      request.log.error({ err: error, url: requestLogUrl(request.url) }, '未处理的服务端错误')
       Sentry.captureException(error) // S2: 上报 Sentry（未 init 时为 no-op）
       return reply.status(500).send({ code: 'INTERNAL', error: '服务器内部错误' })
     }

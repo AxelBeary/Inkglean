@@ -109,6 +109,16 @@ describe('AdminLayout 入口级 step-up 守卫（REQ-041）', () => {
     expect(wrapper.find('.router-view-stub').exists()).toBe(true)
   })
 
+  it('运营菜单可打开管理交付取件页', async () => {
+    h.status.mockResolvedValue({ upgraded: true })
+    const wrapper = mountLayout()
+    await flushPromises()
+    const link = wrapper.findAll('nav [role="link"]').find(item => item.text() === 'admin.delivery.title')
+    expect(link).toBeDefined()
+    await link?.trigger('click')
+    expect(h.push).toHaveBeenCalledWith('/admin/delivery')
+  })
+
   it('401 STEP_UP_REQUIRED → 弹出 StepUpDialog', async () => {
     h.status.mockRejectedValue(stepUpRequiredError())
     const wrapper = mountLayout()

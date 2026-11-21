@@ -124,7 +124,7 @@ import { useSessionGuard } from '../../composables/useSessionGuard'
 // REQ-041: 管理后台二次验证对话框（入口级守卫）
 import StepUpDialog from './StepUpDialog.vue'
 import { stepUpApi, type ApiError } from '../../api/index'
-import { Management, User, ChatLineSquare, SetUp, Share, Files, Monitor, TrendCharts, Operation, Back, Warning, Bell, Document } from '@element-plus/icons-vue'
+import { Management, User, ChatLineSquare, SetUp, Share, Files, Monitor, TrendCharts, Operation, Back, Warning, Bell, Document, FolderOpened } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -145,6 +145,7 @@ const NAV_GROUPS = [
 const navItems = [
   { path: '/admin', icon: Management, labelKey: 'admin.panelTitle', group: 'overview' },
   { path: '/admin/artists', icon: User, labelKey: 'admin.artistManage', group: 'ops' },
+  { path: '/admin/delivery', icon: FolderOpened, labelKey: 'admin.delivery.title', group: 'ops' },
   // REQ-042: 举报处理
   { path: '/admin/reports', icon: Warning, labelKey: 'compliance.admin.reportManage', group: 'ops' },
   // v75 W1: 管理动作处置留痕

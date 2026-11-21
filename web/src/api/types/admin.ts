@@ -17,6 +17,23 @@ export type AdminArtistItem = PublicArtistDTO & {
   home_takedown_reason: string | null
 }
 
+export interface AdminDeliveryFile {
+  id: number
+  fileName: string | null
+  fileSize: number | null
+  downloadLocked: boolean
+}
+
+export interface AdminDeliveryLookupResult {
+  orderNo: string
+  deliverables: AdminDeliveryFile[]
+}
+
+export interface AdminDeliveryReissueResult {
+  url: string
+  expiresInSeconds: number
+}
+
 export interface DeleteArtistResult {
   success: boolean
   message: string

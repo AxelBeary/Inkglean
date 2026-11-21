@@ -8,7 +8,8 @@ import { nextTick } from 'vue'
 const h = vi.hoisted(() => ({ track: vi.fn(), refresh: vi.fn() }))
 
 vi.mock('vue-router', () => ({
-  useRoute: () => ({ params: { subdomain: 'alice' }, query: { no: 'ALICE-001', token: 'tok-1' } })
+  useRoute: () => ({ params: { subdomain: 'alice' }, query: { no: 'ALICE-001', token: 'tok-1' } }),
+  useRouter: () => ({ replace: vi.fn() })
 }))
 
 vi.mock('vue-i18n', () => ({

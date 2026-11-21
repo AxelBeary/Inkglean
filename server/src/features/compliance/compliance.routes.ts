@@ -35,7 +35,7 @@ export default async function complianceRoutes(fastify: FastifyInstance) {
     'artist_ban', 'artist_unban', 'home_takedown', 'home_restore',
     'artist_status_set', 'artist_remove',
     // GHSA-6pf3 S3：画师资料更新已写留痕，白名单漏它会让 ?action= 精确筛不到
-    'artist_profile_update'
+    'artist_profile_update', 'delivery_link_reissue'
   ]
 
   /**

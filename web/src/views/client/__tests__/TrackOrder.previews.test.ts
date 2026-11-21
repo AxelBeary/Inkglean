@@ -4,10 +4,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 
-const h = vi.hoisted(() => ({ track: vi.fn() }))
+const h = vi.hoisted(() => ({ track: vi.fn(), replace: vi.fn() }))
 
 vi.mock('vue-router', () => ({
-  useRoute: () => ({ params: { subdomain: 'alice' }, query: { no: 'ALICE-001', token: 'tok-1' } })
+  useRoute: () => ({ params: { subdomain: 'alice' }, query: { no: 'ALICE-001', token: 'tok-1' } }),
+  useRouter: () => ({ replace: h.replace })
 }))
 
 vi.mock('vue-i18n', () => ({
@@ -104,9 +105,24 @@ function mountPage() {
 
 beforeEach(() => {
   h.track.mockReset()
+  h.replace.mockReset()
 })
 
 describe('TrackOrder 客户侧过程稿（迁移 v81）', () => {
+  it('已付款的受限订单沿用原令牌进入取件页', async () => {
+    h.track.mockResolvedValue({ orderNo: 'ALICE-001', deliveryOnly: true })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(h.replace).toHaveBeenCalledWith({
+      name: 'ClientDelivery',
+      params: { subdomain: 'alice', orderNo: 'ALICE-001' },
+      query: { token: 'tok-1' }
+    })
+    expect(wrapper.find('.result-header').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('过程稿与配额都为空：两个区块整块不渲染', async () => {
     h.track.mockResolvedValue(buildTrack())
     const wrapper = mountPage()

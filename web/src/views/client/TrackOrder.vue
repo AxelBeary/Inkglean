@@ -250,7 +250,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { orderApi, type ApiError } from '../../api/index'
 import type { ArtistPublicProfile, VisibleArtistProfile, OrderTrackResult } from '../../api/types'
 import { fetchArtistPublicProfile } from '../../composables/useArtistPublicProfile'
@@ -267,6 +267,7 @@ import { usePalette } from '../../composables/usePalette'
 
 const { t } = useI18n()
 const route = useRoute()
+const router = useRouter()
 const subdomain = route.params.subdomain as string
 
 // M2: 流程页跟随画师 palette 配色（轻量拉画师信息；加载失败回落 paper，不影响查单主流程）
@@ -513,6 +514,15 @@ async function search(no = orderNo.value, tok = token.value): Promise<'ok' | 'in
   try {
     const data = await orderApi.track(no.trim(), tok.trim())
     if (mySeq !== searchSeq) return null // 晚到旧响应：丢弃，不覆盖新查询结果
+    if ('deliveryOnly' in data) {
+      saveLink(data.orderNo, tok.trim())
+      await router.replace({
+        name: 'ClientDelivery',
+        params: { subdomain, orderNo: data.orderNo },
+        query: { token: tok.trim() }
+      })
+      return null
+    }
     order.value = {
       ...data,
       currentStageId: data.currentStageId ?? undefined,
