@@ -699,6 +699,12 @@ html:not(.dark) .track-page { --el-input-placeholder-color: #6c6e72; }
 .revision-quota-text { font-size: 13px; color: var(--text-primary); }
 .revision-quota-note { font-size: 12px; color: var(--text-secondary); }
 
+/* 参考图缩略：上传上限 10MB，无尺寸约束会按原图铺满容器（1c661a24 误删，此处恢复） */
+.brief-ref-img {
+  width: 80px; height: 80px; object-fit: cover; border-radius: 8px;
+  border: 1px solid var(--border-color); background: var(--bg-page);
+}
+
 /* ─── 迁移 v81: 过程稿（形态对齐 .brief-refs/.brief-ref-img，独立成块） ─── */
 .preview-block {
   margin-top: 20px; padding: 14px 16px; border-radius: 10px;

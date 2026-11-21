@@ -11,7 +11,7 @@
 import db from '../src/db/connection.js'
 import { initDatabase } from '../src/db/init.js'
 import { createHash, randomBytes } from 'crypto'
-import { rmSync } from 'fs'
+import { rmSync, rmdirSync } from 'fs'
 import { afterAll } from 'vitest'
 import type { Artist, Order } from '../src/types/entities.js'
 
@@ -27,11 +27,16 @@ export type SeededOrder = OrderRow & { customerToken: string }
 // 显式建表（init.js 不再 import 时自动执行）
 initDatabase(db)
 
-// 每个 worker 使用独立 UPLOAD_DIR；测试文件结束后清理其目录
+// 每个 worker 使用独立 UPLOAD_DIR；测试文件结束后清理其目录，
+// 并顺带删掉已空的临时根目录（否则每跑一次测试就在系统 temp 里留一个空目录）
 afterAll(() => {
   const uploadDir = process.env.UPLOAD_DIR
+  const uploadRoot = process.env.UPLOAD_DIR_ROOT
   if (uploadDir && uploadDir.includes('commission-test-uploads')) {
     try { rmSync(uploadDir, { recursive: true, force: true }) } catch { /* 静默 */ }
+  }
+  if (uploadRoot && uploadRoot.includes('commission-test-uploads')) {
+    try { rmdirSync(uploadRoot) } catch { /* 其他 worker 仍在使用时非空，忽略 */ }
   }
 })
 
