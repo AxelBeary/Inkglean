@@ -16,10 +16,26 @@
  * @param {string} [fileName] 下载文件名（缺省用浏览器默认名）
  * @throws {Error} HTTP 非 2xx 时抛出，由调用方提示
  */
+/** 单次交付文件传输上限（服务端 upload.routes.ts:20 限制 50MB；超时按最慢可用带宽留足余量）。 */
+const DOWNLOAD_TIMEOUT_MS = 120_000
+
 export async function downloadAsset(url: string, fileName?: string): Promise<void> {
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  const blob = await res.blob()
+  // 无超时的 fetch 会让调用方的「下载中」标记永久为真：弱网/半开连接下按钮全站变灰且无法自愈。
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS)
+  let blob: Blob
+  try {
+    const res = await fetch(url, { signal: controller.signal })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    blob = await res.blob()
+  } catch (err) {
+    if ((err as { name?: string })?.name === 'AbortError') {
+      throw new Error('DOWNLOAD_TIMEOUT', { cause: err })
+    }
+    throw err
+  } finally {
+    clearTimeout(timer)
+  }
   // 先取出 URL 存局部：延迟注销不再依赖 <a> 的存活与 a.href 的可读性（原实现读的就是 a.href）
   const objectUrl = URL.createObjectURL(blob)
   const a = document.createElement('a')

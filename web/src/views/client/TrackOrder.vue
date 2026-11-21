@@ -28,7 +28,7 @@
       <!-- 波 M：查询失败页内错误态 + 重试（不再只弹 toast） -->
       <div v-if="searchError" class="search-error" role="alert">
         <p>{{ $t('track.searchFailed') }}</p>
-        <el-button type="primary" size="small" :disabled="searching" @click="search()">{{ $t('common.loadRetry') }}</el-button>
+        <el-button type="primary" size="small" :disabled="searching" @click="retryLastSearch">{{ $t('common.loadRetry') }}</el-button>
       </div>
 
       <!-- F1 围剿：已保存的追踪链接清单（多单可存多条，每行一键查询） -->
@@ -207,6 +207,7 @@
               <p class="pickup-pending-hint">{{ $t('delivery.deliveryPendingHint') }}</p>
             </template>
             <!-- 260830 审计 H-4：下载统一走一次性下载链路（服务端不再下发列表直链） -->
+            <span v-else-if="d.downloadLocked || confirmedIds.has(d.id)" class="download-locked-label">{{ $t('delivery.downloadLocked') }}</span>
             <el-button v-else-if="pendingConfirmationTokens.has(d.id)" size="small" type="warning" :loading="downloadingId === d.id" @click="retryDeliverableConfirm(d.id)">{{ $t('delivery.retryConfirm') }}</el-button>
             <el-button v-else size="small" type="primary" :loading="downloadingId === d.id" @click="downloadDeliverable(d.id, d.fileName)">{{ $t('common.download') }}</el-button>
           </div>
@@ -299,6 +300,8 @@ const order = ref<TrackOrderData | null>(null)
 const searching = ref(false)
 // 波 M：查询失败页内错误态（区别于 toast，提供重试入口）
 const searchError = ref(false)
+/** 最近一次查询使用的凭证：身份只在成功后提交，重试要重放这次尝试而不是旧单。 */
+let lastAttempt: { no: string; tok: string } | null = null
 
 // F1 围剿：已保存的追踪链接清单（localStorage 多单可存多条，上限 20 条自动去重）
 const SAVED_LINKS_KEY = 'huiyue_track_links'
@@ -403,7 +406,7 @@ const trackNextDueCents = computed(() => {
 })
 
 const {
-  downloadingId, pendingConfirmationTokens, pendingAdminDownloadIds,
+  downloadingId, pendingConfirmationTokens, pendingAdminDownloadIds, confirmedIds,
   showDownloadOrder, downloadDeliverable, retryDeliverableConfirm
 } = useTrackDownloads()
 
@@ -475,6 +478,7 @@ async function search(no = orderNo.value, tok = token.value): Promise<'ok' | 'in
     ElMessage.warning(t('track.enterLink'))
     return 'error'
   }
+  lastAttempt = { no: no.trim(), tok: tok.trim() }
   const mySeq = ++searchSeq
   searching.value = true
   searchError.value = false
@@ -511,12 +515,22 @@ async function search(no = orderNo.value, tok = token.value): Promise<'ok' | 'in
   }
 }
 
+/** 重试最近一次查询（凭证可能来自粘贴，不依赖已提交的 orderNo/token） */
+function retryLastSearch() {
+  const attempt = lastAttempt
+  if (!attempt) {
+    search()
+    return
+  }
+  search(attempt.no, attempt.tok)
+}
+
 /** 粘贴完整链接 → 解析 → 查询 */
 function searchFromInput() {
   const parsed = parseLink(linkInput.value)
   if (!parsed) return
-  orderNo.value = parsed.orderNo
-  token.value = parsed.token
+  // 身份只在查询成功后提交：失败时若已改写 orderNo/token，页面仍展示旧单却用新凭证续签，
+  // 会让旧单的过程稿被整体判 skipped 而消失（续签 request 读的就是这两个 ref）。
   search(parsed.orderNo, parsed.token)
 }
 
@@ -617,6 +631,8 @@ html:not(.dark) .track-page { --el-input-placeholder-color: #6c6e72; }
 .file-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border-color); }
 .file-item--pickup-pending { flex-wrap: wrap; }
 .pickup-pending-label { color: var(--text-primary); font-size: 0.875rem; }
+/* 已下载（一次性下载已锁定）：与管理员待补发的等待态区分，不提供注定失败的下载按钮 */
+.download-locked-label { color: var(--text-secondary); font-size: 0.875rem; }
 .pickup-pending-hint { flex-basis: 100%; margin: 8px 0 0; color: var(--text-secondary); font-size: 0.875rem; line-height: 1.5; overflow-wrap: anywhere; }
 /* F1 围剿：粘贴链接入口 + 失效提示 */
 .link-hint { margin: -6px 0 14px; font-size: 12px; color: var(--text-secondary); }

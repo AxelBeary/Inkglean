@@ -483,12 +483,28 @@ export function consumeCustomerDeliverableDownload(fileId: number, nonce: string
   `).run(CONSUMED_DELIVERY_NONCE_PREFIX + nonce, fileId, nonce).changes === 1
 }
 
-/** 管理链接已打开文件：原子消费并置锁，仍保留已有的确认记录。 */
-export function consumeAdminDeliverableDownload(fileId: number, nonce: string): boolean {
-  return db.prepare(`
-    UPDATE deliverables SET download_locked = 1, download_nonce = NULL, last_started_at = NULL
-    WHERE id = ? AND download_locked = 0 AND download_nonce = ?
-  `).run(fileId, nonce).changes === 1
+/**
+ * 管理链接已打开文件：原子消费并置锁。
+ * 与客户确认路径同口径记录 downloaded_at / download_ip 并留系统备注——
+ * 补发链接的用途就是给客户领件，纠纷时同样要能回答「何时、由谁取走」。
+ */
+export function consumeAdminDeliverableDownload(fileId: number, nonce: string, ip?: string): boolean {
+  return db.transaction(() => {
+    const changed = db.prepare(`
+      UPDATE deliverables
+      SET download_locked = 1, download_nonce = NULL, last_started_at = NULL,
+          downloaded_at = CURRENT_TIMESTAMP, download_ip = ?
+      WHERE id = ? AND download_locked = 0 AND download_nonce = ?
+    `).run(ip ?? null, fileId, nonce).changes === 1
+    if (!changed) return false
+    const row = db.prepare('SELECT order_id, original_name FROM deliverables WHERE id = ?')
+      .get(fileId) as { order_id: number; original_name: string | null } | undefined
+    if (row) {
+      db.prepare("INSERT INTO order_notes (order_id, content, created_by) VALUES (?, ?, 'system')")
+        .run(row.order_id, `🔒 管理员补发链接已领取「${row.original_name ?? '交付文件'}」；如需再次下载请画师或管理员再许可`)
+    }
+    return true
+  })()
 }
 
 type DownloadStartOutcome =

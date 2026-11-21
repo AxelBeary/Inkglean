@@ -11,7 +11,8 @@ export default defineConfig({
     // TS 收尾迁移完成（2026-08-19）：测试全量 .test.ts，与 tsconfig.tests.json strict 检查对齐
     include: ['tests/**/*.test.ts'],
     testTimeout: 10000,
-    // 测试数据库在同一文件内共享；上传目录由 setupFiles 按 worker 隔离
+    // 测试文件串行执行（fileParallelism:false）；上传目录仍按 worker 号再分一层，
+    // 这样即使将来放开并行、或 vitest 改变 worker 复用策略，各 worker 也不会共享同一清理目录。
     fileParallelism: false,
     setupFiles: ['./tests/vitest-worker-setup.ts'],
     env: {

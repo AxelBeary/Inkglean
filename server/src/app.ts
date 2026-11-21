@@ -56,9 +56,14 @@ function readIndexHtmlCached(file: string): string {
   return html
 }
 
+/** 凭证既可能在路径白名单里，也可能藏在任意查询参数中（日历订阅、安装向导、签名文件等）。 */
+const CREDENTIAL_PARAM_RE = /[?&](?:token|sig|code|key|password|secret)=/i
+
 function hasPrivateQuery(url: string): boolean {
+  if (CREDENTIAL_PARAM_RE.test(url ?? '')) return true
   const path = url?.split(/[?#]/, 1)[0].replace(/^https?:\/\/[^/]+/i, '') ?? ''
-  return path.startsWith('/uploads/') || /^\/artist\/[^/]+\/(?:track|delivery\/[^/]+)\/?$/i.test(path)
+  return path.startsWith('/uploads/') || path.startsWith('/setup') ||
+    /^\/artist\/[^/]+\/(?:track|delivery\/[^/]+)\/?$/i.test(path)
 }
 
 /** 文件签名和客户访问令牌都在查询参数中，访问日志只记录这些入口的路径。 */
@@ -570,9 +575,12 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
       payload.destroy()
       return rejectDownloadStream(reply, 404, '交付文件暂不可用')
     }
-    const consume = isAdminDeliveryNonce(download.nonce) ? consumeAdminDeliverableDownload : consumeCustomerDeliverableDownload
     try {
-      if (consume(download.fileId, download.nonce)) {
+      // 管理链接消费同样记录客户 IP 与系统备注（与客户确认路径同口径）
+      const consumed = isAdminDeliveryNonce(download.nonce)
+        ? consumeAdminDeliverableDownload(download.fileId, download.nonce, request.ip)
+        : consumeCustomerDeliverableDownload(download.fileId, download.nonce)
+      if (consumed) {
         trackDeliverableTransfer(download.fileId, reply.raw)
         return payload
       }

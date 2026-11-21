@@ -224,10 +224,12 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
       // 260830 审计 H-4：追踪页不再下发可用的交付文件直链（旧式裸签名可转发，架空一次性下载）；
       // 下载一律走下方 download-start 链路（每次签发新链接、锁定后失效）。
       // url 字段保留空串仅为前端类型兼容。
-      deliverables: (order.deliverables || []).map((d: { id: number; original_name?: string | null; file_path: string }) => ({
+      deliverables: (order.deliverables || []).map((d: { id: number; original_name?: string | null; file_path: string; download_locked?: number }) => ({
         id: d.id,
         fileName: d.original_name,
-        url: ''
+        url: '',
+        // 一次性下载锁定状态：查单页据此显示「已下载」，避免确认成功后按钮退回可点、再点必 410
+        downloadLocked: d.download_locked === 1
       })),
       // v81: 过程稿（订单级开关关 → 一律 []；单图 visible=0 只在画师侧可见）
       previews: orderGalleryService.getClientPreviews(order.id),

@@ -156,6 +156,22 @@ describe('管理端历史交付合同', () => {
     expect(logText.includes('?token=') || logText.includes(order.customerToken)).toBe(false)
   })
 
+  it('查询参数里带凭证的入口（日历订阅、安装向导）也不把令牌写进日志', async () => {
+    // 白名单只按路径枚举会漏：这两个入口的凭证完全藏在 query 里，且都不在 /uploads 与 /artist/*/track 白名单内
+    const credentialPaths = [
+      '/api/public/artist/alice/calendar.ics?token=CALENDAR_SECRET_FIXTURE',
+      '/setup?token=SETUP_SECRET_FIXTURE'
+    ]
+    for (const url of credentialPaths) {
+      await app.inject({ method: 'GET', url })
+      const bare = url.split('?')[0]
+      expect(logText.includes('SECRET_FIXTURE')).toBe(false)
+      // 必要条件：令牌绝不出现；同时该入口必须留下一条已剥离 query 的访问行（否则脱敏无从谈起）
+      expect(logText.includes(bare + '?')).toBe(false)
+      expect(logText).toContain(bare)
+    }
+  })
+
   it('查询与补发都要求管理员完成二次验证', async () => {
     const requests = [
       { method: 'GET' as const, url: lookupUrl(order.order_no) },
@@ -200,6 +216,35 @@ describe('管理端历史交付合同', () => {
     expect(db.prepare('SELECT id FROM admin_actions').all()).toHaveLength(0)
   })
 
+  it('交付路径含非法字符或指向交付目录之外时拒绝签发，避免跨目录签出他人文件', async () => {
+    // 未走软链也能覆盖同一防御面：路径里的非法字符与越界路径都必须被 assertStoredDeliveryFile 挡住。
+    const illegal = attachFile(order, 'illegal.bin', false)
+    db.prepare('UPDATE deliverables SET file_path = ? WHERE id = ?')
+      .run(`deliverables/${order.artist_id}/../other-artist/secret.bin`, illegal.id)
+    expect((await reissue(illegal.id)).statusCode).toBe(404)
+    expect(ledger(illegal.id).download_nonce).toBeNull()
+
+    const traversal = attachFile(order, 'traversal.bin', false)
+    db.prepare('UPDATE deliverables SET file_path = ? WHERE id = ?')
+      .run(`deliverables/${order.artist_id}/secret%2ebin`, traversal.id)
+    expect((await reissue(traversal.id)).statusCode).toBe(404)
+    expect(ledger(traversal.id).download_nonce).toBeNull()
+
+    // 符号链接分支：Windows 未开开发者模式时无法创建，跳过时明确记录而非静默通过
+    const linked = attachFile(order, 'linked.bin', false)
+    const outside = resolve(process.env.UPLOAD_DIR!, 'deliverables/other-artist/secret.bin')
+    mkdirSync(dirname(outside), { recursive: true })
+    writeFileSync(outside, 'OTHER_ARTIST_SECRET')
+    mkdirSync(dirname(linked.file), { recursive: true })
+    try {
+      fs.symlinkSync(outside, linked.file)
+      expect((await reissue(linked.id)).statusCode).toBe(404)
+      expect(ledger(linked.id).download_nonce).toBeNull()
+    } catch (err) {
+      expect((err as NodeJS.ErrnoException).code).toMatch(/EPERM|EACCES|ENOSYS/)
+    }
+  })
+
   it('仅接收订单所属的单文件 ID，签发前要求磁盘文件存在', async () => {
     const absent = attachFile(order, 'missing.bin', false)
     const other = paidArchive(artist.id, 'ARCHIVE-005')
@@ -242,7 +287,11 @@ describe('管理端历史交付合同', () => {
     expect(download.statusCode).toBe(200)
     expect(download.body).toBe(FILE_BODY)
     expect(download.headers['cache-control']).toBe('no-store')
-    expect(ledger(file.id)).toEqual({ ...pending, download_locked: 1, download_nonce: null, last_started_at: null })
+    // 领取后：锁定 + 清 nonce + 覆盖取证字段（downloaded_at/download_ip 记本次领取，而非历史值）
+    expect(ledger(file.id)).toEqual({
+      ...pending, download_locked: 1, download_nonce: null, last_started_at: null,
+      downloaded_at: expect.any(String), download_ip: '127.0.0.1'
+    })
     expect((await app.inject({ method: 'HEAD', url: issued.url })).statusCode).toBe(403)
     expect((await lookup()).json().deliverables[0].downloadLocked).toBe(true)
 
@@ -255,7 +304,10 @@ describe('管理端历史交付合同', () => {
       admin_id: admin.id, action: 'delivery_link_reissue', target_type: 'deliverable', target_id: file.id,
       reason: order.order_no, admin_ip: '127.0.0.1'
     })
-    expect(db.prepare('SELECT id FROM order_notes WHERE order_id = ?').all(order.id)).toHaveLength(0)
+    // 补发取件后留一条系统备注（取证链），此前此处断言的是「零备注」
+    const notes = db.prepare('SELECT content FROM order_notes WHERE order_id = ?').all(order.id) as Array<{ content: string }>
+    expect(notes).toHaveLength(1)
+    expect(notes[0].content).toContain('管理员补发链接已领取')
     expect(logText.includes('/uploads/deliverables/')).toBe(true)
     expect(logText.includes('?sig=')).toBe(false)
     const linkSignature = new URL(issued.url, 'http://localhost').searchParams.get('sig')!
@@ -352,7 +404,13 @@ describe('管理端历史交付合同', () => {
     expect(ok.statusCode).toBe(200)
     expect(ok.body).toBe(FILE_BODY)
     expect(ledger(file.id).download_locked).toBe(kind === '管理' ? 1 : 0)
-    expect(ledger(file.id).downloaded_at).toBeNull()
+    if (kind === '管理') {
+      // 补发链接的用途就是给客户领件：取走后必须留下取证字段与系统备注
+      expect(ledger(file.id).downloaded_at).not.toBeNull()
+      expect(db.prepare('SELECT id FROM order_notes WHERE order_id = ?').all(order.id).length).toBeGreaterThan(0)
+    } else {
+      expect(ledger(file.id).downloaded_at).toBeNull()
+    }
   })
 
   it('保护正在传送与等待客户确认的文件，补发后拒绝旧客户确认', async () => {

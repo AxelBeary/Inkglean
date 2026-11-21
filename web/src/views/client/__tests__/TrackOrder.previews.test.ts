@@ -242,6 +242,57 @@ describe('TrackOrder 客户侧过程稿（迁移 v81）', () => {
     wrapper.unmount()
   })
 
+  it('首次查询失败后点重试，重放的是失败那次链接而不是空凭证', async () => {
+    h.track.mockRejectedValueOnce(new Error('fixture network failure'))
+      .mockResolvedValueOnce(buildTrack({ deliverables: [{ id: 7, fileName: 'final.zip' }] }))
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+    expect(wrapper.find('.result-header').exists()).toBe(false)
+
+    await wrapper.get('[role="alert"] button').trigger('click')
+    await flushPromises()
+
+    expect(h.track).toHaveBeenCalledTimes(2)
+    expect(h.track).toHaveBeenLastCalledWith('ALICE-001', 'tok-1')
+    expect(wrapper.get('.result-header').text()).toContain('ALICE-001')
+    wrapper.unmount()
+  })
+
+  it('确认成功后显示已下载，不再给出注定失败的下载按钮', async () => {
+    h.track.mockResolvedValue(buildTrack({ deliverables: [{ id: 7, fileName: 'final.zip' }] }))
+    h.download.mockImplementationOnce((_no, _id, _tok, _name, onConfirmed: () => void) => {
+      onConfirmed()
+      return Promise.resolve({ status: 'confirmed' })
+    })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.get('.file-item button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findAll('.file-item button')).toHaveLength(0)
+    expect(wrapper.get('.download-locked-label').text()).toBe('delivery.downloadLocked')
+    wrapper.unmount()
+  })
+
+  it('服务端已标记锁定的文件直接显示已下载，不发请求', async () => {
+    h.track.mockResolvedValue(buildTrack({
+      deliverables: [{ id: 7, fileName: 'final.zip', downloadLocked: true }]
+    }))
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(wrapper.findAll('.file-item button')).toHaveLength(0)
+    expect(wrapper.find('.download-locked-label').exists()).toBe(true)
+
+    await selectSavedOrder(wrapper, 'ALICE-001')
+    await flushPromises()
+    expect(h.download).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
   it('补签失效后成功重查同一订单，恢复可下载状态', async () => {
     h.track.mockResolvedValue(buildTrack({ deliverables: [{ id: 7, fileName: 'final.zip' }] }))
     h.download.mockRejectedValueOnce({ code: 'ORDER_CONFLICT', status: 409 })

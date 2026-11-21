@@ -291,7 +291,7 @@ export interface OrderTrackResult {
   workflowStages: WorkflowStageDTO[]
   currentStageId: number | null
   currentStageName: string | null
-  deliverables: Array<{ id: number; fileName: string | null | undefined; url: string }>
+  deliverables: Array<{ id: number; fileName: string | null | undefined; url: string; downloadLocked?: boolean }>
   extraItems: Array<{ name: string; priceCents: number }>
   finalPriceCents: number | null
   paidTotalCents: number

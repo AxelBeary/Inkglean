@@ -29,7 +29,15 @@ if (sentryDsn) {
     environment: import.meta.env.PROD ? 'production' : 'development',
     tracesSampleRate: 0,
     // Order lookup and file links carry credentials in their query strings.
-    dataCollection: { urlQueryParams: false },
+    // Sentry 语义陷阱：只要显式传了 dataCollection，未列出的字段就回落到 DEFAULTS（全 true），
+    // 反而比不传（userInfo/cookies/httpBodies 全关）采集得更多。故这里逐项显式关闭。
+    dataCollection: {
+      userInfo: false,
+      cookies: false,
+      httpHeaders: false,
+      httpBodies: [],
+      urlQueryParams: false
+    },
     beforeBreadcrumb: redactUrlBreadcrumb
   })
 }

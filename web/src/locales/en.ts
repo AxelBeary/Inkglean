@@ -1113,7 +1113,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
   delivery: {
     delivered: 'Artwork delivered', notDelivered: 'Artwork not yet delivered',
     orderInfo: 'Order: {no} | Artist: {artist}', download: 'Download',
-    downloadFailed: 'Download failed, please retry or contact the artist', verifyFailed: 'Verification failed, please try again later',
+    downloadFailed: 'Download failed, please retry or contact the artist', downloadTimeout: 'Download timed out, please retry', verifyFailed: 'Verification failed, please try again later',
     // 815 decision #4: one-time download
     downloadLocked: 'Downloaded',
     downloadLockedMsg: 'This file has already been downloaded and locked. Please contact the artist for re-permission',

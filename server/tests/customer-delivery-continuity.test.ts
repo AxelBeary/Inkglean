@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import type { FastifyInstance } from 'fastify'
 import { buildApp } from '../src/app.js'
 import { issueAdminDeliverableDownload } from '../src/features/order/order-gallery.service.js'
+import { addPayment } from '../src/features/order/order-pricing.js'
 import { FILE_TTL_MS, verifyFileTokenDetailed } from '../src/shared/file-sign.js'
 import { resetRateLimitBuckets } from '../src/shared/middleware/rate-limit.js'
 import type { OrderStatus } from '../src/types/entities.js'
@@ -165,13 +166,17 @@ describe('历史订单客户取件合同', () => {
     await expectNotFound(order, fileId)
   })
 
-  it('已交付且有历史收款，全退后净实收为零仍不可领取', async () => {
-    const order = makeOrder('delivered', 0)
+  it('已交付且有历史收款，全额撤销后净实收为零仍不可领取', async () => {
+    // 走真实收款/撤销路径：门槛读 orders.paid_total_cents，只有让 addPayment 回冲才能真正证明「净额」口径。
+    // 必须先收款再置为 delivered——已交付订单禁止补录正数收款（addPayment 终态守卫），本批口径依赖这一点。
+    const order = makeOrder('done', 0)
     const fileId = addFile(order)
-    const payment = db.prepare('INSERT INTO order_payments (order_id, amount_cents) VALUES (?, ?)')
-      .run(order.id, DEPOSIT_CENTS)
-    db.prepare('INSERT INTO order_payments (order_id, amount_cents, revoke_of_payment_id) VALUES (?, ?, ?)')
-      .run(order.id, -DEPOSIT_CENTS, payment.lastInsertRowid)
+    const payment = addPayment(order.id, { amountCents: DEPOSIT_CENTS, createdBy: 'artist' })
+    db.prepare("UPDATE orders SET status = 'delivered' WHERE id = ?").run(order.id)
+    // 负数流水必须带备注（addPayment 规则），此处如实说明全额撤销
+    addPayment(order.id, { amountCents: -DEPOSIT_CENTS, revokeOfPaymentId: payment.id, note: '全额退款测试', createdBy: 'artist' })
+    const net = db.prepare('SELECT paid_total_cents FROM orders WHERE id = ?').get(order.id) as { paid_total_cents: number }
+    expect(net.paid_total_cents).toBe(0)
     db.prepare(INVISIBLE_STATES[1].sql).run(artist.id)
     await expectNotFound(order, fileId)
   })

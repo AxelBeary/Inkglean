@@ -59,6 +59,23 @@ describe('downloadAsset 的 blob URL 释放时机', () => {
     expect(revokeObjectURL).toHaveBeenCalledTimes(1)
   })
 
+  it('传输超时会中止请求并抛 DOWNLOAD_TIMEOUT，不落盘也不占用 blob URL', async () => {
+    // 永不 resolve 的 fetch，只有超时中止能让它退出——这正是「下载中标记永久卡死」的成因
+    const hanging = vi.fn((_url: string, init?: RequestInit) => new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })))
+    }))
+    fetchMock.mockImplementation(hanging as unknown as typeof fetch)
+
+    const pending = downloadAsset('https://example.test/slow', 'final.png')
+    const assertion = expect(pending).rejects.toThrow('DOWNLOAD_TIMEOUT')
+    await vi.advanceTimersByTimeAsync(120_000)
+    await assertion
+
+    expect(hanging).toHaveBeenCalledTimes(1)
+    expect(createObjectURL).not.toHaveBeenCalled()
+    expect(anchorClickSpy).not.toHaveBeenCalled()
+  })
+
   it('fetch 非 2xx 仍抛错，且不创建也不注销 blob URL', async () => {
     fetchMock.mockResolvedValue(new Response('', { status: 404 }))
 
