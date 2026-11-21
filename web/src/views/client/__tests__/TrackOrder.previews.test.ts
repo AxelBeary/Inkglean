@@ -316,9 +316,8 @@ describe('TrackOrder 客户侧过程稿（迁移 v81）', () => {
 
   it('参考图缩略图带有尺寸约束，避免大图按原尺寸撑破容器', async () => {
     // 1c661a24 曾误删 .brief-ref-img 规则，而既有测试只查 src，导致回归无人发现。
-    const { readFileSync } = await import('node:fs')
-    const { resolve } = await import('node:path')
-    const source = readFileSync(resolve(process.cwd(), 'src/views/client/TrackOrder.vue'), 'utf8')
+    const sources = import.meta.glob('../../../views/client/TrackOrder.vue', { query: '?raw', import: 'default', eager: true })
+    const source = Object.values(sources)[0] as string
     const rule = source.match(/\.brief-ref-img\s*\{([^}]*)\}/)
     expect(rule, 'TrackOrder.vue 必须为 .brief-ref-img 定义样式').not.toBeNull()
     expect(rule![1]).toMatch(/width:\s*\d+px/)
