@@ -3,6 +3,8 @@ import { dirname, resolve } from 'path'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { buildApp } from '../src/app.js'
+import { issueAdminDeliverableDownload } from '../src/features/order/order-gallery.service.js'
+import { FILE_TTL_MS, verifyFileTokenDetailed } from '../src/shared/file-sign.js'
 import { resetRateLimitBuckets } from '../src/shared/middleware/rate-limit.js'
 import type { OrderStatus } from '../src/types/entities.js'
 import { cleanDb, db, seedArtist, seedOrder, type ArtistRow, type SeededOrder } from './setup.js'
@@ -63,20 +65,35 @@ describe('历史订单客户取件合同', () => {
     })
   }
 
-  function downloadStep(order: SeededOrder, fileId: number, step: 'start' | 'confirm', token: string | null = order.customerToken) {
+  function requestStart(order: SeededOrder, fileId: number, token: string | null = order.customerToken) {
     return app.inject({
       method: 'POST',
-      url: `/api/orders/delivery/${order.order_no}/file/${fileId}/download-${step}`,
+      url: `/api/orders/delivery/${order.order_no}/file/${fileId}/download-start`,
       ...(token === null ? {} : { query: { token } })
     })
   }
 
-  async function expectNotFound(order: SeededOrder, fileId: number, token = order.customerToken as string | null) {
+  function requestConfirm(order: SeededOrder, fileId: number, confirmationToken?: string, token: string | null = order.customerToken) {
+    return app.inject({
+      method: 'POST',
+      url: `/api/orders/delivery/${order.order_no}/file/${fileId}/download-confirm`,
+      ...(token === null ? {} : { query: { token } }),
+      ...(confirmationToken === undefined ? {} : { payload: { confirmationToken } })
+    })
+  }
+
+  async function beginDownload(order: SeededOrder, fileId: number) {
+    const start = await requestStart(order, fileId)
+    expect(start.statusCode).toBe(200)
+    return start.json<{ url: string; confirmationToken: string }>()
+  }
+
+  async function expectNotFound(order: SeededOrder, fileId: number, token: string | null = order.customerToken) {
     for (const response of [
       await readOrder(order, 'track', token),
       await readOrder(order, 'delivery', token),
-      await downloadStep(order, fileId, 'start', token),
-      await downloadStep(order, fileId, 'confirm', token)
+      await requestStart(order, fileId, token),
+      await requestConfirm(order, fileId, 'not-applicable', token)
     ]) {
       expect(response.statusCode).toBe(404)
       expect(response.json()).toMatchObject({ code: 'ORDER_NOT_FOUND' })
@@ -99,22 +116,22 @@ describe('历史订单客户取件合同', () => {
       status: 'delivered',
       artistName: artist.name,
       deliveryOnly: true,
-      deliverables: [{ id: fileId, fileName: 'final.png', fileSize: FILE_BODY.length, url: '', downloadLocked: false }]
+      deliverables: [{
+        id: fileId, fileName: 'final.png', fileSize: FILE_BODY.length, url: '', downloadLocked: false, downloadPending: false
+      }]
     })
 
-    const start = await downloadStep(order, fileId, 'start')
-    expect(start.statusCode).toBe(200)
-    const { url } = start.json<{ url: string }>()
+    const { url, confirmationToken } = await beginDownload(order, fileId)
     const download = await app.inject({ method: 'GET', url })
     expect(download.statusCode).toBe(200)
     expect(download.body).toBe(FILE_BODY)
 
-    const confirm = await downloadStep(order, fileId, 'confirm')
+    const confirm = await requestConfirm(order, fileId, confirmationToken)
     expect(confirm.statusCode).toBe(200)
     expect(confirm.json()).toEqual({ locked: true })
     const after = await readOrder(order, 'delivery')
-    expect(after.json()).toMatchObject({ deliveryOnly: true, deliverables: [{ id: fileId, downloadLocked: true }] })
-    const locked = await downloadStep(order, fileId, 'start')
+    expect(after.json()).toMatchObject({ deliveryOnly: true, deliverables: [{ id: fileId, downloadLocked: true, downloadPending: false }] })
+    const locked = await requestStart(order, fileId)
     expect(locked.statusCode).toBe(410)
     expect(locked.json()).toMatchObject({ code: 'DOWNLOAD_LOCKED' })
   })
@@ -129,13 +146,12 @@ describe('历史订单客户取件合同', () => {
     expect(track.json()).not.toHaveProperty('deliveryOnly')
     const list = await readOrder(order, 'delivery')
     expect(list.statusCode).toBe(200)
-    expect(list.json()).toMatchObject({ status: 'done', deliverables: [{ id: fileId }] })
+    expect(list.json()).toMatchObject({ status: 'done', deliverables: [{ id: fileId, downloadPending: false }] })
     expect(list.json()).not.toHaveProperty('deliveryOnly')
 
-    const start = await downloadStep(order, fileId, 'start')
-    expect(start.statusCode).toBe(200)
-    expect((await app.inject({ method: 'GET', url: start.json<{ url: string }>().url })).body).toBe(FILE_BODY)
-    expect((await downloadStep(order, fileId, 'confirm')).statusCode).toBe(200)
+    const { url, confirmationToken } = await beginDownload(order, fileId)
+    expect((await app.inject({ method: 'GET', url })).body).toBe(FILE_BODY)
+    expect((await requestConfirm(order, fileId, confirmationToken)).statusCode).toBe(200)
   })
 
   it.each([
@@ -177,26 +193,23 @@ describe('历史订单客户取件合同', () => {
 
     const remaining = addFile(order)
     expect((await readOrder(order, 'delivery')).json()).toMatchObject({ deliverables: [{ id: remaining }] })
-    expect((await downloadStep(order, missing, 'start')).statusCode).toBe(404)
-    expect((await downloadStep(order, missing, 'confirm')).statusCode).toBe(404)
-    const start = await downloadStep(order, remaining, 'start')
-    expect(start.statusCode).toBe(200)
-    expect((await app.inject({ method: 'GET', url: start.json<{ url: string }>().url })).body).toBe(FILE_BODY)
+    expect((await requestStart(order, missing)).statusCode).toBe(404)
+    expect((await requestConfirm(order, missing, 'not-applicable')).statusCode).toBe(404)
+    const { url } = await beginDownload(order, remaining)
+    expect((await app.inject({ method: 'GET', url })).body).toBe(FILE_BODY)
   })
 
   it('画师变为不可见前签发的有效链接仍可正常下载、一次性消费和确认', async () => {
     const order = makeOrder()
     const fileId = addFile(order)
-    const start = await downloadStep(order, fileId, 'start')
-    expect(start.statusCode).toBe(200)
-    const { url } = start.json<{ url: string }>()
+    const { url, confirmationToken } = await beginDownload(order, fileId)
 
     db.prepare(INVISIBLE_STATES[1].sql).run(artist.id)
     const download = await app.inject({ method: 'GET', url })
     expect(download.statusCode).toBe(200)
     expect(download.body).toBe(FILE_BODY)
     expect((await app.inject({ method: 'GET', url })).statusCode).toBe(403)
-    expect((await downloadStep(order, fileId, 'confirm')).json()).toEqual({ locked: true })
+    expect((await requestConfirm(order, fileId, confirmationToken)).json()).toEqual({ locked: true })
   })
 
   it('画师变为不可见不改变原签名的五分钟有效期', async () => {
@@ -205,11 +218,96 @@ describe('历史订单客户取件合同', () => {
     const before = Date.now()
     const now = vi.spyOn(Date, 'now').mockReturnValue(before)
     try {
-      const start = await downloadStep(order, fileId, 'start')
-      expect(start.statusCode).toBe(200)
+      const { url } = await beginDownload(order, fileId)
       db.prepare(INVISIBLE_STATES[2].sql).run(artist.id)
-      now.mockReturnValue(before + 5 * 60_000 + 1)
-      expect((await app.inject({ method: 'GET', url: start.json<{ url: string }>().url })).statusCode).toBe(403)
+      now.mockReturnValue(before + FILE_TTL_MS + 1)
+      expect((await app.inject({ method: 'GET', url })).statusCode).toBe(403)
+    } finally {
+      now.mockRestore()
+    }
+  })
+
+  it('开始响应的确认令牌匹配签名；请求体必需且实际领取后才可确认', async () => {
+    const order = makeOrder()
+    const fileId = addFile(order)
+    const { url, confirmationToken } = await beginDownload(order, fileId)
+    const sig = new URL(url, 'http://localhost').searchParams.get('sig')
+    expect(confirmationToken).toBeTruthy()
+    expect(verifyFileTokenDetailed(sig)?.claims?.nonce).toBe(confirmationToken)
+
+    expect((await requestConfirm(order, fileId)).statusCode).toBe(400)
+    const notYetReceived = await requestConfirm(order, fileId, confirmationToken)
+    expect(notYetReceived.statusCode).toBe(409)
+    expect(notYetReceived.json()).toMatchObject({ code: 'ORDER_CONFLICT' })
+
+    const download = await app.inject({ method: 'GET', url })
+    expect(download.statusCode).toBe(200)
+    expect(download.body).toBe(FILE_BODY)
+    const confirmed = await requestConfirm(order, fileId, confirmationToken)
+    expect(confirmed.statusCode).toBe(200)
+    expect(confirmed.json()).toEqual({ locked: true })
+  })
+
+  it('迟到确认不会锁住新一轮已领取的下载；正确确认可幂等重试', async () => {
+    const order = makeOrder()
+    const fileId = addFile(order)
+    const previous = await beginDownload(order, fileId)
+    const first = await app.inject({ method: 'GET', url: previous.url })
+    expect(first.body).toBe(FILE_BODY)
+
+    const current = await beginDownload(order, fileId)
+    expect(current.confirmationToken).not.toBe(previous.confirmationToken)
+    const second = await app.inject({ method: 'GET', url: current.url })
+    expect(second.statusCode).toBe(200)
+    expect(second.body).toBe(FILE_BODY)
+
+    const late = await requestConfirm(order, fileId, previous.confirmationToken)
+    expect(late.statusCode).toBe(409)
+    expect(late.json()).toMatchObject({ code: 'ORDER_CONFLICT' })
+    const list = await readOrder(order, 'delivery')
+    expect(list.json()).toMatchObject({ deliverables: [{ id: fileId, downloadLocked: false, downloadPending: false }] })
+
+    const confirmed = await requestConfirm(order, fileId, current.confirmationToken)
+    expect(confirmed.statusCode).toBe(200)
+    expect(confirmed.json()).toEqual({ locked: true })
+    const retry = await requestConfirm(order, fileId, current.confirmationToken)
+    expect(retry.statusCode).toBe(200)
+    expect(retry.json()).toEqual({ locked: true })
+  })
+
+  it('只标记未过期的管理待领取文件；到期可重新开始客户下载', async () => {
+    const order = makeOrder()
+    const managed = addFile(order, 'managed.png')
+    const ordinary = addFile(order, 'ordinary.png')
+    db.prepare(INVISIBLE_STATES[3].sql).run(artist.id)
+    const before = Date.now()
+    const now = vi.spyOn(Date, 'now').mockReturnValue(before)
+    try {
+      const admin = issueAdminDeliverableDownload(order.id, managed)
+      await beginDownload(order, ordinary)
+      const pending = await readOrder(order, 'delivery')
+      expect(pending.statusCode).toBe(200)
+      expect(pending.json()).toMatchObject({
+        deliveryOnly: true,
+        deliverables: expect.arrayContaining([
+          expect.objectContaining({ id: managed, downloadPending: true, downloadLocked: false }),
+          expect.objectContaining({ id: ordinary, downloadPending: false })
+        ])
+      })
+      const blocked = await requestStart(order, managed)
+      expect(blocked.statusCode).toBe(409)
+      expect(blocked.json()).toMatchObject({ code: 'ORDER_CONFLICT' })
+
+      now.mockReturnValue(admin.issuedAt + FILE_TTL_MS + 1)
+      const expired = await readOrder(order, 'delivery')
+      expect(expired.statusCode).toBe(200)
+      expect(expired.json<{ deliverables: Array<{ downloadPending: boolean }> }>().deliverables.map(d => d.downloadPending)).toEqual([false, false])
+      const { url, confirmationToken } = await beginDownload(order, managed)
+      expect(confirmationToken).not.toBe(admin.nonce)
+      const download = await app.inject({ method: 'GET', url })
+      expect(download.statusCode).toBe(200)
+      expect(download.body).toBe(FILE_BODY)
+      expect((await requestConfirm(order, managed, confirmationToken)).statusCode).toBe(200)
     } finally {
       now.mockRestore()
     }

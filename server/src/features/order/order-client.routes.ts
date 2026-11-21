@@ -375,6 +375,7 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
     const { order, deliveryOnly, deliverables } = requireDeliveryOrder(request)
     const files = deliveryOnly ? deliverables.filter(isStoredDeliverable) : deliverables
     if (deliveryOnly && files.length === 0) throw new AppError(E.ORDER_NOT_FOUND, 404)
+    const pendingAdminIds = orderGalleryService.listPendingAdminDeliverableIds(order.id)
 
     return {
       orderNo: order.order_no,
@@ -388,7 +389,8 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
         // 260830 审计 H-4：交付页下载走 download-start 链路，列表不再下发可用直链（同追踪页口径）
         url: '',
         // 815 拍板 #4：一次性下载状态（前端据此禁用下载按钮并提示联系画师再许可）
-        downloadLocked: d.download_locked === 1
+        downloadLocked: d.download_locked === 1,
+        downloadPending: pendingAdminIds.has(d.id)
       }))
     }
   })
@@ -406,18 +408,30 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
     const { filePath, deliverableId, nonce } = orderGalleryService.startDeliverableDownload(orderId, fileId)
     // 260830 审计 H-4：一次性下载链接携带载荷（deliverableId+本次 nonce），
     // 访问层凭它对账：锁定/再许可/再次 start 后旧链接即 403。
-    return { url: signedUrl(filePath, { deliverableId, nonce }) }
+    return { url: signedUrl(filePath, { deliverableId, nonce }), confirmationToken: nonce }
   })
 
   /**
    * POST /api/orders/delivery/:orderNo/file/:fileId/download-confirm
    * 815 拍板 #4：客户确认完整接收（web fetch 全量收到后上报）→ 锁定 + IP/时间留痕
+   * 确认令牌绑定本次实际领取的文件；查询参数与请求体中的令牌均不记日志。
    */
-  fastify.post('/api/orders/delivery/:orderNo/file/:fileId/download-confirm', { logLevel: 'silent' }, async (request: FastifyRequest) => {
+  fastify.post('/api/orders/delivery/:orderNo/file/:fileId/download-confirm', {
+    logLevel: 'silent',
+    schema: {
+      body: {
+        type: 'object',
+        required: ['confirmationToken'],
+        properties: { confirmationToken: { type: 'string', minLength: 1, maxLength: 128 } },
+        additionalProperties: false
+      }
+    }
+  }, async (request: FastifyRequest) => {
     guardRateLimit(`delivery-dl:${request.ip}`, 20, 5 * 60_000)
 
     const { orderId, fileId } = requireDeliveryFile(request)
-    orderGalleryService.confirmDeliverableDownload(orderId, fileId, request.ip)
+    const { confirmationToken } = request.body as { confirmationToken: string }
+    orderGalleryService.confirmDeliverableDownload(orderId, fileId, request.ip, confirmationToken)
     return { locked: true }
   })
 }

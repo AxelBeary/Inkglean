@@ -3,7 +3,7 @@
 
 import { getJson, postJson } from './http'
 import type { RequestConfig } from './http'
-import type { OrderCreateResult, OrderTrackResponse, OrderDeliveryResult, CreateOrderRequest, RefreshSignaturesResult } from '../types'
+import type { OrderCreateResult, OrderTrackResponse, OrderDeliveryResult, CreateOrderRequest, RefreshSignaturesResult, OrderDeliveryDownloadStartResult } from '../types'
 // DTO 类型统一从 '../types'（barrel）按名取用；inline import('../types') 为原 import('./types') 的路径等价改写
 
 // ─── 客户端订单 ───
@@ -20,8 +20,8 @@ export const orderApi = {
   delivery: (orderNo: string, token: string): Promise<OrderDeliveryResult> =>
     getJson(`/orders/delivery/${orderNo}`, { params: { token } }),
   /** 815 拍板 #4：一次性下载——开始（签发一次性 URL）与确认（完整接收后锁定） */
-  deliveryDownloadStart: (orderNo: string, fileId: number, token: string): Promise<{ url: string }> =>
+  deliveryDownloadStart: (orderNo: string, fileId: number, token: string): Promise<OrderDeliveryDownloadStartResult> =>
     postJson(`/orders/delivery/${orderNo}/file/${fileId}/download-start?token=${encodeURIComponent(token)}`),
-  deliveryDownloadConfirm: (orderNo: string, fileId: number, token: string): Promise<{ locked: boolean }> =>
-    postJson(`/orders/delivery/${orderNo}/file/${fileId}/download-confirm?token=${encodeURIComponent(token)}`)
+  deliveryDownloadConfirm: (orderNo: string, fileId: number, token: string, confirmationToken: string): Promise<{ locked: boolean }> =>
+    postJson(`/orders/delivery/${orderNo}/file/${fileId}/download-confirm?token=${encodeURIComponent(token)}`, { confirmationToken })
 }

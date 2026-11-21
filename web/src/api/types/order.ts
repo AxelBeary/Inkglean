@@ -323,7 +323,14 @@ export interface OrderDeliveryResult {
     url: string
     /** 815 拍板 #4：一次性下载锁定状态（已下载过，需画师再许可） */
     downloadLocked?: boolean
+    /** 管理员已签发的一次性取件链接仍在等待领取。 */
+    downloadPending: boolean
   }>
+}
+
+export interface OrderDeliveryDownloadStartResult {
+  url: string
+  confirmationToken: string
 }
 
 // ─── 请求体类型（对照后端 JSON Schema） ───

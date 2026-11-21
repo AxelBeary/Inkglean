@@ -72,19 +72,20 @@ test('E10 上传交付与一次性下载链路', async ({ page, artistPage }) =>
   const fileId = dJson.deliverables[0].id
   expect(dJson.deliverables[0].downloadLocked).toBeFalsy()
 
-  const dl = (path: string) => page.request.post(`${base}${path}?token=${customerToken}`)
+  const dl = (path: string, data?: object) => page.request.post(`${base}${path}?token=${customerToken}`, data ? { data } : {})
 
   // ── 6. 一次性下载完整链路：start → fetch 全量 → confirm → 锁定 ──
   const startRes = await dl(`/api/orders/delivery/${orderNo}/file/${fileId}/download-start`)
   expect(startRes.ok()).toBeTruthy()
-  const { url } = await startRes.json()
+  const { url, confirmationToken } = await startRes.json()
   expect(url).toBeTruthy()
+  expect(confirmationToken).toBeTruthy()
 
   const fileRes = await page.request.get(base + url)
   expect(fileRes.ok()).toBeTruthy()
   expect((await fileRes.body()).length).toBe(PNG_1X1.length)
 
-  const confirmDlRes = await dl(`/api/orders/delivery/${orderNo}/file/${fileId}/download-confirm`)
+  const confirmDlRes = await dl(`/api/orders/delivery/${orderNo}/file/${fileId}/download-confirm`, { confirmationToken })
   expect(confirmDlRes.ok()).toBeTruthy()
 
   // 交付页数据核对：已锁定

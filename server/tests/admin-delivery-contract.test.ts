@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { FastifyInstance } from 'fastify'
-import { mkdirSync, renameSync, writeFileSync } from 'fs'
+import fs, { mkdirSync, renameSync, writeFileSync } from 'fs'
 import { dirname, resolve } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
 import { Socket } from 'net'
 import { Writable } from 'stream'
 import { buildApp } from '../src/app.js'
 import { createSession } from '../src/features/auth/auth.service.js'
-import { DOWNLOAD_GRACE_MS, trackDeliverableTransfer } from '../src/features/order/order-gallery.service.js'
+import { DOWNLOAD_GRACE_MS, listPendingAdminDeliverableIds, trackDeliverableTransfer } from '../src/features/order/order-gallery.service.js'
 import { resetRateLimitBuckets } from '../src/shared/middleware/rate-limit.js'
 import { db, cleanDb, seedArtist, seedOrder, type ArtistRow, type SeededOrder } from './setup.js'
 
@@ -18,6 +18,11 @@ const HISTORICAL_IP = '192.0.2.10'
 interface LinkReceipt {
   url: string
   expiresInSeconds: number
+}
+
+interface CustomerLinkReceipt {
+  url: string
+  confirmationToken: string
 }
 
 interface DeliveryLedger {
@@ -88,6 +93,10 @@ describe('管理端历史交付合同', () => {
     cleanDb()
     resetRateLimitBuckets()
     logText = ''
+    const webDist = resolve(process.env.UPLOAD_DIR!, 'admin-contract-web')
+    mkdirSync(webDist, { recursive: true })
+    writeFileSync(resolve(webDist, 'index.html'), '<!doctype html><title>Contract fixture</title>')
+    vi.stubEnv('WEB_DIST', webDist)
     const stream = new Writable({
       write(chunk: Buffer, _encoding, callback) {
         logText += chunk.toString()
@@ -105,6 +114,7 @@ describe('管理端历史交付合同', () => {
 
   afterEach(async () => {
     vi.restoreAllMocks()
+    vi.unstubAllEnvs()
     await app.close()
   })
 
@@ -121,6 +131,30 @@ describe('管理端历史交付合同', () => {
     expect(body.expiresInSeconds).toBe(300)
     return body
   }
+
+  async function startCustomer(): Promise<CustomerLinkReceipt> {
+    const response = await app.inject({ method: 'POST', url: customerUrl(order, file.id, 'start') })
+    expect(response.statusCode).toBe(200)
+    const body = response.json<CustomerLinkReceipt>()
+    expect(typeof body.confirmationToken === 'string').toBe(true)
+    return body
+  }
+
+  function confirmCustomer(confirmationToken: string) {
+    return app.inject({ method: 'POST', url: customerUrl(order, file.id, 'confirm'), payload: { confirmationToken } })
+  }
+
+  it('访问客户查单与取件入口时，日志只记录不含令牌的路径', async () => {
+    const paths = [`/artist/${artist.subdomain}/track`, `/artist/${artist.subdomain}/delivery/${order.order_no}`]
+    for (const path of paths) {
+      const res = await app.inject({ method: 'GET', url: `${path}?token=${encodeURIComponent(order.customerToken)}` })
+      expect(res.statusCode).toBe(200)
+      expect(logText.includes(`"url":"${path}"`)).toBe(true)
+    }
+    await app.inject({ method: 'GET', url: '/api/health?fixture=1' })
+    expect(logText.includes('/api/health?fixture=1')).toBe(true)
+    expect(logText.includes('?token=') || logText.includes(order.customerToken)).toBe(false)
+  })
 
   it('查询与补发都要求管理员完成二次验证', async () => {
     const requests = [
@@ -231,10 +265,9 @@ describe('管理端历史交付合同', () => {
   it('补发替换本文件旧链接，画师状态变化与本单其他文件的链接彼此独立', async () => {
     const sibling = attachFile(order, 'sibling.bin')
     const siblingReceipt = await receipt(sibling.id)
-    const customer = await app.inject({ method: 'POST', url: customerUrl(order, file.id, 'start') })
-    expect(customer.statusCode).toBe(200)
+    const customer = await startCustomer()
     const firstAdminLink = await receipt()
-    expect((await app.inject({ method: 'HEAD', url: customer.json().url })).statusCode).toBe(403)
+    expect((await app.inject({ method: 'HEAD', url: customer.url })).statusCode).toBe(403)
     db.prepare("UPDATE artists SET status = 'hidden' WHERE id = ?").run(artist.id)
     expect((await app.inject({ method: 'HEAD', url: firstAdminLink.url })).statusCode).toBe(200)
     const secondAdminLink = await receipt()
@@ -243,36 +276,41 @@ describe('管理端历史交付合同', () => {
     expect((await app.inject({ method: 'GET', url: secondAdminLink.url })).body).toBe(FILE_BODY)
   })
 
-  it('同一链接同时开始领取时，只向一个请求返回文件', async () => {
-    const issued = await receipt()
+  it.each(['管理', '客户'])('同一%s链接同时开始领取时，只向一个请求返回文件', async kind => {
+    const issued = kind === '管理' ? await receipt() : await startCustomer()
     const downloads = await Promise.all([
       app.inject({ method: 'GET', url: issued.url }),
       app.inject({ method: 'GET', url: issued.url })
     ])
     expect(downloads.map(result => result.statusCode).sort()).toEqual([200, 403])
     expect(downloads.find(result => result.statusCode === 200)?.body).toBe(FILE_BODY)
-    expect(downloads.find(result => result.statusCode === 403)?.headers['content-disposition']).toBeUndefined()
-    expect(ledger(file.id).download_locked).toBe(1)
+    const denied = downloads.find(result => result.statusCode === 403)
+    expect(denied?.headers['content-disposition']).toBeUndefined()
+    expect(denied?.body.includes(FILE_BODY)).toBe(false)
+    expect(ledger(file.id).download_locked).toBe(kind === '管理' ? 1 : 0)
   })
 
   it('管理链接有效期保护待取件，期满恢复客户下载且不累计未完成次数', async () => {
     const start = Date.now()
     const now = vi.spyOn(Date, 'now').mockReturnValue(start)
+    const former = await startCustomer()
     const issued = await receipt()
     now.mockReturnValue(start + 300_000)
+    expect(listPendingAdminDeliverableIds(order.id)).toEqual(new Set([file.id]))
     expect((await app.inject({ method: 'POST', url: customerUrl(order, file.id, 'start') })).statusCode).toBe(409)
     expect((await app.inject({ method: 'HEAD', url: issued.url })).statusCode).toBe(200)
     now.mockReturnValue(start + 300_001)
+    expect(listPendingAdminDeliverableIds(order.id)).toEqual(new Set())
     expect((await app.inject({ method: 'GET', url: issued.url })).statusCode).toBe(403)
-    expect((await app.inject({ method: 'POST', url: customerUrl(order, file.id, 'confirm') })).statusCode).toBe(409)
+    expect((await confirmCustomer(former.confirmationToken)).statusCode).toBe(409)
     expect(ledger(file.id).download_locked).toBe(0)
     expect(ledger(file.id).downloaded_at).toBeNull()
 
-    const customer = await app.inject({ method: 'POST', url: customerUrl(order, file.id, 'start') })
-    expect(customer.statusCode).toBe(200)
+    const customer = await startCustomer()
     expect(ledger(file.id)).toMatchObject({ download_attempts: 0, download_fail_total: 0, last_started_at: start + 300_001 })
-    expect((await app.inject({ method: 'GET', url: customer.json().url })).body).toBe(FILE_BODY)
-    expect((await app.inject({ method: 'POST', url: customerUrl(order, file.id, 'confirm') })).statusCode).toBe(200)
+    expect((await app.inject({ method: 'GET', url: customer.url })).body).toBe(FILE_BODY)
+    expect((await confirmCustomer(former.confirmationToken)).statusCode).toBe(409)
+    expect((await confirmCustomer(customer.confirmationToken)).statusCode).toBe(200)
     expect(ledger(file.id).download_locked).toBe(1)
   })
 
@@ -289,10 +327,37 @@ describe('管理端历史交付合同', () => {
     expect((await app.inject({ method: 'GET', url: issued.url })).body).toBe(FILE_BODY)
   })
 
+  it.each(['管理', '客户'])('%s链接在文件流打开时报错后保留凭证', async kind => {
+    const issued = kind === '管理' ? await receipt() : await startCustomer()
+    const before = ledger(file.id)
+    const createReadStream = fs.createReadStream
+    let selectedFile: string | undefined
+    // 保留静态 stat 阶段的文件，仅令随后真正打开的目标不存在。
+    const failOpen = vi.spyOn(fs, 'createReadStream').mockImplementationOnce((path, options) => {
+      selectedFile = resolve(String(path))
+      return createReadStream(file.file + '.absent-at-open', options)
+    })
+    try {
+      const failed = await app.inject({ method: 'GET', url: issued.url })
+      expect(selectedFile).toBe(file.file)
+      expect(failed.statusCode).toBe(404)
+      expect(failed.body.includes(FILE_BODY)).toBe(false)
+      expect(failed.headers['content-disposition']).toBeUndefined()
+      expect(ledger(file.id).download_nonce === before.download_nonce).toBe(true)
+      expect(ledger(file.id).download_locked).toBe(0)
+    } finally {
+      failOpen.mockRestore()
+    }
+    const ok = await app.inject({ method: 'GET', url: issued.url })
+    expect(ok.statusCode).toBe(200)
+    expect(ok.body).toBe(FILE_BODY)
+    expect(ledger(file.id).download_locked).toBe(kind === '管理' ? 1 : 0)
+    expect(ledger(file.id).downloaded_at).toBeNull()
+  })
+
   it('保护正在传送与等待客户确认的文件，补发后拒绝旧客户确认', async () => {
-    const oldStart = await app.inject({ method: 'POST', url: customerUrl(order, file.id, 'start') })
-    expect(oldStart.statusCode).toBe(200)
-    expect((await app.inject({ method: 'GET', url: oldStart.json().url })).body).toBe(FILE_BODY)
+    const oldStart = await startCustomer()
+    expect((await app.inject({ method: 'GET', url: oldStart.url })).body).toBe(FILE_BODY)
     expect((await reissue()).statusCode).toBe(409)
 
     db.prepare('UPDATE deliverables SET last_started_at = ? WHERE id = ?').run(Date.now() - DOWNLOAD_GRACE_MS - 1, file.id)
@@ -305,10 +370,10 @@ describe('管理端历史交付合同', () => {
     }
     expect(db.prepare('SELECT id FROM admin_actions').all()).toHaveLength(0)
     const issued = await receipt()
-    const late = await app.inject({ method: 'POST', url: customerUrl(order, file.id, 'confirm') })
-    expect(late.statusCode).toBe(409)
+    expect((await confirmCustomer(oldStart.confirmationToken)).statusCode).toBe(409)
     expect(ledger(file.id).downloaded_at).toBeNull()
     expect((await app.inject({ method: 'GET', url: issued.url })).body).toBe(FILE_BODY)
+    expect((await confirmCustomer(oldStart.confirmationToken)).statusCode).toBe(409)
     expect(ledger(file.id).download_locked).toBe(1)
   })
 })

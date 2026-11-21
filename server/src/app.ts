@@ -1,7 +1,8 @@
 import Fastify from 'fastify'
-import type { FastifyInstance, FastifyError, FastifyLoggerOptions, FastifyRequest } from 'fastify'
+import type { FastifyInstance, FastifyError, FastifyLoggerOptions, FastifyReply, FastifyRequest } from 'fastify'
 import type { LoggerOptions } from 'pino'
 import { Readable, type Writable } from 'stream'
+import type { ServerResponse } from 'http'
 import Ajv from 'ajv'
 import fastifyStatic from '@fastify/static'
 import fastifyCors from '@fastify/cors'
@@ -9,11 +10,11 @@ import fastifyCookie from '@fastify/cookie'
 import * as Sentry from '@sentry/node'
 import crypto from 'crypto'
 import { resolve, join, relative, sep } from 'path'
-import { existsSync, readdirSync, statSync, renameSync, rmdirSync, createReadStream, mkdirSync, readFileSync, rmSync } from 'fs'
+import { existsSync, readdirSync, statSync, renameSync, rmdirSync, createReadStream, ReadStream, mkdirSync, readFileSync, rmSync } from 'fs'
 import { initDatabase } from './db/init.js'
 import db from './db/connection.js'
 import { verifyFileTokenDetailed, isPublicUploadPath, safeDecodeUploadPath } from './shared/file-sign.js'
-import { consumeAdminDeliverableDownload, isAdminDeliveryNonce, trackDeliverableTransfer } from './features/order/order-gallery.service.js'
+import { consumeAdminDeliverableDownload, consumeCustomerDeliverableDownload, isAdminDeliveryNonce, trackDeliverableTransfer } from './features/order/order-gallery.service.js'
 import { pruneIdempotencyKeys } from './shared/idempotency.js'
 import { isWeakSessionSecret } from './shared/secrets.js'
 import { ERROR_MESSAGES } from './shared/errors.js'
@@ -55,13 +56,43 @@ function readIndexHtmlCached(file: string): string {
   return html
 }
 
-function isUploadRequestUrl(url: string): boolean {
-  return /^(?:https?:\/\/[^/]+)?\/uploads\//.test(url)
+function hasPrivateQuery(url: string): boolean {
+  const path = url?.split(/[?#]/, 1)[0].replace(/^https?:\/\/[^/]+/i, '') ?? ''
+  return path.startsWith('/uploads/') || /^\/artist\/[^/]+\/(?:track|delivery\/[^/]+)\/?$/i.test(path)
 }
 
-/** 上传文件签名放在查询参数中，访问日志只记录路径。 */
+/** 文件签名和客户访问令牌都在查询参数中，访问日志只记录这些入口的路径。 */
 function requestLogUrl(url: string): string {
-  return isUploadRequestUrl(url) ? url.split('?', 1)[0] : url
+  return hasPrivateQuery(url) ? url.split('?', 1)[0] : url
+}
+
+function waitForDownloadOpen(stream: ReadStream, response: ServerResponse): Promise<boolean> {
+  if (stream.destroyed || response.destroyed) return Promise.resolve(false)
+  if (!stream.pending) return Promise.resolve(true)
+  return new Promise(resolve => {
+    const onOpen = () => settle(true)
+    const onFailure = () => settle(false)
+    const onDisconnect = () => stream.destroy()
+    function settle(opened: boolean) {
+      stream.off('open', onOpen)
+      stream.off('error', onFailure)
+      stream.off('close', onFailure)
+      response.off('close', onDisconnect)
+      resolve(opened)
+    }
+    stream.once('open', onOpen)
+    stream.once('error', onFailure)
+    stream.once('close', onFailure)
+    response.once('close', onDisconnect)
+  })
+}
+
+function rejectDownloadStream(reply: FastifyReply, status: number, error: string): string {
+  for (const header of ['content-length', 'content-disposition', 'etag', 'last-modified', 'accept-ranges']) {
+    reply.removeHeader(header)
+  }
+  reply.code(status).type('application/json; charset=utf-8').header('Cache-Control', 'no-store')
+  return JSON.stringify({ error })
 }
 
 /** logger 入参：省略/布尔 = 默认控制台；stream = 写入指定流（测试捕获用）；对象 = pino 选项 */
@@ -459,7 +490,7 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
   // ENV-1 修复：确保上传目录存在（全新部署时不存在，首次上传会失败）
   mkdirSync(UPLOAD_DIR, { recursive: true })
 
-  const adminUploadDownloads = new WeakMap<FastifyRequest, { fileId: number; nonce: string }>()
+  const oneTimeDownloads = new WeakMap<FastifyRequest, { fileId: number; nonce: string }>()
 
   // 安全：签名校验 — references/ 和 deliverables/ 需要有效签名才能访问
   // images/ 保持公开（画师作品集/头像/档位示例图）
@@ -513,39 +544,35 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
         if (row.download_locked === 1 || row.download_nonce !== verified.claims.nonce) {
           return reply.code(403).send({ error: '文件链接无效或已过期' })
         }
-        // 261122：到此已确认凭证有效且未锁定。只有 GET 有实际读取语义，才原子消费；
-        // HEAD 等只读方法返回元数据，凭证原样留给随后的 GET。
-        if (request.method !== 'GET') return
-        if (isAdminDeliveryNonce(verified.claims.nonce)) {
-          // 管理补发直链在静态服务确定会发送文件后才消费。
-          adminUploadDownloads.set(request, { fileId: verified.claims.deliverableId, nonce: verified.claims.nonce })
-          return
+        // HEAD 只读元数据。GET 由 onSend 等静态文件打开后消费。
+        if (request.method === 'GET') {
+          oneTimeDownloads.set(request, { fileId: verified.claims.deliverableId, nonce: verified.claims.nonce })
         }
-        // SRV-10: 原子消费 nonce——UPDATE WHERE 同时校验 nonce 值，
-        // changes=0 表示已被并发请求抢先消费（同一签名 URL 第二次重放）→ 403。
-        // 消费后 nonce 置 NULL，TTL 内同一 URL 不可再用；
-        // 画师预览模式（无 nonce）不走此路径，不受影响。
-        const consumed = db.prepare(
-          'UPDATE deliverables SET download_nonce = NULL WHERE id = ? AND download_nonce = ?'
-        ).run(verified.claims.deliverableId, verified.claims.nonce)
-        if (consumed.changes === 0) {
-          return reply.code(403).send({ error: '文件链接无效或已过期' })
-        }
-        trackDeliverableTransfer(verified.claims.deliverableId, reply.raw)
       }
       // 预览模式（仅 deliverableId 无 nonce）：只查行存在即放行，不消费 nonce
     }
   })
 
   app.addHook('onSend', async (request, reply, payload) => {
-    const download = adminUploadDownloads.get(request)
-    if (!download || reply.statusCode !== 200 || !(payload instanceof Readable)) return payload
+    const download = oneTimeDownloads.get(request)
+    if (!download || reply.statusCode !== 200) return payload
+    // 静态服务先创建流，文件描述符可能尚未打开。等到 open 才可消费凭证。
+    if (!(payload instanceof ReadStream)) {
+      if (payload instanceof Readable) payload.destroy()
+      return rejectDownloadStream(reply, 404, '交付文件暂不可用')
+    }
+    const opened = await waitForDownloadOpen(payload, reply.raw)
     if (reply.raw.destroyed) {
       payload.destroy()
       return null
     }
+    if (!opened || payload.destroyed) {
+      payload.destroy()
+      return rejectDownloadStream(reply, 404, '交付文件暂不可用')
+    }
+    const consume = isAdminDeliveryNonce(download.nonce) ? consumeAdminDeliverableDownload : consumeCustomerDeliverableDownload
     try {
-      if (consumeAdminDeliverableDownload(download.fileId, download.nonce)) {
+      if (consume(download.fileId, download.nonce)) {
         trackDeliverableTransfer(download.fileId, reply.raw)
         return payload
       }
@@ -553,13 +580,9 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
       payload.destroy()
       throw error
     }
-    // 文件查找期间凭证被更新或被另一请求消费，丢弃文件流和静态响应头。
+    // 文件打开期间凭证可能已被替换或被另一请求消费。
     payload.destroy()
-    for (const header of ['content-length', 'content-disposition', 'etag', 'last-modified', 'accept-ranges']) {
-      reply.removeHeader(header)
-    }
-    reply.code(403).type('application/json; charset=utf-8')
-    return JSON.stringify({ error: '文件链接无效或已过期' })
+    return rejectDownloadStream(reply, 403, '文件链接无效或已过期')
   })
 
   await app.register(fastifyStatic, {
@@ -601,7 +624,7 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
       tracesSampleRate: 0, // 不做性能追踪，只捕获错误
       beforeSend(event) {
         const request = event.request
-        if (request?.url && isUploadRequestUrl(request.url)) {
+        if (request?.url && hasPrivateQuery(request.url)) {
           request.url = requestLogUrl(request.url)
           delete request.query_string
         }

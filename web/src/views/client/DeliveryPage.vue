@@ -28,18 +28,22 @@
         </template>
 
         <div v-if="delivery.deliverables?.length">
-          <div v-for="d in delivery.deliverables" :key="d.id" class="file-item">
+          <div v-for="d in delivery.deliverables" :key="d.id" class="file-item" :class="{ 'file-item--pickup-pending': d.downloadPending }">
             <div class="file-info">
               <span class="file-name">{{ d.fileName }}</span>
               <span class="file-size" v-if="d.fileSize">{{ formatBytes(d.fileSize) }}</span>
             </div>
-            <!-- 815 拍板 #4：一次性下载——已锁定显示提示，需画师再许可 -->
-            <el-tag v-if="d.downloadLocked" type="info" size="small">{{ $t('delivery.downloadLocked') }}</el-tag>
-            <el-button v-else-if="pendingConfirmId === d.id" type="warning" size="small" :loading="downloadingId === d.id" :disabled="downloadingId !== null && downloadingId !== d.id" @click="retryConfirm(d)">{{ $t('delivery.retryConfirm') }}</el-button>
+            <div v-if="d.downloadPending" class="pickup-pending" role="status">
+              <strong>{{ $t('delivery.deliveryPending') }}</strong>
+              <p>{{ $t('delivery.deliveryPendingHint') }}</p>
+            </div>
+            <!-- 815 拍板 #4：一次性下载——已锁定显示提示，需再许可或补发 -->
+            <el-tag v-else-if="d.downloadLocked" type="info" size="small">{{ $t('delivery.downloadLocked') }}</el-tag>
+            <el-button v-else-if="pendingConfirm?.fileId === d.id" type="warning" size="small" :loading="downloadingId === d.id" :disabled="downloadingId !== null && downloadingId !== d.id" @click="retryConfirm(d)">{{ $t('delivery.retryConfirm') }}</el-button>
             <el-button v-else type="primary" size="small" :loading="downloadingId === d.id" :disabled="downloadingId !== null && downloadingId !== d.id" @click="downloadFile(d)">{{ $t('delivery.download') }}</el-button>
           </div>
         </div>
-        <p v-if="delivery.deliveryOnly && delivery.deliverables.some(file => file.downloadLocked)" class="delivery-support">
+        <p v-if="delivery.deliveryOnly && delivery.deliverables.some(file => file.downloadLocked && !file.downloadPending)" class="delivery-support">
           {{ $t('delivery.supportLockedMsg') }}
         </p>
       </el-card>
@@ -85,10 +89,10 @@ const verifyError = ref(false)
 // 815 拍板 #4：一次性下载进行中文件 id（防连点）
 const downloadingId = ref<number | null>(null)
 // 文件已收到但服务端确认失败：保留该状态供单独重试，禁止再次 download-start 消耗半途尝试
-const pendingConfirmId = ref<number | null>(null)
+const pendingConfirm = ref<{ fileId: number; confirmationToken: string } | null>(null)
 
 async function downloadFile(d: OrderDeliveryResult['deliverables'][number]) {
-  if (downloadingId.value !== null) return
+  if (d.downloadPending || downloadingId.value !== null) return
   downloadingId.value = d.id
   try {
     // 一次性下载链路：start 签发 → fetch 全量接收 → confirm 锁定（IP/时间留痕）
@@ -96,16 +100,19 @@ async function downloadFile(d: OrderDeliveryResult['deliverables'][number]) {
       delivery.value!.orderNo, d.id, token.value, d.fileName,
       () => { d.downloadLocked = true }
     )
-    if (result === 'confirm-failed') {
-      pendingConfirmId.value = d.id
+    if (result.status === 'confirm-failed') {
+      pendingConfirm.value = { fileId: d.id, confirmationToken: result.confirmationToken }
       ElMessage.warning(t('delivery.confirmFailed'))
     }
   } catch (err) {
     const apiErr = err as ApiError
     if (apiErr?.code === 'DOWNLOAD_LOCKED') {
       d.downloadLocked = true
-      pendingConfirmId.value = null
+      if (pendingConfirm.value?.fileId === d.id) pendingConfirm.value = null
       ElMessage.warning(t(delivery.value?.deliveryOnly ? 'delivery.supportLockedMsg' : 'delivery.downloadLockedMsg'))
+    } else if (apiErr?.code === 'ORDER_CONFLICT' && apiErr.status === 409) {
+      // 管理员在页面打开后补发：download-start 用此冲突码表示取件链接待使用。
+      d.downloadPending = true
     } else if (apiErr?.code === 'DOWNLOAD_COOLDOWN') {
       // issue #81 A 路：423 冷却（冷却 ≠ 锁定）——只提示剩余秒数，**不得**把 downloadLocked 置 true；
       // 秒数取自服务端 AppError.detail.retryAfterMs（order-gallery.service.ts:487），向上取整，缺失按 0 兜底
@@ -121,15 +128,16 @@ async function downloadFile(d: OrderDeliveryResult['deliverables'][number]) {
 }
 
 async function retryConfirm(d: OrderDeliveryResult['deliverables'][number]) {
-  if (downloadingId.value !== null) return
+  const pending = pendingConfirm.value
+  if (d.downloadPending || downloadingId.value !== null || pending?.fileId !== d.id) return
   downloadingId.value = d.id
   try {
     const result = await confirmOneTimeDownload(
-      delivery.value!.orderNo, d.id, token.value,
+      delivery.value!.orderNo, d.id, token.value, pending.confirmationToken,
       () => { d.downloadLocked = true }
     )
-    if (result === 'confirmed') {
-      pendingConfirmId.value = null
+    if (result.status === 'confirmed') {
+      pendingConfirm.value = null
       ElMessage.success(t('delivery.confirmSuccess'))
     } else {
       ElMessage.warning(t('delivery.confirmFailed'))
@@ -162,6 +170,7 @@ async function verify() {
   verifyError.value = false
   try {
     delivery.value = await orderApi.delivery(no, tok)
+    pendingConfirm.value = null
     // 一次性下载的 start/confirm 都要带同一枚令牌；此前只写进局部变量，token.value 恒为空串
     token.value = tok
     verified.value = true
@@ -204,5 +213,8 @@ onMounted(() => {
 .file-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .file-name { color: var(--text-primary); font-weight: 500; overflow-wrap: anywhere; }
 .file-size { color: var(--text-secondary); font-size: 12px; }
+.file-item--pickup-pending { display: block; }
+.pickup-pending { margin-top: 8px; color: var(--text-primary); font-size: 0.875rem; line-height: 1.5; overflow-wrap: anywhere; }
+.pickup-pending p { margin: 4px 0 0; }
 .delivery-support { margin: 12px 0 0; color: var(--text-primary); font-size: 0.875rem; }
 </style>

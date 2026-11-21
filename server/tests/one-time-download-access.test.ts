@@ -84,8 +84,9 @@ describe('一次性下载访问层对账（260830 审计 H-4）', () => {
     const { deliverableId, nonce } = orderGalleryService.startDeliverableDownload(order.id, fileId)
     const url = `/uploads/${deliverablePath()}?sig=${signFilePath(deliverablePath(), { deliverableId, nonce })}`
 
-    // 确认下载完整接收 → 锁定
-    orderGalleryService.confirmDeliverableDownload(order.id, fileId, '203.0.113.9')
+    // 读取实际文件并确认完整接收。
+    expect((await app.inject({ method: 'GET', url })).body).toBe(FILE_BODY)
+    orderGalleryService.confirmDeliverableDownload(order.id, fileId, '203.0.113.9', nonce)
     expect(row().download_locked).toBe(1)
 
     const res = await app.inject({ method: 'GET', url })
@@ -105,7 +106,8 @@ describe('一次性下载访问层对账（260830 审计 H-4）', () => {
   it('TC-DLA-04: 再许可后 — 旧链接 403（nonce 已清空）；重新 start 的新链接 200', async () => {
     const first = orderGalleryService.startDeliverableDownload(order.id, fileId)
     const oldUrl = `/uploads/${deliverablePath()}?sig=${signFilePath(deliverablePath(), { deliverableId: first.deliverableId, nonce: first.nonce })}`
-    orderGalleryService.confirmDeliverableDownload(order.id, fileId, '203.0.113.9')
+    expect((await app.inject({ method: 'GET', url: oldUrl })).body).toBe(FILE_BODY)
+    orderGalleryService.confirmDeliverableDownload(order.id, fileId, '203.0.113.9', first.nonce)
 
     // 画师再许可：解锁 + 清 nonce
     orderGalleryService.repermitDeliverable(order.id, fileId)
@@ -160,8 +162,9 @@ describe('一次性下载访问层对账（260830 审计 H-4）', () => {
 
     // 锁定（客户已完成一次性下载）后预览仍放行：锁定只约束客户下载链路，不约束画师预览自己的完稿；
     // 但任何下载模式旧链接（带过期 nonce）仍被拦（见 TC-DLA-02/04）
-    orderGalleryService.startDeliverableDownload(order.id, fileId)
-    orderGalleryService.confirmDeliverableDownload(order.id, fileId, '203.0.113.9')
+    const { nonce } = orderGalleryService.startDeliverableDownload(order.id, fileId)
+    expect(orderGalleryService.consumeCustomerDeliverableDownload(fileId, nonce)).toBe(true)
+    orderGalleryService.confirmDeliverableDownload(order.id, fileId, '203.0.113.9', nonce)
     const after = await app.inject({ method: 'GET', url: `/uploads/${deliverablePath()}?sig=${previewSig}` })
     expect(after.statusCode).toBe(200)
   })
@@ -179,12 +182,16 @@ describe('一次性下载访问层对账（260830 审计 H-4）', () => {
     const head = await app.inject({ method: 'HEAD', url })
     expect(head.statusCode).toBe(200)
     expect(row().download_nonce).toBe(nonce)
+    const cached = await app.inject({ method: 'GET', url, headers: { 'if-none-match': head.headers.etag! } })
+    expect(cached.statusCode).toBe(304)
+    expect(row().download_nonce).toBe(nonce)
 
     // 探活之后客户照常下载：同一链接 GET 仍 200 且内容完整，此刻才消费
     const get = await app.inject({ method: 'GET', url })
     expect(get.statusCode).toBe(200)
     expect(get.body).toBe(FILE_BODY)
-    expect(row().download_nonce).toBeNull()
+    expect(row().download_nonce === 'consumed:' + nonce).toBe(true)
+    expect(row().download_locked).toBe(0)
 
     // 一次性语义不变：消费后重复读取仍 403（GET/HEAD 皆然）
     expect((await app.inject({ method: 'GET', url })).statusCode).toBe(403)
@@ -208,7 +215,7 @@ describe('一次性下载访问层对账（260830 审计 H-4）', () => {
       const get = await rawRequest(port, path, 'GET')
       expect(get.status).toBe(200)
       expect(get.body).toBe(FILE_BODY)
-      expect(row().download_nonce).toBeNull()
+      expect(row().download_nonce === 'consumed:' + nonce).toBe(true)
 
       // 一次性语义不变：消费后重复读取仍 403
       expect((await rawRequest(port, path, 'GET')).status).toBe(403)

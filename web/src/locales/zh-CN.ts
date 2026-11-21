@@ -1115,6 +1115,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     downloadLocked: '已下载',
     downloadLockedMsg: '该文件已下载过并被锁定，如需再次下载请联系画师再许可',
     supportLockedMsg: '该交付文件已锁定，请联系平台管理员补发取件链接',
+    deliveryPending: '正在等待取件',
+    deliveryPendingHint: '管理员补发的取件链接自签发起 5 分钟内有效，期间暂不能从此页下载此文件。如尚未取件，链接过期后可重新打开原查单链接再试。',
     confirmFailed: '文件已开始保存，但完成确认未成功。请点击「重试确认」，不要重新下载。',
     retryConfirm: '重试确认',
     confirmSuccess: '下载确认已完成',

@@ -4,11 +4,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 
-const h = vi.hoisted(() => ({ track: vi.fn(), replace: vi.fn() }))
+const h = vi.hoisted(() => ({ track: vi.fn(), replace: vi.fn(), download: vi.fn(), confirm: vi.fn(), routeGuards: [] as Array<() => void> }))
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { subdomain: 'alice' }, query: { no: 'ALICE-001', token: 'tok-1' } }),
-  useRouter: () => ({ replace: h.replace })
+  useRouter: () => ({ replace: h.replace }),
+  onBeforeRouteLeave: (guard: () => void) => h.routeGuards.push(guard),
+  onBeforeRouteUpdate: (guard: () => void) => h.routeGuards.push(guard)
 }))
 
 vi.mock('vue-i18n', () => ({
@@ -28,8 +30,8 @@ vi.mock('../../../composables/useArtistPublicProfile.js', () => ({
 }))
 vi.mock('../../../composables/usePalette.js', () => ({ usePalette: () => {} }))
 vi.mock('../../../composables/useOneTimeDownload.js', () => ({
-  confirmOneTimeDownload: vi.fn(),
-  downloadOneTimeFile: vi.fn()
+  confirmOneTimeDownload: h.confirm,
+  downloadOneTimeFile: h.download
 }))
 vi.mock('../../../components/client/ClientFloatingActions.vue', () => ({
   default: { name: 'ClientFloatingActions', template: '<div />' }
@@ -106,6 +108,9 @@ function mountPage() {
 beforeEach(() => {
   h.track.mockReset()
   h.replace.mockReset()
+  h.download.mockReset()
+  h.confirm.mockReset()
+  h.routeGuards.length = 0
 })
 
 describe('TrackOrder 客户侧过程稿（迁移 v81）', () => {
@@ -120,6 +125,35 @@ describe('TrackOrder 客户侧过程稿（迁移 v81）', () => {
       query: { token: 'tok-1' }
     })
     expect(wrapper.find('.result-header').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('离开查单页后丢弃迟到的受限取件跳转', async () => {
+    let resolveTrack: (value: unknown) => void = () => {}
+    h.track.mockReturnValue(new Promise<unknown>(resolve => { resolveTrack = resolve }))
+    const wrapper = mountPage()
+
+    expect(h.routeGuards).toHaveLength(2)
+    h.routeGuards.forEach(guard => guard())
+    resolveTrack({ orderNo: 'ALICE-001', deliveryOnly: true })
+    await flushPromises()
+
+    expect(h.replace).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('后台补签待领取期间隐藏查单页下载按钮并说明等待状态', async () => {
+    h.track.mockResolvedValue(buildTrack({ deliverables: [{ id: 7, fileName: 'final.zip' }] }))
+    h.download.mockRejectedValue({ code: 'ORDER_CONFLICT', status: 409 })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.find('.file-item button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('.pickup-pending-label').text()).toBe('delivery.deliveryPending')
+    expect(wrapper.find('.pickup-pending-hint').text()).toBe('delivery.deliveryPendingHint')
+    expect(wrapper.find('.file-item button').exists()).toBe(false)
     wrapper.unmount()
   })
 

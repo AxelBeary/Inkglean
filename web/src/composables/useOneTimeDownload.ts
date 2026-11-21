@@ -2,25 +2,28 @@ import { orderApi } from '../api/index'
 import type { ApiError } from '../api/modules/http'
 import { downloadAsset } from '../utils/download'
 
-export type OneTimeDownloadResult = 'confirmed' | 'confirm-failed'
+export type OneTimeDownloadResult =
+  | { status: 'confirmed' }
+  | { status: 'confirm-failed'; confirmationToken: string }
 
-/** 完成确认是下载链路的独立步骤；失败时不再让调用方把「文件已收到」误报成「下载失败」。 */
+/** Keep the receipt token with a received file so a failed confirmation can be retried safely. */
 export async function confirmOneTimeDownload(
   orderNo: string,
   fileId: number,
   token: string,
+  confirmationToken: string,
   onConfirmed: () => void
 ): Promise<OneTimeDownloadResult> {
   try {
-    await orderApi.deliveryDownloadConfirm(orderNo, fileId, token)
+    await orderApi.deliveryDownloadConfirm(orderNo, fileId, token, confirmationToken)
     onConfirmed()
-    return 'confirmed'
+    return { status: 'confirmed' }
   } catch (err) {
     if ((err as ApiError)?.code === 'DOWNLOAD_LOCKED') {
       onConfirmed()
-      return 'confirmed'
+      return { status: 'confirmed' }
     }
-    return 'confirm-failed'
+    return { status: 'confirm-failed', confirmationToken }
   }
 }
 
@@ -31,7 +34,7 @@ export async function downloadOneTimeFile(
   fileName: string | null | undefined,
   onConfirmed: () => void
 ): Promise<OneTimeDownloadResult> {
-  const { url } = await orderApi.deliveryDownloadStart(orderNo, fileId, token)
+  const { url, confirmationToken } = await orderApi.deliveryDownloadStart(orderNo, fileId, token)
   await downloadAsset(url, fileName ?? undefined)
-  return confirmOneTimeDownload(orderNo, fileId, token, onConfirmed)
+  return confirmOneTimeDownload(orderNo, fileId, token, confirmationToken, onConfirmed)
 }

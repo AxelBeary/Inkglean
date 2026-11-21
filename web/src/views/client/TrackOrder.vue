@@ -200,10 +200,14 @@
         <!-- 交付文件 -->
         <div class="deliverables" v-if="order.deliverables?.length">
           <h4>{{ $t('track.deliverables') }}</h4>
-          <div v-for="d in order.deliverables" :key="d.id" class="file-item">
+          <div v-for="d in order.deliverables" :key="d.id" class="file-item" :class="{ 'file-item--pickup-pending': pendingAdminDownloadId === d.id }">
             <span>{{ d.fileName }}</span>
+            <template v-if="pendingAdminDownloadId === d.id">
+              <span class="pickup-pending-label" role="status">{{ $t('delivery.deliveryPending') }}</span>
+              <p class="pickup-pending-hint">{{ $t('delivery.deliveryPendingHint') }}</p>
+            </template>
             <!-- 260830 审计 H-4：下载统一走一次性下载链路（服务端不再下发列表直链） -->
-            <el-button v-if="pendingConfirmId === d.id" size="small" type="warning" :loading="downloadingId === d.id" @click="retryDeliverableConfirm(d)">{{ $t('delivery.retryConfirm') }}</el-button>
+            <el-button v-else-if="pendingConfirmId === d.id" size="small" type="warning" :loading="downloadingId === d.id" @click="retryDeliverableConfirm(d)">{{ $t('delivery.retryConfirm') }}</el-button>
             <el-button v-else size="small" type="primary" :loading="downloadingId === d.id" @click="downloadDeliverable(d.id, d.fileName)">{{ $t('common.download') }}</el-button>
           </div>
         </div>
@@ -250,7 +254,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import { orderApi, type ApiError } from '../../api/index'
 import type { ArtistPublicProfile, VisibleArtistProfile, OrderTrackResult } from '../../api/types'
 import { fetchArtistPublicProfile } from '../../composables/useArtistPublicProfile'
@@ -402,21 +406,27 @@ const trackNextDueCents = computed(() => {
 // 与交付页（DeliveryPage）同口径；旧式「列表直链直接下载」已下架（可转发，架空一次性语义）。
 const downloadingId = ref<number | null>(null)
 const pendingConfirmId = ref<number | null>(null)
+const pendingConfirmToken = ref<string | null>(null)
+const pendingAdminDownloadId = ref<number | null>(null)
 
 async function downloadDeliverable(id: number, fileName: string | null | undefined) {
   if (downloadingId.value !== null || !order.value) return
   downloadingId.value = id
   try {
     const result = await downloadOneTimeFile(order.value.orderNo, id, token.value, fileName, () => {})
-    if (result === 'confirm-failed') {
+    if (result.status === 'confirm-failed') {
       pendingConfirmId.value = id
+      pendingConfirmToken.value = result.confirmationToken
       ElMessage.warning(t('delivery.confirmFailed'))
     }
   } catch (err) {
     const apiErr = err as ApiError
     if (apiErr?.code === 'DOWNLOAD_LOCKED') {
       pendingConfirmId.value = null
+      pendingConfirmToken.value = null
       ElMessage.warning(t('delivery.downloadLockedMsg'))
+    } else if (apiErr?.code === 'ORDER_CONFLICT' && apiErr.status === 409) {
+      pendingAdminDownloadId.value = id
     } else if (apiErr?.code === 'DOWNLOAD_COOLDOWN') {
       // issue #81 A 路：423 冷却（冷却 ≠ 锁定）——只提示剩余秒数，不进入重试确认态；
       // 秒数取自服务端 AppError.detail.retryAfterMs（order-gallery.service.ts:487），向上取整，缺失按 0 兜底
@@ -432,14 +442,16 @@ async function downloadDeliverable(id: number, fileName: string | null | undefin
 }
 
 async function retryDeliverableConfirm(d: { id: number }) {
-  if (downloadingId.value !== null || !order.value) return
+  if (downloadingId.value !== null || !order.value || !pendingConfirmToken.value) return
   downloadingId.value = d.id
   try {
-    const result = await confirmOneTimeDownload(order.value.orderNo, d.id, token.value, () => {})
-    if (result === 'confirmed') {
+    const result = await confirmOneTimeDownload(order.value.orderNo, d.id, token.value, pendingConfirmToken.value, () => {})
+    if (result.status === 'confirmed') {
       pendingConfirmId.value = null
+      pendingConfirmToken.value = null
       ElMessage.success(t('delivery.confirmSuccess'))
     } else {
+      pendingConfirmToken.value = result.confirmationToken
       ElMessage.warning(t('delivery.confirmFailed'))
     }
   } finally {
@@ -503,6 +515,14 @@ function saveLink(orderNoToSave: string, tokenToSave: string) {
 /** 核心查询：凭订单号 + 令牌；成功自动入本地清单 */
 // K1-1：查询竞态守卫（同款 seq 模式，对齐 OrderDetail.loadOrderSeq/useOrderForm.doStyleCalc）
 let searchSeq = 0
+function invalidateSearchForNavigation() {
+  searchSeq++
+  searching.value = false
+  searchError.value = false
+}
+onBeforeRouteLeave(invalidateSearchForNavigation)
+onBeforeRouteUpdate(invalidateSearchForNavigation)
+
 async function search(no = orderNo.value, tok = token.value): Promise<'ok' | 'invalid' | 'error' | null> {
   if (!(no || '').trim() || !(tok || '').trim()) {
     ElMessage.warning(t('track.enterLink'))
@@ -645,6 +665,9 @@ html:not(.dark) .track-page { --el-input-placeholder-color: #6c6e72; }
 .deliverables { margin-top: 20px; }
 .deliverables h4 { margin-bottom: 8px; color: var(--text-primary); }
 .file-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border-color); }
+.file-item--pickup-pending { flex-wrap: wrap; }
+.pickup-pending-label { color: var(--text-primary); font-size: 0.875rem; }
+.pickup-pending-hint { flex-basis: 100%; margin: 8px 0 0; color: var(--text-secondary); font-size: 0.875rem; line-height: 1.5; overflow-wrap: anywhere; }
 /* F1 围剿：粘贴链接入口 + 失效提示 */
 .link-hint { margin: -6px 0 14px; font-size: 12px; color: var(--text-secondary); }
 .link-expired { font-size: 12px; color: var(--el-color-danger); }

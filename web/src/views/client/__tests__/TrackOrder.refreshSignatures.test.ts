@@ -9,7 +9,9 @@ const h = vi.hoisted(() => ({ track: vi.fn(), refresh: vi.fn() }))
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { subdomain: 'alice' }, query: { no: 'ALICE-001', token: 'tok-1' } }),
-  useRouter: () => ({ replace: vi.fn() })
+  useRouter: () => ({ replace: vi.fn() }),
+  onBeforeRouteLeave: () => {},
+  onBeforeRouteUpdate: () => {}
 }))
 
 vi.mock('vue-i18n', () => ({

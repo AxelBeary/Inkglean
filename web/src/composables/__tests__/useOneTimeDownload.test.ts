@@ -24,27 +24,29 @@ describe('useOneTimeDownload', () => {
     h.start.mockReset()
     h.confirm.mockReset()
     h.downloadAsset.mockReset()
-    h.start.mockResolvedValue({ url: '/uploads/deliverables/1/file.zip?sig=one-time' })
+    h.start.mockResolvedValue({ url: '/uploads/deliverables/1/file.zip?sig=one-time', confirmationToken: 'attempt-1' })
     h.confirm.mockResolvedValue({ locked: true })
     h.downloadAsset.mockResolvedValue(undefined)
   })
 
-  it('确认失败返回 confirm-failed，不伪装成下载失败', async () => {
+  it('确认失败返回可重试的本轮令牌，不伪装成下载失败', async () => {
     const onConfirmed = vi.fn()
     h.confirm.mockRejectedValueOnce(new Error('network'))
     await expect(
-      downloadOneTimeFile('ORDER-1', 7, 'token', 'file.zip', onConfirmed)
-    ).resolves.toBe('confirm-failed')
+      downloadOneTimeFile('ORDER-1', 7, 'customer-token', 'file.zip', onConfirmed)
+    ).resolves.toEqual({ status: 'confirm-failed', confirmationToken: 'attempt-1' })
+    expect(h.confirm).toHaveBeenCalledWith('ORDER-1', 7, 'customer-token', 'attempt-1')
     expect(onConfirmed).not.toHaveBeenCalled()
   })
 
   it('确认链路成功回调锁定状态', async () => {
     const onConfirmed = vi.fn()
     await expect(
-      downloadOneTimeFile('ORDER-1', 7, 'token', 'file.zip', onConfirmed)
-    ).resolves.toBe('confirmed')
-    expect(h.start).toHaveBeenCalledWith('ORDER-1', 7, 'token')
+      downloadOneTimeFile('ORDER-1', 7, 'customer-token', 'file.zip', onConfirmed)
+    ).resolves.toEqual({ status: 'confirmed' })
+    expect(h.start).toHaveBeenCalledWith('ORDER-1', 7, 'customer-token')
     expect(h.downloadAsset).toHaveBeenCalledWith('/uploads/deliverables/1/file.zip?sig=one-time', 'file.zip')
+    expect(h.confirm).toHaveBeenCalledWith('ORDER-1', 7, 'customer-token', 'attempt-1')
     expect(onConfirmed).toHaveBeenCalledOnce()
   })
 
@@ -52,8 +54,8 @@ describe('useOneTimeDownload', () => {
     const onConfirmed = vi.fn()
     h.confirm.mockRejectedValueOnce({ code: 'DOWNLOAD_LOCKED' })
     await expect(
-      confirmOneTimeDownload('ORDER-1', 7, 'token', onConfirmed)
-    ).resolves.toBe('confirmed')
+      confirmOneTimeDownload('ORDER-1', 7, 'customer-token', 'attempt-1', onConfirmed)
+    ).resolves.toEqual({ status: 'confirmed' })
     expect(onConfirmed).toHaveBeenCalledOnce()
   })
 })

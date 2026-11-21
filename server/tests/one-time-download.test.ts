@@ -11,6 +11,7 @@ interface DeliverableRow {
   id: number
   last_started_at: number | null
   download_locked: number
+  download_nonce: string | null
   download_ip: string | null
   downloaded_at: number | null
   download_attempts: number
@@ -35,23 +36,37 @@ describe('交付文件一次性下载（815 拍板 #4）', () => {
   const noteCount = (frag: string): number =>
     (db.prepare('SELECT COUNT(*) AS c FROM order_notes WHERE order_id = ? AND content LIKE ?').get(order.id, `%${frag}%`) as { c: number }).c
 
-  it('TC-DL-01: start 签发路径；confirm 锁定 + IP 留痕', () => {
-    const { filePath } = orderGalleryService.startDeliverableDownload(order.id, fileId)
+  function startAndConsume() {
+    const attempt = orderGalleryService.startDeliverableDownload(order.id, fileId)
+    expect(orderGalleryService.consumeCustomerDeliverableDownload(fileId, attempt.nonce)).toBe(true)
+    return attempt
+  }
+
+  it('TC-DL-01: 仅确认已消费凭证，重复确认幂等并保留 IP', () => {
+    const { filePath, nonce } = orderGalleryService.startDeliverableDownload(order.id, fileId)
     expect(filePath).toBe(`deliverables/${artist.id}/final.png`)
     expect(row().last_started_at).toBeTruthy()
+    const confirm = () => orderGalleryService.confirmDeliverableDownload(order.id, fileId, '203.0.113.9', nonce)
+    expect(confirm).toThrow('ORDER_CONFLICT')
+    expect(row().downloaded_at).toBeNull()
+    expect(row().download_locked).toBe(0)
 
-    orderGalleryService.confirmDeliverableDownload(order.id, fileId, '203.0.113.9')
+    expect(orderGalleryService.consumeCustomerDeliverableDownload(fileId, nonce)).toBe(true)
+    confirm()
     const after = row()
     expect(after.download_locked).toBe(1)
     expect(after.download_ip).toBe('203.0.113.9')
     expect(after.downloaded_at).toBeTruthy()
     expect(after.last_started_at).toBeNull()
+    expect(after.download_nonce === 'consumed:' + nonce).toBe(true)
+    orderGalleryService.confirmDeliverableDownload(order.id, fileId, '203.0.113.20', nonce)
+    expect(row().download_ip).toBe('203.0.113.9')
     expect(noteCount('已完成下载并锁定')).toBe(1)
   })
 
   it('TC-DL-02: 锁定后再 start → 410 DOWNLOAD_LOCKED', () => {
-    orderGalleryService.startDeliverableDownload(order.id, fileId)
-    orderGalleryService.confirmDeliverableDownload(order.id, fileId, '203.0.113.9')
+    const { nonce } = startAndConsume()
+    orderGalleryService.confirmDeliverableDownload(order.id, fileId, '203.0.113.9', nonce)
 
     expect(() => orderGalleryService.startDeliverableDownload(order.id, fileId)).toThrow('DOWNLOAD_LOCKED')
   })
@@ -100,8 +115,8 @@ describe('交付文件一次性下载（815 拍板 #4）', () => {
     expect(orderGalleryService.startDeliverableDownload(order.id, fileId).filePath).toBeTruthy()
   })
 
-  it('TC-DL-04: 60 秒兜底——上次开始超窗未确认，下次 start 视为下载器已完成 → 锁定', () => {
-    orderGalleryService.startDeliverableDownload(order.id, fileId)
+  it('TC-DL-04: 已发送后超过 60 秒未确认，下次 start 触发下载器兜底锁定', () => {
+    startAndConsume()
     // 把开始时间拨到 61 秒前
     db.prepare('UPDATE deliverables SET last_started_at = ? WHERE id = ?').run(Date.now() - 61_000, fileId)
 
@@ -111,8 +126,8 @@ describe('交付文件一次性下载（815 拍板 #4）', () => {
   })
 
   it('TC-DL-05: 画师再许可解锁（留痕，历史 IP 保留）', () => {
-    orderGalleryService.startDeliverableDownload(order.id, fileId)
-    orderGalleryService.confirmDeliverableDownload(order.id, fileId, '203.0.113.9')
+    const { nonce } = startAndConsume()
+    orderGalleryService.confirmDeliverableDownload(order.id, fileId, '203.0.113.9', nonce)
 
     orderGalleryService.repermitDeliverable(order.id, fileId)
     const after = row()
@@ -126,6 +141,32 @@ describe('交付文件一次性下载（815 拍板 #4）', () => {
 
     // 再许可后可重新下载
     expect(orderGalleryService.startDeliverableDownload(order.id, fileId).filePath).toBeTruthy()
+  })
+
+  it('TC-DL-09: 下一轮签发后，旧轮次确认返回冲突', () => {
+    const first = startAndConsume()
+    const next = startAndConsume()
+    expect(() => orderGalleryService.confirmDeliverableDownload(order.id, fileId, '203.0.113.9', first.nonce))
+      .toThrow('ORDER_CONFLICT')
+    expect(row().download_locked).toBe(0)
+    expect(row().downloaded_at).toBeNull()
+    orderGalleryService.confirmDeliverableDownload(order.id, fileId, '203.0.113.20', next.nonce)
+    expect(row().download_ip).toBe('203.0.113.20')
+  })
+
+  it('TC-DL-10: 旧账本已开始且 nonce 消耗为空时保留 60 秒兜底', () => {
+    db.prepare('UPDATE deliverables SET last_started_at = ?, download_nonce = NULL WHERE id = ?')
+      .run(Date.now() - 61_000, fileId)
+    expect(() => orderGalleryService.startDeliverableDownload(order.id, fileId)).toThrow('DOWNLOAD_LOCKED')
+    expect(noteCount('下载窗口已过')).toBe(1)
+  })
+
+  it('TC-DL-11: 文件未打开时，开始超过 60 秒仍可换发且不记已下载', () => {
+    orderGalleryService.startDeliverableDownload(order.id, fileId)
+    db.prepare('UPDATE deliverables SET last_started_at = ? WHERE id = ?').run(Date.now() - 61_000, fileId)
+    expect(orderGalleryService.startDeliverableDownload(order.id, fileId).filePath).toBeTruthy()
+    expect(row().download_locked).toBe(0)
+    expect(row().downloaded_at).toBeNull()
   })
 
   it('TC-DL-06: 非本订单文件 → 404（归属校验）', () => {

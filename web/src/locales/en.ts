@@ -1118,6 +1118,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     downloadLocked: 'Downloaded',
     downloadLockedMsg: 'This file has already been downloaded and locked. Please contact the artist for re-permission',
     supportLockedMsg: 'This delivery file is locked. Contact a platform administrator for a new pickup link.',
+    deliveryPending: 'Waiting for pickup',
+    deliveryPendingHint: 'The pickup link from the administrator is valid for 5 minutes after issue. You cannot download this file from this page during that time. If you have not picked it up, reopen the original order link after the pickup link expires.',
     confirmFailed: 'The file started saving, but the completion confirmation failed. Retry the confirmation instead of downloading again.',
     retryConfirm: 'Retry confirmation',
     confirmSuccess: 'Download confirmation completed',
