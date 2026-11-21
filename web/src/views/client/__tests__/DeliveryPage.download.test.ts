@@ -186,6 +186,25 @@ describe('DeliveryPage 一次性下载', () => {
     wrapper.unmount()
   })
 
+  it('确认令牌已换轮：退出重试态并提示重新开始', async () => {
+    h.downloadConfirm.mockRejectedValueOnce(new Error('temporary fixture failure'))
+    const wrapper = mountPage()
+    await flushPromises()
+    await wrapper.get('.file-item button').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('.file-item button').text()).toBe('delivery.retryConfirm')
+
+    h.downloadConfirm.mockRejectedValueOnce({ code: 'ORDER_CONFLICT', status: 409 })
+    await wrapper.get('.file-item button').trigger('click')
+    await flushPromises()
+
+    expect(h.warning).toHaveBeenCalledWith('delivery.confirmExpired')
+    expect(wrapper.findAll('button').map(button => button.text())).toContain('delivery.download')
+    expect(wrapper.findAll('button').map(button => button.text())).not.toContain('delivery.retryConfirm')
+    expect(h.downloadStart).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
   it('管理员在客户打开页面后补发：409 切换到待领取且不报通用失败', async () => {
     h.downloadStart.mockRejectedValueOnce({ code: 'ORDER_CONFLICT', status: 409 })
     const wrapper = mountPage()

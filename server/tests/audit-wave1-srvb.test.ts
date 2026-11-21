@@ -99,15 +99,15 @@ describe('SRV-10: 一次性下载 nonce 原子消费（TTL 内不可重放）', 
     await app.close()
   })
 
-  it('TC-SRV10-01: 首次访问 200 + nonce 被消费（置 NULL）', async () => {
+  it('TC-SRV10-01: 首次访问 200 + 保留消费标记供本轮确认', async () => {
     const { deliverableId, nonce } = orderGalleryService.startDeliverableDownload(order.id, fileId)
     const sig = signFilePath(deliverablePath(), { deliverableId, nonce })
     const res = await app.inject({ method: 'GET', url: `/uploads/${deliverablePath()}?sig=${sig}` })
     expect(res.statusCode).toBe(200)
     expect(res.body).toBe(FILE_BODY)
-    // nonce 已被消费（置 NULL）
+    // 保留消费标记，以便确认阶段核对本轮 nonce 并支持幂等重试
     const row = db.prepare('SELECT download_nonce FROM deliverables WHERE id = ?').get(fileId) as { download_nonce: string | null }
-    expect(row.download_nonce).toBeNull()
+    expect(row.download_nonce).toBe(`consumed:${nonce}`)
   })
 
   it('TC-SRV10-02: 同一签名 URL 第二次访问 → 403（TTL 内不可重放）', async () => {

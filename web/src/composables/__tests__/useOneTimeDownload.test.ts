@@ -50,6 +50,15 @@ describe('useOneTimeDownload', () => {
     expect(onConfirmed).toHaveBeenCalledOnce()
   })
 
+  it('旧轮次确认遇到 ORDER_CONFLICT 时退出重试态', async () => {
+    const onConfirmed = vi.fn()
+    h.confirm.mockRejectedValueOnce({ code: 'ORDER_CONFLICT', status: 409 })
+    await expect(
+      confirmOneTimeDownload('ORDER-1', 7, 'customer-token', 'attempt-1', onConfirmed)
+    ).resolves.toEqual({ status: 'confirm-expired' })
+    expect(onConfirmed).not.toHaveBeenCalled()
+  })
+
   it('重复确认遇到 DOWNLOAD_LOCKED 也按已锁定处理', async () => {
     const onConfirmed = vi.fn()
     h.confirm.mockRejectedValueOnce({ code: 'DOWNLOAD_LOCKED' })

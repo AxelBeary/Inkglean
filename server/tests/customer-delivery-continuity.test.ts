@@ -227,7 +227,7 @@ describe('历史订单客户取件合同', () => {
     }
   })
 
-  it('开始响应的确认令牌匹配签名；请求体必需且实际领取后才可确认', async () => {
+  it('开始响应的确认令牌匹配签名；缺少令牌返回可恢复冲突，实际领取后才可确认', async () => {
     const order = makeOrder()
     const fileId = addFile(order)
     const { url, confirmationToken } = await beginDownload(order, fileId)
@@ -235,7 +235,9 @@ describe('历史订单客户取件合同', () => {
     expect(confirmationToken).toBeTruthy()
     expect(verifyFileTokenDetailed(sig)?.claims?.nonce).toBe(confirmationToken)
 
-    expect((await requestConfirm(order, fileId)).statusCode).toBe(400)
+    const missingToken = await requestConfirm(order, fileId)
+    expect(missingToken.statusCode).toBe(409)
+    expect(missingToken.json()).toMatchObject({ code: 'ORDER_CONFLICT' })
     const notYetReceived = await requestConfirm(order, fileId, confirmationToken)
     expect(notYetReceived.statusCode).toBe(409)
     expect(notYetReceived.json()).toMatchObject({ code: 'ORDER_CONFLICT' })

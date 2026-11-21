@@ -1118,6 +1118,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     deliveryPending: '正在等待取件',
     deliveryPendingHint: '管理员补发的取件链接自签发起 5 分钟内有效，期间暂不能从此页下载此文件。如尚未取件，链接过期后可重新打开原查单链接再试。',
     confirmFailed: '文件已开始保存，但完成确认未成功。请点击「重试确认」，不要重新下载。',
+    confirmExpired: '本次下载凭证已过期或被新一轮取代。请重新开始下载；如已保存文件，请先检查文件。',
     retryConfirm: '重试确认',
     confirmSuccess: '下载确认已完成',
     // issue #81 A 路：423 冷却（DOWNLOAD_COOLDOWN）——冷却≠锁定，只提示剩余秒数

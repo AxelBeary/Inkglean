@@ -200,9 +200,9 @@
         <!-- 交付文件 -->
         <div class="deliverables" v-if="order.deliverables?.length">
           <h4>{{ $t('track.deliverables') }}</h4>
-          <div v-for="d in order.deliverables" :key="d.id" class="file-item" :class="{ 'file-item--pickup-pending': pendingAdminDownloadId === d.id }">
+          <div v-for="d in order.deliverables" :key="d.id" class="file-item" :class="{ 'file-item--pickup-pending': pendingAdminDownloadIds.has(d.id) }">
             <span>{{ d.fileName }}</span>
-            <template v-if="pendingAdminDownloadId === d.id">
+            <template v-if="pendingAdminDownloadIds.has(d.id)">
               <span class="pickup-pending-label" role="status">{{ $t('delivery.deliveryPending') }}</span>
               <p class="pickup-pending-hint">{{ $t('delivery.deliveryPendingHint') }}</p>
             </template>
@@ -407,14 +407,15 @@ const trackNextDueCents = computed(() => {
 const downloadingId = ref<number | null>(null)
 const pendingConfirmId = ref<number | null>(null)
 const pendingConfirmToken = ref<string | null>(null)
-const pendingAdminDownloadId = ref<number | null>(null)
+const pendingAdminDownloadIds = ref(new Set<number>())
 
 async function downloadDeliverable(id: number, fileName: string | null | undefined) {
   if (downloadingId.value !== null || !order.value) return
   downloadingId.value = id
   try {
     const result = await downloadOneTimeFile(order.value.orderNo, id, token.value, fileName, () => {})
-    if (result.status === 'confirm-failed') {
+    if (result.status === 'confirm-expired') ElMessage.warning(t('delivery.confirmExpired'))
+    else if (result.status === 'confirm-failed') {
       pendingConfirmId.value = id
       pendingConfirmToken.value = result.confirmationToken
       ElMessage.warning(t('delivery.confirmFailed'))
@@ -426,7 +427,7 @@ async function downloadDeliverable(id: number, fileName: string | null | undefin
       pendingConfirmToken.value = null
       ElMessage.warning(t('delivery.downloadLockedMsg'))
     } else if (apiErr?.code === 'ORDER_CONFLICT' && apiErr.status === 409) {
-      pendingAdminDownloadId.value = id
+      pendingAdminDownloadIds.value = new Set(pendingAdminDownloadIds.value).add(id)
     } else if (apiErr?.code === 'DOWNLOAD_COOLDOWN') {
       // issue #81 A 路：423 冷却（冷却 ≠ 锁定）——只提示剩余秒数，不进入重试确认态；
       // 秒数取自服务端 AppError.detail.retryAfterMs（order-gallery.service.ts:487），向上取整，缺失按 0 兜底
@@ -450,6 +451,9 @@ async function retryDeliverableConfirm(d: { id: number }) {
       pendingConfirmId.value = null
       pendingConfirmToken.value = null
       ElMessage.success(t('delivery.confirmSuccess'))
+    } else if (result.status === 'confirm-expired') {
+      pendingConfirmId.value = pendingConfirmToken.value = null
+      ElMessage.warning(t('delivery.confirmExpired'))
     } else {
       pendingConfirmToken.value = result.confirmationToken
       ElMessage.warning(t('delivery.confirmFailed'))
@@ -515,19 +519,15 @@ function saveLink(orderNoToSave: string, tokenToSave: string) {
 /** 核心查询：凭订单号 + 令牌；成功自动入本地清单 */
 // K1-1：查询竞态守卫（同款 seq 模式，对齐 OrderDetail.loadOrderSeq/useOrderForm.doStyleCalc）
 let searchSeq = 0
-function invalidateSearchForNavigation() {
-  searchSeq++
-  searching.value = false
-  searchError.value = false
-}
+function invalidateSearchForNavigation() { searchSeq++; searching.value = false; searchError.value = false }
 onBeforeRouteLeave(invalidateSearchForNavigation)
 onBeforeRouteUpdate(invalidateSearchForNavigation)
-
 async function search(no = orderNo.value, tok = token.value): Promise<'ok' | 'invalid' | 'error' | null> {
   if (!(no || '').trim() || !(tok || '').trim()) {
     ElMessage.warning(t('track.enterLink'))
     return 'error'
   }
+  if (order.value?.orderNo !== no.trim()) { pendingAdminDownloadIds.value = new Set(); pendingConfirmId.value = null; pendingConfirmToken.value = null }
   const mySeq = ++searchSeq
   searching.value = true
   searchError.value = false
@@ -796,8 +796,4 @@ html:not(.dark) .track-page { --el-input-placeholder-color: #6c6e72; }
 .receipt-divider { border-top: 1px solid var(--border-color); margin: 6px 0 2px; }
 .receipt-note { margin-top: 12px; font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
 
-.brief-ref-img {
-  width: 80px; height: 80px; object-fit: cover; border-radius: 8px;
-  border: 1px solid var(--border-color); background: var(--bg-page);
-}
 </style>

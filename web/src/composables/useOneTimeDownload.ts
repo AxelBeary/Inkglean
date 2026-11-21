@@ -5,6 +5,7 @@ import { downloadAsset } from '../utils/download'
 export type OneTimeDownloadResult =
   | { status: 'confirmed' }
   | { status: 'confirm-failed'; confirmationToken: string }
+  | { status: 'confirm-expired' }
 
 /** Keep the receipt token with a received file so a failed confirmation can be retried safely. */
 export async function confirmOneTimeDownload(
@@ -19,9 +20,13 @@ export async function confirmOneTimeDownload(
     onConfirmed()
     return { status: 'confirmed' }
   } catch (err) {
-    if ((err as ApiError)?.code === 'DOWNLOAD_LOCKED') {
+    const apiError = err as ApiError
+    if (apiError?.code === 'DOWNLOAD_LOCKED') {
       onConfirmed()
       return { status: 'confirmed' }
+    }
+    if (apiError?.code === 'ORDER_CONFLICT' && apiError.status === 409) {
+      return { status: 'confirm-expired' }
     }
     return { status: 'confirm-failed', confirmationToken }
   }

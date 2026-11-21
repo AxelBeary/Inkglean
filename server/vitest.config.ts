@@ -9,8 +9,9 @@ export default defineConfig({
     // TS 收尾迁移完成（2026-08-19）：测试全量 .test.ts，与 tsconfig.tests.json strict 检查对齐
     include: ['tests/**/*.test.ts'],
     testTimeout: 10000,
-    // 每个测试文件串行（共享内存数据库）
+    // 测试 setup 清理共享 UPLOAD_DIR；单 worker 防止跨文件并发删除
     fileParallelism: false,
+    maxWorkers: 1,
     env: {
       DB_PATH: ':memory:',
       SESSION_SECRET: 'test-secret-key-for-vitest',

@@ -142,18 +142,22 @@ describe('TrackOrder 客户侧过程稿（迁移 v81）', () => {
     wrapper.unmount()
   })
 
-  it('后台补签待领取期间隐藏查单页下载按钮并说明等待状态', async () => {
-    h.track.mockResolvedValue(buildTrack({ deliverables: [{ id: 7, fileName: 'final.zip' }] }))
+  it('后台补签多件文件时分别隐藏对应下载按钮并显示等待状态', async () => {
+    h.track.mockResolvedValue(buildTrack({ deliverables: [{ id: 7, fileName: 'final.zip' }, { id: 8, fileName: 'source.zip' }] }))
     h.download.mockRejectedValue({ code: 'ORDER_CONFLICT', status: 409 })
     const wrapper = mountPage()
     await flushPromises()
 
-    await wrapper.find('.file-item button').trigger('click')
+    await wrapper.findAll('.file-item')[0].find('button').trigger('click')
+    await flushPromises()
+    await wrapper.findAll('.file-item')[1].find('button').trigger('click')
     await flushPromises()
 
-    expect(wrapper.find('.pickup-pending-label').text()).toBe('delivery.deliveryPending')
-    expect(wrapper.find('.pickup-pending-hint').text()).toBe('delivery.deliveryPendingHint')
-    expect(wrapper.find('.file-item button').exists()).toBe(false)
+    expect(wrapper.findAll('.pickup-pending-label')).toHaveLength(2)
+    expect(wrapper.findAll('.pickup-pending-label').map(label => label.text())).toEqual([
+      'delivery.deliveryPending', 'delivery.deliveryPending'
+    ])
+    expect(wrapper.findAll('.file-item button')).toHaveLength(0)
     wrapper.unmount()
   })
 

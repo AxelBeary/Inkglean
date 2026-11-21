@@ -16,6 +16,7 @@ import App from './App.vue'
 import router from './router/index'
 import i18n from './i18n/index'
 import { createGlobalErrorDedup } from './utils/globalErrorDedup'
+import { redactUrlBreadcrumb } from './utils/sentryBreadcrumbs'
 
 const app = createApp(App)
 
@@ -26,7 +27,10 @@ if (sentryDsn) {
     app,
     dsn: sentryDsn,
     environment: import.meta.env.PROD ? 'production' : 'development',
-    tracesSampleRate: 0
+    tracesSampleRate: 0,
+    // Order lookup and file links carry credentials in their query strings.
+    dataCollection: { urlQueryParams: false },
+    beforeBreadcrumb: redactUrlBreadcrumb
   })
 }
 

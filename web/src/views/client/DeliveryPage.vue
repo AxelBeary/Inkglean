@@ -100,7 +100,10 @@ async function downloadFile(d: OrderDeliveryResult['deliverables'][number]) {
       delivery.value!.orderNo, d.id, token.value, d.fileName,
       () => { d.downloadLocked = true }
     )
-    if (result.status === 'confirm-failed') {
+    if (result.status === 'confirm-expired') {
+      if (pendingConfirm.value?.fileId === d.id) pendingConfirm.value = null
+      ElMessage.warning(t('delivery.confirmExpired'))
+    } else if (result.status === 'confirm-failed') {
       pendingConfirm.value = { fileId: d.id, confirmationToken: result.confirmationToken }
       ElMessage.warning(t('delivery.confirmFailed'))
     }
@@ -139,6 +142,9 @@ async function retryConfirm(d: OrderDeliveryResult['deliverables'][number]) {
     if (result.status === 'confirmed') {
       pendingConfirm.value = null
       ElMessage.success(t('delivery.confirmSuccess'))
+    } else if (result.status === 'confirm-expired') {
+      pendingConfirm.value = null
+      ElMessage.warning(t('delivery.confirmExpired'))
     } else {
       ElMessage.warning(t('delivery.confirmFailed'))
     }

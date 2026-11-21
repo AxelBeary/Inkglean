@@ -416,21 +416,15 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
    * 815 拍板 #4：客户确认完整接收（web fetch 全量收到后上报）→ 锁定 + IP/时间留痕
    * 确认令牌绑定本次实际领取的文件；查询参数与请求体中的令牌均不记日志。
    */
-  fastify.post('/api/orders/delivery/:orderNo/file/:fileId/download-confirm', {
-    logLevel: 'silent',
-    schema: {
-      body: {
-        type: 'object',
-        required: ['confirmationToken'],
-        properties: { confirmationToken: { type: 'string', minLength: 1, maxLength: 128 } },
-        additionalProperties: false
-      }
-    }
-  }, async (request: FastifyRequest) => {
+  fastify.post('/api/orders/delivery/:orderNo/file/:fileId/download-confirm', { logLevel: 'silent' }, async (request: FastifyRequest) => {
     guardRateLimit(`delivery-dl:${request.ip}`, 20, 5 * 60_000)
 
     const { orderId, fileId } = requireDeliveryFile(request)
-    const { confirmationToken } = request.body as { confirmationToken: string }
+    const body = request.body as Record<string, unknown> | undefined
+    const confirmationToken = body?.confirmationToken
+    if (!body || Object.keys(body).length !== 1 || typeof confirmationToken !== 'string' || confirmationToken.length === 0 || confirmationToken.length > 128) {
+      throw new AppError(E.ORDER_CONFLICT, 409)
+    }
     orderGalleryService.confirmDeliverableDownload(orderId, fileId, request.ip, confirmationToken)
     return { locked: true }
   })
