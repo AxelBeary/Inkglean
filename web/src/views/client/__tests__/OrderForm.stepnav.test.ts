@@ -266,6 +266,174 @@ describe('OrderForm 步骤导航——画风模型步骤链回归（SPEC-PRICE-2
     })
   })
 
+  // ─── B09/B12-FE-03/B26：尺寸缺省或仅展示时的「跳过」出口，吸底栏须与卡内出口同流转 ───
+  // 口径锚点：SizePickStep.vue 的 hasAvailable —— display_status 为空或 'available' 才可约，
+  // 无一条可约时卡内出「跳过尺寸，继续」；窄屏该按钮被 .step-nav 主按钮隐藏规则吃掉，
+  // 吸底栏 CTA 成了唯一出口，故 CTA 必须在本状态下沿用同一阶段流转（sizeStep → addonStep）。
+  describe('尺寸缺省/仅展示：跳过出口与吸底栏 CTA 同流转（B09/B12-FE-03/B26）', () => {
+    /** 夹具：画风仅剩展示档尺寸（可见不可约，对齐 SizePickStep 口径） */
+    const STYLE_SHOWCASE_ONLY = {
+      id: 11, name: '厚涂', description: null as string | null, cover_image: null as string | null, sort_order: 1,
+      sizes: [{
+        id: 111, name: '头像', base_price: 80, sort_order: 1,
+        display_status: 'showcase' as string | null, addons: [] as never[]
+      }]
+    }
+    /** 夹具：画风一条尺寸都没有（尺寸缺省） */
+    const STYLE_WITHOUT_SIZES = {
+      id: 11, name: '厚涂', description: null as string | null, cover_image: null as string | null, sort_order: 1,
+      sizes: [] as never[]
+    }
+
+    /** 挂载后替换当前画风的尺寸集合（id 保持 11，单画风自动选中不变） */
+    async function mountWithStyle(mode: ComposableMode, style: typeof STYLE_SHOWCASE_ONLY | typeof STYLE_WITHOUT_SIZES) {
+      const wrapper = await mountForm(mode)
+      h.current!.styles.value = [style]
+      await nextTick()
+      return wrapper
+    }
+
+    /** 多画风：选中唯一画风并落到选尺寸步 */
+    async function gotoSizeStepMulti(wrapper: ReturnType<typeof mount>) {
+      const vm = wrapper.vm as unknown as OrderFormVM
+      h.current!.selectedStyleId.value = 11
+      vm.step = 2
+      await nextTick()
+      expect(activeTitle(wrapper)).toBe('orderForm.sizeStepTitle')
+    }
+
+    /** 点击窄屏吸底栏主按钮（元素常驻 DOM，窄屏可见性由媒体查询控制，故此处验处理器流转） */
+    async function clickMobileCta(wrapper: ReturnType<typeof mount>) {
+      const btn = wrapper.find('.mobile-cta-btn')
+      expect(btn.exists(), '吸底栏主按钮未渲染').toBe(true)
+      await btn.trigger('click')
+      await nextTick()
+    }
+
+    describe('单画风（选尺寸即第 1 步，跳过 → 第 2 步增项）', () => {
+      it('尺寸缺省：卡内提示 + 「跳过尺寸，继续」可见且可用，点击进入增项步', async () => {
+        const wrapper = await mountWithStyle('single', STYLE_WITHOUT_SIZES)
+        const vm = wrapper.vm as unknown as OrderFormVM
+        expect(activePanel(wrapper)!.find('.no-size-hint').exists()).toBe(true)
+        await clickNav(wrapper, 'orderForm.noSizeContinue')
+        expect(vm.step).toBe(2)
+        expect(activeTitle(wrapper)).toBe('orderForm.addonStepTitle')
+      })
+
+      it('尺寸缺省：吸底栏 CTA 与卡内出口同流转 → 进入增项步（不得卡在尺寸步）', async () => {
+        const wrapper = await mountWithStyle('single', STYLE_WITHOUT_SIZES)
+        const vm = wrapper.vm as unknown as OrderFormVM
+        await clickMobileCta(wrapper)
+        expect(vm.step).toBe(2)
+        expect(activeTitle(wrapper)).toBe('orderForm.addonStepTitle')
+      })
+
+      it('仅展示尺寸：卡内「跳过尺寸，继续」进入增项步，且不产生选中尺寸', async () => {
+        const wrapper = await mountWithStyle('single', STYLE_SHOWCASE_ONLY)
+        const vm = wrapper.vm as unknown as OrderFormVM
+        expect(activePanel(wrapper)!.find('.no-size-hint').exists()).toBe(true)
+        await clickNav(wrapper, 'orderForm.noSizeContinue')
+        expect(vm.step).toBe(2)
+        expect(h.current!.selectedSizeId.value).toBe(null)
+      })
+
+      it('仅展示尺寸：吸底栏 CTA 与卡内出口同流转 → 进入增项步（不得卡在尺寸步）', async () => {
+        const wrapper = await mountWithStyle('single', STYLE_SHOWCASE_ONLY)
+        const vm = wrapper.vm as unknown as OrderFormVM
+        await clickMobileCta(wrapper)
+        expect(vm.step).toBe(2)
+        expect(activeTitle(wrapper)).toBe('orderForm.addonStepTitle')
+      })
+    })
+
+    describe('多画风（选尺寸是第 2 步，跳过 → 第 3 步增项）', () => {
+      it('尺寸缺省：卡内「跳过尺寸，继续」进入增项步（第 3 步）', async () => {
+        const wrapper = await mountWithStyle('multi', STYLE_WITHOUT_SIZES)
+        const vm = wrapper.vm as unknown as OrderFormVM
+        await gotoSizeStepMulti(wrapper)
+        await clickNav(wrapper, 'orderForm.noSizeContinue')
+        expect(vm.step).toBe(3)
+        expect(activeTitle(wrapper)).toBe('orderForm.addonStepTitle')
+      })
+
+      it('尺寸缺省：吸底栏 CTA 与卡内出口同流转 → 进入增项步（第 3 步）', async () => {
+        const wrapper = await mountWithStyle('multi', STYLE_WITHOUT_SIZES)
+        const vm = wrapper.vm as unknown as OrderFormVM
+        await gotoSizeStepMulti(wrapper)
+        await clickMobileCta(wrapper)
+        expect(vm.step).toBe(3)
+        expect(activeTitle(wrapper)).toBe('orderForm.addonStepTitle')
+      })
+
+      it('仅展示尺寸：吸底栏 CTA 与卡内出口同流转 → 进入增项步（第 3 步）', async () => {
+        const wrapper = await mountWithStyle('multi', STYLE_SHOWCASE_ONLY)
+        const vm = wrapper.vm as unknown as OrderFormVM
+        await gotoSizeStepMulti(wrapper)
+        await clickMobileCta(wrapper)
+        expect(vm.step).toBe(3)
+        expect(activeTitle(wrapper)).toBe('orderForm.addonStepTitle')
+      })
+    })
+
+    describe('吸底栏主按钮文案：与卡内出口同语义（复用既有 noSizeContinue，不新增文案）', () => {
+      it('单画风无尺寸 → 吸底栏写「跳过尺寸，继续」而非「下一步」', async () => {
+        const wrapper = await mountWithStyle('single', STYLE_WITHOUT_SIZES)
+        expect(wrapper.find('.mobile-cta-btn').text()).toBe('orderForm.noSizeContinue')
+      })
+
+      it('单画风仅展示尺寸 → 吸底栏同样写「跳过尺寸，继续」', async () => {
+        const wrapper = await mountWithStyle('single', STYLE_SHOWCASE_ONLY)
+        expect(wrapper.find('.mobile-cta-btn').text()).toBe('orderForm.noSizeContinue')
+      })
+
+      it('单画风有可约尺寸 → 吸底栏维持「下一步」（不把可约场景误标成跳过）', async () => {
+        const wrapper = await mountForm('single')
+        expect(wrapper.find('.mobile-cta-btn').text()).toBe('orderForm.nextStep')
+      })
+
+      it('多画风选画风步 → 吸底栏维持「下一步」（文案只随环节变化，不越权提前提示跳过）', async () => {
+        const wrapper = await mountForm('multi')
+        expect(wrapper.find('.mobile-cta-btn').text()).toBe('orderForm.nextStep')
+      })
+    })
+
+    describe('有可约尺寸但尚未选中：保持选中校验（不得因放开跳过关口而放行）', () => {
+      it('单画风：无跳过出口，吸底栏 CTA 拦下并提示 selectSizeFirst', async () => {
+        const { ElMessage } = await import('element-plus')
+        const warnSpy = vi.spyOn(ElMessage, 'warning')
+        try {
+          const wrapper = await mountForm('single')
+          const vm = wrapper.vm as unknown as OrderFormVM
+          expect(activePanel(wrapper)!.find('.no-size-hint').exists()).toBe(false)
+          await clickMobileCta(wrapper)
+          expect(vm.step).toBe(1)
+          expect(activeTitle(wrapper)).toBe('orderForm.sizeStepTitle')
+          expect(warnSpy).toHaveBeenCalledWith('orderForm.selectSizeFirst')
+        } finally {
+          warnSpy.mockRestore()
+        }
+      })
+
+      it('多画风：无跳过出口，吸底栏 CTA 拦下并提示 selectSizeFirst', async () => {
+        const { ElMessage } = await import('element-plus')
+        const warnSpy = vi.spyOn(ElMessage, 'warning')
+        try {
+          const wrapper = await mountForm('multi')
+          const vm = wrapper.vm as unknown as OrderFormVM
+          h.current!.selectedStyleId.value = 11
+          vm.step = 2
+          await nextTick()
+          expect(activePanel(wrapper)!.find('.no-size-hint').exists()).toBe(false)
+          await clickMobileCta(wrapper)
+          expect(vm.step).toBe(2)
+          expect(warnSpy).toHaveBeenCalledWith('orderForm.selectSizeFirst')
+        } finally {
+          warnSpy.mockRestore()
+        }
+      })
+    })
+  })
+
   // issue #50-7：服务端 POST /api/orders 对 status !== 'open' 一律 400 ARTIST_NOT_OPEN，
   // 页面须在填表前出空态（判据只看服务端回显 status，不看 effectiveStatus）
   describe('接单状态门禁（#50-7）', () => {

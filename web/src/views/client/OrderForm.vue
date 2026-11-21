@@ -149,7 +149,7 @@
             <span class="mobile-cta-amt">{{ priceStatusText || '—' }}</span>
           </div>
           <el-button type="primary" class="mobile-cta-btn" @click="onMobileNext">
-            {{ step === contactStep ? $t('orderForm.submit') : $t('orderForm.nextStep') }}
+            {{ mobileCtaLabel }}
           </el-button>
         </div>
       </template>
@@ -274,6 +274,7 @@ import AddonStep from './order-form/AddonStep.vue'
 import DetailStep from './order-form/DetailStep.vue'
 import ContactStep from './order-form/ContactStep.vue'
 import OrderSummaryCard from './order-form/OrderSummaryCard.vue'
+import { hasAvailableSize } from './order-form/sizeAvailability'
 import { useOrderForm } from '../../composables/useOrderForm'
 import type { StyleAddon } from './order-form/types'
 import { usePalette } from '../../composables/usePalette'
@@ -367,29 +368,33 @@ function goNextFromDetail() {
   step.value = contactStep.value
 }
 
-// ─── P0-1: 移动端底部操作条跳转（复用既有流转逻辑，不重复造） ───
+// 卡内与吸底按钮共用同一套可约尺寸判定。
+const hasAvailableSizeInStyle = computed(() => hasAvailableSize(selectedStyle.value?.sizes))
+
 function onMobileNext() {
   if (step.value === contactStep.value) return openReceipt()
   if (step.value === detailStep.value) return goNextFromDetail()
-  // 步骤 1 校验：多画风选画风 / 单画风选尺寸——与卡内「下一步」disabled 逻辑一致
-  if (step.value === 1) {
-    if (isMultiStyle.value) {
-      // 多画风：step1 = 选画风 → 校验后进 sizeStep
-      if (!selectedStyle.value) { ElMessage.warning(t('orderForm.selectSizeFirst')); return }
-      step.value = sizeStep.value; return
-    }
-    // 单画风：step1 = 选尺寸 → 校验后进 addonStep
-    if (!selectedSize.value) { ElMessage.warning(t('orderForm.selectSizeFirst')); return }
-    step.value = addonStep.value; return
+  if (step.value === 1 && isMultiStyle.value) {
+    if (!selectedStyle.value) { ElMessage.warning(t('orderForm.selectSizeFirst')); return }
+    step.value = sizeStep.value
+    return
   }
   if (step.value === sizeStep.value) {
-    // a2 猎杀修复：移动端底部 CTA 此前无 selectedSize 校验直跳增项步（卡内按钮有 :disabled 但 CTA 绕过），
-    // 可一路提交 styleSizeId=null 致后端拒单/异常订单；补校验对齐卡内按钮语义
-    if (!selectedSize.value) { ElMessage.warning(t('orderForm.selectSizeFirst')); return }
-    step.value = addonStep.value; return
+    if (!selectedStyle.value || (hasAvailableSizeInStyle.value && !selectedSize.value)) {
+      ElMessage.warning(t('orderForm.selectSizeFirst'))
+      return
+    }
+    step.value = addonStep.value
+    return
   }
-  if (step.value === addonStep.value) { step.value = detailStep.value }
+  if (step.value === addonStep.value) step.value = detailStep.value
 }
+
+const mobileCtaLabel = computed(() => {
+  if (step.value === contactStep.value) return t('orderForm.submit')
+  if (step.value === sizeStep.value && selectedStyle.value && !hasAvailableSizeInStyle.value) return t('orderForm.noSizeContinue')
+  return t('orderForm.nextStep')
+})
 
 // ─── R58-2: 分步引导（v0.32: 动态步骤号） ───
 const step = ref(1)

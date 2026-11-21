@@ -45,6 +45,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatYuanValue } from '../../../utils/money'
+import { hasAvailableSize } from './sizeAvailability'
 import type { StyleSize } from './types'
 
 const props = defineProps<{
@@ -54,11 +55,7 @@ const props = defineProps<{
   isMultiStyle: boolean
 }>()
 
-// 与服务端 style-pricing.service.ts 同口径：display_status 为空或 available 才可算价，
-// showcase/closed 一律拒。全部不可约时走空态出口，不留死锁。
-const hasAvailable = computed(() =>
-  props.sizes.some(sz => !sz.display_status || sz.display_status === 'available')
-)
+const hasAvailable = computed(() => hasAvailableSize(props.sizes))
 
 const emit = defineEmits<{
   (e: 'select', id: number): void
