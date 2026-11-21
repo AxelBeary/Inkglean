@@ -105,7 +105,18 @@ function mountPage() {
   })
 }
 
+function saveSecondOrder() {
+  localStorage.setItem('huiyue_track_links', JSON.stringify([
+    { orderNo: 'ALICE-002', token: 'tok-2', savedAt: Date.now(), invalid: false }
+  ]))
+}
+
+function selectSavedOrder(wrapper: ReturnType<typeof mountPage>, orderNo: string) {
+  return wrapper.findAll('button.my-order-item').find(button => button.get('.my-order-no').text() === orderNo)!.trigger('click')
+}
+
 beforeEach(() => {
+  localStorage.removeItem('huiyue_track_links')
   h.track.mockReset()
   h.replace.mockReset()
   h.download.mockReset()
@@ -158,6 +169,97 @@ describe('TrackOrder 客户侧过程稿（迁移 v81）', () => {
       'delivery.deliveryPending', 'delivery.deliveryPending'
     ])
     expect(wrapper.findAll('.file-item button')).toHaveLength(0)
+    wrapper.unmount()
+  })
+
+  it('切单查询失败时保留当前订单的确认令牌及下载凭证', async () => {
+    saveSecondOrder()
+    h.track.mockResolvedValueOnce(buildTrack({ deliverables: [{ id: 7, fileName: 'final.zip' }] }))
+      .mockRejectedValueOnce(new Error('fixture network failure'))
+    h.download.mockResolvedValueOnce({ status: 'confirm-failed', confirmationToken: 'attempt-7' })
+    h.confirm.mockResolvedValueOnce({ status: 'confirmed' })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.get('.file-item button').trigger('click')
+    await flushPromises()
+    await selectSavedOrder(wrapper, 'ALICE-002')
+    await flushPromises()
+
+    expect(h.track).toHaveBeenLastCalledWith('ALICE-002', 'tok-2')
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+    expect(wrapper.get('.file-item button').text()).toBe('delivery.retryConfirm')
+    await wrapper.get('.file-item button').trigger('click')
+    await flushPromises()
+    expect(h.confirm).toHaveBeenCalledWith('ALICE-001', 7, 'tok-1', 'attempt-7', expect.any(Function))
+    wrapper.unmount()
+  })
+
+  it('切单成功后，忽略旧订单迟到的下载确认结果', async () => {
+    saveSecondOrder()
+    h.track.mockResolvedValueOnce(buildTrack({ deliverables: [{ id: 7, fileName: 'first.zip' }] }))
+      .mockResolvedValueOnce(buildTrack({ orderNo: 'ALICE-002', deliverables: [{ id: 7, fileName: 'second.zip' }] }))
+    let finishOld!: (result: unknown) => void
+    h.download.mockReturnValueOnce(new Promise(resolve => { finishOld = resolve }))
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.get('.file-item button').trigger('click')
+    await selectSavedOrder(wrapper, 'ALICE-002')
+    await flushPromises()
+    finishOld({ status: 'confirm-failed', confirmationToken: 'old-attempt' })
+    await flushPromises()
+
+    expect(wrapper.get('.result-header').text()).toContain('ALICE-002')
+    expect(wrapper.get('.file-item button').text()).toBe('common.download')
+    h.download.mockResolvedValueOnce({ status: 'confirmed' })
+    await wrapper.get('.file-item button').trigger('click')
+    await flushPromises()
+    expect(h.download).toHaveBeenLastCalledWith('ALICE-002', 7, 'tok-2', 'second.zip', expect.any(Function))
+    wrapper.unmount()
+  })
+
+  it('下载进行中重查同一订单时保留原确认结果和重试入口', async () => {
+    h.track.mockResolvedValue(buildTrack({ deliverables: [{ id: 7, fileName: 'final.zip' }] }))
+    let finishDownload!: (result: unknown) => void
+    h.download.mockReturnValueOnce(new Promise(resolve => { finishDownload = resolve }))
+    h.confirm.mockResolvedValueOnce({ status: 'confirmed' })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.get('.file-item button').trigger('click')
+    await selectSavedOrder(wrapper, 'ALICE-001')
+    await flushPromises()
+    expect(h.download).toHaveBeenCalledTimes(1)
+
+    finishDownload({ status: 'confirm-failed', confirmationToken: 'attempt-7' })
+    await flushPromises()
+    expect(wrapper.get('.file-item button').text()).toBe('delivery.retryConfirm')
+    await wrapper.get('.file-item button').trigger('click')
+    await flushPromises()
+    expect(h.confirm).toHaveBeenCalledWith('ALICE-001', 7, 'tok-1', 'attempt-7', expect.any(Function))
+    expect(h.download).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('补签失效后成功重查同一订单，恢复可下载状态', async () => {
+    h.track.mockResolvedValue(buildTrack({ deliverables: [{ id: 7, fileName: 'final.zip' }] }))
+    h.download.mockRejectedValueOnce({ code: 'ORDER_CONFLICT', status: 409 })
+      .mockResolvedValueOnce({ status: 'confirmed' })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.get('.file-item button').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.file-item button').exists()).toBe(false)
+
+    await selectSavedOrder(wrapper, 'ALICE-001')
+    await flushPromises()
+    expect(wrapper.get('.file-item button').text()).toBe('common.download')
+    await wrapper.get('.file-item button').trigger('click')
+    await flushPromises()
+    expect(h.track).toHaveBeenCalledTimes(2)
+    expect(h.download).toHaveBeenCalledTimes(2)
     wrapper.unmount()
   })
 

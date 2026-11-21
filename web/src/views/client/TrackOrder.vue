@@ -207,7 +207,7 @@
               <p class="pickup-pending-hint">{{ $t('delivery.deliveryPendingHint') }}</p>
             </template>
             <!-- 260830 审计 H-4：下载统一走一次性下载链路（服务端不再下发列表直链） -->
-            <el-button v-else-if="pendingConfirmId === d.id" size="small" type="warning" :loading="downloadingId === d.id" @click="retryDeliverableConfirm(d)">{{ $t('delivery.retryConfirm') }}</el-button>
+            <el-button v-else-if="pendingConfirmationTokens.has(d.id)" size="small" type="warning" :loading="downloadingId === d.id" @click="retryDeliverableConfirm(d.id)">{{ $t('delivery.retryConfirm') }}</el-button>
             <el-button v-else size="small" type="primary" :loading="downloadingId === d.id" @click="downloadDeliverable(d.id, d.fileName)">{{ $t('common.download') }}</el-button>
           </div>
         </div>
@@ -255,7 +255,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
-import { orderApi, type ApiError } from '../../api/index'
+import { orderApi } from '../../api/index'
 import type { ArtistPublicProfile, VisibleArtistProfile, OrderTrackResult } from '../../api/types'
 import { fetchArtistPublicProfile } from '../../composables/useArtistPublicProfile'
 import { ElMessage } from 'element-plus'
@@ -263,7 +263,7 @@ import { useI18n } from 'vue-i18n'
 import { formatDateTime } from '../../utils/datetime'
 import { formatCents } from '../../utils/money'
 import { ORDER_STATUS_TYPE } from '../../constants/order'
-import { confirmOneTimeDownload, downloadOneTimeFile } from '../../composables/useOneTimeDownload'
+import { useTrackDownloads } from '../../composables/useTrackDownloads'
 import { useTrackSignatureRefresh } from '../../composables/useTrackSignatureRefresh'
 import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
 import OrderTimeline from '../../components/shared/OrderTimeline.vue'
@@ -402,66 +402,10 @@ const trackNextDueCents = computed(() => {
   return 0 // 全部覆盖
 })
 
-// 260830 审计 H-4：追踪页下载收敛到一次性下载链路——start 签发 → fetch 全量接收 → confirm 锁定，
-// 与交付页（DeliveryPage）同口径；旧式「列表直链直接下载」已下架（可转发，架空一次性语义）。
-const downloadingId = ref<number | null>(null)
-const pendingConfirmId = ref<number | null>(null)
-const pendingConfirmToken = ref<string | null>(null)
-const pendingAdminDownloadIds = ref(new Set<number>())
-
-async function downloadDeliverable(id: number, fileName: string | null | undefined) {
-  if (downloadingId.value !== null || !order.value) return
-  downloadingId.value = id
-  try {
-    const result = await downloadOneTimeFile(order.value.orderNo, id, token.value, fileName, () => {})
-    if (result.status === 'confirm-expired') ElMessage.warning(t('delivery.confirmExpired'))
-    else if (result.status === 'confirm-failed') {
-      pendingConfirmId.value = id
-      pendingConfirmToken.value = result.confirmationToken
-      ElMessage.warning(t('delivery.confirmFailed'))
-    }
-  } catch (err) {
-    const apiErr = err as ApiError
-    if (apiErr?.code === 'DOWNLOAD_LOCKED') {
-      pendingConfirmId.value = null
-      pendingConfirmToken.value = null
-      ElMessage.warning(t('delivery.downloadLockedMsg'))
-    } else if (apiErr?.code === 'ORDER_CONFLICT' && apiErr.status === 409) {
-      pendingAdminDownloadIds.value = new Set(pendingAdminDownloadIds.value).add(id)
-    } else if (apiErr?.code === 'DOWNLOAD_COOLDOWN') {
-      // issue #81 A 路：423 冷却（冷却 ≠ 锁定）——只提示剩余秒数，不进入重试确认态；
-      // 秒数取自服务端 AppError.detail.retryAfterMs（order-gallery.service.ts:487），向上取整，缺失按 0 兜底
-      const retryMs = Number(apiErr.detail?.retryAfterMs)
-      const seconds = Number.isFinite(retryMs) && retryMs > 0 ? Math.ceil(retryMs / 1000) : 0
-      ElMessage.warning(t('delivery.downloadCooldown', { n: seconds }))
-    } else {
-      ElMessage.error(t('delivery.downloadFailed'))
-    }
-  } finally {
-    downloadingId.value = null
-  }
-}
-
-async function retryDeliverableConfirm(d: { id: number }) {
-  if (downloadingId.value !== null || !order.value || !pendingConfirmToken.value) return
-  downloadingId.value = d.id
-  try {
-    const result = await confirmOneTimeDownload(order.value.orderNo, d.id, token.value, pendingConfirmToken.value, () => {})
-    if (result.status === 'confirmed') {
-      pendingConfirmId.value = null
-      pendingConfirmToken.value = null
-      ElMessage.success(t('delivery.confirmSuccess'))
-    } else if (result.status === 'confirm-expired') {
-      pendingConfirmId.value = pendingConfirmToken.value = null
-      ElMessage.warning(t('delivery.confirmExpired'))
-    } else {
-      pendingConfirmToken.value = result.confirmationToken
-      ElMessage.warning(t('delivery.confirmFailed'))
-    }
-  } finally {
-    downloadingId.value = null
-  }
-}
+const {
+  downloadingId, pendingConfirmationTokens, pendingAdminDownloadIds,
+  showDownloadOrder, downloadDeliverable, retryDeliverableConfirm
+} = useTrackDownloads()
 
 // ─── F1 围剿：令牌链接解析 / 查询 / 本地清单 ───
 
@@ -519,7 +463,11 @@ function saveLink(orderNoToSave: string, tokenToSave: string) {
 /** 核心查询：凭订单号 + 令牌；成功自动入本地清单 */
 // K1-1：查询竞态守卫（同款 seq 模式，对齐 OrderDetail.loadOrderSeq/useOrderForm.doStyleCalc）
 let searchSeq = 0
-function invalidateSearchForNavigation() { searchSeq++; searching.value = false; searchError.value = false }
+function invalidateSearchForNavigation() {
+  searchSeq++
+  searching.value = false
+  searchError.value = false
+}
 onBeforeRouteLeave(invalidateSearchForNavigation)
 onBeforeRouteUpdate(invalidateSearchForNavigation)
 async function search(no = orderNo.value, tok = token.value): Promise<'ok' | 'invalid' | 'error' | null> {
@@ -527,7 +475,6 @@ async function search(no = orderNo.value, tok = token.value): Promise<'ok' | 'in
     ElMessage.warning(t('track.enterLink'))
     return 'error'
   }
-  if (order.value?.orderNo !== no.trim()) { pendingAdminDownloadIds.value = new Set(); pendingConfirmId.value = null; pendingConfirmToken.value = null }
   const mySeq = ++searchSeq
   searching.value = true
   searchError.value = false
@@ -548,6 +495,7 @@ async function search(no = orderNo.value, tok = token.value): Promise<'ok' | 'in
       currentStageId: data.currentStageId ?? undefined,
       references: data.references as TrackReference[]
     }
+    showDownloadOrder({ orderNo: data.orderNo, token: tok.trim() })
     orderNo.value = no.trim()
     token.value = tok.trim()
     saveLink(no.trim(), tok.trim())
@@ -602,6 +550,8 @@ function clearAllSavedLinks() {
 }
 
 function resetSearch() {
+  invalidateSearchForNavigation()
+  showDownloadOrder()
   order.value = null
   searchError.value = false
   linkInput.value = ''
