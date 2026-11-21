@@ -432,6 +432,10 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
 
   // 安全：签名校验 — references/ 和 deliverables/ 需要有效签名才能访问
   // images/ 保持公开（画师作品集/头像/档位示例图）
+  // 261122（B13 BE-01 / B32 BE-02 / B33 BE-03 同题）：一次性交付凭证只在客户实际读取（GET）
+  // 时消费。HEAD 是只读元数据请求（浏览器/下载器探活、画师端取头部），照样走下面这套
+  // 验签 + 载荷对账 + 锁定守卫拿「有效且未锁定」的结论，但不改账本——否则一次探活
+  // 就烧掉客户唯一一次下载机会。锁定与有效性判断仍全部沿用现有守卫，此处只决定是否消费。
   app.addHook('onRequest', async (request, reply) => {
     if (!request.url.startsWith('/uploads/')) return
     if (isPublicUploadPath(request.url)) return
@@ -478,6 +482,9 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
         if (row.download_locked === 1 || row.download_nonce !== verified.claims.nonce) {
           return reply.code(403).send({ error: '文件链接无效或已过期' })
         }
+        // 261122：到此已确认凭证有效且未锁定。只有 GET 有实际读取语义，才原子消费；
+        // HEAD 等只读方法返回元数据，凭证原样留给随后的 GET。
+        if (request.method !== 'GET') return
         // SRV-10: 原子消费 nonce——UPDATE WHERE 同时校验 nonce 值，
         // changes=0 表示已被并发请求抢先消费（同一签名 URL 第二次重放）→ 403。
         // 消费后 nonce 置 NULL，TTL 内同一 URL 不可再用；

@@ -7,6 +7,8 @@
 // ============================================
 import { describe, it, expect, beforeEach } from 'vitest'
 import type { FastifyInstance } from 'fastify'
+import http from 'http'
+import type { AddressInfo } from 'net'
 import { mkdirSync, writeFileSync } from 'fs'
 import { join, resolve } from 'path'
 import { db, cleanDb, seedArtist, seedOrder, type ArtistRow, type SeededOrder } from './setup.js'
@@ -15,6 +17,19 @@ import * as orderGalleryService from '../src/features/order/order-gallery.servic
 import { buildApp } from '../src/app.js'
 
 const FILE_BODY = 'one-time-download-payload-260830'
+
+/** 以真 socket 发请求（HEAD 在 @fastify/static 里走路由层分支，inject 语义不足以定案） */
+function rawRequest(port: number, path: string, method: string): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const req = http.request({ host: '127.0.0.1', port, path, method }, (res) => {
+      let body = ''
+      res.on('data', (chunk: Buffer) => { body += chunk.toString() })
+      res.on('end', () => resolve({ status: res.statusCode ?? 0, body }))
+    })
+    req.on('error', reject)
+    req.end()
+  })
+}
 
 describe('一次性下载访问层对账（260830 审计 H-4）', () => {
   let app: FastifyInstance
@@ -149,5 +164,56 @@ describe('一次性下载访问层对账（260830 审计 H-4）', () => {
     orderGalleryService.confirmDeliverableDownload(order.id, fileId, '203.0.113.9')
     const after = await app.inject({ method: 'GET', url: `/uploads/${deliverablePath()}?sig=${previewSig}` })
     expect(after.statusCode).toBe(200)
+  })
+
+  // ── 261122（B13 BE-01 / B32 BE-02 / B33 BE-03 同题）──
+  // 可用性契约：一次性交付凭证只在客户「实际读取」（GET）时原子消费；
+  // HEAD 是只读元数据请求（浏览器/下载器探活、画师端取头部），
+  // 走同一套守卫（验签 + 载荷对账 + 锁定），但不得改变账本状态。
+  // 拒绝面（锁定/nonce 不符/旧式无载荷）已由 TC-DLA-02/03/05 覆盖，此处不重复。
+  it('TC-DLA-09: HEAD 只读查询不消费凭证 — 探活 200 后同一链接 GET 仍完成一次性下载，消费后重复读取仍 403', async () => {
+    const { deliverableId, nonce } = orderGalleryService.startDeliverableDownload(order.id, fileId)
+    const url = `/uploads/${deliverablePath()}?sig=${signFilePath(deliverablePath(), { deliverableId, nonce })}`
+
+    // HEAD 探活：返回元数据，凭证原样保留
+    const head = await app.inject({ method: 'HEAD', url })
+    expect(head.statusCode).toBe(200)
+    expect(row().download_nonce).toBe(nonce)
+
+    // 探活之后客户照常下载：同一链接 GET 仍 200 且内容完整，此刻才消费
+    const get = await app.inject({ method: 'GET', url })
+    expect(get.statusCode).toBe(200)
+    expect(get.body).toBe(FILE_BODY)
+    expect(row().download_nonce).toBeNull()
+
+    // 一次性语义不变：消费后重复读取仍 403（GET/HEAD 皆然）
+    expect((await app.inject({ method: 'GET', url })).statusCode).toBe(403)
+    expect((await app.inject({ method: 'HEAD', url })).statusCode).toBe(403)
+  })
+
+  // 真 socket 版：@fastify/static 的 HEAD 走路由层分支，浏览器/下载器探活正是这条路径，
+  // 故按 U016 同款用真 HTTP 再钉一遍（inject 语义不足以定案）。
+  it('TC-DLA-10: 真 HTTP HEAD 探活不消费凭证 — 随后真 HTTP GET 完成下载', async () => {
+    const { deliverableId, nonce } = orderGalleryService.startDeliverableDownload(order.id, fileId)
+    const path = `/uploads/${deliverablePath()}?sig=${signFilePath(deliverablePath(), { deliverableId, nonce })}`
+
+    await app.listen({ port: 0, host: '127.0.0.1' })
+    const port = (app.server.address() as AddressInfo).port
+    try {
+      const head = await rawRequest(port, path, 'HEAD')
+      expect(head.status).toBe(200)
+      expect(head.body).toBe('')
+      expect(row().download_nonce).toBe(nonce)
+
+      const get = await rawRequest(port, path, 'GET')
+      expect(get.status).toBe(200)
+      expect(get.body).toBe(FILE_BODY)
+      expect(row().download_nonce).toBeNull()
+
+      // 一次性语义不变：消费后重复读取仍 403
+      expect((await rawRequest(port, path, 'GET')).status).toBe(403)
+    } finally {
+      await app.close()
+    }
   })
 })
