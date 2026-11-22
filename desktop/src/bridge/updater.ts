@@ -19,6 +19,7 @@ export async function checkAndDownloadUpdate(): Promise<'downloaded' | 'up-to-da
   const update = await check()
   if (!update) return 'up-to-date'
   await update.download() // 验签失败在此抛错（拒装口径），不进入安装环节
+  // F0006: 重复检查时旧实例由新实例取代——install 端已改为「取走即清空」，不会残留或重复安装
   pending = update
   return 'downloaded'
 }
@@ -26,5 +27,8 @@ export async function checkAndDownloadUpdate(): Promise<'downloaded' | 'up-to-da
 /** 重启生效（退出并安装）；仅在用户同意后调用。无待装更新时静默返回。 */
 export async function installPendingUpdate(): Promise<void> {
   if (!pending) return
-  await pending.install()
+  const target = pending
+  // F0006: 先把模块级 pending 取走并清空，再 install——杜绝二次调用重复安装同一实例
+  pending = null
+  await target.install()
 }

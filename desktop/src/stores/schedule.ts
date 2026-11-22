@@ -103,12 +103,19 @@ export const useScheduleStore = defineStore('desktop-schedule', () => {
   /** 卷尾「排期 · 近 7 天」摘要签（第三参＝名额语义是否适用，本地空日走素条不涂藤黄） */
   const stripDays = computed<StripDay[]>(() => buildSchedStrip(orders.value, canAccept.value, cloud.value))
 
+  /** F0037: 在途 load 期间又来 force 重拉（如写后重拉）不能直接吞掉——排队，当前这趟完成后补拉一次 */
+  let pendingForceReload = false
+
   /** 取数。force=false 且同模式已加载过 → 立即返回（页面来回切不重复拉）。
    *  首行必须作废在途写（照网页端 M-8 修复口径：load 也递增写号）——重拉带回来的才是服务端真相，
    *  比它早发的写响应一律不得再回写本地（否则旧响应会把新排序/新日期盖回去）。 */
   async function load(force = false): Promise<void> {
     writeSeq++
-    if (loading.value) return
+    // F0037: 在途 load 不能吞掉 force 重拉——记下待补拉，等当前这趟 finally 里再跑
+    if (loading.value) {
+      if (force) pendingForceReload = true
+      return
+    }
     if (!cloud.value) {
       // 本地模式：orders 由 computed 实时派生，这里只保证账本已读上来；一个云端接口都不调
       // force（标题栏重载 / 失败态重试）时即便账本已读过也再读一次，否则「重试」是死按钮（纪律4）
@@ -135,6 +142,11 @@ export const useScheduleStore = defineStore('desktop-schedule', () => {
       if (p.status === 'fulfilled') profile.value = p.value
     } finally {
       loading.value = false
+      // F0037: 补拉排队中的 force 请求——写后长期停在旧排期的根因就在这里
+      if (pendingForceReload) {
+        pendingForceReload = false
+        void load(true)
+      }
     }
   }
 

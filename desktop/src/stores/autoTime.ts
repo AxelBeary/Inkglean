@@ -302,11 +302,6 @@ export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
         idle: bucket === 'idle' ? secs : 0,
         other: bucket === 'fish' || bucket === 'neutral' ? secs : 0
       }
-      today.value = {
-        paint: today.value.paint + add.paint,
-        idle: today.value.idle + add.idle,
-        other: today.value.other + add.other
-      }
       const db = await openLocalDb()
       await db.execute(
         `INSERT INTO local_time_log (date, paint_secs, idle_secs, other_secs, updated_at)
@@ -316,6 +311,12 @@ export const useAutoTimeStore = defineStore('desktop-auto-time', () => {
            other_secs = other_secs + $4, updated_at = $5`,
         [key, add.paint, add.idle, add.other, new Date(n).toISOString()]
       )
+      // F0032: 写库成功后才累加内存——写失败时内存保持原值，不再出现「内存已加、SQLite 没加」的会话内背离
+      today.value = {
+        paint: today.value.paint + add.paint,
+        idle: today.value.idle + add.idle,
+        other: today.value.other + add.other
+      }
       // 归单（波11）：在画票匹配到本地委托即累计到该单（跨软件不断档，匹配规则见 matchOrderForTitle）
       if (bucket === 'paint') {
         const ledger = useLocalLedgerStore()

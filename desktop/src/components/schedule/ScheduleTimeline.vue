@@ -167,6 +167,9 @@ function beginDrag(e: PointerEvent, row: TimelineRow, edge: DragEdge): void {
   window.addEventListener('pointermove', onDragMove)
   window.addEventListener('pointerup', onDragEnd)
   window.addEventListener('pointercancel', onDragCancel)
+  // F0018: 窗口失焦 / 页面切后台时收尾——这些场景不会送 pointerup，漏掉会让拖拽永久卡死
+  window.addEventListener('blur', onDragCancel)
+  document.addEventListener('visibilitychange', onVisibilityChange)
   e.preventDefault() // 抑制拖拽时的文本选中（条内有文字）
 }
 
@@ -200,11 +203,19 @@ function onDragCancel(): void {
   endDrag() // 取消（系统抢占/触摸打断）不是改期意图：静默弹回，一个请求都不发
 }
 
+/** F0018: 切后台不算改期意图，与 pointercancel 同款静默收尾 */
+function onVisibilityChange(): void {
+  if (document.hidden) onDragCancel()
+}
+
 function endDrag(): void {
   drag.value = null
   window.removeEventListener('pointermove', onDragMove)
   window.removeEventListener('pointerup', onDragEnd)
   window.removeEventListener('pointercancel', onDragCancel)
+  // F0018: 对称解绑，避免反复拖拽累积监听
+  window.removeEventListener('blur', onDragCancel)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
 }
 
 onBeforeUnmount(() => {

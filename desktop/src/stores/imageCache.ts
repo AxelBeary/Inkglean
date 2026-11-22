@@ -6,6 +6,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { openLocalDb } from '../bridge/db'
+import type { LocalDatabase } from '../bridge/db'
 import { cacheDir, deleteCacheFile, saveFile } from '../bridge/files'
 import { isDesktop } from '../bridge'
 
@@ -36,6 +37,27 @@ export const useImageCacheStore = defineStore('desktop-image-cache', () => {
   /** 并发去重：同 url 在途只拉一次 */
   const inflight = new Map<string, Promise<string | null>>()
 
+  /** F0035: 超限淘汰（文件+登记+内存镜像一起收口）。loadRegistry 与每次新落缓存后都调用，
+   *  杜绝长会话内只靠首次加载淘汰、缓存无限膨胀。返回被淘汰的 url 集供建镜像时排除。 */
+  async function evictOverflow(db: LocalDatabase): Promise<Set<string>> {
+    const rows = await db.select<{ url: string; file_path: string; fetched_at: string }[]>(
+      'SELECT url, file_path, fetched_at FROM local_img_cache ORDER BY fetched_at ASC'
+    )
+    const overflow = rows.length - MAX_CACHE_ENTRIES
+    const doomed = overflow > 0 ? rows.slice(0, overflow) : []
+    const doomedUrls = new Set(doomed.map(r => r.url))
+    for (const r of doomed) {
+      try { await deleteCacheFile(r.file_path) } catch { /* 文件早不在：幂等跳过 */ }
+      try { await db.execute('DELETE FROM local_img_cache WHERE url = $1', [r.url]) } catch { /* 登记删除失败：下次再试 */ }
+    }
+    if (doomedUrls.size > 0) {
+      const next = { ...registry.value }
+      for (const url of doomedUrls) delete next[url]
+      registry.value = next
+    }
+    return doomedUrls
+  }
+
   async function loadRegistry(): Promise<void> {
     if (!isDesktop() || loaded.value) return
     try {
@@ -44,14 +66,8 @@ export const useImageCacheStore = defineStore('desktop-image-cache', () => {
       const rows = await db.select<{ url: string; file_path: string; fetched_at: string }[]>(
         'SELECT url, file_path, fetched_at FROM local_img_cache ORDER BY fetched_at ASC'
       )
-      // 超限淘汰：只删最旧的超额部分（文件+登记），失败静默不阻塞读入
-      const overflow = rows.length - MAX_CACHE_ENTRIES
-      const doomed = overflow > 0 ? rows.slice(0, overflow) : []
-      const doomedUrls = new Set(doomed.map(r => r.url))
-      for (const r of doomed) {
-        try { await deleteCacheFile(r.file_path) } catch { /* 文件早不在：幂等跳过 */ }
-        try { await db.execute('DELETE FROM local_img_cache WHERE url = $1', [r.url]) } catch { /* 登记删除失败：下次再试 */ }
-      }
+      // F0035: 复用同一套淘汰逻辑（首次加载也走它）
+      const doomedUrls = await evictOverflow(db)
       const map: Record<string, string> = {}
       for (const r of rows) {
         if (doomedUrls.has(r.url)) continue
@@ -92,6 +108,8 @@ export const useImageCacheStore = defineStore('desktop-image-cache', () => {
           [url, filePath, new Date().toISOString()]
         )
         registry.value = { ...registry.value, [url]: filePath }
+        // F0035: 新条目落库后就淘汰最旧的超额项，长会话内缓存也不会无限膨胀
+        await evictOverflow(db)
         return convertFileSrc(filePath)
       } catch {
         return null // 网络/落盘任何环节失败：无图占位，不吵

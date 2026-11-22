@@ -87,7 +87,9 @@ function toggleEnabled(e: ModuleEntry) {
   const id = entryId(e)
   const cur = store.stateOf(e)
   if (cur === 'invalid') return // 失效态不可启用（待更新/移除）
-  store.setEnabled(id, cur !== 'ok' && cur !== 'grey')
+  // F0044: 按钮文案按 stateOf!=='ok' 显示"启用"，动作必须一致——灰牌(grey)点击也应是启用(清违规重来)，
+  // 旧写法 cur!=='grey' 让灰牌点了反而 setEnabled(false) 执行停用
+  store.setEnabled(id, cur !== 'ok')
 }
 
 function toggleReasons(e: ModuleEntry) {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 悬浮截稿倒计时卡（撕悬浮三件之一）：云端模式重新 fetch；本地模式走本地记账截稿（巡检收尾波）。
 // 三色分级照原型口径（剩 3 天/明天截稿/逾期）；本地口径同首页倒计时条。
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { fetchDeadlineSoon } from '../../api/artist'
 import type { DeadlineSoonItem } from '../../api/types'
 import { deadlineLevel } from './deadline'
@@ -16,7 +16,9 @@ const failed = ref(false)
 
 const rows = computed(() => items.value.map(it => ({ it, lv: deadlineLevel(it.daysLeft) })))
 
-onMounted(async () => {
+async function load(): Promise<void> {
+  failed.value = false
+  items.value = []
   if (props.mode === 'cloud') {
     try {
       items.value = (await fetchDeadlineSoon(14, 6)).items
@@ -44,7 +46,11 @@ onMounted(async () => {
   } catch {
     failed.value = true
   }
-})
+}
+
+onMounted(load)
+// F0008: mode prop 变化（同实例从本地切云端或反之）必须重新取数，否则展示上一模式的旧数据
+watch(() => props.mode, load)
 </script>
 
 <template>

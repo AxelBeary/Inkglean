@@ -77,7 +77,16 @@ export const useLocalFilesStore = defineStore('desktop-local-files', () => {
     if (!paths.length) return 0
     try {
       const db = await openLocalDb()
+      // F0034: 去重源不能只信内存快照（未 loadAll 时为空会重复挂同一路径）——并查库里已落地的路径
       const existing = new Set((files.value[orderId] ?? []).map(f => f.file_path))
+      try {
+        const rows = await db.select<{ file_path: string }[]>(
+          'SELECT file_path FROM local_files WHERE order_id = $1', [orderId]
+        )
+        for (const r of rows) if (typeof r.file_path === 'string') existing.add(r.file_path)
+      } catch {
+        // 查询失败退回内存快照口径，不阻塞挂文件
+      }
       const ts = new Date().toISOString()
       let added = 0
       for (const path of paths) {
@@ -133,10 +142,17 @@ export const useLocalFilesStore = defineStore('desktop-local-files', () => {
         )
       }
       files.value = next
+      // F0033: 先复验新路径确实存在，才从 missing 移除；不存在就仍标丢失，不谎称"找回了"
+      let present = false
+      try {
+        present = (await checkFiles([newPath]))[0] === true
+      } catch {
+        present = false // 复验失败按"仍丢失"保守处理
+      }
       const lost = new Set(missing.value)
-      lost.delete(id)
+      if (present) lost.delete(id)
       missing.value = lost
-      return true
+      return present
     } catch {
       return false
     }

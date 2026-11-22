@@ -68,8 +68,9 @@ async function onCopyText({ text }: { text: string }) {
   else toast.show(zhT('priceCard.copyFailed'), 'err')
 }
 
-function onNotify({ text }: { kind: string; text: string }) {
-  toast.show(text)
+function onNotify({ kind, text }: { kind: string; text: string }) {
+  // F0046: 按哑组件的 kind 映射样式，导入/导出错误不再一律显示成成功色
+  toast.show(text, kind === 'error' || kind === 'warning' ? 'err' : 'ok')
 }
 
 async function onExportPng({ blob, filename }: { blob: Blob; filename: string }) {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // 悬浮今日待办卡（撕悬浮三件之一）：云端模式重新 fetch；本地模式不调云端接口，走空态。
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { fetchTodos } from '../../api/artist'
 import type { TodoItem } from '../../api/types'
 
@@ -9,14 +9,20 @@ const props = defineProps<{ mode: 'cloud' | 'local' }>()
 const items = ref<TodoItem[]>([])
 const failed = ref(false)
 
-onMounted(async () => {
+async function load(): Promise<void> {
+  failed.value = false
+  items.value = []
   if (props.mode !== 'cloud') return
   try {
     items.value = (await fetchTodos()).items
   } catch {
     failed.value = true // 静默降级：轻量提示一行，不弹错误框
   }
-})
+}
+
+onMounted(load)
+// F0009: mode prop 变化重新取数，云端/本地切换不留上一模式的旧待办
+watch(() => props.mode, load)
 </script>
 
 <template>

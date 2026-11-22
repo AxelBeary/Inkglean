@@ -113,8 +113,9 @@ export function useHomeCloudData(cloud: ComputedRef<boolean>) {
     const alerted = loadAlertedIds()
     const alert = buildDeadlineAlerts(items, alerted)
     if (!alert) return
-    await notify('拾绘', alert.text)
+    // F0014: 先落标记再发通知——并发 loadAll 在 await notify 窗口里会重复取到同一条截稿并重复通知
     saveAlertedIds([...alerted, ...alert.newIds])
+    await notify('拾绘', alert.text)
   }
 
   return {

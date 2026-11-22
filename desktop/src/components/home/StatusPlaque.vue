@@ -31,12 +31,17 @@ function loadLocal(): PlaqueState | null {
   }
 }
 
-const current = ref<PlaqueState>(loadLocal() ?? 'open')
-const userFlipped = ref(false) // 本会话翻过牌 → 档案回包不再覆盖画师最新意图
+const remembered = loadLocal()
+const current = ref<PlaqueState>(remembered ?? 'open')
+// F0012: 有本地记忆就代表画师上次的意图，云端旧值不应在首屏立即覆盖它——初始置真，等同"已表态"
+const userFlipped = ref(remembered !== null)
 const pressed = ref(false)    // 翻牌动画进行中
 const noAnim = ref(false)     // 动画收尾时瞬时复位，防止回翻
 const liveMsg = ref('')
 let pendingSync: PlaqueState | null = null
+// F0010: 单调序号 + 串行链。并发翻牌时旧请求不得覆盖云端新状态：按序发送，只有最新序号能清 pendingSync
+let syncSeq = 0
+let syncChain: Promise<unknown> = Promise.resolve()
 
 // 档案数据异步到位：未翻过牌时采纳云端口径
 watch(() => props.initialStatus, v => {
@@ -48,25 +53,34 @@ const slotFull = computed(() => props.slotDisplay === '本月已约满')
 const displayed = computed<PlaqueState>(() =>
   current.value === 'open' && slotFull.value ? 'full' : current.value
 )
-const next = computed<PlaqueState>(() => CYCLE[(CYCLE.indexOf(current.value) + 1) % CYCLE.length])
+// F0011: 从 displayed 起算——名额满时 open 显示为 full，若仍从 current(open) 算 next 会停在 full，翻牌无视觉变化
+const next = computed<PlaqueState>(() => CYCLE[(CYCLE.indexOf(displayed.value) + 1) % CYCLE.length])
 
 function persist(s: PlaqueState) {
   try { localStorage.setItem(STORAGE_KEY, s) } catch { /* 本地记忆非关键路径 */ }
 }
 
 function sync(s: PlaqueState) {
+  const seq = ++syncSeq
   pendingSync = s
   if (!navigator.onLine) return // 断网：只记本地，恢复在线静默重试
-  updatePlaqueStatus(s)
-    .then(() => { pendingSync = null })
+  // F0010: 串行发送——早一票的写先落地，晚一票后落地，云端终态＝画师最后一次翻牌；
+  // 且只有最新序号的回包能清 pendingSync，旧回包不得把尚未确认的新意图抹掉
+  syncChain = syncChain
+    .then(() => updatePlaqueStatus(s))
+    .then(() => { if (seq === syncSeq) pendingSync = null })
     .catch(() => { /* 同步失败不提示，等恢复在线重试 */ })
 }
 
 function onOnline() {
   if (pendingSync !== null) {
     const s = pendingSync
-    pendingSync = null
-    updatePlaqueStatus(s).catch(() => { /* 重试失败不提示（拍板纪律） */ })
+    // F0010: 重试用同一条序号链，与在途翻牌串行，防重发旧状态覆盖新状态
+    const seq = ++syncSeq
+    syncChain = syncChain
+      .then(() => updatePlaqueStatus(s))
+      .then(() => { if (seq === syncSeq) pendingSync = null })
+      .catch(() => { /* 重试失败不提示（拍板纪律） */ })
   }
 }
 

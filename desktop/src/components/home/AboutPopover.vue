@@ -3,7 +3,7 @@
 // 墨笔菜单「关于拾绘」与卷尾「关于拾绘」两个入口共用（Home 持有开关态）。
 import { onMounted, onUnmounted, ref } from 'vue'
 
-defineProps<{ open: boolean }>()
+const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ (_e: 'close'): void }>()
 
 const VERSION = '0.1.0'
@@ -13,7 +13,8 @@ function onDocClick(e: MouseEvent) {
   if (popRef.value && !popRef.value.contains(e.target as Node)) emit('close')
 }
 function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape') emit('close')
+  // F0007: 关闭态下不 emit——弹层没开时 Escape 不该反复触发 close（键盘监听是常驻的）
+  if (e.key === 'Escape' && props.open) emit('close')
 }
 onMounted(() => {
   document.addEventListener('click', onDocClick)

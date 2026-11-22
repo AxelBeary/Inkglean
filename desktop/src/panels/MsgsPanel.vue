@@ -17,10 +17,21 @@ const props = defineProps<{
 const busy = ref<Record<number, 'approve' | 'reject' | null>>({})
 
 const list = computed(() => props.messages ?? [])
-const pendingCount = computed(() => list.value.filter(m => m.status === 'pending').length)
+/** 就地替换行数据（Home 传入的数组只读，板块内部维护展示态） */
+const override = ref<GuestbookMessage[]>([])
+function replace(id: number, row: GuestbookMessage) {
+  override.value = [...override.value.filter(o => o.id !== id), row]
+}
+const shown = computed(() =>
+  list.value.map(m => override.value.find(o => o.id === m.id) ?? m)
+)
+// F0024: 计数基于 shown（含行内审核结果 override），通过/驳回后页头"待审"立即减一
+// F0025: "最早"只统计未处理留言，已处理的不再拉早时间戳
+const pendingCount = computed(() => shown.value.filter(m => m.status === 'pending').length)
 const earliestText = computed(() => {
-  if (list.value.length === 0) return ''
-  const oldest = list.value.reduce((a, b) => (a.created_at < b.created_at ? a : b))
+  const pending = shown.value.filter(m => m.status === 'pending')
+  if (pending.length === 0) return ''
+  const oldest = pending.reduce((a, b) => (a.created_at < b.created_at ? a : b))
   return `最早 ${relTime(oldest.created_at)}`
 })
 
@@ -53,15 +64,6 @@ async function act(m: GuestbookMessage, action: 'approve' | 'reject') {
     busy.value[m.id] = null
   }
 }
-
-/** 就地替换行数据（Home 传入的数组只读，板块内部维护展示态） */
-const override = ref<GuestbookMessage[]>([])
-function replace(id: number, row: GuestbookMessage) {
-  override.value = [...override.value.filter(o => o.id !== id), row]
-}
-const shown = computed(() =>
-  list.value.map(m => override.value.find(o => o.id === m.id) ?? m)
-)
 
 async function goWeb() {
   try {

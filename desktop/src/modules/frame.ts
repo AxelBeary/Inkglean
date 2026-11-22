@@ -66,8 +66,8 @@ function handshakeScript(): string {
 export function buildModuleHtml(entryCode: string, themeCss = ''): string {
   const csp = `<meta http-equiv="Content-Security-Policy" content="${MODULE_CSP}">`
   const theme = themeCss ? `<style>:root{${themeCss}}</style>` : ''
-  // 模块代码里的 </script> 需断开防提前闭合（不可信输入纪律）
-  const safeCode = entryCode.split('</script>').join('<\\/script>')
+  // F0022: </script> 需断开防提前闭合；大小写与内嵌空白变体（</SCRIPT>、</ script>）同样能闭合标签，统一正则处理
+  const safeCode = entryCode.replace(/<\s*\/\s*script/gi, '<\\/script')
   return `<!doctype html><html><head>${csp}${theme}</head><body style="margin:0">` +
     `<script>${handshakeScript()}</script>` +
     `<script>\ntry{\n${safeCode}\n}catch(e){window.shihui&&window.shihui.send("shihui/error",{message:String(e)})}\n</script>` +

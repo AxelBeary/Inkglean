@@ -82,9 +82,10 @@ const monthText = computed(() => {
         <!-- F8 二期（波8）：自动识别占比条（在画/离开/其他，仅存本机） -->
         <template v-if="autoTime.hasData">
           <div class="auto-bar" aria-hidden="true">
-            <i class="seg seg--paint" :style="{ flexGrow: Math.max(autoTime.today.paint, 1) }"></i>
-            <i class="seg seg--idle" :style="{ flexGrow: Math.max(autoTime.today.idle, 1) }"></i>
-            <i class="seg seg--other" :style="{ flexGrow: Math.max(autoTime.today.other, 1) }"></i>
+            <!-- F0026: 别用 Math.max(v,1)——0 时长段被撑成 ~1/3 宽，比例失真；hasData 已保证至少一段 >0 -->
+            <i class="seg seg--paint" :style="{ flexGrow: autoTime.today.paint }"></i>
+            <i class="seg seg--idle" :style="{ flexGrow: autoTime.today.idle }"></i>
+            <i class="seg seg--other" :style="{ flexGrow: autoTime.today.other }"></i>
           </div>
           <span class="k2 k2--dim">
             自动 · 在画 {{ formatSeconds(autoTime.today.paint) }} / 离开 {{ formatSeconds(autoTime.today.idle) }} / 其他 {{ formatSeconds(autoTime.today.other) }}

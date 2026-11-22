@@ -1,6 +1,8 @@
 // 桌面端 API 层（825 波0 地基批）：首发仅登录链两接口，fetch 直连不引额外依赖。
 // Bearer 鉴权口径（v73）：桌面 token 下发 token 不下发 cookie，过期权威在服务器设备账本。
 import { requireApiBase } from '../config'
+// F0002: 复用统一 ApiError 类，认证错误才能被 isSessionExpired/isOrderConflict 识别
+import { ApiError } from './errors'
 
 export interface DesktopArtist {
   id: number
@@ -15,7 +17,8 @@ export interface DesktopLoginResult {
   artist: DesktopArtist
 }
 
-export interface ApiError {
+/** F0002: 响应体形状（与 errors.ts 的 ApiError 类区分：此处只是 JSON body，不是抛出的错误对象） */
+export interface ApiErrorBody {
   code: string
   error: string
   detail?: { remainingLockMs?: number }
@@ -29,10 +32,12 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
   })
   if (!res.ok) {
     // 401/500 均带 { code, error } 结构；网络层错误另行抛出
-    const data = await res.json().catch(() => null) as ApiError | null
-    const err = new Error(data?.error ?? `请求失败（${res.status}）`) as Error & { api?: ApiError; status?: number }
-    err.api = data ?? { code: 'NETWORK', error: err.message }
-    err.status = res.status
+    // F0002: 抛统一的 ApiError 类（带 status/code/error），认证/冲突错误才能被 isSessionExpired/isOrderConflict 识别；
+    // 保留 err.api 兼容 Login.vue 既有文案读取口径
+    const data = await res.json().catch(() => null) as ApiErrorBody | null
+    const message = data?.error ?? `请求失败（${res.status}）`
+    const err = new ApiError(res.status, data?.code ?? null, message, data?.detail) as ApiError & { api?: ApiErrorBody }
+    err.api = data ?? { code: 'NETWORK', error: message }
     throw err
   }
   return await res.json() as T

@@ -68,6 +68,12 @@ type UndoTarget =
   | { kind: 'reorder'; ids: number[] }
 
 const undoTarget = ref<UndoTarget | null>(null)
+/** F0016: 每次设定新的撤销目标就递增，作为 UndoToast 的 targetKey（文案相同也能重起时钟） */
+const undoKey = ref(0)
+function setUndoTarget(t: UndoTarget): void {
+  undoTarget.value = t
+  undoKey.value++
+}
 const toastText = ref('')
 const toastKind = ref<'ok' | 'err'>('ok')
 const toastVisible = ref(false)
@@ -80,7 +86,11 @@ function say(text: string, kind: 'ok' | 'err' = 'ok', ms = 2600): void {
   if (toastTimer) clearTimeout(toastTimer)
   toastTimer = setTimeout(() => { toastVisible.value = false; toastTimer = null }, ms)
 }
-function onToastTimeout(): void { toastVisible.value = false }
+/** F0042: 撤销条到点自动消失靠宿主清 undoTarget——只清 toastVisible 不生效（撤销条可见性绑的是 undoTarget） */
+function onToastTimeout(): void {
+  toastVisible.value = false
+  undoTarget.value = null
+}
 
 /** 把 store 的语义结果翻成一句人话（失败均已经重拉，措词里带“已刷新”以免误信屏上旧值） */
 function reportFailure(res: {
@@ -91,6 +101,8 @@ function reportFailure(res: {
   refreshed?: boolean
   serverMessage?: string
 }): void {
+  // F0043: 新写一旦失败，旧撤销目标必须作废——否则撤销条挂着失败文案，按钮仍可撤销上一笔（脏写）
+  undoTarget.value = null
   if (res.sessionExpired) { say('登录已失效，排期没改动——请在桌面端重新登录后再试。', 'err'); return }
   if (res.conflict) { say('这几单的排期刚在别处改过，已刷新成最新的。', 'err'); return }
   if (res.refreshed) { say('改动结果没确认，已刷新成最新的排期——请看一眼再定。', 'err'); return }
@@ -113,7 +125,7 @@ function moveText(snap: ScheduleUndoSnapshot): string {
 async function onMove(payload: { orderId: number; edge: DragEdge; deltaDays: number }): Promise<void> {
   const res = await sched.moveScheduleRange(payload.orderId, payload.edge, payload.deltaDays)
   if (res.ok && res.undo) {
-    undoTarget.value = { kind: 'move', snap: res.undo }
+    setUndoTarget({ kind: 'move', snap: res.undo })
     const extra = res.clamped ? '（开工日不能早于今天，已停在最早一天）' : ''
     say(`${moveText(res.undo)}${extra}`)
     return
@@ -125,7 +137,7 @@ async function onReorder(payload: { orderedIds: number[] }): Promise<void> {
   const previous = [...sched.formalIds] // 写前取快照；写成功后 store 已重拉，本地旧序只剩这一个用处
   const res = await sched.reorderFormal(payload.orderedIds)
   if (res.ok) {
-    undoTarget.value = { kind: 'reorder', ids: previous }
+    setUndoTarget({ kind: 'reorder', ids: previous })
     say('顺序已保存。')
     return
   }
@@ -251,9 +263,11 @@ const emptyText = computed(() => {
         {{ toastText }}
       </div>
     </transition>
+    <!-- F0016: targetKey 随撤销目标变，文案相同但目标已换时撤销条也能重起倒计时 -->
     <UndoToast
       :visible="undoTarget !== null"
       :message="toastText"
+      :target-key="undoKey"
       label="撤销"
       @undo="onUndo"
       @timeout="onToastTimeout"
