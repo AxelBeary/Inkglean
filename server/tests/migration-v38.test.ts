@@ -36,9 +36,33 @@ describe('迁移 v38: artists CHECK 补 hidden', () => {
       orders: (db.prepare('SELECT COUNT(*) c FROM orders').get() as { c: number }).c
     }
 
-    // 移除 v38 记录并回退 CHECK 到 3 值，模拟"未应用 v38 的存量库"，再重跑迁移
+    // F0083: 原测试只删迁移记录，但 artists 表仍是 initDatabase 建的 4 值 CHECK（含 hidden），
+    // v38 幂等守卫命中 hidden 直接早退——最危险的重建路径从未被覆盖。此处真正把 CHECK
+    // 回退到 3 值形态（模拟未应用 v38 的存量库），确保守卫不命中，强制走重建分支。
+    const artistsSql = (db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='artists'").get() as { sql: string }).sql
+    // v38 守卫是 tableSql.sql.includes("'hidden'")，而 schema.ts 的 artists DDL 含注释
+    // 「不复用 status='hidden'」——必须连该注释行一起剔除，守卫才会判定「未含 hidden」而走重建。
+    const legacySql = artistsSql
+      .replace(/CHECK\s*\(\s*status\s+IN\s*\([^)]*\)\s*\)/i, "CHECK(status IN ('open','full','break'))")
+      .split('\n').filter(line => !line.includes("'hidden'")).join('\n')
+    // 3 值 CHECK 下 hidden 行无法拷回，先临时降级；v38 重建恢复 4 值后再验证 hidden 可写
+    db.exec("UPDATE artists SET status='open' WHERE status='hidden'")
+    const cols = (db.prepare('PRAGMA table_info(artists)').all() as Array<{ name: string }>).map(c => c.name).join(', ')
+    db.pragma('foreign_keys = OFF')
+    try {
+      db.exec(legacySql.replace(/^CREATE TABLE\s+"?artists"?(\s|\()/i, 'CREATE TABLE artists_legacy$1'))
+      db.exec(`INSERT INTO artists_legacy (${cols}) SELECT ${cols} FROM artists`)
+      db.exec('DROP TABLE artists')
+      db.exec('ALTER TABLE artists_legacy RENAME TO artists')
+    } finally {
+      db.pragma('foreign_keys = ON')
+    }
+    // 用与 v38 守卫完全相同的口径确认：重建后的建表 SQL 不含 'hidden'（否则又会早退）
+    const reverted = (db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='artists'").get() as { sql: string }).sql
+    expect(reverted).not.toContain("'hidden'")
+
     db.prepare('DELETE FROM schema_migrations WHERE version = 38').run()
-    // 直接重跑 v38 迁移（幂等守卫检测无 hidden → 走重建路径）
+    // 重跑 v38：守卫检测无 hidden → 走真正的重建路径
     const v38 = MIGRATIONS.find(m => m.version === 38)!
     expect(v38.noTransaction).toBe(true) // 必须事务外
     v38.up(db)

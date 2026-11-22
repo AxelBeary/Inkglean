@@ -54,6 +54,11 @@ export function localMonthStartSqlite(now: Date = new Date()): string {
  * 换算一律走 JS 层：先按 UTC 解析，再取本地日历日。
  */
 export function parseSqliteUtcDate(sqliteUtc: string): Date {
+  // F0158: 非字符串 / 非 SQLite UTC 形态一律返回 Invalid Date（getTime()=NaN），不再静默产出非法 Date
+  // 或对 null/undefined 抛 TypeError；调用方 auth.routes 已知用 Number.isFinite 做 fail-closed 兜底。
+  if (typeof sqliteUtc !== 'string' || !/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(sqliteUtc)) {
+    return new Date(NaN)
+  }
   return new Date(sqliteUtc.replace(' ', 'T') + 'Z')
 }
 
@@ -85,6 +90,10 @@ export function localDateRangeToUtc(from: string, to: string): { startUtc: strin
   // d3 P2: 入口统一校验（路由 pattern 只验形态，这里补历法），并显式 setFullYear 防世纪漂移
   assertLocalDateString(from, 'from')
   assertLocalDateString(to, 'to')
+  // F0159: 反向区间（from > to）显式拒绝，避免静默返回空窗口掩盖调用方参数错误
+  if (from > to) {
+    throw new AppError(E.VALIDATION, 400, { field: 'from', message: '起始日期不得晚于结束日期' })
+  }
   const [fy, fm, fd] = from.split('-').map(Number)
   const [ty, tm, td] = to.split('-').map(Number)
   const start = new Date(0)

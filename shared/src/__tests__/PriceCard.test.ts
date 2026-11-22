@@ -1,28 +1,12 @@
 // F3 约稿条哑组件挂载测试（shared-824 搬家批）
 // 口径对齐 web 既有挂载测试：happy-dom + canvas Proxy stub；t 桩带回显参数；
 // pickerEnabled=true、artworks 桩数组
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import PriceCard from '../components/PriceCard.vue'
 import type { PriceCardDraft, ImportedTier } from '../index'
 
-// happy-dom 无 canvas 2d：统一 stub（口径照抄 web 现有挂载测试）
-function canvasContextStub() {
-  return new Proxy({}, {
-    get(_target, prop) {
-      if (prop === 'measureText') return () => ({ width: 10 })
-      if (prop === 'canvas') return { width: 0, height: 0 }
-      return () => undefined
-    },
-    set() {
-      return true
-    }
-  })
-}
-
-beforeEach(() => {
-  HTMLCanvasElement.prototype.getContext = vi.fn(() => canvasContextStub()) as unknown as typeof HTMLCanvasElement.prototype.getContext
-})
+// F0173: canvas stub 已收敛到 src/test-setup.ts（vitest setupFiles 全局注入），此处不再逐字复制
 
 /** t 桩：无参回 key，带参回 key:JSON（方便断言 importOk/importTruncated/contactLine 的参数） */
 const t = (key: string, params?: Record<string, unknown>) => (params ? `${key}:${JSON.stringify(params)}` : key)

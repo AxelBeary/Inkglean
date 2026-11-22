@@ -1,6 +1,6 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
-import { parseSqliteUtcDate, localDateRangeToUtc, toLocalDateString, assertLocalDateString } from '../../utils/date.js'
+import { parseSqliteUtcDate, localDateRangeToUtc, toLocalDateString, assertLocalDateString, localDayEndSqlite } from '../../utils/date.js'
 
 // ============================================
 // 画师工具服务（REQ-035 批A/批C + REQ-031 A1）
@@ -437,6 +437,16 @@ function incomeWindowStartUtc(months: number): string {
   return localDateRangeToUtc(key, toLocalDateString(now)).startUtc
 }
 
+// F0124: 窗口上界（本地次日零点 → UTC exclusive）；原查询只有下界，未来日期流水（脏数据/时钟漂移）会被计入统计
+function incomeWindowEndUtc(): string {
+  return localDayEndSqlite()
+}
+
+// F0124: 两聚合共用的完整窗口 [startUtc, endUtcExclusive)，避免散落两处口径漂移
+function incomeWindowUtc(months: number): { startUtc: string; endUtcExclusive: string } {
+  return { startUtc: incomeWindowStartUtc(months), endUtcExclusive: incomeWindowEndUtc() }
+}
+
 export interface IncomeByStyleRow {
   /** 画风名；无画风关联的订单（手动录单等）为空串，前端渲染时落「未分类」桶 */
   styleName: string
@@ -448,16 +458,17 @@ export interface IncomeByStyleRow {
  * 口径与 income-monthly 同源：order_payments 按到账日窗口；退款负数自然冲减。
  */
 export function getIncomeByStyle(artistId: number, months: number): IncomeByStyleRow[] {
-  const startUtc = incomeWindowStartUtc(months)
+  // F0124: 补窗口上界，未来日期流水不计入
+  const { startUtc, endUtcExclusive } = incomeWindowUtc(months)
   const rows = db.prepare(`
     SELECT COALESCE(a.name, '') AS style_name, SUM(p.amount_cents) AS cents
     FROM order_payments p
     JOIN orders o ON p.order_id = o.id
     LEFT JOIN style_sizes ss ON o.style_size_id = ss.id
     LEFT JOIN art_styles a ON ss.art_style_id = a.id AND a.artist_id = o.artist_id
-    WHERE o.artist_id = ? AND p.created_at >= ?
+    WHERE o.artist_id = ? AND p.created_at >= ? AND p.created_at < ?
     GROUP BY a.id
-  `).all(artistId, startUtc) as Array<{ style_name: string; cents: number }>
+  `).all(artistId, startUtc, endUtcExclusive) as Array<{ style_name: string; cents: number }>
   return rows
     .map(r => ({ styleName: r.style_name, cents: r.cents }))
     .sort((x, y) => y.cents - x.cents)
@@ -473,7 +484,8 @@ export interface TopClientRow {
 
 /** 近 N 个月客户消费排名（对标 oimimo 客户排名 Top 8；按 client_qq 聚合，同一客户多单合并） */
 export function getTopClients(artistId: number, months: number, limit: number): TopClientRow[] {
-  const startUtc = incomeWindowStartUtc(months)
+  // F0124: 补窗口上界，未来日期流水不计入
+  const { startUtc, endUtcExclusive } = incomeWindowUtc(months)
   const rows = db.prepare(`
     SELECT o.client_qq,
            MAX(CASE WHEN o.client_name IS NOT NULL AND o.client_name != '' THEN o.client_name ELSE NULL END) AS client_name,
@@ -481,11 +493,11 @@ export function getTopClients(artistId: number, months: number, limit: number): 
            COUNT(DISTINCT o.id) AS order_count
     FROM order_payments p
     JOIN orders o ON p.order_id = o.id
-    WHERE o.artist_id = ? AND p.created_at >= ?
+    WHERE o.artist_id = ? AND p.created_at >= ? AND p.created_at < ?
     GROUP BY o.client_qq
     ORDER BY cents DESC
     LIMIT ?
-  `).all(artistId, startUtc, limit) as Array<{ client_qq: string; client_name: string | null; cents: number; order_count: number }>
+  `).all(artistId, startUtc, endUtcExclusive, limit) as Array<{ client_qq: string; client_name: string | null; cents: number; order_count: number }>
   return rows.map(r => ({
     clientQq: r.client_qq,
     clientName: r.client_name,

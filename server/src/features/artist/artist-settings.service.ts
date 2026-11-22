@@ -1,5 +1,6 @@
 import db from '../../db/connection.js'
 import { sanitizeStoredHtml } from '../../shared/sanitize.js'
+import { isValidLocalDateString } from '../../utils/date.js' // F0121: 公告过期判定复用历法校验，避免 UTC/本地混比
 import type { Artist } from '../../types/entities.js'
 
 // ============================================
@@ -85,8 +86,12 @@ export function getInspirationTags(artist: Artist): string[] {
 export function getAnnouncement(artist: Artist): { text: string; expiresAt: string | null } | null {
   if (!artist.announcement) return null
   if (artist.announcement_expires_at) {
-    const expires = new Date(artist.announcement_expires_at)
-    // #8（拍板 2026-08-15）: 按日比较——到期日当天仍有效，过今天才算过期（零点数值比较，勿用日期字符串比大小）
+    // F0121: 原 `new Date(YYYY-MM-DD)` 按 UTC 解析，与本地零点 todayStart 混比在 UTC+x 时区差一天；
+    // 非法日期串 new Date('garbage')→Invalid Date 比较恒 false 导致永不过期。统一走本地零点 + 历法校验。
+    const dateStr = artist.announcement_expires_at.slice(0, 10)
+    if (!isValidLocalDateString(dateStr)) return null // 非法日期按已过期处理，不留黑洞
+    const [y, m, d] = dateStr.split('-').map(Number)
+    const expires = new Date(y, m - 1, d) // 本地零点
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
     if (expires.getTime() < todayStart.getTime()) return null
   }

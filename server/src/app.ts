@@ -254,7 +254,9 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
   // 260830 审计 M-1：本函数只保留文件孤儿回收职责；埋点表/幂等键 TTL 清理已拆至
   // gcDatabaseTtl（与文件类早退解耦，见上方注释）
   const RECYCLE_BIN = '.recycle-bin'
-  const gcUploads = () => {
+  // F0066: 改为 async——原实现虽经 setImmediate 延后启动，但整轮逐文件 stat/rename 全同步，
+  // 海量文件时仍会长时间阻塞事件循环。下方文件循环每批处理让出一次事件循环（见 F0066 注释）。
+  const gcUploads = async () => {
     try {
       const UPLOAD_ROOT = resolve(process.env.UPLOAD_DIR || './uploads')
       if (!existsSync(UPLOAD_ROOT)) return
@@ -356,9 +358,13 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
       }
 
       let skippedFiles = 0
+      let processed = 0
       for (const absPath of walk(UPLOAD_ROOT)) {
         const rel = relative(UPLOAD_ROOT, absPath).replace(/\\/g, '/')
         if (refs.has(rel)) continue
+        // F0066: 每 200 个孤儿文件让出一次事件循环，避免长尾同步 rename/stats 独占主线程；
+        // refs 快照已在循环前一次性取好，分片不改变判定语义。
+        if (++processed % 200 === 0) await new Promise<void>(resolve => setImmediate(resolve))
         try {
           // d3 P2: 单文件瞬时错误（walk 期间被外部删除/权限）跳过并计数，不中止整轮回收
           const st = statSync(absPath)
@@ -400,9 +406,11 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
   // 上传目录越大挡得越久。延到事件循环空闲后再跑：语义仍是「启动后不久跑一次」，
   // 只是不再阻塞监听。顺序不变：gcDatabaseTtl 仍先同步执行（先删未绑定登记行，
   // 文件才会在同一轮失去引用，见上方「顺序即防线」），被延后的只有文件回收。
-  setImmediate(() => gcUploads())
+  // F0066: gcUploads 现为 async，用 void + .catch 显式兜住 rejection（内部已 try/catch，双保险），
+  // 避免未处理 Promise 变成 unhandledRejection。
+  setImmediate(() => { void gcUploads().catch(err => app.log.warn({ err }, '孤儿回收未捕获异常')) })
   // 24h 定时器同样延后：定时器回调正好落在请求高峰时，同步全表扫描会顶住事件循环。
-  const _gcTimer = setInterval(() => { setImmediate(() => { gcDatabaseTtl(); gcUploads() }) }, 24 * 60 * 60 * 1000)
+  const _gcTimer = setInterval(() => { setImmediate(() => { gcDatabaseTtl(); void gcUploads().catch(err => app.log.warn({ err }, '孤儿回收未捕获异常')) }) }, 24 * 60 * 60 * 1000)
   _gcTimer.unref()
 
   // 815 拍板 #1⑥：启动时扫描已过期的取消撤销窗口并补执行队列重排/递补
@@ -442,7 +450,8 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
   const corsOrigin = process.env.CORS_ORIGIN
   if (corsOrigin) {
     await app.register(fastifyCors, {
-      origin: corsOrigin.split(','),
+      // F0067: 逗号分隔的 origin 按空白切分前先 trim 并丢弃空段，避免 'a.com, b.com' 产生带前导空格的非法 origin
+      origin: corsOrigin.split(',').map(s => s.trim()).filter(Boolean),
       credentials: true
     })
   } else if (process.env.NODE_ENV !== 'production') {
@@ -484,7 +493,9 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
     if (process.env.NODE_ENV !== 'production') return
     // 只拦截 /api/ 路径，放行静态资源、健康检查、setup 路径
     if (!request.url.startsWith('/api/')) return
-    if (request.url === '/api/health' || request.url.startsWith('/api/setup/')) return
+    // F0068: 用 URL.pathname 剥离查询串后再匹配，避免 /api/health?x=1 被误判为需守卫而返回 503
+    const setupGuardPath = request.url.split('?')[0]
+    if (setupGuardPath === '/api/health' || setupGuardPath.startsWith('/api/setup/')) return
     if (isSetupMode()) {
       return reply.code(503).send({ code: 'SETUP_REQUIRED', error: '系统尚未初始化，请先完成开箱设置' })
     }
@@ -676,6 +687,13 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
     })
   })
 
+  // F0070: setNotFoundHandler 必须注册在所有 app.register 之前，子作用域插件才会继承它；
+  // 原置于文件末尾，各 feature 路由插件内的未匹配请求拿不到这个 404 兜底，回落到 Fastify 默认响应。
+  // GET 由下方 app.get('/*') 通配兜底，不受影响；此处主要修非 GET 与各插件作用域的 404 一致性。
+  app.setNotFoundHandler((_request, reply) => {
+    return reply.code(404).send({ error: 'Not found' })
+  })
+
   // ─── 注册功能路由 ───
   await app.register(import('./features/setup/setup.routes.js'))  // REQ-038: 开箱设置
   await app.register(import('./features/invite/invite.routes.js'))  // REQ-039: 邀请码注册
@@ -751,20 +769,19 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
       // 环境批 B1: index.html / SPA fallback → no-cache（保证发版即生效）
       reply.header('Cache-Control', 'no-cache')
       // REQ-043 I1: 画师主页 HTML 请求注入 OG（未找到画师返回默认 OG，不报错）
-      if (OG_ARTIST_ROUTE_RE.test(urlPath) && wantsHtml(request)) {
+      // F0069: hasWebDist 只保证目录存在，OG 注入前须确认 index.html 真的存在——
+      // 否则 readIndexHtmlCached 内部 statSync 抛 ENOENT，把画师主页请求变成 500。
+      const indexHtmlPath = resolve(WEB_DIST, 'index.html')
+      if (OG_ARTIST_ROUTE_RE.test(urlPath) && wantsHtml(request) && existsSync(indexHtmlPath)) {
         const subdomain = urlPath.slice('/artist/'.length)
         // U144：改走 mtime 缓存（原每次请求同步读整份 index.html）
-        const html = readIndexHtmlCached(resolve(WEB_DIST, 'index.html'))
+        const html = readIndexHtmlCached(indexHtmlPath)
         return reply.send(injectOgMeta(html, buildOgMeta(subdomain)))
       }
       return reply.send(createReadStream(resolve(WEB_DIST, 'index.html')))
     })
   }
 
-  // 非 GET 请求的 404 兜底
-  app.setNotFoundHandler((request, reply) => {
-    return reply.code(404).send({ error: 'Not found' })
-  })
-
+  // F0070: notFoundHandler 已上移至所有 register 之前（见上方），此处不再重复注册。
   return app
 }

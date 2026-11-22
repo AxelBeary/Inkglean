@@ -66,9 +66,10 @@ export function getOrder(orderId: number, { clientOnly = false }: { clientOnly?:
 
   if (!order) return null
 
-  const references = db.prepare("SELECT id, order_id, file_path, original_name, source FROM order_references WHERE order_id = ? AND source = 'client'").all(orderId) as Array<{ id: number; order_id: number; file_path: string; original_name: string | null; source: string }>
-  const referencesAll = db.prepare('SELECT id, order_id, file_path, original_name, source FROM order_references WHERE order_id = ?').all(orderId) as Array<{ id: number; order_id: number; file_path: string; original_name: string | null; source: string }>
-  order.references = clientOnly ? references : referencesAll
+  // F0140: 合并原来两条几乎相同的参考图查询为一条——取全部后按 source 在 JS 层过滤，
+  // clientOnly 时等价于原 source='client' 查询，避免每次 getOrder 都白跑一条丢弃的 SQL。
+  const allRefs = db.prepare('SELECT id, order_id, file_path, original_name, source FROM order_references WHERE order_id = ?').all(orderId) as Array<{ id: number; order_id: number; file_path: string; original_name: string | null; source: string }>
+  order.references = clientOnly ? allRefs.filter(r => r.source === 'client') : allRefs
   order.notes = db.prepare('SELECT id, order_id, content, created_by, image_path, created_at FROM order_notes WHERE order_id = ? ORDER BY created_at ASC').all(orderId) as Array<{ id: number; order_id: number; content: string; created_by: string; image_path: string | null; created_at: string }>
   order.deliverables = db.prepare('SELECT id, order_id, file_path, original_name, file_size, created_at, download_locked FROM deliverables WHERE order_id = ?').all(orderId) as Array<{ id: number; order_id: number; file_path: string; original_name: string | null; file_size: number | null; created_at: string; download_locked: number }>
   // SPEC-003: 附加工作项

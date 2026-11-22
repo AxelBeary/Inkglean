@@ -91,8 +91,10 @@ export function guardRateLimit(key: string, max: number, windowMs: number): void
  * 解析 :id → 查订单 → 校验 artist_id → 挂载 request.order
  */
 export async function requireOwnOrder(request: FastifyRequest): Promise<void> {
-  const id = parseInt((request.params as { id: string }).id, 10)
-  if (isNaN(id)) throw new AppError(E.ORDER_INVALID_ID)
+  // F0141: 严格解析——parseInt('12abc')=12 会让尾随垃圾的 id 落到合法订单上；非纯数字一律拒绝
+  const rawId = (request.params as { id: string }).id
+  if (!/^\d+$/.test(rawId)) throw new AppError(E.ORDER_INVALID_ID)
+  const id = Number(rawId)
   const order = orderService.getOrder(id)
   if (!order || order.artist_id !== request.artist.id) {
     throw new AppError(E.ORDER_NOT_FOUND, 404)

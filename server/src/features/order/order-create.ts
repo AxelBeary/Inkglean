@@ -226,9 +226,11 @@ export function createOrder({ artistId, clientQq, clientName, description, prior
     }
 
     // R0-1: 参考图在事务内落库（R18: 显式传 source='client'，不依赖 DEFAULT）
-    if (Array.isArray(references) && references.length > 0) {
+    // F0136: references 去重——重复路径会在绑定循环里第二次查到已绑定的行（order_id 非 null）误抛 ILLEGAL_PATH 回滚整单
+    const uniqueRefs = Array.isArray(references) ? [...new Set(references)].slice(0, 5) : []
+    if (uniqueRefs.length > 0) {
       const insertRef = db.prepare("INSERT INTO order_references (order_id, file_path, source) VALUES (?, ?, 'client')")
-      for (const ref of references.slice(0, 5)) {
+      for (const ref of uniqueRefs) {
         insertRef.run(orderId, ref)
       }
       // F-10（P2-13 后端侧）: 归属校验 + 绑定——客户上传的参考图必须属于同一匿名凭证且
@@ -237,7 +239,7 @@ export function createOrder({ artistId, clientQq, clientName, description, prior
       // 归属校验失败一律 ILLEGAL_PATH，不泄露归属细节。
       if (anonId != null) {
         const bind = db.prepare('UPDATE reference_uploads SET order_id = ? WHERE file_path = ? AND anon_id = ? AND order_id IS NULL')
-        for (const ref of references.slice(0, 5)) {
+        for (const ref of uniqueRefs) { // F0136: 用去重后的同一份列表，与插入循环一致
           const upload = db.prepare(
             'SELECT anon_id, order_id FROM reference_uploads WHERE file_path = ?'
           ).get(ref) as { anon_id: number; order_id: number | null } | undefined

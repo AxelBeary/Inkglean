@@ -29,7 +29,8 @@ export const migration: Migration = {
       CREATE TABLE IF NOT EXISTS greeting_special_days (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
         name       TEXT NOT NULL,
-        date_key   TEXT NOT NULL CHECK(date_key GLOB '[0-1][0-9]-[0-3][0-9]'),
+        -- F0107: 与 schema.ts 同款收紧——GLOB 形态 + 月份 1-12 / 日 1-31 语义范围（DDL 双事实源一致）
+        date_key   TEXT NOT NULL CHECK(date_key GLOB '[0-1][0-9]-[0-3][0-9]' AND CAST(substr(date_key,1,2) AS INTEGER) BETWEEN 1 AND 12 AND CAST(substr(date_key,4,2) AS INTEGER) BETWEEN 1 AND 31),
         artist_id  INTEGER,
         is_enabled INTEGER NOT NULL DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

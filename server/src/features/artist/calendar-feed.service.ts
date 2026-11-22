@@ -110,16 +110,30 @@ function escapeIcsText(text: string): string {
     .replace(/\r?\n/g, '\\n')
 }
 
-/** 行长折叠：超 75 八位组的行按 CRLF+空格 续行（中文按字节近似放宽为 35 字符） */
+/** 行长折叠：RFC 5545 规定按 75 八位组（UTF-8 字节）而非字符数折叠 */
 function foldLine(line: string): string {
-  if (line.length <= 60) return line
+  // F0120: 原实现按 UTF-16 字符数（line.length/slice），中文一字 3 字节却只算 1，
+  // 导致含中文的 ICS 行实际字节数远超 75， violate RFC 5545 且部分客户端解析失败。
+  // 改为按 UTF-8 八位组遍历累积：续行首的空格占 1 字节，故续行内容上限 74。
+  const firstLimit = 75
+  const contLimit = 74 // 75 - 续行前导空格 1 字节
+  if (Buffer.byteLength(line, 'utf8') <= firstLimit) return line
   const parts: string[] = []
-  let rest = line
   let first = true
-  while (rest.length > 0) {
-    const limit = first ? 60 : 59
-    parts.push((first ? '' : ' ') + rest.slice(0, limit))
-    rest = rest.slice(limit)
+  let chars = Array.from(line) // 按 code point 切分，emoji 代理对不被拆开
+  while (chars.length > 0) {
+    const limit = first ? firstLimit : contLimit
+    let bytes = 0
+    let cut = 0
+    while (cut < chars.length) {
+      const charBytes = Buffer.byteLength(chars[cut], 'utf8')
+      if (bytes + charBytes > limit) break
+      bytes += charBytes
+      cut++
+    }
+    if (cut === 0) cut = 1 // 单个 code point 就超限（极端），至少取 1 个避免死循环
+    parts.push((first ? '' : ' ') + chars.slice(0, cut).join(''))
+    chars = chars.slice(cut)
     first = false
   }
   return parts.join('\r\n')

@@ -28,13 +28,28 @@ function groupRange(tiers: PriceCardTier[]): { min: number; max: number } {
 }
 
 /** 图片加载缓存（作品图直载地址与 dataURL 均可入 canvas） */
+// F0167: 原模块级 Map 只增不减，长期会话（反复改价/换例图）会累积大量解码位图占内存；
+// 加 LRU 上限，命中刷新顺序、超限淘汰最久未访问项。
+const IMG_CACHE_MAX = 100
 const imgCache = new Map<string, HTMLImageElement>()
+function cacheImage(src: string, img: HTMLImageElement): void {
+  if (imgCache.has(src)) imgCache.delete(src) // 刷新 LRU 顺序
+  imgCache.set(src, img)
+  while (imgCache.size > IMG_CACHE_MAX) {
+    const oldest = imgCache.keys().next().value
+    if (oldest === undefined) break
+    imgCache.delete(oldest)
+  }
+}
 function loadImage(src: string): Promise<HTMLImageElement | null> {
   const hit = imgCache.get(src)
-  if (hit) return Promise.resolve(hit)
+  if (hit) {
+    imgCache.delete(src); imgCache.set(src, hit) // F0167: 命中即刷新 LRU 顺序
+    return Promise.resolve(hit)
+  }
   return new Promise((resolve) => {
     const img = new Image()
-    img.onload = () => { imgCache.set(src, img); resolve(img) }
+    img.onload = () => { cacheImage(src, img); resolve(img) }
     img.onerror = () => resolve(null)
     img.src = src
   })

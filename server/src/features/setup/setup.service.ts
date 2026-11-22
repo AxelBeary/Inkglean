@@ -246,6 +246,9 @@ export function createAdminArtist(params: CreateAdminParams): CreateAdminResult 
 
     // 3. 可选：创建工作室
     let studioResult: { id: number; name: string; subdomain: string } | undefined
+    // F0147: 带工作室时管理员画师的 artist_code/subdomain 被改写为工作室值，返回值须与落库一致；
+    // 原实现返回旧 artistCode（可能仍是 ADMIN），前端据此显示/跳转会错。
+    let effectiveArtistCode = artistCode
     if (studio) {
       const studioName = studio.name || `${name}的工作室`
       let studioSubdomain = studio.subdomain || 'admin'
@@ -274,7 +277,7 @@ export function createAdminArtist(params: CreateAdminParams): CreateAdminResult 
       db.prepare('UPDATE artists SET name = ?, subdomain = ?, artist_code = ? WHERE id = ?').run(studioName, studioSubdomain, studioCode, artistId)
 
       studioResult = { id: artistId, name: studioName, subdomain: studioSubdomain }
-
+      effectiveArtistCode = studioCode // F0147: 同步返回落库后的新码
     }
     // 4. 生成 TOTP 密钥并写入（未验证）
     const totpSecret = generateSecret()
@@ -282,7 +285,7 @@ export function createAdminArtist(params: CreateAdminParams): CreateAdminResult 
     const otpauthUri = buildOtpAuthUri(totpSecret, qqNumber)
 
     return {
-      artist: { id: artistId, qqNumber, name, subdomain, artistCode },
+      artist: { id: artistId, qqNumber, name, subdomain, artistCode: effectiveArtistCode }, // F0147: 返回与落库一致的身份码
       totpSecret,
       otpauthUri,
       studio: studioResult

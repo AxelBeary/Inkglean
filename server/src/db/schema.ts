@@ -351,7 +351,8 @@ CREATE TABLE IF NOT EXISTS order_payments (
 CREATE TABLE IF NOT EXISTS greeting_special_days (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   name       TEXT NOT NULL,
-  date_key   TEXT NOT NULL CHECK(date_key GLOB '[0-1][0-9]-[0-3][0-9]'),
+  -- F0107: GLOB 只管形态会放行 '19-39' 等非法月日；补月份 1-12 / 日 1-31 的语义范围（服务层 isValidDateKey 负责真实历法）
+  date_key   TEXT NOT NULL CHECK(date_key GLOB '[0-1][0-9]-[0-3][0-9]' AND CAST(substr(date_key,1,2) AS INTEGER) BETWEEN 1 AND 12 AND CAST(substr(date_key,4,2) AS INTEGER) BETWEEN 1 AND 31),
   artist_id  INTEGER,
   is_enabled INTEGER NOT NULL DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

@@ -259,8 +259,11 @@ function copyText() {
   if (!items.length) { emit('notify', { kind: 'warning', text: props.t('receipt.itemsRequired') }); return }
   const lines = [form.title.trim() || props.t('receipt.defaultTitle'), '────────────']
   for (const it of items) {
-    const price = it.gift ? props.t('receipt.giftMark') : formatYuan(yuanToCents(it.priceYuan) * it.qty)
-    lines.push(`${it.name.trim()} ×${it.qty}  ${price}`)
+    // F0165: 数量显示与行金额均按整数（floor）计，与 computeReceiptTotals 口径一致——
+    // 原显示用原始 qty（如 1.5）却按 floor 算合计，行项目金额与总额对不上。
+    const qty = Math.floor(Math.max(0, it.qty))
+    const price = it.gift ? props.t('receipt.giftMark') : formatYuan(yuanToCents(it.priceYuan) * qty)
+    lines.push(`${it.name.trim()} ×${qty}  ${price}`)
   }
   lines.push('────────────')
   const tt = totals.value
@@ -376,13 +379,19 @@ function drawReceipt(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
   // 制品行：名称×数量 …… 金额；赠品划线 + 「赠」
   ctx.textAlign = 'left'
   for (const it of items) {
+    // F0165: 数量按整数 floor，与 computeReceiptTotals 及纯文字版同口径
+    const qty = Math.floor(Math.max(0, it.qty))
     const name = ellipsisFit(ctx, it.name.trim(), 300, 20, fonts.body)
     ctx.fillStyle = INK
     ctx.font = `20px ${fonts.body}`
     ctx.fillText(name, L, y + 24)
+    // F0166: 名称以 20px 绘制，测宽须同样用 20px——原在 16px 下 measureText(name) 偏小，
+    // 长名称时「×数量」定位过左与名称重叠；先按 20px 测宽再切回 16px 画数量。
+    ctx.font = `20px ${fonts.body}`
+    const nameWidth = ctx.measureText(name).width
     ctx.fillStyle = INK3
     ctx.font = `16px ${fonts.body}`
-    ctx.fillText(`×${it.qty}`, L + ctx.measureText(name).width + 30, y + 24)
+    ctx.fillText(`×${qty}`, L + nameWidth + 30, y + 24)
     ctx.textAlign = 'right'
     ctx.fillStyle = INK
     ctx.font = `700 20px ${fonts.body}`
@@ -396,7 +405,7 @@ function drawReceipt(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
       ctx.lineWidth = 1
       ctx.beginPath(); ctx.moveTo(R - mw, y + 17); ctx.lineTo(R, y + 17); ctx.stroke()
     } else {
-      ctx.fillText(formatYuan(yuanToCents(it.priceYuan) * it.qty), R, y + 24)
+      ctx.fillText(formatYuan(yuanToCents(it.priceYuan) * qty), R, y + 24) // F0165: 行金额按整数数量
     }
     ctx.textAlign = 'left'
     y += 44

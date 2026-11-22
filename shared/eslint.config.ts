@@ -52,6 +52,17 @@ export default [
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }]
     }
   },
+  // F0164: 对齐 web 配置——.vue 的 <script setup lang="ts"> 里类型名会被全局块 no-undef:'error' 误报，
+  // TS 类型由 vue-tsc 兜底，这里对 .vue 关闭 no-undef/no-unused-vars 换 TS 感知版（须排在全局块之后）。
+  {
+    files: ['**/*.vue'],
+    plugins: { '@typescript-eslint': tsPlugin },
+    rules: {
+      'no-undef': 'off',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }]
+    }
+  },
   {
     files: ['eslint.config.ts', 'vitest.config.ts'],
     languageOptions: { globals: { ...globals.node } }

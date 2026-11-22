@@ -22,7 +22,10 @@ export const PRICE_FALLBACK_SQL = `CAST(ROUND(
  * 三级均为 null 时返回 null（未定价订单）
  */
 export function resolvePriceCents(order: { final_price_cents?: number | null; total_price_cents?: number | null; price_snapshot?: number | null }): number | null {
-  return order.final_price_cents
+  // F0163: 与 SQL 回退链 CAST(ROUND(... ) AS INTEGER) 口径对齐——三个分支统一取整到整数分。
+  // 前两分支正常已是整数，但存量脏数据/浮点来源可能带小数，统一 Math.round 消除分歧。
+  const cents = order.final_price_cents
     ?? order.total_price_cents
-    ?? (order.price_snapshot != null ? Math.round(order.price_snapshot * 100) : null)
+    ?? (order.price_snapshot != null ? order.price_snapshot * 100 : null)
+  return cents != null ? Math.round(cents) : null
 }

@@ -53,7 +53,9 @@ function upsert(key: string, value: string): void {
  * 标题/内容入库前消毒 + 长度截断（schema 已限长，此处双保险）；
  * 标题与内容都为空 = 清空公告（GET 返回 null）
  */
-export function savePlatformAnnouncement(input: { title?: string | null; content?: string | null }): PlatformAnnouncement {
+// F0112: 返回契约改为可空——清空公告（标题与内容均空）时 getPlatformAnnouncement 返回 null，
+// 原非空断言 `!` 谎报契约；调用方 admin-system.routes 直接透传，null 是合法「已清空」结果。
+export function savePlatformAnnouncement(input: { title?: string | null; content?: string | null }): PlatformAnnouncement | null {
   const title = sanitizeStoredText(String(input.title ?? '')).slice(0, ANNOUNCEMENT_TITLE_MAX)
   const content = sanitizeStoredText(String(input.content ?? '')).slice(0, ANNOUNCEMENT_CONTENT_MAX)
 
@@ -64,5 +66,5 @@ export function savePlatformAnnouncement(input: { title?: string | null; content
     upsert(UPDATED_AT_KEY, now)
   })()
 
-  return getPlatformAnnouncement()!
+  return getPlatformAnnouncement() // F0112: 清空时如实返回 null，不再用 ! 谎报非空
 }

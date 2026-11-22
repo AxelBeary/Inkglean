@@ -248,6 +248,12 @@ export function getSpecialDay(id: number): SpecialDay | undefined {
 /** 创建特别日；dateKey 非法或画师范围不存在返回 undefined（路由层转 400/404） */
 export function createSpecialDay({ name, dateKey, artistId }: { name: string; dateKey: string; artistId: number | null }): SpecialDay | undefined {
   if (!isValidDateKey(dateKey)) return undefined
+  // F0128: 注释承诺「画师范围不存在返回 undefined」但实现漏校验——artistId 非空时确认画师真实存在，
+  // 否则会插入指向不存在画师的特别日（FK 虽拦，但错误码是 500 而非路由层期望的 404/400）。
+  if (artistId != null) {
+    const exists = db.prepare('SELECT 1 FROM artists WHERE id = ?').get(artistId)
+    if (!exists) return undefined
+  }
   // name 为纯文本展示字段，与问候文案同口径消毒
   const result = db.prepare(
     'INSERT INTO greeting_special_days (name, date_key, artist_id) VALUES (?, ?, ?)'

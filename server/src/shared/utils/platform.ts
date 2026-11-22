@@ -107,10 +107,12 @@ export function assertLinkLengthLimits(url: string): void {
  * @returns 是否命中
  */
 export function matchDomain(hostname: string, matchDomains: string[]): boolean {
-  const host = String(hostname || '').toLowerCase()
+  // F0155: FQDN 合法写法允许末尾根点（weibo.com.），去尾点后再比，否则被误判为「其他」平台
+  const host = String(hostname || '').toLowerCase().replace(/\.$/, '')
   if (!host) return false
   for (const d of matchDomains) {
-    const domain = String(d || '').toLowerCase().trim()
+    // F0155: 配置侧同样容忍末尾点，双方归一化后比较
+    const domain = String(d || '').toLowerCase().trim().replace(/\.$/, '')
     if (!domain) continue
     if (host === domain || host.endsWith('.' + domain)) return true
   }

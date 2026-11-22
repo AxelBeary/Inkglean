@@ -20,8 +20,10 @@ import type { WorkflowStage, OrderDetail } from '../../types/entities.js'
 export function mapStageToStatus(stages: WorkflowStage[], stageId: number): string {
   const idx = stages.findIndex(s => s.id === stageId)
   if (idx === -1) return 'wip'
-  if (idx === 0) return 'pending'
+  // F0143: 先判末节点再判首节点——单节点工作流（length===1）时 idx===0 同时是末节点，
+  // 原顺序先命中 pending 使其永远无法映射到 done；调整后多节点行为不变，单节点正确落 done。
   if (idx === stages.length - 1) return 'done'
+  if (idx === 0) return 'pending'
   if (idx === 1 && stages[idx].takes_payment) return 'confirmed'
   return 'wip'
 }
