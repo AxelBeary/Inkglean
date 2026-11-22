@@ -41,12 +41,15 @@
       <div class="tpl-lb-info">
         <div class="tpl-lb-head">
           <p v-if="lightboxArt.title" class="tpl-lb-title">{{ lightboxArt.title }}</p>
+          <!-- F0235: 回传点赞状态给父级，避免灯箱内点赞后父级覆盖表陈旧、关闭灯箱回退 -->
           <ArtworkLikeButton
             class="tpl-gallery-like"
             :artwork-id="lightboxArt.id"
             :initial-count="lightboxArt.like_count || 0"
             :liked="isLiked(lightboxArt.id)"
             :subdomain="subdomain"
+            @update:liked="(v: boolean) => emit('update:liked', { id: lightboxArt!.id, liked: v })"
+            @update:count="(v: number) => emit('update:count', { id: lightboxArt!.id, count: v })"
           />
         </div>
         <!-- v0.35 F6: 自由描述（画师在作品管理填写，gallery 端点带出；无则不显示） -->
@@ -71,7 +74,7 @@
 // F-09 巨型文件拆分：自 components/templates/TplGallery.vue 整体搬入（v0.35 F6 大图灯箱 + .tpl-lb-* 样式），
 // 模板/文案键/class/样式取值一字未改。数据与跳转逻辑仍归父页：imgUrl/isLiked/tagsOf/orderByTag
 // 由父页以函数 prop 注入（同一份函数实例，零逻辑复制、零行为漂移）；翻页与显隐走 v-model。
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import type { PropType } from 'vue'
 import ArtworkLikeButton from '../../shared/ArtworkLikeButton.vue'
 
@@ -94,6 +97,11 @@ interface LightboxTag {
 // ─── v0.35 F6: 大图 lightbox ───
 const lightboxVisible = defineModel<boolean>('visible', { default: false })
 const lightboxIndex = defineModel<number>('index', { default: 0 })
+// F0235: 点赞回传（灯箱内点赞须同步父级覆盖表）
+const emit = defineEmits<{
+  'update:liked': [payload: { id: number; liked: boolean }]
+  'update:count': [payload: { id: number; count: number }]
+}>()
 const props = defineProps({
   /** 当前筛选结果（与父页画廊同源：左右箭头翻页区间与末页判定） */
   filteredArtworks: { type: Array as PropType<LightboxArtwork[]>, default: () => [] },
@@ -107,6 +115,18 @@ const props = defineProps({
 
 const lightboxArt = computed(() => props.filteredArtworks[lightboxIndex.value] || null)
 const lightboxTags = computed(() => (lightboxArt.value ? props.tagsOf(lightboxArt.value) : []))
+
+// F0236: 灯箱打开时画册让出方向键，这里自己接管 ←/→ 翻页（与箭头按钮同口径）
+function onLightboxKeydown(e: KeyboardEvent) {
+  if (!lightboxVisible.value) return
+  if (e.altKey || e.ctrlKey || e.metaKey) return
+  const el = document.activeElement as HTMLElement | null
+  if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+  if (e.key === 'ArrowLeft' && lightboxIndex.value > 0) { e.preventDefault(); lightboxIndex.value -= 1 }
+  else if (e.key === 'ArrowRight' && lightboxIndex.value < props.filteredArtworks.length - 1) { e.preventDefault(); lightboxIndex.value += 1 }
+}
+onMounted(() => window.addEventListener('keydown', onLightboxKeydown))
+onUnmounted(() => window.removeEventListener('keydown', onLightboxKeydown))
 </script>
 
 <style scoped>

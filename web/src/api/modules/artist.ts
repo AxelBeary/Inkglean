@@ -6,8 +6,8 @@ import type { RequestConfig } from './http'
 import type { PagedResult, HasMoreResult, PublicArtistDTO, AuthMeResult, Artwork, ArtworkWithTags, ArtworkWithWarning, PublishArtworkResult, SetArtworkTagsResult, DeleteArtworkResult, CommissionRule, GuestbookMessage, SimpleSuccessResult, WorkflowStageDTO, WorkflowResult, SavePaymentResult, DeleteStageResult, GreetingResult, DiscountCode, DiscountCodesResult, ToggleDiscountResult, DeleteDiscountResult, AddonTemplate, DeleteAddonTemplateResult, StyleSize, StyleAddonWithTemplate, ArtStyleWithDetails, SizeAddonOverride, SizeAddonOverrideBatchItem, DeletedResult, OrderStatus, OrderPriority, OrderDetail, EnrichedOrderDetail, DeliverResult, ArtistOrderItem, QueueOrderItem, ArtistOrdersResult, OrderLogsResult, PaymentsResult, AddPaymentResult, RefreshSignaturesResult, ArtistStats, CustomerTokenResult, RevenueResult, TodoResult, ScheduleResult, DashboardPrefs, ActivityResult, ArtistTrackingResult, ToolsClientsResult, ToolsClientResult, SaveToolsClientResult, OkResult, ReturningClientsResult, StandaloneIncomesResult, CreateStandaloneIncomeResult, IncomeSummaryResult, ArtistProfileResult, VersionedOptions, UpdateStatusOptions, PublishArtworkRequest, CreateDiscountCodeRequest, UpdateDiscountCodeRequest, CreateManualOrderRequest, AddNoteRequest, ExtraItemRequest, AddReferenceRequest, SetFocusImageRequest, UpdatePriceRequest, AddPaymentRequest, DeliverRequest, SavePaymentNode, AddonTemplateInput, ArtStyleInput, StyleSizeInput, StyleAddonSetItem, SizeOverrideSetItem, SaveToolsClientRequest, CreateStandaloneIncomeRequest, OnboardingState, PlatformAnnouncement, OrderPreviewsResult, ArtistOrderPreview, OrderPreviewSettings, CreateOrderPreviewRequest, UpdateOrderPreviewRequest } from '../types'
 // DTO 类型统一从 '../types'（barrel）按名取用；inline import('../types') 为原 import('./types') 的路径等价改写
 
-/** getAllOrders in-flight 去重槽（同 q 共享一次全量分页循环） */
-let allOrdersInflight: { key: string; promise: Promise<ArtistOrderItem[]> } | null = null
+/** F0176: getAllOrders in-flight 去重改为按 q 分槽的 Map——原来单一槽跨 q 并发会互相覆盖，导致重复全量分页 */
+const allOrdersInflight = new Map<string, Promise<ArtistOrderItem[]>>()
 
 // ─── 画师后台 ───
 export const artistApi = {
@@ -81,8 +81,10 @@ export const artistApi = {
   // 05D-W1/P1: 拉全量订单（下拉选择用；pageSize 上限 200 循环，订单多时稍慢但可选到任意早期订单）
   getAllOrders: async (q?: string): Promise<ArtistOrderItem[]> => {
     // a3: in-flight 去重——并发触发（组件重挂载/多消费者）共享同一次分页循环，避免重复请求与乱序返回
+    // F0176: 按 q 分槽，跨 q 并发互不干扰
     const key = q ?? ''
-    if (allOrdersInflight && allOrdersInflight.key === key) return allOrdersInflight.promise
+    const existing = allOrdersInflight.get(key)
+    if (existing) return existing
     const promise = (async () => {
       const pageSize = 200
       const all: ArtistOrderItem[] = []
@@ -98,9 +100,10 @@ export const artistApi = {
       }
       return all
     })().finally(() => {
-      if (allOrdersInflight?.key === key) allOrdersInflight = null
+      // F0176: 只清自己这一槽，且仅当仍是本 promise（防旧请求 finally 误清新请求）
+      if (allOrdersInflight.get(key) === promise) allOrdersInflight.delete(key)
     })
-    allOrdersInflight = { key, promise }
+    allOrdersInflight.set(key, promise)
     return promise
   },
   getQueue: (zone?: string): Promise<QueueOrderItem[]> =>

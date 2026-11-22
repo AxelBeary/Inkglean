@@ -283,6 +283,13 @@ async function getQqOrdersSource() {
   if (qqOrdersCache && Date.now() - qqOrdersCache.at < QQ_ORDERS_CACHE_TTL) return qqOrdersCache.items
   const res = await artistApi.getOrders(undefined, { page: 1, pageSize: FETCH_ALL_PAGE_SIZE })
   const items = res.items ?? res
+  // F0296: 首页按 total 翻完所有页，大单量画师的 QQ 历史不再只看前 200 条
+  const total = res.total ?? items.length
+  const pages = Math.ceil(total / FETCH_ALL_PAGE_SIZE)
+  for (let p = 2; p <= pages; p++) {
+    const page = await artistApi.getOrders(undefined, { page: p, pageSize: FETCH_ALL_PAGE_SIZE })
+    items.push(...(page.items ?? page))
+  }
   qqOrdersCache = { items, at: Date.now() }
   return items
 }

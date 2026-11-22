@@ -55,6 +55,7 @@ import { useI18n } from 'vue-i18n'
 import { artistApi } from '../../api/index'
 import { formatDateTimeShort } from '../../utils/datetime'
 import { formatCents } from '../../utils/money'
+import { copyText } from '../../utils/clipboard'
 import type { ReturningClient } from '../../api/types'
 
 const { t } = useI18n()
@@ -85,12 +86,10 @@ async function loadClients() {
 /** 复制召回话术（含 QQ 与未下单天数） */
 async function copyScript(row: ReturningClient) {
   const text = t('returning.script', { days: row.daysSinceLastOrder, qq: row.clientQq })
-  try {
-    await navigator.clipboard.writeText(text)
-    ElMessage.success(t('returning.copySuccess'))
-  } catch {
-    ElMessage.warning(t('returning.copyFailed'))
-  }
+  // F0300: 走统一剪贴板封装（含 execCommand 降级 + iOS 选中），非安全上下文/权限拒绝时也能成功
+  const ok = await copyText(text)
+  if (ok) ElMessage.success(t('returning.copySuccess'))
+  else ElMessage.warning(t('returning.copyFailed'))
 }
 
 onMounted(loadClients)

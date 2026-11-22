@@ -65,6 +65,7 @@ const enCopy = en.setup
 
 beforeEach(() => {
   vi.clearAllMocks()
+  window.sessionStorage.removeItem('inkglean-setup-pending-totp') // F0319: 隔离进度续填标记，防跨用例串扰
   setActivePinia(createPinia())
   // 向导不查 status（路由守卫才查），这里只兜住创建管理员那一次 fetch
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({

@@ -173,7 +173,6 @@ const emit = defineEmits(['reorder', 'add', 'rename', 'updateDesc', 'togglePay',
 // WEB-02: 深拷贝隔离——浅拷贝元素同引用，v-model 直改会穿透到父级 stages，
 // 导致 WorkflowPaymentEditor.onTogglePay 守卫 s.takesPayment===val 恒真早退、PATCH 永不发出
 const localStages = ref<StageRow[]>(props.stages.map(s => ({ ...s })))
-watch(() => props.stages, (v) => { localStages.value = v.map(s => ({ ...s })) }, { deep: true })
 
 // ─── plan-node-speech：话术编辑 ───
 /** 变量按钮列表：labelKey 为显示名（b4-11 键化），token 为后端契约中文原文（插入时不变） */
@@ -189,6 +188,20 @@ const SPEECH_VARS = [
   { token: '{待付}', labelKey: 'workflow.speechVar.unpaid' }
 ]
 const speechDirtyId = ref<number | null>(null)
+// F0201: 父级 load() 全量重置时保留正在编辑且未保存的话术草稿，避免静默丢弃（脏标记 speechDirtyId 仍在）
+watch(() => props.stages, (v) => {
+  const fresh = v.map(s => ({ ...s }))
+  const dirtyId = speechDirtyId.value
+  if (dirtyId != null) {
+    const draft = localStages.value.find(s => s.id === dirtyId)
+    const target = fresh.find(s => s.id === dirtyId)
+    if (draft && target) {
+      target.speechTemplate = draft.speechTemplate
+      target.randomTemplate = draft.randomTemplate
+    }
+  }
+  localStages.value = fresh
+}, { deep: true })
 /** 话术编辑框引用（el-input 实例或含 textarea 的挂载对象） */
 interface SpeechInputRef { textarea?: HTMLTextAreaElement | null; $el?: HTMLElement | null }
 const speechRefs = new Map<number, SpeechInputRef>()

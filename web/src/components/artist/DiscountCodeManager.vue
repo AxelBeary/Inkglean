@@ -224,13 +224,14 @@ async function toggleCode(row: DiscountCode) {
   codeTogglingIds.value = new Set(codeTogglingIds.value).add(row.id)
   try {
     await artistApi.updateDiscountCode(row.id, { enabled: !row.enabled })
-    if (mySeq === codeToggleSeq) await loadData()
   } catch (err) {
     if (mySeq === codeToggleSeq) ElMessage.error((err as Error).message)
   } finally {
     const next = new Set(codeTogglingIds.value)
     next.delete(row.id)
     codeTogglingIds.value = next
+    // F0199: 无论成功/失败，最新一次 toggle 都要按服务端真相重刷，避免行状态停留在过期值
+    if (mySeq === codeToggleSeq) await loadData()
   }
 }
 

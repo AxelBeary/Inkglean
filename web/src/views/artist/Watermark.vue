@@ -196,6 +196,7 @@ import { useArtistStore } from '../../stores/artist'
 import { artistApi } from '../../api/index'
 import { WM_POSITIONS, WM_POSITION_CORNERS, loadImage, composeWatermarked } from '../../utils/watermark'
 import { safeGetItem, safeSetItem } from '../../utils/storage'
+import { MAX_IMAGE_BYTES, MAX_IMAGE_MB } from '../../constants/upload'
 
 const { t } = useI18n()
 const store = useArtistStore()
@@ -313,6 +314,11 @@ function acceptImageFile(file: File) {
     ElMessage.warning(t('watermark.fileTypeError'))
     return
   }
+  // F0305: 限制源图大小，超大图会撑爆 canvas 导致标签页崩溃（对齐站内统一 10MB 口径）
+  if (file.size > MAX_IMAGE_BYTES) {
+    ElMessage.warning(t('watermark.fileTooBig', { mb: MAX_IMAGE_MB }))
+    return
+  }
   const reader = new FileReader()
   reader.onload = () => {
     src.value = reader.result as string
@@ -409,19 +415,27 @@ function onLogoChange(e: Event) {
     ElMessage.warning(t('watermark.fileTypeError'))
     return
   }
+  // F0305: LOGO 同样限大小（10MB），超大 PNG 撑爆 canvas
+  if (file.size > MAX_IMAGE_BYTES) {
+    ElMessage.warning(t('watermark.fileTooBig', { mb: MAX_IMAGE_MB }))
+    return
+  }
   const reader = new FileReader()
   reader.onload = () => {
     logoDataUrl.value = reader.result as string
-    saveLogo(reader.result as string)
-    ElMessage.success(t('watermark.logoSaved'))
+    // F0306: 仅当持久化成功才提示已保存；safeSetItem 吞异常，这里直接探测写入结果
+    if (saveLogo(reader.result as string)) ElMessage.success(t('watermark.logoSaved'))
+    else ElMessage.warning(t('watermark.logoSaveFailed'))
   }
   reader.readAsDataURL(file)
 }
 
-function saveLogo(dataUrl: string) {
+function saveLogo(dataUrl: string): boolean {
   const key = logoKey.value
-  if (!key) return
+  if (!key) return false
   safeSetItem(key, dataUrl)
+  // F0306: 回读确认写入成功（隐私模式/配额不足时返回 false），避免误报「已保存」
+  try { return window.localStorage.getItem(key) === dataUrl } catch { return false }
 }
 
 // ─── 合成参数 → 实时预览（防抖 300ms） ───
@@ -454,7 +468,15 @@ async function renderPreview() {
     const logo = wmType.value === 'logo' ? await loadLogoForRender() : null
     if (wmType.value === 'logo' && !logo) {
       // A8: logo 模式未选 logo 时明示，不静默产出无 logo 结果
+      // F0307: 同时清空旧预览，避免切到 logo 模式未选图时仍显示上一次的文字水印成品
+      previewDataUrl.value = ''
       ElMessage.warning(t('watermark.logoRequired'))
+      return
+    }
+    // F0303: 文字水印为空（自定义文本与画师名都为空）时不再静默产出无水印图
+    if (wmType.value === 'text' && !wmText.value.trim() && !store.artistName) {
+      previewDataUrl.value = ''
+      ElMessage.warning(t('watermark.textRequired'))
       return
     }
     const dataUrl = await composeWatermarked(src.value, currentOptions(logo))
@@ -494,6 +516,11 @@ async function exportImage() {
     if (wmType.value === 'logo' && !logo) {
       // A8: logo 模式未选 logo 时明示，不静默导出
       ElMessage.warning(t('watermark.logoRequired'))
+      return
+    }
+    // F0303: 空文字水印同样拦在导出前，杜绝产出无水印图
+    if (wmType.value === 'text' && !wmText.value.trim() && !store.artistName) {
+      ElMessage.warning(t('watermark.textRequired'))
       return
     }
     const dataUrl = await composeWatermarked(src.value, currentOptions(logo))

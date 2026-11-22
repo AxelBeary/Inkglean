@@ -112,7 +112,11 @@
           <div class="qr-section">
             <div class="qr-wrap">
               <img v-if="qrDataUrl" :src="qrDataUrl" :alt="$t('setup.step3QrAlt')" class="qr-image" />
-              <button v-else type="button" class="qr-placeholder" @click="regenerateQr">{{ $t('setup.step3QrRegenerate') }}</button>
+              <template v-else>
+                <button type="button" class="qr-placeholder" @click="regenerateQr">{{ $t('setup.step3QrRegenerate') }}</button>
+                <!-- F0320: 二维码生成失败时给出明文密钥兜底，用户可手动录入验证器，绑定不再不可完成 -->
+                <p v-if="setupStore.totpSecret" class="qr-secret-fallback">{{ $t('setup.step3SecretFallback') }} <code>{{ setupStore.totpSecret }}</code></p>
+              </template>
             </div>
           </div>
           <!-- 823：验证器安装引导（与登录页/邀请入驻同源 authApp 口径） -->
@@ -160,6 +164,7 @@ import { useThemeStore } from '../../stores/theme'
 import { useLocaleSwitch } from '../../composables/useLocaleSwitch'
 import { setupApi } from '../../api/index'
 import type { OnboardingMode } from '../../api/types'
+import { safeSessionGetItem, safeSessionSetItem, safeSessionRemoveItem } from '../../utils/storage'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -259,6 +264,12 @@ async function submitAdmin() {
     }
     const result = await setupStore.submitAdmin(params)
     qrDataUrl.value = await generateQrCode(result.otpauthUri)
+    // F0319: 记录「管理员已建、TOTP 未确认」进度——刷新后据此直达扫码步，避免重建管理员死局
+    safeSessionSetItem('inkglean-setup-pending-totp', JSON.stringify({
+      totpSecret: setupStore.totpSecret,
+      otpauthUri: setupStore.otpauthUri,
+      adminQq: setupStore.adminQq
+    }))
     // 9/12 余批：管理员建好后先进「入驻方式」，再进扫码步（原先直落扫码）
     currentStep.value = STEP.mode
   } catch (err) {
@@ -319,6 +330,8 @@ async function confirmTotp() {
   totpSubmitting.value = true
   try {
     await setupStore.confirmTotp(code)
+    // F0319: TOTP 确认成功，清除「待确认」进度标记
+    safeSessionRemoveItem('inkglean-setup-pending-totp')
     // REQ-043 I6-e: 会话标记统一走 store action（单一数据源；profile 由后续登录补齐）
     artistStore.applySession(null, true)
     currentStep.value = STEP.done
@@ -341,6 +354,20 @@ onMounted(async () => {
   // 此前 checkStatus 无人调、tokenRequired 默认 false、路由守卫裸 fetch 不回写 store，
   // 导致安装口令输入框永不渲染，设了口令的部署装不起来
   await setupStore.checkStatus()
+  // F0319: 管理员已建但 TOTP 未确认时刷新——恢复进度到扫码步，不再从欢迎步重建管理员（会撞 409 死局）
+  const pending = safeSessionGetItem('inkglean-setup-pending-totp')
+  if (!setupStore.initialized && pending) {
+    try {
+      const p = JSON.parse(pending) as { totpSecret?: string; otpauthUri?: string; adminQq?: string }
+      if (p.totpSecret && p.otpauthUri) {
+        setupStore.totpSecret = p.totpSecret
+        setupStore.otpauthUri = p.otpauthUri
+        if (p.adminQq) setupStore.adminQq = p.adminQq
+        qrDataUrl.value = await generateQrCode(p.otpauthUri)
+        currentStep.value = STEP.totp
+      }
+    } catch { safeSessionRemoveItem('inkglean-setup-pending-totp') }
+  }
   // 815 拍板 #3（方案 C）：直达链接 /setup?token=xxx——自动填充安装口令免手输；
   // 口令已在第一步则直接进步骤（真实校验仍在创建管理员一步由后端做，错口令会被拒）
   const qToken = route.query.token

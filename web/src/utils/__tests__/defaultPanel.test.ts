@@ -3,10 +3,10 @@ import { describe, it, expect } from 'vitest'
 import { DEFAULT_PANEL_ROUTES, resolveDefaultPanelRoute } from '../defaultPanel'
 
 describe('resolveDefaultPanelRoute「先打开」面板解析', () => {
-  it('四个功能页映射到真实后台路由（手动录单带 action 参数，同候选池口径）', () => {
+  it('四个功能页映射到真实后台路由（F0265 手动录单指向 /orders/new，非废弃的 action 参数）', () => {
     expect(resolveDefaultPanelRoute('queue')).toBe('/queue')
     expect(resolveDefaultPanelRoute('orders')).toBe('/orders')
-    expect(resolveDefaultPanelRoute('manual')).toBe('/orders?action=manual')
+    expect(resolveDefaultPanelRoute('manual')).toBe('/orders/new')
     expect(resolveDefaultPanelRoute('tiers')).toBe('/tiers')
   })
 

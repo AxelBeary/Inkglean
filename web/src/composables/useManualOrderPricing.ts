@@ -163,6 +163,8 @@ export function useManualOrderPricing({ styles, getSubdomain }: {
     selectedRushId.value = null
     stylePricePreview.value = null
     priceTouched.value = false
+    // F0237: 切尺寸时旧价必须立即失效——防抖等待期仍显示/提交上一尺寸的价格
+    finalPriceYuan.value = null
     initStyleAddonDefaults()
     scheduleStyleCalc()
   }
@@ -213,6 +215,9 @@ export function useManualOrderPricing({ styles, getSubdomain }: {
   // 慢请求晚到不得覆盖新请求的价格预览，也不得把旧价写回 finalPriceYuan
   let styleCalcSeq = 0
   function scheduleStyleCalc() {
+    // F0238: 序号守卫在「调度时」就自增——防抖窗口内切换尺寸会让上一轮在途响应失效，
+    // 否则旧请求携带的旧 seq 在 doStyleCalc 内才++，仍能写回新尺寸价格（R-13 缺口）
+    styleCalcSeq++
     if (styleCalcTimer) clearTimeout(styleCalcTimer)
     styleCalcTimer = setTimeout(doStyleCalc, 300)
   }

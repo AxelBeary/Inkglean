@@ -85,6 +85,8 @@ const state = reactive<TourState>({
 
 let targetTimer: ReturnType<typeof setTimeout> | null = null
 let rafId = 0
+/** F0252: waitForTarget 的 pending resolver——clearTimers 中断轮询时必须 resolve(null)，否则被中断步骤的 Promise 永不 settle */
+let pendingTargetResolve: ((el: Element | null) => void) | null = null
 /** 步进竞态序号：快速连点/超时兜底时，旧 goTo 的后续写入一律作废 */
 let goSeq = 0
 
@@ -92,6 +94,12 @@ function clearTimers(): void {
   if (targetTimer) {
     clearTimeout(targetTimer)
     targetTimer = null
+  }
+  // F0252: 兑现被中断的等待，防止 goTo 永久停在 await
+  if (pendingTargetResolve) {
+    const resolve = pendingTargetResolve
+    pendingTargetResolve = null
+    resolve(null)
   }
   if (rafId && typeof cancelAnimationFrame === 'function') {
     cancelAnimationFrame(rafId)
@@ -120,18 +128,24 @@ function resolveTarget(step: TourStep): Element | null {
 function waitForTarget(step: TourStep): Promise<Element | null> {
   let polls = 0
   return new Promise((resolve) => {
+    // F0252: 统一收口 resolve——设/清 pending resolver，所有出口都走它
+    const finish = (el: Element | null) => {
+      pendingTargetResolve = null
+      resolve(el)
+    }
+    pendingTargetResolve = finish
     const poll = () => {
       if (!state.active) {
-        resolve(null)
+        finish(null)
         return
       }
       const el = resolveTarget(step)
       if (el) {
-        resolve(el)
+        finish(el)
         return
       }
       if (polls >= TARGET_MAX_POLLS) {
-        resolve(null)
+        finish(null)
         return
       }
       polls += 1

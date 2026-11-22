@@ -415,10 +415,16 @@ async function refreshPendingMsgCount() {
     return
   }
   try {
-    // G-8（F-2 适配）: 后端改分页响应 { items, total, page, pageSize }；
-    // 角标取最新一页（pageSize=100 为后端上限），超量时可能低估——角标非关键路径可接受
-    const res = await artistApi.getMessages({ pageSize: 100 })
-    pendingMsgCount.value = (res.items || []).filter(m => m.status === 'pending').length
+    // F0182: 后端无 status 过滤且 pageSize 上限 100，只取第一页会低估待审数——按 total 翻完所有页累计
+    const pageSize = 100
+    const first = await artistApi.getMessages({ page: 1, pageSize })
+    let pending = (first.items || []).filter(m => m.status === 'pending').length
+    const totalPages = Math.ceil((first.total ?? first.items?.length ?? 0) / pageSize)
+    for (let p = 2; p <= totalPages; p++) {
+      const page = await artistApi.getMessages({ page: p, pageSize })
+      pending += (page.items || []).filter(m => m.status === 'pending').length
+    }
+    pendingMsgCount.value = pending
   } catch { /* 轮询失败静默，下次再试 */ }
 }
 

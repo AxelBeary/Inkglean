@@ -44,8 +44,10 @@ export function useCountUp(target: Ref<number> | number | (() => number), { dura
 
   watch(source, (to) => {
     const from = display.value
+    // F0280: 目标值变化时先清掉旧 delay 定时器，否则旧目标会在之后触发、覆盖正在进行的动画
+    if (timer) { clearTimeout(timer); timer = 0 }
     if (firstRun && delay > 0) {
-      timer = window.setTimeout(() => run(from, to), delay)
+      timer = window.setTimeout(() => { timer = 0; run(from, to) }, delay)
     } else {
       run(from, to)
     }

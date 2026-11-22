@@ -11,8 +11,9 @@
   - addons 插槽原样透传给 TplTierGrid（价格计算器扩展点）。
 -->
 <template>
+  <!-- F0231: 仅填「修改说明」(revisionNote) 时本段也要显示，条件补上 revisionNote -->
   <section
-    v-if="styles.length || tiers.length || workflowStages.length"
+    v-if="styles.length || tiers.length || workflowStages.length || revisionNote" 
     :id="sectionId || undefined"
     class="tpl-pricing-section"
   >

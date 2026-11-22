@@ -142,7 +142,7 @@
           <h4 class="preview-title">{{ $t('preview.title') }}</h4>
           <div class="preview-refs">
             <div v-for="p in sortedPreviews" :key="p.id" class="preview-ref">
-              <img :src="p.url" class="preview-ref-img" :alt="$t('preview.alt')" />
+              <img :src="p.url" class="preview-ref-img" :alt="$t('preview.alt')" @error="onTrackImgError" />
               <p v-if="p.caption" class="preview-ref-caption">{{ p.caption }}</p>
             </div>
           </div>
@@ -156,9 +156,10 @@
             <img
               v-for="(r, i) in order.references"
               :key="i"
-              :src="r.url || r"
+              :src="refSrc(r)"
               class="brief-ref-img"
               :alt="$t('track.briefRefAlt')"
+              @error="onTrackImgError"
             />
           </div>
         </div>
@@ -266,6 +267,7 @@ import { formatCents } from '../../utils/money'
 import { ORDER_STATUS_TYPE } from '../../constants/order'
 import { useTrackDownloads } from '../../composables/useTrackDownloads'
 import { useTrackSignatureRefresh } from '../../composables/useTrackSignatureRefresh'
+import { uploadedPathFromUrl } from '../../composables/useSignatureRefresh'
 import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
 import OrderTimeline from '../../components/shared/OrderTimeline.vue'
 import { usePalette } from '../../composables/usePalette'
@@ -283,6 +285,11 @@ usePalette(paletteId)
 /** 参考图：类型口径为对象行，模板 `r.url || r` 另容忍旧版字符串行——
  * 交叉类型同时满足对象字段访问与 :src 的 string 赋值 */
 type TrackReference = { url: string; originalName?: string | null } & string
+
+/** F0313: 对象型引用取 url，字符串型取自身；url 为空返回空串（不再退化成 [object Object] 破图） */
+function refSrc(r: string | { url?: string }): string {
+  return typeof r === 'string' ? r : (r?.url || '')
+}
 
 /** 查单数据：OrderTrackResult + 模板额外读取的排队字段（后端随响应返回，类型定义未收录）；
  * currentStageId 规范化为 undefined（OrderTimeline prop 不收 null，各处均为 == null 宽松比较，行为不变） */
@@ -325,7 +332,9 @@ const localTz = (Intl.DateTimeFormat().resolvedOptions().timeZone) || ''
 /** 北京时间格式化（后端存 UTC，需显式指定 timeZone=Asia/Shanghai） */
 function formatBeijing(str: string) {
   if (!str) return ''
-  const normalized = str.includes('T') ? str : str.replace(' ', 'T') + 'Z'
+  // F0312: 统一按 UTC 解析——含 T 无时区的串原本被当本地时间，与空格分支（补 Z 走 UTC）口径不一致
+  const trimmed = str.replace(/[zZ]$/, '').replace(/([+-]\d{2}:?\d{2})$/, '')
+  const normalized = trimmed.includes('T') ? trimmed + 'Z' : trimmed.replace(' ', 'T') + 'Z'
   const date = new Date(normalized)
   if (isNaN(date.getTime())) return str
   return date.toLocaleString(undefined, {
@@ -575,12 +584,20 @@ function resetSearch() {
 // 签名 TTL 5 分钟，而本页只在 onMounted 取一次数据 → 客户停留超 5 分钟后参考图/过程稿全部 403。
 // 接线收在 useTrackSignatureRefresh（定时/回前台/防重入/分片复用画师端同一套 composable，
 // 仅换签端点换成客户侧——身份是订单令牌，画师端点要登录态用不了）。
-useTrackSignatureRefresh({
+// F0253: 取回 refreshNow，供下方参考图/过程稿 @error 单图兜底（裂图立即换签，不必等下一轮定时刷新）
+const { refreshNow: refreshTrackImage } = useTrackSignatureRefresh({
   order,
   orderNo,
   token,
   request: (no, tk, paths) => orderApi.refreshTrackSignatures(no, tk, paths)
 })
+// F0253: 单图裂图兜底——从 <img src> 反解存储路径，交给 refreshNow 立即换签该图（带重试上限，不会无限打请求）
+function onTrackImgError(e: Event) {
+  const src = (e.target as HTMLImageElement)?.getAttribute('src') || ''
+  // getAttribute 拿到模板原值（相对 /uploads/...），img.src 会被浏览器补成绝对 URL，uploadedPathFromUrl 只认相对形态
+  const path = uploadedPathFromUrl(src)
+  if (path) refreshTrackImage(path)
+}
 // 支持从下单成功页跳转过来（?no=&token=）自动查询并保存
 onMounted(() => {
   loadSavedLinks()

@@ -81,13 +81,14 @@ function startTour() {
 }
 
 async function dismiss() {
-  // REQ-033 埋点：关闭（onboarding_dismiss 已在 EVENT_WHITELIST 白名单内）
-  trackEvent('onboarding_dismiss')
   try {
     await artistApi.dismissOnboarding()
   } catch {
-    /* 后端标记失败不阻塞：下次进入仍会展示 */
+    // F0211: 后端失败时既不埋点也不本地隐藏——统计与实际状态保持一致，下次进入仍展示
+    return
   }
+  // REQ-033 埋点：关闭（onboarding_dismiss 已在 EVENT_WHITELIST 白名单内）——仅在后端确认后上报
+  trackEvent('onboarding_dismiss')
   state.value = state.value ? { ...state.value, dismissed: true } : { dismissed: true, tasks: [] }
 }
 

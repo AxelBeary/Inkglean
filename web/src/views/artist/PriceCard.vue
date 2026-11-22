@@ -82,7 +82,8 @@ function onExportPng({ blob, filename }: { blob: Blob; filename: string }) {
   a.href = url
   a.download = filename
   a.click()
-  URL.revokeObjectURL(url)
+  // F0299: 延迟 revoke——同步撤销可能在浏览器真正读取 blob 前释放 URL，取消下载
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 // ─── 作品库例图：组件已自开弹窗，宿主只管取数并组好 src 直载地址回灌 ───

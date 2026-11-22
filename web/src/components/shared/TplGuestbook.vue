@@ -148,14 +148,17 @@ async function submit() {
     }
     content.value = ''
     justSubmitted.value = true
+    // F0233: 连续提交先清旧定时器，避免上一轮定时器提前把本轮的提示清掉
+    if (pendingHintTimer) clearTimeout(pendingHintTimer)
     pendingHintTimer = setTimeout(() => { justSubmitted.value = false; pendingHintTimer = null }, 5000)
   } catch (err) {
     // 429 限流：后端返回 code=RATE_LIMITED
-    const e = err as { response?: { status?: number }; message: string }
+    const e = err as { response?: { status?: number }; message?: unknown }
     if (e.response?.status === 429) {
       ElMessage.warning(t('guestbook.rateLimited'))
     } else {
-      ElMessage.error(e.message)
+      // F0234: 非 Error 拒绝值时 e.message 为 undefined → 显示 undefined；取字符串兜底
+      ElMessage.error(typeof e?.message === 'string' ? e.message : String(err))
     }
   } finally {
     submitting.value = false

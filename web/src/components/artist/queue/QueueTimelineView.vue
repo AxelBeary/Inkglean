@@ -309,13 +309,25 @@ async function saveDateEdit() {
     if (start && deadline && oldDeadline && start > oldDeadline) {
       const first = await artistApi.updateDeadline(order.id, deadline, { version })
       version = first?.version
-      const second = await artistApi.updateStartDate(order.id, start, { version })
-      version = second?.version
+      try {
+        const second = await artistApi.updateStartDate(order.id, start, { version })
+        version = second?.version
+      } catch (err) {
+        // F0220: 第二步失败补偿回滚第一步，避免半套日期
+        try { await artistApi.updateDeadline(order.id, oldDeadline, { version: first?.version }) } catch { /* 由 refresh-all 拉回真相 */ }
+        throw err
+      }
     } else if (start && deadline && oldStart && deadline < oldStart) {
       const first = await artistApi.updateStartDate(order.id, start, { version })
       version = first?.version
-      const second = await artistApi.updateDeadline(order.id, deadline, { version })
-      version = second?.version
+      try {
+        const second = await artistApi.updateDeadline(order.id, deadline, { version })
+        version = second?.version
+      } catch (err) {
+        // F0220: 同上，回滚已写入的开工日
+        try { await artistApi.updateStartDate(order.id, oldStart, { version: first?.version }) } catch { /* 同上 */ }
+        throw err
+      }
     } else {
       if (start && start !== oldStart) {
         const res = await artistApi.updateStartDate(order.id, start, { version })

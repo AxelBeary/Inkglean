@@ -173,7 +173,8 @@ function diffPlaceholder(row: SizeRow) {
 function initForm() {
   const sa = props.sa
   if (!sa) return
-  form.basePrice = sa.price_override ?? sa.template_default_price ?? 0
+  // F0193: 表单价以模板本身价为基准（画风专属 override 只用于「仅本画风」分支的对比，不能当模板价回写）
+  form.basePrice = sa.template_default_price ?? 0
   form.scope = 'style'
   form.styleEnabled = !!sa.is_enabled
   form.sizeRows = (props.style!.sizes || []).map(size => {
@@ -254,7 +255,8 @@ async function save() {
         const cat = addonCategory(sa)
         if (cat !== 'add') {
           for (const other of (props.style!.addons || [])) {
-            if (other.id !== sa.id && addonCategory(other) === cat && !!other.is_enabled) {
+            // F0191: 孤儿行（addon_template_id 为空）不得回传，否则整次 setStyleAddons 404
+            if (other.id !== sa.id && other.addon_template_id != null && addonCategory(other) === cat && !!other.is_enabled) {
               styleItems.push({ addon_template_id: other.addon_template_id, is_enabled: false })
             }
           }

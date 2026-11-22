@@ -8,7 +8,7 @@ export const HEALTHY_REGION_DISHES: FoodDish[] = [
   { name: '清炖狮子头', tags: ['healthy'], note: '清汤慢煨，比红烧少一层油' },
   { name: '清蒸鲥鱼', tags: ['healthy'], note: '带鳞清蒸，时令肥美少放油' },
   { name: '石屏烧豆腐', tags: ['healthy'], note: '烤豆腐清淡，干碟少蘸提味' },
-  { name: '云南香茅烤鱼', tags: ['healthy', 'diabetes'], note: '香茅塞鱼烤，野香解又腻' },
+  { name: '云南香茅烤鱼', tags: ['healthy', 'diabetes'], note: '香茅塞鱼烤，野香解腻' }, // F0266: 错别字「野香解又腻」→「野香解腻」
   { name: '个旧草芽米线', tags: ['healthy'], note: '草芽脆嫩，配清汤米线鲜甜' },
   { name: '竹筒鸡', tags: ['healthy'], note: '竹筒蒸鸡，清嫩带一股竹香' },
   { name: '白族清汤鱼', tags: ['healthy'], note: '洱海鱼清汤煮，鲜而不油腻' },

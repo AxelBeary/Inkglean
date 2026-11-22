@@ -244,9 +244,28 @@ describe('ArtistLayout 会话强校验（G-1）', () => {
     const wrapper = await mountLayout(ArtistLayout)
     await flushPromises()
 
-    expect(h.getMessages).toHaveBeenCalledWith({ pageSize: 100 })
-    // 骨架渲染不受影响；角标值经 menuGroups 注入（pending 2 条）
+    // F0182/F0183: 角标分页累计——单页时只请求第 1 页，total=3<100 不再多发
+    expect(h.getMessages).toHaveBeenCalledWith({ page: 1, pageSize: 100 })
+    expect((wrapper.vm as unknown as LayoutVm).pendingMsgCount).toBe(2)
     expect(wrapper.exists()).toBe(true)
+  })
+
+  it('F0183: 留言角标跨页累计待审数（超 100 条不低估）', async () => {
+    localStorage.setItem('artist_logged_in', '1')
+    h.getMe.mockResolvedValue({ isAdmin: false })
+    h.getMessages.mockImplementation(({ page }: { page: number }) => Promise.resolve({
+      items: page === 1
+        ? [{ id: 1, status: 'pending' }]
+        : [{ id: 2, status: 'pending' }, { id: 3, status: 'approved' }],
+      total: 101,
+      page,
+      pageSize: 100
+    }))
+
+    const wrapper = await mountLayout(ArtistLayout)
+    await flushPromises()
+    expect(h.getMessages).toHaveBeenCalledWith({ page: 2, pageSize: 100 })
+    expect((wrapper.vm as unknown as LayoutVm).pendingMsgCount).toBe(2)
   })
 
   it('820-L：留言关闭 → 菜单过滤 /guestbook 且角标不发请求', async () => {

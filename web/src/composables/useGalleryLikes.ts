@@ -17,7 +17,8 @@ function readLikedIds(subdomain: string): number[] {
   if (!raw) return []
   try {
     const ids: unknown = JSON.parse(raw)
-    return Array.isArray(ids) ? (ids as number[]) : []
+    // F0241: 结构合法但元素非数字的历史/篡改数据会污染 isLiked；逐项过滤，只保留数字 id
+    return Array.isArray(ids) ? ids.filter((id): id is number => typeof id === 'number' && Number.isFinite(id)) : []
   } catch { return [] }
 }
 

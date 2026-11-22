@@ -155,6 +155,8 @@ import { ref, watch, computed, onMounted } from 'vue'
 import ShopVisibilitySwitch from './ShopVisibilitySwitch.vue'
 import { artistApi } from '../../../api/index'
 import type { ArtistStatus, OnboardingState, PlatformDTO } from '../../../api/types'
+import { safeGetItem, safeSetItem } from '../../../utils/storage'
+import { resolveLastVisibleStatus } from './lastVisibleStatus' // F0222/F0226
 
 /** 主页展示表单（对齐 Settings.vue form 形状；__k 为父级本地行标识） */
 interface ShowcaseLink {
@@ -191,9 +193,15 @@ import SanitizedRichText from '../../shared/SanitizedRichText.vue'
 
 // 812 debug 审计修复：记住隐藏前的营业状态（open/full/break），开关打开时恢复原状，
 // 避免覆写为 'open' 导致画师丢失满单/休息中状态
-const lastVisibleStatus = ref('open')
+// F0222/F0226: 记住隐藏前的营业状态并持久化——页面以 hidden 重新加载后仍能恢复满单/休息中，不重置为 open
+const LAST_STATUS_KEY = 'inkglean-showcase-last-status'
+const cached = safeGetItem(LAST_STATUS_KEY)
+const lastVisibleStatus = ref<string>(resolveLastVisibleStatus(cached, props.form?.status))
 watch(() => props.form?.status, (s) => {
-  if (s && s !== 'hidden') lastVisibleStatus.value = s
+  if (s && s !== 'hidden') {
+    lastVisibleStatus.value = s
+    safeSetItem(LAST_STATUS_KEY, s)
+  }
 }, { immediate: true })
 
 const emit = defineEmits<{

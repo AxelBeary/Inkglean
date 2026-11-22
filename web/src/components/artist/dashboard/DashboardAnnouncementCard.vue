@@ -43,10 +43,12 @@ const expanded = ref(false)
  * 可见性：有公告 + 有标题 + 未读过。
  * safeGetItem 非响应式 → 点开记已读后本会话内不消失，下次挂载才不渲染（与旧公告行行为一致）。
  */
+// F0207: updatedAt 为 null 时两侧统一归一到 ''，否则记已读写 ''、这里比 null 永不等，「看过即消」失效
+const annStamp = computed(() => announcement.value?.updatedAt ?? '')
 const visible = computed(() =>
   announcement.value != null
   && !!announcement.value.title
-  && safeGetItem(ANN_READ_KEY) !== announcement.value.updatedAt
+  && safeGetItem(ANN_READ_KEY) !== annStamp.value
 )
 
 async function loadAnnouncement(): Promise<void> {
@@ -59,7 +61,7 @@ function toggle() {
   expanded.value = !expanded.value
   // 点开即视为看过；合上后（下次进入）整卡消失（零打扰）
   if (expanded.value && announcement.value) {
-    safeSetItem(ANN_READ_KEY, announcement.value.updatedAt ?? '')
+    safeSetItem(ANN_READ_KEY, annStamp.value) // F0207: 与可见性判断同口径（null→''）
   }
 }
 

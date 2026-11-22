@@ -197,16 +197,23 @@ const tlCanvasEnd = computed(() => {
   const anchor = max && max > today ? max : today
   return new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() + TL_CANVAS_PAD_DAYS)
 })
+/** F0249: 两本地日期相差的日历天数（按 UTC 归一化的年月日计算，夏令时切换日不会错位一天） */
+function calendarDayDiff(a: Date, b: Date): number {
+  const ua = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())
+  const ub = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate())
+  return Math.round((ua - ub) / 86_400_000)
+}
+
 const tlCanvasDays = computed(() =>
-  Math.round((tlCanvasEnd.value.getTime() - tlCanvasStart.value.getTime()) / 86_400_000) + 1
+  calendarDayDiff(tlCanvasEnd.value, tlCanvasStart.value) + 1
 )
 /** 画布宽度：覆盖订单范围（min = 当前跨度），上限 TL_CANVAS_MAX_PX（防极端数据） */
 const tlCanvasWidth = computed(() => Math.min(tlCanvasDays.value * tlDayWidth.value, TL_CANVAS_MAX_PX))
 
 /** 日期 → 画布 x 坐标（相对画布起点；画布覆盖订单范围，x ≥ 0） */
 function tlX(date: Date) {
-  const ms = startOfDay(date).getTime() - tlCanvasStart.value.getTime()
-  return Math.round(ms / 86_400_000) * tlDayWidth.value
+  // F0249: 用日历日差而非固定 86400000ms，夏令时切换当天刻度/横条不错位
+  return calendarDayDiff(startOfDay(date), tlCanvasStart.value) * tlDayWidth.value
 }
 
 /** 滚动容器状态（提前声明：tlTicks 虚拟化依赖） */
@@ -693,14 +700,27 @@ async function onTlHandleUp() {
       // 双标签页先改过则第一步 409，走下方 catch 提示冲突并刷新队列
       const src = findOrder(d.orderId)
       const baseVersion = src?.version
+      // F0246: 两步 PUT 非事务——第二步失败时第一步已生效，会留下半截日期；用拖拽原始值补偿回滚第一步
       if (d.dayDelta > 0) {
         const first = await artistApi.updateDeadline(d.orderId, newEnd, { version: baseVersion } as VersionedOptions)
-        const second = await artistApi.updateStartDate(d.orderId, newStart, { version: first?.version })
-        newVersion = second?.version ?? first?.version
+        try {
+          const second = await artistApi.updateStartDate(d.orderId, newStart, { version: first?.version })
+          newVersion = second?.version ?? first?.version
+        } catch (err) {
+          // F0246: 回滚已写入的截稿日（best-effort；失败也不掩盖原始错误）
+          try { await artistApi.updateDeadline(d.orderId, d.oldDeadline, { version: first?.version } as VersionedOptions) } catch { /* 补偿失败交由 onRefreshAll 拉回真相 */ }
+          throw err
+        }
       } else {
         const first = await artistApi.updateStartDate(d.orderId, newStart, { version: baseVersion } as VersionedOptions)
-        const second = await artistApi.updateDeadline(d.orderId, newEnd, { version: first?.version })
-        newVersion = second?.version ?? first?.version
+        try {
+          const second = await artistApi.updateDeadline(d.orderId, newEnd, { version: first?.version })
+          newVersion = second?.version ?? first?.version
+        } catch (err) {
+          // F0246: 回滚已写入的开工日（best-effort）
+          try { await artistApi.updateStartDate(d.orderId, d.oldStartDate, { version: first?.version } as VersionedOptions) } catch { /* 同上 */ }
+          throw err
+        }
       }
       if (src) { src.startDate = newStart; src.deadline = newEnd; src.version = newVersion }
     } else if (d.edge === 'deadline') {

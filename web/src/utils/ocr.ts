@@ -70,11 +70,17 @@ export async function recognizeImageText(file: File): Promise<string> {
   if (file.size > OCR_MAX_SIZE_MB * 1024 * 1024) {
     throw new OcrError('too-big', `image exceeds ${OCR_MAX_SIZE_MB}MB`)
   }
+  let worker: TesseractNS.Worker | null = null
   try {
-    const worker = await getWorker()
+    worker = await getWorker()
     const { data } = await worker.recognize(file)
     return (data.text || '').trim()
   } catch (e) {
+    // F0270: 识别失败后释放 worker 单例（并终止坏实例），否则单例停留在故障态、承诺的「重试」永远失败
+    workerPromise = null
+    if (worker) {
+      try { void worker.terminate() } catch { /* 终止失败不影响错误上抛 */ }
+    }
     if (e instanceof OcrError) throw e
     throw new OcrError('recognize-failed', e instanceof Error ? e.message : String(e))
   }

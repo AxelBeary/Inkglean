@@ -161,6 +161,8 @@ function onPointerMove(e: PointerEvent) {
 }
 
 function onPointerUp(e: PointerEvent) {
+  // F0197: pointerup/pointercancel 互斥，结束任一个都要解绑对方+move，否则监听每次拖拽只增不减累积失效回调
+  e.target!.removeEventListener('pointercancel', onPointerCancel as EventListener)
   if (dragIdx < 0) return // 防御：无活动拖拽的 stray pointerup（cancel 已复位后不应再提交）
   e.target!.removeEventListener('pointermove', onPointerMove as EventListener)
 
@@ -189,7 +191,8 @@ function onPointerUp(e: PointerEvent) {
 
 function onPointerCancel(e: PointerEvent) {
   e.target!.removeEventListener('pointermove', onPointerMove as EventListener)
-  e.target!.removeEventListener('pointerup', onPointerUp as EventListener)
+  e.target!.removeEventListener('pointerup', onPointerUp as EventListener) // F0197: 双向解绑
+
   elasticId.value = null
   detachId.value = null
   dragIdx = -1

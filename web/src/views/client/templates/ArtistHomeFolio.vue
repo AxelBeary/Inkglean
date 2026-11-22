@@ -208,11 +208,17 @@ function setupSpy() {
   })
 }
 onMounted(() => {
+  // F0321: 记录当前相交的区块集合；离开所有区块（如滚到空白区）时复位高亮，不再停在错误区块
+  const visibleSections = new Set<string>()
   observer = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
-        if (entry.isIntersecting) activeSection.value = entry.target.id
+        if (entry.isIntersecting) visibleSections.add(entry.target.id)
+        else visibleSections.delete(entry.target.id)
       }
+      // 取仍在相交的第一个导航区块；一个都没有则复位到首个区块
+      const active = navItems.value.find(n => visibleSections.has(n.id))
+      activeSection.value = active ? active.id : (navItems.value[0]?.id ?? '')
     },
     { rootMargin: '-45% 0px -50% 0px' }
   )

@@ -471,9 +471,13 @@ async function handleFocusDrop(event: DragEvent, order: QueueRow) {
   }
 }
 /** 上传图片 → 设为该订单焦点图（复用 reference 上传 + setFocusImage 接口） */
+// F0221: 在途锁——两步写入无锁时并发覆盖会留下孤儿引用；同订单在途时忽略后续上传
+const focusUploadingIds = new Set<number>()
 async function uploadAndSetFocus(file: File, order: QueueRow) {
+  if (focusUploadingIds.has(order.id)) return
   if (!file.type.startsWith('image/')) { ElMessage.error(t('orderDetail.galleryNotImage')); return }
   if (file.size > MAX_IMAGE_BYTES) { ElMessage.error(t('orderDetail.galleryTooBig')); return }
+  focusUploadingIds.add(order.id)
   try {
     // G-7（P2-13 前端侧）: 参考图接口强制 x-anon-token——上传前 await 凭证，
     // 失效凭证由 anonUpload 换新重试一次（与订单图库同链路）
@@ -485,6 +489,10 @@ async function uploadAndSetFocus(file: File, order: QueueRow) {
     emit('refresh-queue')
   } catch (err) {
     ElMessage.error(err instanceof AnonTokenUnavailableError ? t('orderDetail.anonTokenRequired') : (err as Error).message)
+    // F0221: 失败（含设焦点中途失败留孤儿引用）后刷新队列，界面与服务端真相一致
+    emit('refresh-queue')
+  } finally {
+    focusUploadingIds.delete(order.id)
   }
 }
 

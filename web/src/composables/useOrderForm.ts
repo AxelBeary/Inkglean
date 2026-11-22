@@ -479,10 +479,21 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
     const preview = stylePricePreview.value
     if (!stages.length || !preview || preview.totalCents == null) return []
     const total = preview.totalCents
-    const items = stages.map(s => ({ label: s.label, amountCents: Math.round(total * s.basisPoints / 10000) }))
-    // 尾差归末节点（与后端一致）
-    const sum = items.reduce((acc, it) => acc + it.amountCents, 0)
-    if (items.length) items[items.length - 1].amountCents += total - sum
+    // F0242: 与后端 allocateInitial 完全同口径——比例和可能≠100%，先按 Σbp 算 ratioTotal；
+    // 前 N-1 节点四舍五入后钳到剩余额度（防小总价多节点把尾款挤成负数），尾节点吸收全部余数（可为 0 但不再为负）
+    const totalBp = stages.reduce((acc, s) => acc + (s.basisPoints || 0), 0)
+    const ratioTotal = Math.round(total * totalBp / 10000)
+    const items: InstallmentItem[] = stages.map(s => ({ label: s.label, amountCents: 0 }))
+    let allocated = 0
+    for (let i = 0; i < items.length; i++) {
+      if (i === items.length - 1) {
+        items[i].amountCents = ratioTotal - allocated
+      } else {
+        const rounded = Math.round(total * (stages[i].basisPoints || 0) / 10000)
+        items[i].amountCents = Math.min(rounded, ratioTotal - allocated)
+        allocated += items[i].amountCents
+      }
+    }
     return items
   })
 
@@ -594,7 +605,12 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
     }
     submitting.value = true
     submittedTotalCents.value = null
-    const valid = await formRef.value!.validate().catch(() => false)
+    // F0244: formRef 为空时不加非空断言——一旦为空 .validate() 抛错会跳过后续 submitting=false，锁永久卡死
+    if (!formRef.value) {
+      submitting.value = false
+      return
+    }
+    const valid = await formRef.value.validate().catch(() => false)
     if (!valid) {
       submitting.value = false
       return

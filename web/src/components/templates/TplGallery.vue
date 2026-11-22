@@ -134,6 +134,8 @@
       :is-liked="isLiked"
       :tags-of="tagsOf"
       :order-by-tag="orderByTag"
+      @update:liked="(p: { id: number; liked: boolean }) => onLikeToggle(p.id, p.liked)"
+      @update:count="(p: { id: number; count: number }) => onLikeCount(p.id, p.count)"
     />
   </div>
 </template>

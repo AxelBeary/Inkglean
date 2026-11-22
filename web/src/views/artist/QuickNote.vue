@@ -109,8 +109,11 @@ function nowTime(): string {
 function addNote() {
   const content = newContent.value.trim()
   if (!content) return
+  // F0301: id 取 max(Date.now(), 现有最大 id + 1)，同毫秒新增与恢复的历史便签都不会撞 key
+  const maxId = notes.value.reduce((m, n) => Math.max(m, n.id), 0)
+  const newId = Math.max(Date.now(), maxId + 1)
   notes.value.unshift({
-    id: Date.now(),
+    id: newId,
     title: newTitle.value.trim(),
     content,
     time: nowTime()

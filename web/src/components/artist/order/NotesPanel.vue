@@ -38,11 +38,12 @@
             :aria-label="$t('orderDetail.viewNoteImage')"
             @click="openNoteImage(note.imageUrl)"
           >
+            <!-- F0215: @error 携带 image_path，父级 refreshNow(path) 按图限次换签，避免坏图触发全量无限刷新 -->
             <img
               :src="note.imageUrl"
               class="note-thumb"
               :alt="$t('orderDetail.noteImage')"
-              @error="emit('refresh')"
+              @error="emit('refresh', note.image_path)"
             />
           </button>
         </div>

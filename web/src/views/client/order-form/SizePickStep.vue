@@ -12,15 +12,18 @@
       </div>
     </div>
     <template v-else>
-      <div class="size-pick-list">
+      <!-- F0317: radiogroup 语义；展示态(showcase)尺寸不可选，disabled + aria-disabled，避免伪装成可点 radio -->
+      <div class="size-pick-list" role="radiogroup" :aria-label="t('orderForm.sizeStepTitle')">
         <button
           v-for="sz in sizes" :key="sz.id"
           class="size-pick" :class="{ 'size-pick--on': selectedSizeId === sz.id, 'size-pick--showcase': sz.display_status === 'showcase' }"
           type="button"
           role="radio"
           :aria-checked="selectedSizeId === sz.id"
+          :aria-disabled="sz.display_status === 'showcase'"
+          :disabled="sz.display_status === 'showcase'"
           :aria-label="sz.name"
-          @click="emit('select', sz.id)"
+          @click="sz.display_status !== 'showcase' && emit('select', sz.id)"
         >
           <span class="size-pick-main">
             <span class="size-pick-name">{{ sz.name }}</span>

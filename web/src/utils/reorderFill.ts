@@ -70,7 +70,9 @@ export function buildReorderNoteText(sourceOrder: ReorderSourceOrder | null | un
     .filter(n => n && n.created_by !== 'system' && n.content)
     .map(n => String(n.content).trim())
     .filter(Boolean)
-  return texts.join('\n').slice(0, REORDER_NOTE_MAX)
+  // F0274: 按 UTF-16 码元 slice 会在边界切断 emoji 代理对，改用 Array.from 按 Unicode 码点截断
+  const joined = texts.join('\n')
+  return Array.from(joined).slice(0, REORDER_NOTE_MAX).join('')
 }
 
 /**

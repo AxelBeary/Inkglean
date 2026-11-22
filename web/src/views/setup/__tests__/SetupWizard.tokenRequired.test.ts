@@ -119,8 +119,30 @@ describe('WEB-09: 安装口令输入框渲染', () => {
     const wrapper = mountWizard()
     await flushPromises()
 
-    // checkStatus 内部调用 fetch('/api/setup/status')
-    expect(fetchMock).toHaveBeenCalledWith('/api/setup/status')
+    // checkStatus 内部调用 fetch('/api/setup/status')（F0259: 带超时 signal 的第二参）
+    expect(fetchMock).toHaveBeenCalledWith('/api/setup/status', expect.objectContaining({ signal: expect.any(AbortSignal) }))
+    wrapper.unmount()
+  })
+
+  // F0322/F0319: 管理员已建、TOTP 未确认的进度续填路径——刷新后直达扫码步
+  it('pending TOTP 进度存在 → 刷新后恢复到扫码步、不回欢迎步', async () => {
+    window.sessionStorage.setItem('inkglean-setup-pending-totp', JSON.stringify({
+      totpSecret: 'JBSWY3DPEHPK3PXP',
+      otpauthUri: 'otpauth://totp/x?secret=JBSWY3DPEHPK3PXP',
+      adminQq: '10001'
+    }))
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ initialized: false, tokenRequired: false })
+    })))
+
+    const wrapper = mountWizard()
+    await flushPromises()
+
+    const store = useSetupStore()
+    expect(store.totpSecret).toBe('JBSWY3DPEHPK3PXP')
+    expect(wrapper.find('.panel-title').text()).toBe('setup.step3Title')
+    window.sessionStorage.removeItem('inkglean-setup-pending-totp')
     wrapper.unmount()
   })
 })

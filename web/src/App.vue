@@ -30,14 +30,26 @@ const elLocale = computed(() => locale.value === 'zh-CN' ? zhCn : en)
 // CSS 侧单属性 opacity（.55→1，var(--dur-mid) ease-out），禁止多颜色变量插值；
 // 动画结束移除（animationend），300ms 兜底防 reduced-motion 下无事件残留。
 let localeSwapTimer: number | undefined
+// F0175: 记录上一次的监听器与所在节点，切换前先解绑；否则快速切换会累积 animationend 监听器，
+// 且旧 onSwapEnd 的 clearTimeout(localeSwapTimer) 会误清掉当前兜底定时器
+let localeSwapCleanup: (() => void) | undefined
 watch(locale, async () => {
   const root = document.getElementById('app')
   if (!root) return
   await nextTick()
+  // F0175: 先清理上一轮（解绑旧监听 + 清旧定时器），再挂本轮
+  localeSwapCleanup?.()
   const onSwapEnd = () => {
     root.classList.remove('locale-swap')
     root.removeEventListener('animationend', onSwapEnd)
     clearTimeout(localeSwapTimer)
+    localeSwapTimer = undefined
+    localeSwapCleanup = undefined
+  }
+  localeSwapCleanup = () => {
+    root.removeEventListener('animationend', onSwapEnd)
+    clearTimeout(localeSwapTimer)
+    localeSwapTimer = undefined
   }
   root.classList.remove('locale-swap')
   void root.offsetWidth // 连续切换时强制重排，重新触发动画

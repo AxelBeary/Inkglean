@@ -21,7 +21,8 @@
           @keydown.space.prevent="emit('open-viewer', index)"
         >
           <!-- R43: placeholder 骨架屏防首屏白闪 -->
-          <el-image :src="reference.url" fit="cover" class="ref-img" :alt="$t('orderDetail.referenceImage')" @error="emit('refresh')">
+          <!-- F0212: 携带 file_path → 父级 refreshNow(path) 按图限次，坏图不再触发无限全量换签 -->
+          <el-image :src="reference.url" fit="cover" class="ref-img" :alt="$t('orderDetail.referenceImage')" @error="emit('refresh', reference.file_path)">
             <template #placeholder>
               <div class="ref-img-skeleton"></div>
             </template>

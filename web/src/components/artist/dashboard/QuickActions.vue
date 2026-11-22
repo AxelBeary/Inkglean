@@ -181,9 +181,12 @@ function onCardDragLeave(action: QuickActionDef) {
 }
 async function onCardDrop(action: QuickActionDef, e: DragEvent) {
   if (action.key !== 'publish') return
-  const files = Array.from(e.dataTransfer?.files || [])
+  // F0210: 拖拽路径补数量上限（对齐粘贴路径 maxCount），绕过上限会一次建过多作品
+  const all = Array.from(e.dataTransfer?.files || [])
     .filter(f => f.type.startsWith('image/') && f.size <= MAX_IMAGE_BYTES) // a1: 拖拽路径补大小校验（对齐粘贴路径）
-  if (!files.length) { ElMessage.warning(t('quickAction.notImage')); return }
+  if (!all.length) { ElMessage.warning(t('quickAction.notImage')); return }
+  // 超出上限直接截取前 MAX_IMAGE_COUNT 张（与粘贴路径口径一致，不新增 i18n 键）
+  const files = all.slice(0, MAX_IMAGE_COUNT)
   await doPublish(files)
 }
 async function doPublish(files: File[]) {
@@ -201,8 +204,9 @@ async function doPublish(files: File[]) {
   }
   publishUploading.value = true
   try {
-    for (const file of files) {
-      const uploaded = await uploadApi.image(file)
+    // F0209: 先把所有图片上传成功，再逐张创建作品——上传失败时不会留下前面已建的作品（重试不再重复）
+    const uploadedPaths = await Promise.all(files.map(f => uploadApi.image(f)))
+    for (const uploaded of uploadedPaths) {
       await artistApi.createArtwork({ imagePath: uploaded.filePath, title: uploaded.originalName })
     }
     ElMessage.success(t('quickAction.published'))

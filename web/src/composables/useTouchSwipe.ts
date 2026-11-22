@@ -30,6 +30,11 @@ export function useTouchSwipe(options: UseTouchSwipeOptions = {}) {
     options.onMove?.(event)
   }
 
+  /** F0255: 触摸被系统取消（来电/手势打断）时清空起点，否则残留 startX 会让下一次 touchend 误判滑动方向 */
+  function onTouchCancel(_event: TouchEvent) {
+    startX = null
+  }
+
   /** 计算滑动方向；无有效起点或位移不足阈值 → null */
   function onTouchEnd(event: TouchEvent): SwipeDirection {
     const endX = event.changedTouches[0]?.clientX
@@ -40,5 +45,5 @@ export function useTouchSwipe(options: UseTouchSwipeOptions = {}) {
     return dx < 0 ? 'left' : 'right'
   }
 
-  return { onTouchStart, onTouchMove, onTouchEnd }
+  return { onTouchStart, onTouchMove, onTouchEnd, onTouchCancel }
 }

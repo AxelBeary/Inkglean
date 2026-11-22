@@ -723,9 +723,12 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     preview: '预览',
     renderError: '图片合成失败，请换一张图片重试',
     fileTypeError: '请选择图片文件（LOGO 需 PNG）',
+    fileTooBig: '图片超过 {mb}MB 限制，可能撑爆画布，请换小图重试', // F0305
     logoSaved: 'LOGO 已保存',
+    logoSaveFailed: 'LOGO 仅本次会话可用（本地存储写入失败）', // F0306
     // A8: logo 模式需先上传 LOGO 再预览/导出
     logoRequired: 'LOGO 模式下请先上传 LOGO，再预览或导出',
+    textRequired: '文字水印内容为空，请先填写文字', // F0303
     // 波3-2: 加载失败错误态（区分失败与空列表）
     loadArtworksFailed: '作品列表加载失败，请重试',
     loadOrdersFailed: '订单列表加载失败，请重试',
@@ -890,6 +893,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     descSoftTitle: '需求描述为空', descSoftMsg: '你还没有填写需求描述，确定继续吗？（画师可能不太清楚你的想法）',
     descSoftContinue: '继续',
     refLabel: '参考图（可选，最多5张，每张≤10MB）', refExceed: '最多上传5张参考图',
+    tagTooLong: '描述已达上限，无法添加该标签', // F0316
     refTip: '下单后画师也可在订单图库中补充参考图，订单图库合计上限 20 张。',
     refUpload: '上传参考图',
     qqLabel: '你的QQ号', qqPlaceholder: '画师会通过QQ联系你',
@@ -2019,6 +2023,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     addPlaceholder: '新节点名称，如「细化确认」', final: '尾款', auto: '自动',
     deleteHint: '确定删除此节点？', deletePayHint: '此节点收款比例 {pct}% 将并入尾款，确定删除？',
     savePayment: '保存比例', unsaved: '有未保存的比例变更',
+    savingPleaseWait: '比例正在保存，请稍后再操作', // F0203
     saved: '比例已保存', detached: '已移除该收款节点，比例已并入尾款',
     // 批4 B10（方案 b）：活跃订单存在时后端附 appliesToNewOrdersOnly，提示仅影响新订单
     paymentNewOrdersOnly: '比例已保存，仅影响新订单（已有订单按下单时快照不变）',
@@ -2348,6 +2353,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     step3Desc: '请使用验证器 App 扫描下方二维码，然后输入 6 位动态码完成验证。还没装 App？点下方「还没装验证器 App？」。',
     step3QrAlt: 'TOTP 二维码',
     step3QrRegenerate: '重新生成',
+    step3SecretFallback: '二维码生成失败，请手动输入此密钥：', // F0320
     step3CodeLabel: '6 位动态码',
     step3CodePlaceholder: '输入 6 位动态码',
     step3CodeRequired: '请输入 6 位动态码',

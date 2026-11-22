@@ -90,6 +90,11 @@ export function resizeImageToBlob(image: HTMLImageElement, { width, height, qual
       reject(new Error(IMAGE_RESIZE_ERROR.CANVAS_2D_UNAVAILABLE))
       return
     }
+    // F0267: 损坏图 naturalWidth/Height 可能为 0/NaN，coverRect 会算出 NaN 裁切框并导出空白 WebP；先校验源图尺寸
+    if (!Number.isFinite(image.naturalWidth) || !Number.isFinite(image.naturalHeight) || image.naturalWidth < 1 || image.naturalHeight < 1) {
+      reject(new Error(IMAGE_RESIZE_ERROR.INVALID_TARGET_SIZE))
+      return
+    }
     const { dw, dh, dx, dy } = coverRect(image.naturalWidth, image.naturalHeight, dstW, dstH)
     ctx.drawImage(image, dx, dy, dw, dh)
     canvas.toBlob(

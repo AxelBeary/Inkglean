@@ -131,15 +131,19 @@ provide('ctaRaised', ctaRaised)
 // ─── R49: 强调色覆盖（画师设置优先于访客 ThemePicker；离开主页时恢复访客选择） ───
 // 5 色与 theme.css data-accent="1"~"5" 一一对应（含暗色提亮变体，免费获得暗色适配）
 // 813-fq-tail-shared 战役 S：色值单源 = theme.css --accent-1..5，此处按 CSS 变量动态构建映射
-const ACCENT_INDEX = Object.freeze(Object.fromEntries(
-  ['1', '2', '3', '4', '5'].map(id => [
-    getComputedStyle(document.documentElement).getPropertyValue(`--accent-${id}`).trim().toLowerCase(),
-    id
-  ])
-))
+// F0311: 色值映射改为「用时计算」——暗色/换肤会改写 --accent-* 的 CSS 变量值，setup 期一次性构建会永久失效
+function accentIndex(): Record<string, string> {
+  const style = getComputedStyle(document.documentElement)
+  return Object.fromEntries(
+    ['1', '2', '3', '4', '5'].map(id => [
+      style.getPropertyValue(`--accent-${id}`).trim().toLowerCase(),
+      id
+    ])
+  )
+}
 const accentOverride = computed(() => {
   const raw = previewAccent.value || (artist.value as VisibleArtistProfile | null)?.accentColor
-  return raw ? (ACCENT_INDEX[String(raw).toLowerCase()] || null) : null
+  return raw ? (accentIndex()[String(raw).toLowerCase()] || null) : null
 })
 let savedAccent: string | null = null
 let accentApplied = false

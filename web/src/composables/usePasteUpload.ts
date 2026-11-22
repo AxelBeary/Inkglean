@@ -41,7 +41,8 @@ export function usePasteUpload({ onFiles, maxCount = MAX_IMAGE_COUNT, maxSizeMB 
     // enabled 为 false 时不响应（如对话框未打开）
     if (!unref(enabled)) return
     // a3: busy 互斥——上传在途时再次粘贴直接忽略，防止并发进入 onFiles 超限重复上传
-    if (isPasteUploading.value) return
+    // F0245: 必须 preventDefault，否则浏览器默认行为仍会插入图片，绕过下面的数量/尺寸校验入口
+    if (isPasteUploading.value) { event.preventDefault(); return }
 
     const items = event.clipboardData?.items
     if (!items) return

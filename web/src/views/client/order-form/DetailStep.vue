@@ -104,7 +104,10 @@ const { guardDragEnter, guardDragOver, guardDrop } = useDropGuard()
 // R58-4: 灵感标签快捷注入（追加到描述尾，中文标点分隔，MAX_DESC_LEN 截断）
 function appendTag(tag: string) {
   const sep = description.value && !/[，。、\s]$/.test(description.value) ? '，' : ''
-  description.value = `${description.value}${sep}${tag}`.slice(0, MAX_DESC_LEN)
+  const next = `${description.value}${sep}${tag}`
+  // F0316: 放不下整个标签时跳过（可提示），不再截断出残缺标签且无反馈
+  if (next.length > MAX_DESC_LEN) { ElMessage.warning(t('orderForm.tagTooLong')); return }
+  description.value = next
 }
 
 /** 超出 5 张限制提示（i18n 文案，与原内联写法一致） */

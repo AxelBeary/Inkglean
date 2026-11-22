@@ -120,7 +120,8 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { formatYuan, yuanToCents } from '../../utils/money'
+import { formatYuan } from '../../utils/money'
+import { toStandaloneAmountCents } from './standaloneAmount' // F0310
 import { todayStr } from '../../utils/datetime'
 import { artistApi } from '../../api/index'
 import type { StandaloneIncome } from '../../api/types'
@@ -159,8 +160,8 @@ async function submit() {
   } catch {
     return // el-form 已展示校验错误
   }
-  // 元 → 分（×100 取整；后端要求整数分 >0）
-  const amountCents = yuanToCents(form.amount)
+  // 元 → 分（F0310: 走可单测的换算 helper；后端要求整数分 >0）
+  const amountCents = toStandaloneAmountCents(form.amount)
   saving.value = true
   try {
     // 05D-I1: 收口进 artistApi（401 自动登出/15s 超时/i18n 翻译走统一拦截器）

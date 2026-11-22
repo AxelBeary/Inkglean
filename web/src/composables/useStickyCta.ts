@@ -20,7 +20,8 @@ export function useStickyCta(sentinelRef: Ref<unknown>) {
     // 1) DOM 元素（直接传 el）
     // 2) 异步组件实例（el.sentinelEl 是 defineExpose 的模板 ref，经 expose proxy 已自动 unwrap 为 DOM 元素）
     const sentinel = (el as { sentinelEl?: unknown } | null)?.sentinelEl || el
-    if (!sentinel || !(sentinel instanceof Element)) return
+    // F0254: 哨兵失效（异步组件卸载/未就绪）时重置 visible，避免上一次观察结果让吸底 CTA 残留
+    if (!sentinel || !(sentinel instanceof Element)) { visible.value = false; return }
     observer = new IntersectionObserver(
       ([entry]) => {
         // 哨兵不可见（滚过去了）→ 显示吸底条

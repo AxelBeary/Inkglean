@@ -9,7 +9,8 @@
       <!-- 签内容：节点名 + 收款百分比 + 完成✓ + 进行中签（纵向/窄屏隐藏） -->
       <div class="tl-label">
         <span class="tl-name">{{ stage.name }}</span>
-        <span v-if="stage.takesPayment && stage.basisPoints" class="tl-bp">{{ (stage.basisPoints / 100).toFixed(0) }}%</span>
+        <!-- F0229: 收款百分比按 bp/100 保留最多 2 位小数（与全站口径一致，不再 toFixed(0) 丢精度） -->
+        <span v-if="stage.takesPayment && stage.basisPoints" class="tl-bp">{{ stage.basisPoints / 100 }}%</span>
         <span v-if="nodeState(stage.id) === 'done'" class="tl-check">✓</span>
         <span v-if="isCurrent(stage.id)" class="tl-current-tag">{{ $t('track.timeline.current') }}</span>
       </div>

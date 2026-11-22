@@ -186,7 +186,8 @@ export function drawWatermark(ctx: CanvasRenderingContext2D, options: DrawWaterm
       const h = logo.naturalHeight * scale
       paintWatermarkAt(ctx, { x: (canvasW - w) / 2, y: (canvasH - h) / 2, w, h, logo, opacity })
     } else {
-      paintWatermarkAt(ctx, { x: 0, y: 0, ...size, text, opacity })
+      // F0284: stretch 文字水印此前钉在 (0,0) 左上，与注释「文字居中」不符；改为画布居中
+      paintWatermarkAt(ctx, { x: (canvasW - size.w) / 2, y: (canvasH - size.h) / 2, ...size, text, opacity })
     }
     return
   }

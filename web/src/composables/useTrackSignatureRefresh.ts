@@ -39,7 +39,7 @@ export function useTrackSignatureRefresh<T extends RefreshableOrder>({
   token: Ref<string>
   /** 换签请求（注入而非在此 import api，便于单测替换）；响应与画师端同形 { urls, skipped? } */
   request: (orderNo: string, token: string, paths: string[]) => Promise<{ urls: Record<string, string>; skipped?: string[] }>
-}): void {
+}): { refreshNow: (path?: unknown) => void } {
   /** 当前已渲染图片的路径（参考图 + 过程稿，去重）；空数组 = 本次无需续签 */
   const collect = (): string[] => {
     const current = order.value
@@ -80,10 +80,12 @@ export function useTrackSignatureRefresh<T extends RefreshableOrder>({
     current.previews = current.previews.filter(p => !gone.has(uploadedPathFromUrl(p.url ?? '') || ''))
   }
 
-  useSignatureRefresh({
+  // F0253: 透传 refreshNow——原包装层丢弃它，客户查单页失去单图 @error 兜底（超时 403 只能等下一轮定时刷新）
+  const { refreshNow } = useSignatureRefresh({
     collect,
     apply,
     onSkipped: dropSkipped,
     request: (paths) => request(orderNo.value, token.value, paths),
   })
+  return { refreshNow }
 }
