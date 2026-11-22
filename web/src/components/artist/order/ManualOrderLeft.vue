@@ -288,6 +288,8 @@ function reset() {
 // 入参来自源订单详情 references（含签名 url 与 original_name），数量已由父组件
 // 按 MAX_IMAGE_COUNT 截断；这里再防御性截断一次，并与新上传共用同一展示/删除/提交链路。
 function setReorderRefs(sourceRefs: ReorderSourceRef[] | null | undefined) {
+  // F0214: 重建参考图列表前清空旧 uid→路径映射，避免残留旧条目误删/误提交
+  refUidMap.value.clear()
   const refs = Array.isArray(sourceRefs) ? sourceRefs.slice(0, MAX_IMAGE_COUNT) : []
   refFileList.value = refs.map((r, idx) => {
     const filePath = String(r.file_path || '').trim()

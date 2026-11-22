@@ -48,6 +48,7 @@ export interface ResolveReportResult {
 /** POST /api/admin/content/:type/:id/remove 响应 */
 export interface RemoveContentResult {
   success: boolean
+  already?: boolean // F0181: 后端幂等回显字段（已下架再点回 already:true），原漏声明导致调用方无法类型安全地读取
 }
 
 /** POST /api/admin/artists/:id/ban | /unban 响应 */

@@ -182,7 +182,8 @@ const props = defineProps({
   multiStyleEnabled: Boolean,
   /** 父组件 styles.length（默认徽标/设为默认判定，与原式 styles.length > 1 同口径） */
   styleCount: { type: Number, required: true },
-  defaultStyleId: { type: Number as PropType<number | null>, required: true },
+  // F0224: 类型声明为 number|null，但运行时 type:Number 在 null 时报警告；用自定义 validator 接受 null
+  defaultStyleId: { type: null as unknown as PropType<number | null>, required: true, validator: (v: unknown) => v === null || typeof v === 'number' },
   /** SPEC-PRICE-2 尺寸三态选项（文案由父组件 computed 产出，单一来源） */
   statusOptions: {
     type: Array as PropType<Array<{ value: 'available' | 'showcase' | 'closed'; label: string }>>,

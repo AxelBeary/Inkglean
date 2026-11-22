@@ -185,7 +185,8 @@ function validate() {
     ElMessage.warning(t('deposit.amountRequired'))
     return false
   }
-  if (form.amountYuan <= 0) {
+  // F0295: 不足 1 分的正金额入账后会被舍入成 0 元，提前拦下
+  if (form.amountYuan <= 0 || form.amountYuan * 100 < 1) {
     ElMessage.warning(t('deposit.amountPositive'))
     return false
   }

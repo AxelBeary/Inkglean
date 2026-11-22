@@ -68,7 +68,8 @@
           {{ $t('artistHome.trackOrder') }}
         </button>
       </div>
-      <div class="tpl-hero-links" v-if="footerLinks.length">
+      <!-- F0230: split 变体由 Folio 页自己渲染 folio-links，这里不再重复渲染页脚外链 -->
+      <div class="tpl-hero-links" v-if="variant !== 'split' && footerLinks.length">
         <template v-for="(link, i) in footerLinks" :key="link.key">
           <a :href="link.url" target="_blank" rel="noopener noreferrer">{{ link.label }}</a>
           <span v-if="i < footerLinks.length - 1" class="tpl-hero-sep">·</span>

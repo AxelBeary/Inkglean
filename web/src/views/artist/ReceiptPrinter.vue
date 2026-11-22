@@ -71,6 +71,7 @@ function onExportPng({ blob, filename }: { blob: Blob; filename: string }) {
   a.href = url
   a.download = filename
   a.click()
-  URL.revokeObjectURL(url)
+  // F0302: 延迟 revoke，避免中断浏览器下载
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 </script>

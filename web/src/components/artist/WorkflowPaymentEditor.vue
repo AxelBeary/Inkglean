@@ -394,7 +394,9 @@ function onBarChange(nodes: Array<{ id: number; basisPoints: number }>) {
 
 async function savePayment() {
   if (dirtyNodes.value.length === 0) return true
-  if (saving.value) return false // a1: 重入守卫——比例保存/结构操作并发时不再乱序覆盖 stages
+  // a1: 重入守卫——比例保存/结构操作并发时不再乱序覆盖 stages
+  // F0203: 原静默 return false 会让结构操作被吞且无反馈，这里明确提示用户稍后重试
+  if (saving.value) { ElMessage.warning(t('workflow.savingPleaseWait')); return false }
   saving.value = true
   try {
     const res = await api.value.save(dirtyNodes.value)

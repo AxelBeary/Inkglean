@@ -189,7 +189,9 @@ export function normalizeActivity(raw: { items?: ActivityItem[] | null, activiti
 export function relativeTime(isoStr: string, t: (key: string, params?: Record<string, number>) => string, locale: string): string {
   if (!isoStr) return ''
   // P2-#15 / a3: SQLite 空格格式补 T 并追加 Z（与 datetime.js 对齐），避免浏览器当本地时间解析（时区偏差 8h）
-  const normalized = isoStr.includes('T') ? isoStr : isoStr.replace(' ', 'T') + 'Z'
+  // F0261: 若字符串自带时区后缀（Z 或 ±HH:MM），不能再追加 Z，否则拼出 '…+08:00Z' 变 Invalid Date
+  const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(isoStr)
+  const normalized = isoStr.includes('T') ? isoStr : isoStr.replace(' ', 'T') + (hasTimezone ? '' : 'Z')
   const diffMs = Date.now() - new Date(normalized).getTime()
   const mins = Math.floor(diffMs / 60000)
   if (mins < 1) return t('dashboard.timeJustNow')

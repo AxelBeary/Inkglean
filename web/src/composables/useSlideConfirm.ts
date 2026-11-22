@@ -57,7 +57,13 @@ export function useSlideConfirm({ onConfirm, threshold = 0.9 }: {
     trackRect = null
     if (progress.value >= threshold) {
       close()
-      await onConfirm()
+      // F0251: onConfirm 拒绝时滑块已关闭，旧实现未捕获 → 未处理 rejection 且用户收不到反馈；
+      // 这里捕获后重新展开滑块（进度归零），调用方自身已用 ElMessage 报具体错误，用户可直接重试
+      try {
+        await onConfirm()
+      } catch {
+        open()
+      }
     } else {
       // 未拖到底：回弹归零
       progress.value = 0

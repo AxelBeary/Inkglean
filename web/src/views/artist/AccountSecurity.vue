@@ -428,12 +428,14 @@ async function startRebind() {
   rebindLoading.value = true
   try {
     const result = await totpRebindApi.rebindInit()
+    // F0289: init 每次都会暂存一个新 secret——passkey 路复用本次结果（含二维码/tempKey），
+    // 不再于 verifyWithPasskey 里二次 init，否则首个暂存的 TOTP 新密钥成为孤儿
+    rebindQrDataUrl.value = result.qrDataUrl
+    rebindTempKey.value = result.tempKey
     if (result.verifyMethod === 'passkey') {
       rebindMethod.value = 'passkey'
     } else {
       rebindMethod.value = 'code'
-      rebindQrDataUrl.value = result.qrDataUrl
-      rebindTempKey.value = result.tempKey
     }
   } catch (err) {
     if (isBackendError(err) && err.code === 'REBIND_COOLDOWN') {
@@ -461,14 +463,13 @@ async function verifyWithPasskey() {
     const credential = await navigator.credentials.get({ publicKey: toCredentialRequestOptions(options) })
     if (!credential) return null
     rebindPasskeyCredential.value = publicKeyCredentialToJSON(credential as PublicKeyCredential)
-    const result = await totpRebindApi.rebindInit()
+    // F0289: 复用 startRebind 阶段 init 的二维码/tempKey，不再二次 rebindInit（避免首个 secret 变孤儿）
     // 815 审计 P1-1 修复：无二维码时明示错误，不再渲染残缺表单让用户盲输
-    if (result.verifyMethod !== 'passkey' || !result.qrDataUrl) {
+    const method = rebindMethod.value
+    if (method !== 'passkey' || !rebindQrDataUrl.value) {
       ElMessage.error(t('account.totpRebindFailed'))
       return PASSKEY_FLOW_HANDLED
     }
-    rebindQrDataUrl.value = result.qrDataUrl
-    rebindTempKey.value = result.tempKey
     rebindStep.value = 'scan'
     return credential
   }, {
@@ -571,9 +572,11 @@ async function rotateFeed() {
 }
 
 // ─── 工具函数 ───
+// F0287: 改用与 F0277 parseDeadlineDate 同口径的可单测 helper——含 T(ISO-Z/带时区)原样解析，
+// 仅空格格式补 T+Z；原实现先剥 Z 再判 includes('T') 会让 ISO-Z 串丢时区反向偏 8 小时
+import { formatDeviceDate } from './formatDeviceDate'
 function formatDate(dateStr: string): string {
-  const d = new Date(dateStr)
-  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return formatDeviceDate(dateStr)
 }
 
 onMounted(() => {

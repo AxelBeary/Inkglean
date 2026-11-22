@@ -16,13 +16,16 @@ export function useScrollReveal(containerRef?: Ref<HTMLElement | null | undefine
   let mo: MutationObserver | null = null
   // a3: 卸载标记——onMounted 在 nextTick 前卸载时，续建前先检查，避免 observer 挂在 document 上永不清理
   let disposed = false
+  // F0250: 已观察元素集合——避免每次 DOM 变更都重复 observe 同一批节点
+  const observed = new WeakSet<Element>()
 
   const observe = (el: Element) => {
-    if (el.classList.contains('tpl-visible')) return
+    if (observed.has(el) || el.classList.contains('tpl-visible')) return
+    observed.add(el)
     io!.observe(el)
   }
 
-  const scan = (root: HTMLElement | Document) => {
+  const scan = (root: ParentNode) => {
     root.querySelectorAll('.tpl-reveal').forEach(observe)
   }
 
@@ -45,8 +48,16 @@ export function useScrollReveal(containerRef?: Ref<HTMLElement | null | undefine
 
     scan(root)
 
-    // 监听异步组件插入的新节点，补挂观察
-    mo = new MutationObserver(() => scan(root))
+    // F0250: 只扫描本次新增的节点，不再对每次 DOM 变更做全树扫描（重复 observe 由 WeakSet 拦截）
+    mo = new MutationObserver((records) => {
+      for (const rec of records) {
+        for (const node of rec.addedNodes) {
+          if (!(node instanceof Element)) continue
+          if (node.classList.contains('tpl-reveal')) observe(node)
+          scan(node) // 新增子树内的 .tpl-reveal
+        }
+      }
+    })
     mo.observe(root, { childList: true, subtree: true })
   })
 

@@ -226,12 +226,16 @@ function onCalMonthPick(val: string) {
 
 // ─── v0.25 E: 移动端翻月手势（水平滑动 > 50px 触发，参考 TplTierGrid 实现） ───
 let calTouchStartX = 0
+let calTouchStartY = 0 // F0219: 记录纵向起点，斜向滚动不算翻月
 function onCalTouchStart(e: TouchEvent) {
   calTouchStartX = e.touches[0].clientX
+  calTouchStartY = e.touches[0].clientY
 }
 function onCalTouchEnd(e: TouchEvent) {
   const deltaX = e.changedTouches[0].clientX - calTouchStartX
-  if (Math.abs(deltaX) < 50) return
+  const deltaY = e.changedTouches[0].clientY - calTouchStartY
+  // F0219: 仅水平位移足够大且横向大于纵向时才翻月，避免斜向滚动页面误翻
+  if (Math.abs(deltaX) < 50 || Math.abs(deltaX) <= Math.abs(deltaY)) return
   changeMonth(deltaX < 0 ? 1 : -1)
 }
 
@@ -272,8 +276,12 @@ const calCells = computed(() => {
     .map(order => {
       const range = bandRange(order)
       if (!range) return null
+      // F0218: 按日历日比较而非带时分秒的 Date——开工日恰为可视月最后一天时，start(含时分) > monthEnd(零点) 会被误过滤
+      const startDay = new Date(range.start.getFullYear(), range.start.getMonth(), range.start.getDate())
+      const endDay = new Date(range.end.getFullYear(), range.end.getMonth(), range.end.getDate())
+      const firstDay = new Date(first.getFullYear(), first.getMonth(), first.getDate())
       // 带与可见月无交集 → 不渲染
-      if (range.end < first || range.start > monthEnd) return null
+      if (endDay < firstDay || startDay > monthEnd) return null
       return { order, range }
     })
     .filter((b): b is CalBand => b != null)

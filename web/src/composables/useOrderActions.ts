@@ -124,7 +124,12 @@ export function useOrderActions({ order, routeId, statusAction, prevPriority, lo
       ElMessage.success(t('orderDetail.priorityUpdated'))
     } catch (err) {
       if (mySeq !== prioritySeq) return
-      order.value!.priority = prevPriority.value!
+      // F0240: 去掉非空断言——order/prevPriority 可能为 null 时直写会抛错、吞掉后续错误提示。
+      // 序号守卫已保证只有最新请求进入回滚，prevPriority 由成功响应维护为「最近一次被接受的服务端优先级」，
+      // 因此回滚到它不会覆盖前序已接受值；仅在两者都可用时写回，否则靠后端真相兜底（不伪造基线）。
+      if (order.value && prevPriority.value != null) {
+        order.value.priority = prevPriority.value
+      }
       ElMessage.error((err as ApiErrShape).message)
     }
   }

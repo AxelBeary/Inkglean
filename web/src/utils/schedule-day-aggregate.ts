@@ -47,7 +47,15 @@ export interface DaySchedule {
   hiddenCount: number
 }
 
-const DAY_MS = 86400000
+/**
+ * F0277: 后端 deadline 为 SQLite UTC 'YYYY-MM-DD HH:MM:SS'（空格分隔），
+ * 直接 new Date 会当成本地时间解析、排期块落错日；空格格式补 T+Z 按 UTC 解析（与 datetime.ts 同口径）。
+ * 已是 ISO T 格式（含 Z/偏移）的原样保留，兼容既有调用与单测口径。
+ */
+export function parseDeadlineDate(value: string): Date {
+  const normalized = value.includes('T') ? value : value.replace(' ', 'T') + 'Z'
+  return new Date(normalized)
+}
 
 /** 本地日历日键（零点时间戳），时区口径与 ScheduleScroll / 后端一致 */
 export function localDayKey(d: Date): number {
@@ -73,9 +81,11 @@ export function barTone(bar: ScheduleBar, now: Date): ScheduleTone {
   if (bar.status === 'done' || bar.status === 'delivered') return 'done'
   const todayKey = localDayKey(now)
   if (bar.deadline) {
-    const dlKey = localDayKey(new Date(bar.deadline))
+    const dlKey = localDayKey(parseDeadlineDate(bar.deadline)) // F0277: UTC 存储格式按 UTC 解析
     if (dlKey < todayKey) return 'overdue'
-    if (dlKey <= todayKey + DAY_MS) return 'soon'
+    // F0279: 用 Date 构造「明天本地零点」，固定 +86400000ms 在夏令时切换日会偏移一小时误判临期
+    const tomorrowKey = localDayKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1))
+    if (dlKey <= tomorrowKey) return 'soon'
   }
   if (bar.status === 'pending' || bar.status === 'confirmed') return 'unstarted'
   return 'wip'
@@ -86,7 +96,7 @@ export function barDaySpan(bar: ScheduleBar): { start: number; end: number } | n
   let start: number | null = null
   let end: number | null = null
   if (bar.startDate) start = localDayKey(new Date(`${bar.startDate}T00:00:00`))
-  if (bar.deadline) end = localDayKey(new Date(bar.deadline))
+  if (bar.deadline) end = localDayKey(parseDeadlineDate(bar.deadline)) // F0277
   if (start == null && end == null) return null
   // 单端缺失时以另一端为准
   const s = start ?? (end as number)
@@ -96,7 +106,7 @@ export function barDaySpan(bar: ScheduleBar): { start: number; end: number } | n
 
 /** 排序权重：截稿（或开工）越早越靠前，同序按 id 稳定 */
 function sortWeight(bar: ScheduleBar): number {
-  if (bar.deadline) return new Date(bar.deadline).getTime()
+  if (bar.deadline) return parseDeadlineDate(bar.deadline).getTime() // F0277: 与落位/配色同口径解析 UTC 截稿时间
   if (bar.startDate) return new Date(`${bar.startDate}T00:00:00`).getTime()
   return Number.MAX_SAFE_INTEGER
 }

@@ -137,6 +137,15 @@ function acceptImageFile(file: File) {
     // 换图后旧结果失效
     releaseResult()
   }
+  // F0297: 读图失败时明示错误并清空旧数据，避免新文件名配旧图数据
+  reader.onerror = () => {
+    if (gen !== sourceGen) return
+    sourceDataUrl.value = ''
+    processing.value = false
+    // 读取失败提示（i18n 键复用压图工具通用错误）
+    // eslint-disable-next-line no-console -- 读图失败留痕
+    console.warn('[ImageResize] FileReader failed', file.name)
+  }
   reader.readAsDataURL(file)
 }
 

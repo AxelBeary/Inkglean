@@ -31,6 +31,9 @@ const open = ref(false)
 const fabEl = ref<HTMLElement | null>(null)
 // 点击浮窗外部收起（移动端展开后点别处即关，避免长期遮挡）
 function onDocClick(e: MouseEvent) {
+  const target = e.target as Element | null
+  // F0227: ThemePicker 的弹层被 teleport 到 body，点击它不算「点浮窗外部」，否则刚展开就被收起
+  if (target?.closest('.el-popper, .el-overlay, .el-popover')) return
   if (fabEl.value && !fabEl.value.contains(e.target as Node)) open.value = false
 }
 onMounted(() => document.addEventListener('click', onDocClick))

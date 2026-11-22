@@ -3,11 +3,14 @@ import zhCN from '../locales/zh-CN'   // 默认 locale 同步（保首屏翻译�
 import { safeGetItem, safeSetItem } from '../utils/storage'
 
 const STORAGE_KEY = 'huiyue-locale'
+/** F0257: 合法 locale 白名单——存储可能被手工/旧版本写入非法值 */
+const SUPPORTED_LOCALES = ['zh-CN', 'en'] as const
 
 function detectLocale(): string {
   // G-5: 裸读换 safeGetItem（存储禁用时按浏览器语言降级，不抛错）
+  // F0257: 存储值必须过白名单，否则 lang 与文案语言脱节（如存了 'jp' 却显示 zh-CN 文案）
   const saved = safeGetItem(STORAGE_KEY)
-  if (saved) return saved
+  if (saved && (SUPPORTED_LOCALES as readonly string[]).includes(saved)) return saved
   const nav = navigator.language.toLowerCase()
   return nav.startsWith('zh') ? 'zh-CN' : 'en'
 }
@@ -36,7 +39,11 @@ function ensureEn(): Promise<LocaleMessage | null> {
         i18n.global.setLocaleMessage('en', m.default)
         return m.default
       })
-      .catch(() => null)
+      .catch(() => {
+        // F0256: 加载失败不能永久缓存 null，否则整个标签页会话再也切不到英文；清空以便下次重试
+        enPromise = null
+        return null
+      })
   }
   return enPromise
 }

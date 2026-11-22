@@ -1,13 +1,13 @@
 <template>
   <!-- 818-E: 分步高亮导览浮层（自研，不引第三方 tour 库）
        挂载在 ArtistLayoutRoute（后台嵌套路由常驻），Teleport 到 body；
-       遮罩/聚光均为 pointer-events:none，页面可正常点击，气泡独占交互。 -->
+       遮罩/聚光均为 pointer-events:none，页面可正常点击，气泡独占交互。
+        F0225: 非模态浮层无焦点约束，role 用 region（原 role=dialog + aria-modal=true 与实现矛盾） -->
   <Teleport to="body">
     <div
       v-if="active"
       class="tour-layer"
-      role="dialog"
-      aria-modal="true"
+      role="region"
       :aria-label="t('tour.title')"
     >
       <div class="tour-mask" aria-hidden="true"></div>
@@ -54,6 +54,9 @@ const { active, index, steps, rect, ready, next, prev, skip } = tour
 
 const bubbleEl = ref<HTMLElement | null>(null)
 const bubbleHeight = ref(0)
+// F0223: 视口尺寸改响应式，resize 时更新，气泡定位 computed 才能跟着重算
+const vw = ref(typeof window !== 'undefined' ? window.innerWidth : 0)
+const vh = ref(typeof window !== 'undefined' ? window.innerHeight : 0)
 const GAP = 12
 const BUBBLE_MAX_WIDTH = 340
 
@@ -76,19 +79,20 @@ const spotStyle = computed(() => {
 const bubbleStyle = computed(() => {
   const r: TourRect | null = rect.value
   if (!r) return {}
-  const vw = window.innerWidth
-  const vh = window.innerHeight
-  const bubbleW = Math.min(BUBBLE_MAX_WIDTH, Math.max(160, vw - GAP * 2))
-  const below = r.top + r.height + GAP + bubbleHeight.value <= vh - GAP
+  // F0223: 用响应式视口尺寸（下方 resize 更新），不再读非响应式 window.innerWidth/Height
+  const bubbleW = Math.min(BUBBLE_MAX_WIDTH, Math.max(160, vw.value - GAP * 2))
+  const below = r.top + r.height + GAP + bubbleHeight.value <= vh.value - GAP
   const top = below
     ? r.top + r.height + GAP
     : Math.max(GAP, r.top - GAP - bubbleHeight.value)
   const center = r.left + r.width / 2
-  const left = Math.min(Math.max(GAP, center - bubbleW / 2), Math.max(GAP, vw - bubbleW - GAP))
+  const left = Math.min(Math.max(GAP, center - bubbleW / 2), Math.max(GAP, vw.value - bubbleW - GAP))
   return { top: `${top}px`, left: `${left}px`, maxWidth: `${bubbleW}px` }
 })
 
 function measureBubble(): void {
+  // F0223: resize 时同步更新响应式视口尺寸，触发气泡定位重算
+  if (typeof window !== 'undefined') { vw.value = window.innerWidth; vh.value = window.innerHeight }
   bubbleHeight.value = bubbleEl.value?.offsetHeight ?? 0
 }
 

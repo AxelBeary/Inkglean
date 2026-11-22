@@ -97,8 +97,16 @@ function statusLabel(status: string): string {
 async function load() {
   state.value = 'loading'
   try {
-    const res = await artistApi.getMessages({ pageSize: UI_PAGE_SIZE })
-    guestbookMessages.value = (res.items || []).filter((m: GuestbookMessage) => !m.deleted_by_admin)
+    // F0205: 后端无 status 过滤，只取第一页会低估待审数——按 total 翻完所有页（接口 pageSize 上限 100）
+    const size = Math.max(UI_PAGE_SIZE, 100)
+    const first = await artistApi.getMessages({ page: 1, pageSize: size })
+    const all = [...(first.items || [])]
+    const totalPages = Math.ceil((first.total ?? all.length) / size)
+    for (let p = 2; p <= totalPages; p++) {
+      const page = await artistApi.getMessages({ page: p, pageSize: size })
+      all.push(...(page.items || []))
+    }
+    guestbookMessages.value = all.filter((m: GuestbookMessage) => !m.deleted_by_admin)
     state.value = 'ok'
   } catch {
     state.value = 'error'

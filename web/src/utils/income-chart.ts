@@ -16,7 +16,8 @@ export interface IncomeMonthLike {
 export function buildCumulative(rows: IncomeMonthLike[]): number[] {
   let acc = 0
   return rows.map(r => {
-    acc += r.totalCents
+    // F0268: 非数字/非有限值按 0 处理，避免污染整条累计曲线
+    acc += Number.isFinite(r.totalCents) ? r.totalCents : 0
     return acc
   })
 }

@@ -18,6 +18,8 @@ export function useLocaleSwitch(getContainerEl: () => HTMLElement | null | undef
   let busy = false
   // L-5: 中点换 locale 的定时器句柄——随调用方组件卸载清理，防组件销毁后仍改全局 locale
   let langTimer: number | null = null
+  // F0239: 记录待切换的 locale，卸载时若定时器未到点则立即兑现，避免切换静默丢失
+  let pendingLocale: string | null = null
 
   function switchLang(next: string, current: string) {
     if (next === current || busy) return
@@ -36,7 +38,8 @@ export function useLocaleSwitch(getContainerEl: () => HTMLElement | null | undef
       { duration: LANG_SWAP_DURATION_MS, easing: LANG_SWAP_EASING }
     )
     if (langTimer) clearTimeout(langTimer)
-    langTimer = setTimeout(() => setLocale(next), LANG_SWAP_MIDPOINT_MS)
+    pendingLocale = next
+    langTimer = setTimeout(() => { pendingLocale = null; langTimer = null; setLocale(next) }, LANG_SWAP_MIDPOINT_MS)
     const release = () => {
       el.style.height = ''
       el.style.overflow = ''
@@ -48,7 +51,13 @@ export function useLocaleSwitch(getContainerEl: () => HTMLElement | null | undef
   }
 
   // L-5: composable 随调用方生命周期收口——卸载时清理中点定时器（不改动既有调用方）
-  onUnmounted(() => { if (langTimer) clearTimeout(langTimer) })
+  // F0239: 卸载前若定时器尚未触发（未到 160ms 中点），立即兑现 setLocale，否则语言切换静默丢失
+  onUnmounted(() => {
+    if (langTimer) clearTimeout(langTimer)
+    if (pendingLocale) setLocale(pendingLocale)
+    langTimer = null
+    pendingLocale = null
+  })
 
   return { switchLang }
 }

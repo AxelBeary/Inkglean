@@ -200,8 +200,12 @@ async function bulkDo(action: 'approve' | 'reject') {
   try {
     const res = await artistApi.bulkMessages(action, ids)
     const st = action === 'approve' ? 'approved' : 'rejected'
+    // F0293: 按后端实际更新条数收敛本地状态，不再盲目按全选集合改（部分失败时避免本地与后端不一致）
+    const updated = typeof res?.updated === 'number' ? res.updated : ids.length
+    let applied = 0
     for (const m of messages.value) {
-      if (selectedIds.value.has(m.id)) m.status = st as GuestbookMessage['status']
+      if (applied >= updated) break
+      if (selectedIds.value.has(m.id)) { m.status = st as GuestbookMessage['status']; applied++ }
     }
     ElMessage.success(t('guestbookManage.bulkDone', { n: res.updated ?? ids.length }))
     selectedIds.value = new Set<number>()
@@ -283,9 +287,12 @@ async function load() {
     for (let p = 2; p <= pages; p++) {
       const res = await artistApi.getMessages({ page: p, pageSize: PAGE_SIZE })
       all = all.concat(res.items || [])
+      // F0292: 每页成功即提交到 messages，中途某页失败也保留已拉取的页，不再整页清空
+      messages.value = [...all]
     }
     messages.value = all
   } catch (err) {
+    // F0292: 已拉取的页已在循环里写入 messages，这里只提示错误，不再让它变空
     ElMessage.error((err instanceof Error ? err.message : '') || String(err))
   } finally {
     loading.value = false

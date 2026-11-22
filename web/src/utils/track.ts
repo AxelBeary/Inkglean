@@ -73,11 +73,13 @@ export async function getFreshAnonToken(): Promise<string | null> {
 }
 
 export function trackEvent(name: string, payload: Record<string, unknown> = {}): TrackEventRecord {
-  queue.push({ name, ts: Date.now(), version: EVENT_VERSION, ...payload })
+  const record: TrackEventRecord = { name, ts: Date.now(), version: EVENT_VERSION, ...payload }
+  queue.push(record)
   if (queue.length > MAX_QUEUE_SIZE) queue.splice(0, queue.length - MAX_QUEUE_SIZE)
+  // F0278: flush() 会同步 splice 清空队列，触发 flush 的那次调用不能再从 queue 尾部取值（否则返回 undefined，违背声明类型）
   if (queue.length >= FLUSH_BATCH_MAX) flush()
   else if (!flushTimer) flushTimer = setTimeout(flush, FLUSH_INTERVAL_MS)
-  return queue[queue.length - 1]
+  return record
 }
 
 /** 立即发送剩余队列（SPA 路由离开等需要即时上报的场景） */

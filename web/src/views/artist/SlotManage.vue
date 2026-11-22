@@ -32,6 +32,8 @@
                   <el-radio-button value="open">{{ $t('settings.statusOpen') }}</el-radio-button>
                   <el-radio-button value="full">{{ $t('settings.statusFull') }}</el-radio-button>
                   <el-radio-button value="break">{{ $t('settings.statusBreak') }}</el-radio-button>
+                  <!-- F0308: 补 hidden 单选项——已关店铺有可见选中态，不会被一次点击静默重开 -->
+                  <el-radio-button value="hidden">{{ $t('settings.statusHidden') }}</el-radio-button>
                 </el-radio-group>
               </div>
             </div>
@@ -181,7 +183,8 @@ async function updateStatus(val: string | number | boolean) {
     currentStatus.value = status
     ElMessage.success(t('dashboard.statusUpdated'))
   } catch (err) {
-    currentStatus.value = prev
+    // F0309: 回滚基准读 lastKnownStatus（这个「最后已知服务端状态」此前只写不读，成了死变量）
+    currentStatus.value = lastKnownStatus.value || prev
     ElMessage.error((err instanceof Error ? err.message : '') || String(err))
   } finally {
     statusUpdating.value = false

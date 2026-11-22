@@ -464,6 +464,8 @@ watch(styleAddonSelections, () => emit('dirty'), { deep: true })
 
 // ─── 重置（父组件 resetForm 调用） ───
 function reset() {
+  // F0213: 重置表单必须清掉幂等键，否则重置后首次提交复用旧 key 撞 409
+  submitIdemKey = null
   initialStatus.value = 'pending'
   // 画风状态重置（重新从画风/尺寸选起）
   selectedStyleId.value = null

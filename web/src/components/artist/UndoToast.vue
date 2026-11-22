@@ -40,7 +40,8 @@ function onUndo() {
 }
 
 // visible 变 true → 启动倒计时，超时通知父组件关闭；重新弹出时重置 undoing
-watch(() => props.visible, (v) => {
+// F0202: 连续两次撤销时 visible 可能一直是 true（watch 不触发），message 变化才是「新 toast」信号；一起监听并重启倒计时
+watch([() => props.visible, () => props.message], ([v]) => {
   clearTimer()
   undoing.value = false
   if (v) timer = setTimeout(() => emit('timeout'), props.duration)

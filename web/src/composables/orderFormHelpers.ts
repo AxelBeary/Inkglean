@@ -123,6 +123,8 @@ export function useOrderFormDraft(subdomain: string, state: OrderFormDraftState)
   }
 
   function saveDraft() {
+    // F0243: 丢弃后（提交成功/用户选丢弃）不再落盘，防卸载 flush 把已删草稿写回
+    if (draftDiscarded) return
     if (!hasDraftContent.value) {
       sessionStorage.removeItem(DRAFT_KEY)
       return
@@ -151,6 +153,7 @@ export function useOrderFormDraft(subdomain: string, state: OrderFormDraftState)
 
   let draftTimer: number | null = null
   function scheduleDraftSave() {
+    draftDiscarded = false // F0243: 丢弃后又发生真实编辑 → 解除抑制，恢复正常落盘
     if (draftTimer) clearTimeout(draftTimer)
     draftTimer = setTimeout(saveDraft, 500)
   }
@@ -279,8 +282,15 @@ export function useOrderFormDraft(subdomain: string, state: OrderFormDraftState)
     }
   }
 
+  // F0243: 丢弃标记——提交成功后 discardDraft 清键，但组件卸载时 flushDraft 仅凭 hasDraftContent 会把草稿写回；
+  // 用标记抑制丢弃后的落盘（含卸载 flush 与待触发的节流 timer），下一次真实编辑（scheduleDraftSave）自动解除
+  let draftDiscarded = false
+
   /** 丢掉已存草稿键（提交成功 / 用户在恢复询问里选「丢弃」） */
   function discardDraft() {
+    draftDiscarded = true
+    if (draftTimer) clearTimeout(draftTimer)
+    draftTimer = null
     sessionStorage.removeItem(DRAFT_KEY)
   }
 

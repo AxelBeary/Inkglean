@@ -220,7 +220,8 @@ function probeSetupStatus(): Promise<SetupStatusProbe> {
 router.beforeEach(async (to, _from, next) => {
   // REQ-038: 开箱设置初始化守卫
   // 跳过已初始化检查的路由，避免无限循环；存储一律走 safe 封装（G-5：存储禁用不卡路由）
-  if (to.name !== 'SetupWizard' && to.name !== 'ArtistLogin' && to.name !== 'NotFound') {
+  // F0260: 原排除 ArtistLogin，全新未初始化部署直访 /login 可绕过向导；改为也探测（SetupWizard 仍排除防循环）
+  if (to.name !== 'SetupWizard' && to.name !== 'NotFound') {
     const setupDone = safeGetItem('setup_initialized')
     if (setupDone !== '1') {
       try {

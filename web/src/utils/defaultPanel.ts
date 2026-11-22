@@ -2,7 +2,7 @@
  * 「进入后台时先打开」落地映射（822 批：原设置只存不消费属死功能，本批真正接通）
  *
  * 口径：值为 dashboard / null / 未知 → 不跳转（停在仪表盘，即默认行为）；
- * 其余合法值映射到对应后台路由。手动录单沿用候选池口径（/orders 带 action 参数）。
+ * 其余合法值映射到对应后台路由。手动录单指向真实录单页 /orders/new（F0265）。
  * Dashboard.vue 消费：进入仪表盘页且 profile 就绪后一次性 router.replace。
  */
 
@@ -10,7 +10,7 @@
 export const DEFAULT_PANEL_ROUTES: Record<string, string> = {
   queue: '/queue',
   orders: '/orders',
-  manual: '/orders?action=manual',
+  manual: '/orders/new', // F0265: 原 /orders?action=manual 已被废弃（OrderList 不处理 action），真实录单页为 /orders/new
   tiers: '/tiers'
 }
 

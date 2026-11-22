@@ -212,7 +212,7 @@ async function save() {
     // 关闭弹窗触发过渡动画（约 300ms）——若此时 load() 挂 v-loading 遮罩会与动画重叠闪烁；
     // 改为静默刷新（不遮罩）+ 等 @closed 后再正式刷新，消除闪烁
     dialogVisible.value = false
-    pendingReload.value = true
+    // F0198: save 内已 load(true) 刷新一次；@closed 不再重复 GET（原每次保存发两次请求）
     await load(true)
   } catch (err) {
     ElMessage.error((err as Error).message)

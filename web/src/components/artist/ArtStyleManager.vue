@@ -504,6 +504,8 @@ async function onDropToSize(style: ManagerStyleRow, size: ManagerSizeRow, _e: Dr
   let mutexRestore: Array<{ addon_template_id: number; is_enabled: boolean }> | null = null
   // WEB-06 ③：add 类无互斥 → 记录自身启用的反向恢复载荷，尺寸级失败时回滚画风级
   let selfEnableRestore: { addon_template_id: number } | null = null
+  // F0196: 目标项原本的画风级启用态——回滚时仅当原为停用才把它停回去（原本已启用则不动，保持单选原状）
+  const targetWasEnabled = !!sa.is_enabled
   try {
     // 单选约束：用途/加急类拖入尺寸启用 → 同画风其他同类画风级停用（顾客每单各选一个，后端兜底互斥）
     const mutex = mutexAddonItems(style, sa)
@@ -513,6 +515,10 @@ async function onDropToSize(style: ManagerStyleRow, size: ManagerSizeRow, _e: Dr
       mutexRestore = mutex
         .filter(m => m.addon_template_id !== sa.addon_template_id)
         .map(m => ({ addon_template_id: m.addon_template_id, is_enabled: true }))
+      // F0196: 只恢复同类项而不处理原本停用的目标项，会让它与恢复的同类项同时启用，破坏用途/加急单选约束
+      if (!targetWasEnabled && mutex.some(m => m.addon_template_id === sa.addon_template_id && m.is_enabled)) {
+        mutexRestore.push({ addon_template_id: sa.addon_template_id, is_enabled: false })
+      }
       for (const m of mutex) {
         const other = style.addons.find(x => x.addon_template_id === m.addon_template_id)
         if (other) other.is_enabled = !!m.is_enabled

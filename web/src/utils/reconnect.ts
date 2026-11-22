@@ -17,23 +17,44 @@ function emitReconnect(): void {
   }
 }
 
-function onWindowOnline(): void {
+// F0275: 一次网络恢复常同时触发 online 与 visibilitychange，合并同一微任务内的重复信号，
+// 避免一次恢复对每个订阅者重复拉取（连续 dispatch 只发一次，下一个微任务才解锁）
+let resumeScheduled = false
+function onResume(): void {
+  if (resumeScheduled) return
+  resumeScheduled = true
   emitReconnect()
+  const unlock = () => { resumeScheduled = false }
+  if (typeof queueMicrotask === 'function') queueMicrotask(unlock)
+  else Promise.resolve().then(unlock)
+}
+
+function onWindowOnline(): void {
+  onResume()
 }
 
 function onVisibilityChange(): void {
   // 切回前台才触发（隐藏期间可能已在线，回到可见时补一次拉取）
-  if (document.visibilityState === 'visible') emitReconnect()
+  if (typeof document !== 'undefined' && document.visibilityState === 'visible') onResume()
 }
 
-window.addEventListener('online', onWindowOnline)
-document.addEventListener('visibilitychange', onVisibilityChange)
+// F0276: 模块顶层不再直接访问 window/document 注册监听（非 DOM 环境 import 即抛错）；
+// 改为首个订阅者出现时惰性注册，SSR/Node 环境 import 本模块不再抛错
+let listenersAttached = false
+function ensureListeners(): void {
+  if (listenersAttached) return
+  if (typeof window === 'undefined' || typeof document === 'undefined') return
+  window.addEventListener('online', onWindowOnline)
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  listenersAttached = true
+}
 
 /**
  * 订阅重连信号（online / 回前台）。返回退订函数，组件 onUnmounted 时必须成对调用。
  */
 export function subscribeReconnect(cb: () => void): () => void {
   if (typeof cb !== 'function') return () => {}
+  ensureListeners()
   subscribers.add(cb)
   return () => {
     subscribers.delete(cb)

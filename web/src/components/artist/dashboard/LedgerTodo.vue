@@ -180,6 +180,9 @@ function startCooldown(id: number) {
     if (cooldowns[id] <= 0) {
       cooldowns[id] = 0
       clearInterval(timer)
+      // F0208: 清理后从数组移除，避免长会话 timers 无限累积（卸载时重复 clear 也无害）
+      const idx = timers.indexOf(timer)
+      if (idx >= 0) timers.splice(idx, 1)
     }
   }, 1000)
   timers.push(timer)
@@ -216,6 +219,12 @@ async function act(item: TodoItem) {
       return
     }
     const nextStatus = verb.key === 'confirm' ? 'confirmed' : verb.key === 'start' ? 'wip' : 'done'
+    // F0206: 流程单（有 currentStageId）已是末节点、无 nextStageId 时，后端禁用直接 updateStatus(done)
+    // （R30d 要求走 stage 接口）；这类单改路由到详情页用节点操作，避免落 400
+    if (nextStatus === 'done' && item.currentStageId != null && !item.nextStageId) {
+      goDetail(item)
+      return
+    }
     const updated = await artistApi.updateStatus(item.id, nextStatus, vOpt)
     if (nextStatus === 'done') {
       sinkRow(item)

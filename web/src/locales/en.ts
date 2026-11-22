@@ -724,9 +724,12 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     preview: 'Preview',
     renderError: 'Image compositing failed, please try another image',
     fileTypeError: 'Please choose an image file (LOGO must be PNG)',
+    fileTooBig: 'Image exceeds {mb}MB limit and may crash the canvas, please use a smaller image', // F0305
     logoSaved: 'Logo saved',
+    logoSaveFailed: 'Logo available this session only (local storage write failed)', // F0306
     // A8: logo mode requires an uploaded logo before preview/export
     logoRequired: 'Please upload a LOGO first before previewing or exporting',
+    textRequired: 'Watermark text is empty, please enter some text', // F0303
     // Wave 3-2: load-failure error states (distinguish failure from empty list)
     loadArtworksFailed: 'Failed to load artworks. Please retry.',
     loadOrdersFailed: 'Failed to load orders. Please retry.',
@@ -891,6 +894,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     descSoftTitle: 'Empty description', descSoftMsg: 'You have not described what you want. Continue anyway? (The artist may not fully understand your idea.)',
     descSoftContinue: 'Continue',
     refLabel: 'Reference images (optional, up to 5, ≤10MB each)', refExceed: 'Up to 5 reference images',
+    tagTooLong: 'Description is full, cannot add this tag', // F0316
     refTip: 'The artist can add more references to the order gallery after you submit. Gallery total limit: 20 images.',
     refUpload: 'Upload reference image',
     qqLabel: 'Your QQ number', qqPlaceholder: 'The artist will contact you via QQ',
@@ -2020,6 +2024,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     addPlaceholder: 'New stage name, e.g. "Detailing"', final: 'Final', auto: 'Auto',
     deleteHint: 'Delete this stage?', deletePayHint: 'This stage\'s {pct}% payment will merge into the final payment. Delete?',
     savePayment: 'Save Split', unsaved: 'Unsaved payment changes',
+    savingPleaseWait: 'Payment split is being saved, please try again shortly', // F0203
     saved: 'Payment split saved', detached: 'Payment node removed, % merged into final',
     // Batch 4 B10 (option b): backend appends appliesToNewOrdersOnly when active orders exist
     paymentNewOrdersOnly: 'Payment split saved — applies to new orders only (existing orders keep their snapshot)',
@@ -2350,6 +2355,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     step3Desc: 'Scan the QR code with your authenticator app, then enter the 6-digit code to verify. No app yet? Open “Need an authenticator app?” below.',
     step3QrAlt: 'TOTP QR Code',
     step3QrRegenerate: 'Regenerate',
+    step3SecretFallback: 'QR generation failed, please enter this key manually:', // F0320
     step3CodeLabel: '6-digit Code',
     // 812 OOBE 实测：原文案太长在输入框内被截断，缩短（标签与上方说明已交代来源）
     step3CodePlaceholder: 'Enter the 6-digit code',

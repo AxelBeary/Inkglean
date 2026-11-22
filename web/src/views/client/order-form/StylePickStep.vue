@@ -2,7 +2,8 @@
   <!-- ── 选画风（多画风步骤 1，单画风跳过） ── -->
   <div>
     <h3 class="step-title">{{ t('orderForm.styleStepTitle') }}</h3>
-    <div class="style-pick-grid">
+    <!-- F0318: radiogroup + radio 语义（原生 button + role/aria-checked 已具键盘可聚焦，容器补 group 语义） -->
+    <div class="style-pick-grid" role="radiogroup" :aria-label="t('orderForm.styleStepTitle')">
       <button
         v-for="s in styles" :key="s.id"
         class="style-pick" :class="{ 'style-pick--on': selectedStyleId === s.id }"

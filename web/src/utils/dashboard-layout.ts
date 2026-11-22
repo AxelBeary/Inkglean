@@ -6,7 +6,7 @@
 //
 // 默认值镜像 server/src/features/artist/dashboard-prefs.service.ts：
 // - 顺序 = CORE_MODULES（10 块）；隐藏 = 空；
-// - 宽度 = greet/stats/schedule 默认 full，其余 half；
+// - 宽度 = stats/schedule/incomeChart 默认 full，其余（含 greet）half（F0263 更正，原误写 greet=full）；
 // - 密度 = todo/guestbook/activity 默认 0（全部）。
 //
 // 批二字段（scheduleStyle/greetStyle/pageAlign/pageMax）本批一律不消费——见批二注释。
@@ -48,7 +48,8 @@ export function isDashboardPanelId(id: unknown): id is DashboardPanelId {
 }
 
 /**
- * 板块宽度：prefs.width[id] 合法则取之；缺省/非法落默认（greet/stats/schedule=full，其余 half）。
+ * 板块宽度：prefs.width[id] 合法则取之；缺省/非法落默认（stats/schedule/incomeChart=full，其余含 greet 均 half）。
+ * F0263: 原注释误写 greet=full，与 DEFAULT_FULL_PANELS 及 2026-08-21「问候卡默认半行」拍板不符，已更正。
  * prefs 为 null（拉取失败回落）时全部走默认。
  */
 export function resolvePanelWidth(prefs: DashboardPrefs | null | undefined, id: DashboardPanelId): 'half' | 'full' {

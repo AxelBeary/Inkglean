@@ -252,11 +252,8 @@ const covers = computed(() =>
     .filter(a => a.is_cover)
     .sort((a, b) => (a.cover_order || 0) - (b.cover_order || 0))
 )
-/** 网格作品列表：排除主图；去重后为空则兜底显示全部（只有一张作品且设了主图时） */
-const gridArtworks = computed(() => {
-  const filtered = artworks.value.filter(a => !a.is_cover)
-  return filtered.length > 0 ? filtered : artworks.value
-})
+/** 网格作品列表：只显示非主图（F0291: 全为封面时不再兜底回全部，避免主图在网格重复渲染） */
+const gridArtworks = computed(() => artworks.value.filter(a => !a.is_cover))
 
 // ─── R45: 多选模式（C58：工具栏"管理"按钮切换） ───
 const manageMode = ref(false)

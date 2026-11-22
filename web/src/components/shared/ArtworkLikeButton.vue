@@ -88,7 +88,8 @@ async function toggle() {
       ? await artistPublicApi.unlikeArtwork(props.artworkId)
       : await artistPublicApi.likeArtwork(props.artworkId)
     isLiked.value = !isLiked.value
-    count.value = res.likeCount ?? count.value
+    // F0228: 204 空体时 res 为 undefined，res.likeCount 会抛错中断后续 emit/persist（红心翻了但状态没落地）；安全取值
+    count.value = res?.likeCount ?? count.value
     // WEB-07：先广播 liked 再广播 count，父级两个覆盖表都要更新
     emit('update:liked', isLiked.value)
     emit('update:count', count.value)

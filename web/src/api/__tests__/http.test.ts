@@ -181,6 +181,59 @@ describe('请求核：错误归一化', () => {
   })
 })
 
+// F0177: 503 SETUP_REQUIRED 逃逸分支（清陈旧 setup_initialized 缓存 + 跳开箱向导）此前零覆盖
+describe('请求核：503 SETUP_REQUIRED 逃逸分支（F0177）', () => {
+  it('503 + SETUP_REQUIRED → 清 setup_initialized 缓存并跳转 SetupWizard', async () => {
+    window.localStorage.setItem('setup_initialized', '1')
+    h.fetch.mockResolvedValue(jsonResponse({ code: 'SETUP_REQUIRED', error: 'not initialized' }, { status: 503 }))
+    const err = (await getJson('/artist/orders').catch(e => e)) as { status?: number; code?: string }
+
+    expect(err.status).toBe(503)
+    expect(err.code).toBe('SETUP_REQUIRED')
+    expect(window.localStorage.getItem('setup_initialized')).toBeNull()
+    expect(h.push).toHaveBeenCalledWith({ name: 'SetupWizard' })
+  })
+
+  it('普通 503（非 SETUP_REQUIRED）不清缓存、不跳向导', async () => {
+    window.localStorage.setItem('setup_initialized', '1')
+    h.fetch.mockResolvedValue(jsonResponse({ code: 'SERVER_DOWN', error: 'down' }, { status: 503 }))
+    await getJson('/artist/orders').catch(() => {})
+    expect(window.localStorage.getItem('setup_initialized')).toBe('1')
+    expect(h.push).not.toHaveBeenCalled()
+  })
+})
+
+// F0178: RequestConfig.signal 外部中止入参的注册与 finally 清理路径此前零覆盖
+describe('请求核：外部 signal 中止（F0178）', () => {
+  it('外部 signal 已 aborted → 请求立即中止并归网络错误', async () => {
+    const controller = new AbortController()
+    controller.abort()
+    h.fetch.mockImplementation((_url: string, init: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        // 内部 controller 在 fetch 之前已因外部 signal 而 abort，需立即兑现而非等 abort 事件
+        if (init.signal?.aborted) return reject(new DOMException('aborted', 'AbortError'))
+        init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+      })
+    )
+    const err = (await getJson('/artist/orders', { signal: controller.signal }).catch(e => e)) as { message: string }
+    expect(err.message).toBe('common.networkError')
+  })
+
+  it('外部 signal 下发 abort → 内控 controller 被中止，请求归网络错误', async () => {
+    const controller = new AbortController()
+    h.fetch.mockImplementation((_url: string, init: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+      })
+    )
+    const pending = getJson('/artist/slow', { signal: controller.signal }).catch(e => e)
+    await Promise.resolve()
+    controller.abort()
+    const err = (await pending) as { message: string }
+    expect(err.message).toBe('common.networkError')
+  })
+})
+
 describe('请求核：超时覆盖响应体读取', () => {
   it('响应头已到但响应体悬挂时，超时中止读体并归入网络错误（旧实现清计时器过早）', async () => {
     let aborted = false

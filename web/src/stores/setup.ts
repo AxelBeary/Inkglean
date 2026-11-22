@@ -12,6 +12,18 @@ interface SetupApiError extends Error {
   status?: number
 }
 
+/** F0259: setup 裸 fetch 统一超时（卡网络时不再永久转圈），口径与 http.ts DEFAULT_TIMEOUT_MS 一致 */
+const SETUP_FETCH_TIMEOUT_MS = 15000
+async function fetchWithTimeout(url: string, init: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), SETUP_FETCH_TIMEOUT_MS)
+  try {
+    return await fetch(url, { ...init, signal: init.signal ?? controller.signal })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 /** /api/setup/status 响应体 */
 interface SetupStatus {
   initialized: boolean
@@ -73,7 +85,7 @@ export const useSetupStore = defineStore('setup', () => {
   async function checkStatus(): Promise<SetupStatus> {
     checking.value = true
     try {
-      const res = await fetch('/api/setup/status')
+      const res = await fetchWithTimeout('/api/setup/status')
       // a3: res.ok 守卫——503/HTML 错误体直接 res.json() 会抛 SyntaxError，与路由守卫分支处理对齐
       if (!res.ok) {
         initialized.value = false
@@ -98,7 +110,7 @@ export const useSetupStore = defineStore('setup', () => {
    * 提交创建管理员
    */
   async function submitAdmin(params: Record<string, unknown>): Promise<SubmitAdminResult> {
-    const res = await fetch('/api/setup/admin', {
+    const res = await fetchWithTimeout('/api/setup/admin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params)
@@ -123,7 +135,7 @@ export const useSetupStore = defineStore('setup', () => {
    * 确认 TOTP 并完成设置
    */
   async function confirmTotp(code: string): Promise<Record<string, unknown>> {
-    const res = await fetch('/api/setup/totp-confirm', {
+    const res = await fetchWithTimeout('/api/setup/totp-confirm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ qqNumber: adminQq.value, code })

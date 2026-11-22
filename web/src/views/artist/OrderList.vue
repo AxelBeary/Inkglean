@@ -332,7 +332,8 @@ async function loadOrders() {
     if (mySeq !== loadSeq) return
     ElMessage.error(err instanceof Error ? err.message : String(err))
   } finally {
-    if (mySeq === loadSeq) loading.value = false
+    // F0298: 复合筛选全量拉取失败也要清进度，避免进度条卡在中间值
+    if (mySeq === loadSeq) { loading.value = false; fetchProgress.value = null }
   }
 }
 

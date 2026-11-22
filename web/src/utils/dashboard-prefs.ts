@@ -208,7 +208,8 @@ export function useDashboardPrefs(): DashboardPrefsController {
   }
 
   async function mutate(mutator: (draft: DashboardPrefs) => void): Promise<boolean> {
-    if (!prefs.value) return false
+    // F0264: mutate 无在途守卫 + controller 被多组件共享，并发 PUT 的后到失败回滚会覆盖先到成功结果；在途直接拒绝
+    if (!prefs.value || saving.value) return false
     const snapshot = clonePrefs(prefs.value)
     mutator(prefs.value)
     saving.value = true
@@ -226,6 +227,8 @@ export function useDashboardPrefs(): DashboardPrefsController {
   }
 
   async function resetDefaults(): Promise<boolean> {
+    // F0264: 同一共享 controller 的恢复默认也要避让在途 PUT，避免并发回滚互相覆盖
+    if (saving.value) return false
     saving.value = true
     try {
       await artistApi.putDashboardPrefs({})

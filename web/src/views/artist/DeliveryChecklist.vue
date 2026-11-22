@@ -133,10 +133,12 @@ function loadState() {
         })
       }
       if (Array.isArray(parsed.customs)) {
+        // F0294: 缺失 id 的自定义项在同一次反序列化中用序号区分，避免同毫秒 Date.now() 产生重复 key
+        let missingSeq = 0
         customs.value = (parsed.customs as Array<StoredCustom | null | undefined>)
           .filter((c): c is StoredCustom & { text: string } => Boolean(c && typeof c.text === 'string'))
           .map((c) => ({
-            id: typeof c.id === 'string' ? c.id : 'custom-' + Date.now(),
+            id: typeof c.id === 'string' ? c.id : 'custom-' + Date.now() + '-' + (missingSeq++),
             kind: 'custom' as const,
             text: c.text.slice(0, 80),
             done: !!c.done

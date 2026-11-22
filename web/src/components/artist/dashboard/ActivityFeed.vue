@@ -20,11 +20,12 @@
 
     <!-- 活动流（最多 10 条，C54；不自动刷新，C55；批一 maxRows 组件内再截断） -->
     <div v-else class="activity-list">
+      <!-- F0204: 缺 orderId 的活动条目不跳 /orders/null -->
       <button
         v-for="item in visibleItems" :key="item.id"
         type="button"
         class="activity-item"
-        @click="$router.push(`/orders/${item.orderId}`)"
+        @click="item.orderId != null && $router.push(`/orders/${item.orderId}`)" 
       >
         <span class="activity-dot"></span>
         <div class="activity-body">

@@ -85,7 +85,8 @@ async function confirmImportAddons() {
   importSaving.value = true
   try {
     const items = [
-      ...style.addons.map(sa => ({
+      // F0190: 孤儿行 addon_template_id 为 null，强转 number 回传会让整次导入 404；直接跳过
+      ...style.addons.filter(sa => sa.addon_template_id != null).map(sa => ({
         addon_template_id: sa.addon_template_id as number,
         is_enabled: !!sa.is_enabled,
         price_override: sa.price_override ?? null

@@ -19,10 +19,11 @@
             size="small"
             @change="onAddonSwitch(a, $event)"
           />
+          <!-- F0315: max 用 ?? 而非 || —— 显式 0 是合法上限，不能被当成未配置回落到 99 -->
           <el-input-number
             v-else
             :model-value="addonSelections[a.id]?.quantity || 0"
-            :min="0" :max="a.max_quantity || 99" :step="1" size="small" style="width: 110px"
+            :min="0" :max="a.max_quantity ?? 99" :step="1" size="small" style="width: 110px" 
             @change="onAddonQuantity(a, $event)"
           />
         </div>

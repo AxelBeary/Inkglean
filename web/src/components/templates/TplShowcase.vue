@@ -164,7 +164,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { PropType } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -236,6 +236,12 @@ const { t } = useI18n()
 const artistStatus = computed(() => props.artist?.status ?? 'open')
 
 const activeIndex = ref(0)
+// F0232: 列表收缩时把 activeIndex 钳回合法范围，避免展示柜空白（原索引可能已越界）
+watch(() => [props.mode, props.styles.length, props.tiers.length], () => {
+  const len = props.mode === 'tier' ? props.tiers.length : props.styles.length
+  if (len === 0) activeIndex.value = 0
+  else if (activeIndex.value >= len) activeIndex.value = len - 1
+})
 const activeTier = computed(() => props.tiers[activeIndex.value] || null)
 const activeStyle = computed(() => props.styles[activeIndex.value] || null)
 const singleStyle = computed(() => props.styles[0] || null)
