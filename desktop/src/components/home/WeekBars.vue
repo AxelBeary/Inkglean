@@ -29,7 +29,9 @@ const bars = computed<BarDay[]>(() =>
     const paintPct = total > 0 ? (d.paint / total) * 100 : 0
     const otherPct = total > 0 ? (d.other / total) * 100 : 0
     const idlePct = total > 0 ? (d.idle / total) * 100 : 0
-    const dateObj = new Date(d.date)
+    // F0013: new Date('YYYY-MM-DD') 按 UTC 零点解析，负偏移时区下本地分量掉回前一天；按本地分量手工拆
+    const [yy, mm, dd] = d.date.split('-').map(Number)
+    const dateObj = new Date(yy, mm - 1, dd)
     const label = `${dateObj.getMonth() + 1}/${dateObj.getDate()}`
     const title = total > 0
       ? `${label} · 在画 ${formatSeconds(d.paint)} · 其他 ${formatSeconds(d.other)} · 离开 ${formatSeconds(d.idle)}`

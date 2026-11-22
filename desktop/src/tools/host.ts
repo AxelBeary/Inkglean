@@ -51,7 +51,8 @@ export async function savePng(blob: Blob, filename: string): Promise<'saved' | '
     a.href = url
     a.download = filename
     a.click()
-    URL.revokeObjectURL(url)
+    // F0038: click() 后同步 revoke 会让非 Chromium 内核来不及取 blob 导致下载失败；延迟到下一宏任务再回收
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
     return 'saved'
   } catch {
     return 'failed'

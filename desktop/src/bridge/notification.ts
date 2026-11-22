@@ -13,7 +13,8 @@ export async function notify(title: string, body?: string): Promise<void> {
     let granted = await isPermissionGranted()
     if (!granted) granted = (await requestPermission()) === 'granted'
     if (!granted) return
-    sendNotification({ title, body })
+    // F0005: await 发送，失败被本 try/catch 吞成静默降级，不再逃逸成未处理 rejection
+    await sendNotification({ title, body })
   } catch {
     // 通知非关键路径：失败静默降级
   }

@@ -1,6 +1,6 @@
 // 模块包 zip 往返（v0.4）：组包 → 解包 → 验包走真 zip，覆盖 packIo 之外的字节层。
 import { describe, it, expect } from 'vitest'
-import { buildPack, verifyPack, utf8Encode } from '../modules/pack'
+import { buildPack, verifyPack, utf8Encode, PACK_MAX_ENTRY_BYTES } from '../modules/pack'
 import { buildPackZip, readPackZip } from '../modules/packZip'
 
 const MANIFEST = {
@@ -61,5 +61,33 @@ describe('模块包 zip 往返', () => {
 
   it('坏 zip → 抛错（由页面接住落 toast）', async () => {
     await expect(readPackZip(utf8Encode('not a zip'))).rejects.toBeTruthy()
+  })
+
+  // F0019 复核返工：压缩炸弹必须在**解压前**按中央目录声明的 uncompressedSize 拒绝，
+  // 不能等 entry.async 把炸弹解压进内存（可能 OOM）后才抛。
+  // 手法：panel.js 用高度可压缩的重复串（远超 512KB 上限），打出来的 zip 本身极小（真炸弹形态）。
+  // 旧实现（只查解压后实际字节）要先把 500KB+ 解压进内存再抛「解压后实际体积超限」；
+  // 新实现读声明值即拒，抛「解压前拒绝」——用文案区分二者，钉死检查发生在解压前。
+  it('F0019 复核返工：声明解压后体积超限 → 解压前拒绝（不等解压/OOM）', async () => {
+    const { default: JSZip } = await import('jszip')
+    const zip = new JSZip()
+    const bomb = 'A'.repeat(PACK_MAX_ENTRY_BYTES + 1) // 超出 512KB 上限 1 字节
+    zip.file('panel.js', bomb)
+    const bytes = await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' })
+
+    // zip 本体极小（高度可压缩），但中央目录声明的解压后体积已超限
+    expect(bytes.length).toBeLessThan(bomb.length / 10)
+    await expect(readPackZip(bytes)).rejects.toThrow(/解压前拒绝/)
+  })
+
+  // 反向哨兵：体积在限内的高度可压缩条目应正常解开（确认预检不会误伤合法大面板代码）
+  it('F0019 复核返工：解压后体积未超限的高度可压缩条目正常解开', async () => {
+    const { default: JSZip } = await import('jszip')
+    const zip = new JSZip()
+    const ok = 'B'.repeat(1024)
+    zip.file('panel.js', ok)
+    const bytes = await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' })
+    const { files } = await readPackZip(bytes)
+    expect(new TextDecoder().decode(files['panel.js'])).toBe(ok)
   })
 })

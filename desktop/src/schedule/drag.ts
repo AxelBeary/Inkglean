@@ -93,13 +93,17 @@ export function planDragRange(input: DragRangeInput): DragPlan {
   } else if (edge === 'start') {
     let s = shiftDate(old.startDate, deltaDays)
     if (s) {
+      // F0028: 先施「开工日不得越过截稿日」上限，再施「开工日不得早于今天」下限。
+      // 顺序不能反：逾期单（截稿日已过）上若先钳今天再被截稿日拉回，会写出过去的开工日，
+      // 且 clampedDays 虚报成"钳到今天"。今天下限最后生效才作准，clampedDays 才如实。
+      if (dayGap(s, old.deadline) < 0) s = old.deadline
       const back = dayGap(today, s)
       if (back < 0) {
-        clampedDays = -back
-        s = shiftDate(s, -back)
+        clampedDays = -back // 如实记录被今天下限挡掉的天数
+        // 逾期单的截稿日已早于今天：把开工日推到今天会>截稿日（违反后端 deadline≥startDate），
+        // 这种单无合法开工日可写——保持不动，调用方据此不发假请求
+        s = dayGap(today, old.deadline) >= 0 ? shiftDate(s, -back) : null
       }
-      // 开工日不得越过截稿日
-      if (s && dayGap(s, old.deadline) < 0) s = old.deadline
       if (s) clamped.startDate = s
     }
   } else {

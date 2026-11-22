@@ -17,7 +17,14 @@ export type BandTone = 'nodeadline' | 'done' | 'over' | 'soon' | 'buffer' | 'for
 export function parseDate(s: string | null | undefined): Date | null {
   if (!s) return null
   const ymd = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s)
-  const d = ymd ? new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3])) : new Date(s)
+  if (ymd) {
+    // F0030: 非法日历日（如 2026-02-31）会被 Date 静默滚到 3 月，必须回读年月日校验，脏串一律判非法
+    const y = Number(ymd[1]), m = Number(ymd[2]), day = Number(ymd[3])
+    const d = new Date(y, m - 1, day)
+    if (d.getFullYear() !== y || d.getMonth() !== m - 1 || d.getDate() !== day) return null
+    return d
+  }
+  const d = new Date(s)
   return Number.isNaN(d.getTime()) ? null : d
 }
 

@@ -23,19 +23,31 @@ function onSpinEnd(): void {
 /** 当前是否最大化（最大化按钮图标换态依据；toggle 返回 boolean 直接用） */
 const maximized = ref(false)
 let unlistenResize: (() => void) | undefined
+// F0017: 卸载标记——onResized 的 await 可能在卸载后才解析，晚到的解绑要就地执行不留监听
+let resizedDisposed = false
 
 onMounted(async () => {
   // 纯浏览器预览环境无壳层可查，跳过状态同步（按钮点击会经 bridge 抛 BridgeUnavailableError）
   if (!isDesktop()) return
-  const win = getCurrentWindow()
-  maximized.value = await win.isMaximized()
-  // 窗口被系统快捷键（Win+↑/↓）改变最大化时也保持图标同步
-  unlistenResize = await win.onResized(async () => {
+  try {
+    const win = getCurrentWindow()
     maximized.value = await win.isMaximized()
-  })
+    if (resizedDisposed) return // F0017: 卸载早于 isMaximized 回包：不再往下挂监听
+    // 窗口被系统快捷键（Win+↑/↓）改变最大化时也保持图标同步
+    const unlisten = await win.onResized(async () => {
+      if (resizedDisposed) return
+      maximized.value = await win.isMaximized()
+    })
+    // F0017: 注册完成但已卸载 → 立即解绑，防监听泄漏
+    if (resizedDisposed) unlisten()
+    else unlistenResize = unlisten
+  } catch {
+    /* F0017: IPC 拒绝静默吞，不留未处理 promise */
+  }
 })
 
 onUnmounted(() => {
+  resizedDisposed = true
   unlistenResize?.()
 })
 

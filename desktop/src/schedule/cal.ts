@@ -77,15 +77,18 @@ export function buildCalCells(opts: { cursor: Date; orders: SchedOrder[]; canAcc
   // 周一开头：getDay() 周日=0 → 偏移 (day+6)%7
   const lead = (first.getDay() + 6) % 7
   const gridStart = new Date(first.getFullYear(), first.getMonth(), 1 - lead)
-  const monthEnd = new Date(first.getFullYear(), first.getMonth() + 1, 0)
+  // F0029: 月末锚点取「末日 23:59:59」而非「末号零点」——带时刻的锚点（如 09-30 18:00）不再被零点边界整段丢弃
+  const monthEnd = new Date(first.getFullYear(), first.getMonth() + 1, 0, 23, 59, 59, 999)
+  // F0029: 42 格网格含上/下月补位格；筛选用整块可见网格边界，补位格上的带不再被「当月 1 号/末号」边界丢掉
+  const gridEnd = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + 42 - 1, 23, 59, 59, 999)
   const today = todayStart()
   const todayKey = dateKey(new Date())
 
-  // 预计算带区间，剔掉与可见月无交集的（照网页端 visibleBands 口径）
+  // 预计算带区间，剔掉与可见网格无交集的（照网页端 visibleBands 口径）
   const spans = orders
     .map(o => ({ o, span: orderSpan(o, monthEnd) }))
     .filter((x): x is { o: SchedOrder; span: Span } => x.span !== null)
-    .filter(x => x.span.end >= first && x.span.start <= monthEnd)
+    .filter(x => x.span.end >= gridStart && x.span.start <= gridEnd)
 
   const cells: CalCell[] = []
   for (let i = 0; i < 42; i++) {

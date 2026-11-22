@@ -69,7 +69,8 @@ function filterViews(views: unknown, reasons: string[]): string[] {
   if (!Array.isArray(views)) return []
   const out: string[] = []
   for (const v of views) {
-    if (typeof v === 'string' && v in KNOWN_VIEWS) out.push(v)
+    // F0020: 用自有属性判断，避免 'constructor'/'toString' 等原型链属性被误当作合法视图
+    if (typeof v === 'string' && Object.prototype.hasOwnProperty.call(KNOWN_VIEWS, v)) out.push(v)
     else reasons.push(`未知视图已剔除：${String(v).slice(0, 32)}`)
   }
   return [...new Set(out)]

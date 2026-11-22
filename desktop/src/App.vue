@@ -46,12 +46,23 @@ function onSystemThemeChange() { applyTheme() }
 // #22-6：悬浮窗被 ×/Alt+F4 直关时壳层发事件清撕出态。监听必须挂在常驻壳上——
 // 旧实现只挂在首页，用户不在首页时事件会丢，回首页又按旧 torn 把窗「自动撕出来」。
 let unlistenFloatClosed: (() => void) | undefined
+// F0003: 卸载可能早于 listen 注册完成；用存活标记决定拿到的 unlisten 是保存还是立即执行
+let floatClosedAlive = true
+function isTearableId(v: unknown): v is TearableId {
+  return v === 'timer' || v === 'today-todo' || v === 'deadline'
+}
 function listenFloatClosed() {
   if (!isDesktop()) return
   void listen<string>('desktop-float-closed', (event) => {
-    const kind = event.payload as TearableId
+    // F0003: payload 先校验再当 TearableId，脏事件不得改撕出态
+    const kind = event.payload
+    if (!isTearableId(kind)) return
     if (prefs.isTorn(kind)) prefs.setTorn(kind, false)
-  }).then((fn) => { unlistenFloatClosed = fn }).catch(() => { /* 监听失败静默：最多退回手动贴回 */ })
+  }).then((fn) => {
+    // F0003: 卸载早于注册完成 → 就地解绑，防监听泄漏
+    if (!floatClosedAlive) { fn(); return }
+    unlistenFloatClosed = fn
+  }).catch(() => { /* 监听失败静默：最多退回手动贴回 */ })
 }
 
 onMounted(() => {
@@ -62,6 +73,8 @@ onMounted(() => {
   if (isDesktop()) setCloseBehavior(readCloseBehaviorPref()).catch(() => {})
 })
 onUnmounted(() => {
+  // F0003: 先翻存活标记——注册回调晚于卸载时据此立即解绑
+  floatClosedAlive = false
   darkMq?.removeEventListener('change', onSystemThemeChange)
   window.removeEventListener('resize', onResize)
   unlistenFloatClosed?.()

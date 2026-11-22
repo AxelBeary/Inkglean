@@ -17,6 +17,8 @@ const props = withDefaults(defineProps<{
   label?: string
   /** 自动消失时长（ms） */
   duration?: number
+  /** F0016: 撤销目标身份键——文案相同但目标已换时靠它重起倒计时 */
+  targetKey?: string | number
 }>(), {
   label: '撤销',
   duration: 5000
@@ -29,6 +31,8 @@ const emit = defineEmits<{
 }>()
 
 const undoing = ref(false)
+/** F0015: 到点自隐——只 emit 不自隐、宿主又不清 undoTarget 时撤销条永不消失 */
+const expired = ref(false)
 let timer: ReturnType<typeof setTimeout> | null = null
 
 function clearTimer(): void {
@@ -49,10 +53,13 @@ function onUndo(): void {
 // 弹出才起倒计时；收起（到点 / 父组件作废目标）解锁，下一次操作又能重新点。
 // 为什么 message 变化也要重置：宿主连续拖两条时会原地换文案而不闪断 visible，
 // 不重起倒计时的话第二条会被上一条剩余的时钟提前吞掉，锁也解不开。
-watch([() => props.visible, () => props.message], ([v]) => {
+// F0016: 再加 targetKey——文案恰好相同但撤销目标已换时，也要重起时钟并解锁。
+watch([() => props.visible, () => props.message, () => props.targetKey], ([v]) => {
   clearTimer()
   undoing.value = false
-  if (v) timer = setTimeout(() => emit('timeout'), props.duration)
+  expired.value = false // F0015: 新一条弹出时复位自隐态
+  // F0015: 到点先自隐再 emit——即便宿主忘了清 undoTarget，撤销条也不会永不消失/永久吞后续 toast
+  if (v) timer = setTimeout(() => { expired.value = true; emit('timeout') }, props.duration)
 }, { immediate: true })
 
 onBeforeUnmount(clearTimer)
@@ -61,7 +68,7 @@ onBeforeUnmount(clearTimer)
 <template>
   <Teleport to="body">
     <Transition name="undo">
-      <div v-if="visible" class="undo-toast" role="status">
+      <div v-if="visible && !expired" class="undo-toast" role="status">
         <span class="ut-msg">{{ message }}</span>
         <button type="button" class="ut-btn" :disabled="undoing" @click="onUndo">{{ label }}</button>
       </div>

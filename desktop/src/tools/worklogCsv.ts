@@ -24,7 +24,8 @@ export function secsToHours(secs: number): string {
  *  若值以 = + - @ 或 TAB 开头，先加单引号使 Excel 当文本处理（通行做法）；
  *  然后再检查引号/逗号/换行，按 RFC 4180 决定是否用双引号包裹。*/
 export function csvEscape(v: string): string {
-  const neutralized = /^[=+\-@\t]/.test(v) ? `'${v}` : v
+  // F0041: CR/LF 行首也要中和——否则 "\r\n=1+1" 在新行开头仍被 Excel 当公式执行
+  const neutralized = /^[=+\-@\t\r\n]/.test(v) ? `'${v}` : v
   if (/[",\r\n]/.test(neutralized)) return `"${neutralized.replace(/"/g, '""')}"`
   return neutralized
 }

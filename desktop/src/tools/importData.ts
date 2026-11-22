@@ -1,7 +1,8 @@
 // 数据导入（本地核心环波10）：REQ-014「数据迁移与备份」进口件——
 // 策略＝替换（不合并、不逐条核对）；有本地数据时先自动备份为「拾绘备份-替换前-日期-时分秒.zip」；
 // 工程文件关联恢复复用 F1 既有机制：原路径还在即直接可用，不在了走「重新指路」。
-import { closeLocalDb, localDbPath, saveFile, shihuiHome, importReadB64 } from '../bridge'
+// F0040: fileSizes 用于覆写前复查 -wal/-shm 边车是否真的清干净
+import { closeLocalDb, localDbPath, saveFile, shihuiHome, importReadB64, fileSizes } from '../bridge'
 import type { ImportReadOutcome } from '../bridge'
 import { isDesktop } from '../bridge'
 import { broadcastCloseAllDb, deleteDbSidecar } from '../bridge/db'
@@ -154,7 +155,22 @@ export async function runImport(
   }
   if (!isDesktop()) return { ok: false, reason: '导入仅在桌面壳内可用', backupPath: '' }
 
-  // ① 有本地数据 → 先自动备份（REQ：万一后悔可恢复；静默落「我的文档\拾绘\backups\」）
+  // ② 替换库（DSK-09 / #22-2）：先跨窗广播关所有连接并要求逐窗回执。
+  //    F0039: 握手必须排在自动备份之前——备份走 checkpointWalForBackup 要 PRAGMA checkpoint，
+  //    悬浮窗还持连接时它先失败（"备份已中止"），导入直接挂；且关连接必须在覆写前完成。
+  //    有任何悬浮窗没在超时内回执就中止——句柄未释放时覆写轻则失败、重则脏库。此时本地库一个字节都没动。
+  const closeReport = await broadcastCloseAllDb()
+  if (closeReport.missing.length > 0) {
+    const names = closeReport.missing.map(floatingNameOf).join('、')
+    return {
+      ok: false,
+      reason: `悬浮窗（${names}）未响应关闭请求，已取消导入以免损坏本地数据；请稍后重试，或先贴回悬浮窗`,
+      backupPath: ''
+    }
+  }
+  await closeLocalDb()
+
+  // ① 有本地数据 → 自动备份（REQ：万一后悔可恢复；静默落「我的文档\拾绘\backups\」）
   //    DSK-08：判定扩展为五类任一有数据；DSK-03：文件名带时分秒防同日二次导入静默覆写。
   const needBackup = hasLocal ?? (orders.length > 0 || files.length > 0)
   let backupPath = ''
@@ -164,33 +180,35 @@ export async function runImport(
     const sep = home.includes('\\') ? '\\' : '/'
     backupPath = `${home}${sep}backups${sep}${importBackupFileName()}`
     await saveFile(backupPath, new Uint8Array(await blob.arrayBuffer()))
+    // F0039: 备份里 checkpointWalForBackup 会通过 openLocalDb 重开连接，覆写前必须再关一次
+    await closeLocalDb()
   }
 
-  // ② 替换库（DSK-09 / #22-2）：先跨窗广播关所有连接并要求逐窗回执；
-  //    有任何悬浮窗没在超时内回执就中止——句柄未释放时覆写轻则失败、重则脏库，
-  //    宁可让用户稍后重试，也不赌「大概关完了」。此时本地库一个字节都没动。
-  const closeReport = await broadcastCloseAllDb()
-  if (closeReport.missing.length > 0) {
-    const names = closeReport.missing.map(floatingNameOf).join('、')
-    return {
-      ok: false,
-      reason: `悬浮窗（${names}）未响应关闭请求，已取消导入以免损坏本地数据；请稍后重试，或先贴回悬浮窗`,
-      backupPath
-    }
-  }
-  await closeLocalDb()
+  // ③ 清边车：F0040——清理失败不再静默放过覆写，复查字节数仍 >0 就中止，防旧 WAL 污染新库
   try {
     await deleteDbSidecar()
   } catch {
-    // 边车清理失败不阻塞导入：连接干净关闭时 SQLite 本会自删边车，此处兜底崩溃/强杀残留。
-    // 注：新桥命令 desktop_delete_db_sidecar 须在 src-tauri/src/lib.rs invoke_handler 登记后方生效（见 ledger 卡点）。
     // eslint-disable-next-line no-console -- 边车清理降级诊断：桥命令未登记/清理失败时唯一的现场线索，刻意保留
-    console.warn('[拾绘] 导入前 -wal/-shm 边车清理未生效（桥命令未登记或清理失败），已依赖关连接自删兜底')
+    console.warn('[拾绘] 导入前 -wal/-shm 边车清理未生效（桥命令未登记或清理失败），改用字节数复核')
   }
   const dbPath = await localDbPath()
+  let sidecarBytes: number[]
+  try {
+    sidecarBytes = await fileSizes([`${dbPath}-wal`, `${dbPath}-shm`])
+  } catch {
+    // F0040: 连字节数都读不到 → 无法证明边车已清，保守中止
+    return { ok: false, reason: '无法确认本地库边车已清理，已取消导入以免旧 WAL 污染新库；请稍后重试', backupPath }
+  }
+  if (sidecarBytes.some(n => typeof n === 'number' && n > 0)) {
+    return {
+      ok: false,
+      reason: '本地库 -wal/-shm 边车未清理干净，已取消导入以免旧 WAL 污染新库；请关闭悬浮窗后重试',
+      backupPath
+    }
+  }
   await saveFile(dbPath, b64ToBytes(preview.dbB64))
 
-  // ③ 恢复设置（替换口径：先清后写）
+  // ④ 恢复设置（替换口径：先清后写）
   if (preview.prefs) restorePrefs(preview.prefs, localStorage)
 
   return { ok: true, reason: '', backupPath }

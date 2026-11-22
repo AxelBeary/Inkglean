@@ -109,8 +109,11 @@ export const useLocalTemplatesStore = defineStore('desktop-local-templates', () 
       const sep = home.includes('\\') ? '\\' : '/'
       const client = sanitizeName(order.client_name) || '客户'
       const title = sanitizeName(order.title) || '约稿'
-      const folder = `${home}${sep}orders${sep}${client}-${title}`
-      const dst = `${folder}${sep}${client}-${title}${extractExt(tpl)}`
+      // F0036: 客户名-档位名不唯一，同名委托会互相覆盖副本；补上该单 id 作唯一后缀（id 缺省时退时间戳）
+      const uniq = order.id > 0 ? order.id : Date.now()
+      const stem = `${client}-${title}-${uniq}`
+      const folder = `${home}${sep}orders${sep}${stem}`
+      const dst = `${folder}${sep}${stem}${extractExt(tpl)}`
       await copyFile(tpl, dst)
       return dst
     } catch {

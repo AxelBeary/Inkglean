@@ -221,10 +221,21 @@ describe('buildCalCells（月历格子口径）', () => {
     expect(cells.every(c => c.bands.length === 0)).toBe(true)
   })
 
-  it('与可见月无交集的单不进格子', () => {
-    const o = sched({ startDate: localIso(2026, 10, 5), deadline: localIso(2026, 10, 9) })
+  it('与可见网格无交集的单不进格子（F0029：范围改为整块 42 格网格）', () => {
+    // 2026-09 的可见网格约 Aug30~Oct10；Oct 20-25 完全在网格外，才该被剔除。
+    // 旧用例拿 Oct 5-9 当"可见月外"，但那其实落在补位格里——F0029 修正后它应显示，见下一条。
+    const o = sched({ startDate: localIso(2026, 10, 20), deadline: localIso(2026, 10, 25) })
     const cells = buildCalCells({ cursor: new Date(2026, 8, 1), orders: [o], canAccept: false })
     expect(cells.every(c => c.bands.length === 0)).toBe(true)
+  })
+
+  it('相邻月补位格上的带照样渲染（F0029：不再被「当月边界」整段丢弃）', () => {
+    const o = sched({ startDate: localIso(2026, 10, 3), deadline: localIso(2026, 10, 6) })
+    const cells = buildCalCells({ cursor: new Date(2026, 8, 1), orders: [o], canAccept: false })
+    const covered = cells.filter(c => c.bands.length > 0)
+    expect(covered.length).toBeGreaterThan(0)
+    // 命中的是下月补位格（inMonth=false），且落在 3~6 号
+    expect(covered.every(c => !c.inMonth && c.day >= 3 && c.day <= 6)).toBe(true)
   })
 
   it('格内带排序：逾期最前、已完成沉底（决定截断时露出谁）', () => {

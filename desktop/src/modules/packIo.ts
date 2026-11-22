@@ -76,7 +76,12 @@ export async function installModulePack(
   }
   const home = await shihuiHome()
   const dir = joinWin(home, 'modules', dirName)
-  await saveFile(joinWin(dir, PACK_MANIFEST_NAME), utf8Encode(files.manifestText))
-  await saveFile(joinWin(dir, PACK_ENTRY_NAME), utf8Encode(files.entryCode))
-  await saveFile(joinWin(dir, PACK_META_NAME), utf8Encode(files.packText))
+  // F0021: 三件字节先全部算好，任何一件编码失败在落盘前就抛；manifest 是 scan 认模块的"激活标记"，
+  // 放到最后写——中途失败最多留下没有合法 manifest 的目录（scan 判 invalid 不加载），不会变成半装可用的模块。
+  const manifestBytes = utf8Encode(files.manifestText)
+  const entryBytes = utf8Encode(files.entryCode)
+  const metaBytes = utf8Encode(files.packText)
+  await saveFile(joinWin(dir, PACK_ENTRY_NAME), entryBytes)
+  await saveFile(joinWin(dir, PACK_META_NAME), metaBytes)
+  await saveFile(joinWin(dir, PACK_MANIFEST_NAME), manifestBytes)
 }

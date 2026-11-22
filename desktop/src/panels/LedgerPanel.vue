@@ -57,6 +57,8 @@ function deadlineText(o: LocalOrder): { text: string; cls: string } {
 // ─── 记一笔（内联表单，客户名为唯一必填门槛） ───
 const formOpen = ref(false)
 const busy = ref(false)
+// F0027: 落账失败的可见反馈——区分"没填客户名"与"写库失败"，不再静默无提示
+const formError = ref('')
 const form = reactive({ client: '', title: '', price: '', deadline: '' })
 
 function toggleForm() {
@@ -67,6 +69,12 @@ function toggleForm() {
 // 连点「落账」把同一 form 重复落账（配了模板还会多复制一份工程文件）。
 async function submit() {
   if (busy.value) return
+  // F0027: 先把"没填客户名"与"保存失败"分开——store 两者都返回 null，此处先拦空名
+  if (!form.client.trim()) {
+    formError.value = '请先填客户名，再落账'
+    return
+  }
+  formError.value = ''
   busy.value = true
   try {
     const price = form.price.trim() === '' ? 0 : Number(form.price)
@@ -86,6 +94,9 @@ async function submit() {
       // 只创建不自动打开，§F1a 拍板口径）
       const made = await templates.createOrderFiles(row)
       if (made) await filesStore.addFiles(row.id, [made])
+    } else {
+      // F0027: 客户名已填却仍返回 null＝写库失败，给可见反馈，表单保留可就地重试
+      formError.value = '保存失败，账没记上，请稍后重试'
     }
   } finally {
     busy.value = false
@@ -213,6 +224,8 @@ function unhook(f: LocalFile) {
       <input v-model.trim="form.title" class="f f-title" type="text" placeholder="委托内容（如：头像·半身）" maxlength="60" aria-label="委托内容" />
       <input v-model.trim="form.price" class="f f-price num" type="number" min="0" step="0.01" placeholder="金额" aria-label="金额" />
       <input v-model="form.deadline" class="f f-date num" type="date" aria-label="截稿日" />
+      <!-- F0027: 落账失败的行内可见反馈（客户名缺失 vs 保存失败） -->
+      <span v-if="formError" class="form-err" role="alert">{{ formError }}</span>
       <!-- DSK-10：落账期间禁用按钮，配合 busy 守卫双保险防连点重复落账 -->
       <button type="button" class="ok" :disabled="busy" @click="submit">落账</button>
       <button type="button" class="no" @click="toggleForm">收笔</button>
@@ -290,6 +303,8 @@ function unhook(f: LocalFile) {
 }
 .ok:hover { color: var(--hq); background: var(--hq-t2); border-color: var(--hq); }
 .ok:disabled { opacity: .5; cursor: not-allowed; }
+/* F0027: 落账失败反馈，朱砂色不占新栅值 */
+.form-err { font-size: 12px; color: var(--zs-d); flex: 1 1 100%; }
 .no {
   font-size: 12px; color: var(--ink4); padding: 6px 10px; flex: none; border-radius: var(--r-s-hand);
   transition: color var(--dur-fast), background var(--dur-fast);

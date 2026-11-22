@@ -75,6 +75,8 @@ const SCHEMA_STATEMENTS = [
 let dbPromise: Promise<LocalDatabase> | null = null
 /** 只读投影窗（撕悬浮）专用单例：与读写单例互不污染（U45） */
 let readOnlyDbPromise: Promise<LocalDatabase> | null = null
+/** F0001: 在途关闭门闩。open 路径必须等它完成，杜绝「清空单例→await close」空窗里并发 open 留下未关闭连接 */
+let closingDb: Promise<void> | null = null
 
 /** 本地数据库绝对路径（波9 导出用；与 openLocalDb 内部同源命令） */
 export async function localDbPath(): Promise<string> {
@@ -86,24 +88,37 @@ export async function localDbPath(): Promise<string> {
  *  读写 + 只读投影两条单例一并关闭重置；纯浏览器/未打开过：静默无事。 */
 export async function closeLocalDb(): Promise<void> {
   if (!isDesktop()) return
+  // F0001: 已在关闭中就直接等这一笔，杜绝两次 close 互相穿插
+  if (closingDb) { await closingDb; return }
   const pending = [dbPromise, readOnlyDbPromise].filter(
     (p): p is Promise<LocalDatabase> => p !== null
   )
   dbPromise = null
   readOnlyDbPromise = null
-  await Promise.all(pending.map(async (p) => {
-    try {
-      const db = await p
-      await db.close()
-    } catch {
-      // 关闭失败不阻塞导入（下次 open 重建连接）
-    }
-  }))
+  // F0001: 先置门闩再 await close；open 路径见到门闩会等它完成，杜绝「清空单例→等待关闭」空窗里的并发重开
+  const closing = (async () => {
+    await Promise.all(pending.map(async (p) => {
+      try {
+        const db = await p
+        await db.close()
+      } catch {
+        // 关闭失败不阻塞导入（下次 open 重建连接）
+      }
+    }))
+  })()
+  closingDb = closing
+  try {
+    await closing
+  } finally {
+    if (closingDb === closing) closingDb = null
+  }
 }
 
 /** 打开（单例）本地 SQLite；首启自动建表。失败即重置单例，下次调用重试 */
 export function openLocalDb(): Promise<LocalDatabase> {
   if (!isDesktop()) return Promise.reject(new BridgeUnavailableError('openLocalDb'))
+  // F0001: 跨窗关库握手进行中，先等旧连接真正关闭再重开，避免留下未关闭连接破坏覆写握手
+  if (closingDb) return closingDb.then(() => openLocalDb())
   if (!dbPromise) {
     dbPromise = (async () => {
       const path = await invoke<string>('desktop_local_db_path')
@@ -124,6 +139,8 @@ export function openLocalDb(): Promise<LocalDatabase> {
  *  失败即重置单例，下次调用重试（与 openLocalDb 同款）。 */
 export function openLocalDbReadOnly(): Promise<LocalDatabase> {
   if (!isDesktop()) return Promise.reject(new BridgeUnavailableError('openLocalDbReadOnly'))
+  // F0001: 同上，关库握手期间先等旧连接关闭，防并发重开留下悬空连接
+  if (closingDb) return closingDb.then(() => openLocalDbReadOnly())
   if (!readOnlyDbPromise) {
     readOnlyDbPromise = (async () => {
       const path = await invoke<string>('desktop_local_db_path')
