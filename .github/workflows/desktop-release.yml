@@ -82,6 +82,28 @@ jobs:
           Set-Content -Path $conf -Value $patched -Encoding utf8
           Write-Host "updater endpoint -> $endpoint"
 
+      # B8 / e03447c2（8/25 占位 pubkey 一字未换）：占位公钥的私钥生成当场即销毁，若原样打进包，
+      # 客户端内置它验不过 CI 用正式私钥签出的包＝更新通道永久拒装（防投毒口径反成死锁）。
+      # 修法照 F-06 端点注入：公钥非敏感，改由仓库变量 DESKTOP_UPDATE_PUBKEY 在构建期替换占位串；
+      # 私钥仍只在 secrets.TAURI_SIGNING_PRIVATE_KEY，二者须来自同一把 npx tauri signer generate 生成的密钥对。
+      # 四道闸：①未配置 ②仍是 8/25 占位串 ③非单行 base64 ④conf 未命中占位串——任一命中即红，绝不产出验不过的包。
+      - name: 注入验签公钥
+        shell: pwsh
+        env:
+          DESKTOP_UPDATE_PUBKEY: ${{ vars.DESKTOP_UPDATE_PUBKEY }}
+        run: |
+          $placeholder = 'dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM1MEMzREVGQjI3MzM1Q0YKUldUUE5YT3k3ejBNeFE5SVhoMENEWHRPS09COGFydk95UzI0U0ovK21WVEx1cnU2N0tTT1J1Qm8K'
+          $pub = "$env:DESKTOP_UPDATE_PUBKEY".Trim()
+          if (-not $pub) { throw '仓库变量 DESKTOP_UPDATE_PUBKEY 未配置——须填 .key.pub 单行全文，且必须与 secrets.TAURI_SIGNING_PRIVATE_KEY 来自同一密钥对（见《更新通道执行手册》第一/二步）' }
+          if ($pub -eq $placeholder) { throw 'DESKTOP_UPDATE_PUBKEY 仍是 8/25 占位公钥（e03447c2 未修）——必须换成正式密钥对的公钥' }
+          if ($pub -notmatch '^[A-Za-z0-9+/=]+$') { throw 'DESKTOP_UPDATE_PUBKEY 不是合法单行 base64（应为 .key.pub 全文一行）' }
+          $conf = 'src-tauri/tauri.conf.json'
+          $text = Get-Content $conf -Raw
+          $patched = $text.Replace($placeholder, $pub)
+          if ($patched -eq $text) { throw 'tauri.conf.json 未命中占位 pubkey：替换没有发生（占位串被改动了？）' }
+          Set-Content -Path $conf -Value $patched -Encoding utf8
+          Write-Host 'updater pubkey -> injected from vars.DESKTOP_UPDATE_PUBKEY'
+
       - name: 构建 + 签名（NSIS + updater 包）
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
