@@ -15,7 +15,9 @@ import type { Artist } from '../../types/entities.js'
 
 /** 单请求事件上限（防刷库/超大 body） */
 const MAX_EVENTS_PER_REQUEST = 50
-/** 限流：同凭证（或同 IP）每分钟最多 100 条 */
+// F0153: 口径澄清——rateLimit 按「请求次数」计数，不是事件条数；原注释写「100 条」误导，
+// 实际是每分钟 100 次上报请求（每次最多 MAX_EVENTS_PER_REQUEST=50 条事件）。
+/** 限流：同凭证（或同 IP）每分钟最多 100 次上报请求 */
 const EVENTS_RATE_MAX = 100
 const EVENTS_RATE_WINDOW_MS = 60_000
 /** d2 猎杀修复（2026-08-14）：IP 总量封顶——token:IP 双因子配额可被「跨分钟囤积 anon-token」绕过
@@ -226,14 +228,23 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
       artistStatsVisible?: boolean
       statsEnabled?: boolean
     }
+    // F0152: 原 if/else-if 链只应用第一个字段，schema 允许的三字段同时写入时其余被静默丢弃；
+    // 改为各自独立应用，全部缺省才报 400。
+    let applied = false
     if (body.statsEnabled !== undefined) {
       trackingService.setStatsEnabled(body.statsEnabled)
-    } else if (body.statsMode !== undefined) {
+      applied = true
+    }
+    if (body.statsMode !== undefined) {
       trackingService.setStatsMode(body.statsMode)
-    } else if (body.artistStatsVisible !== undefined) {
+      applied = true
+    }
+    if (body.artistStatsVisible !== undefined) {
       // 兼容旧前端：true→on（可见+收集）；false→hidden（仅隐藏显示）
       trackingService.setArtistStatsVisible(body.artistStatsVisible)
-    } else {
+      applied = true
+    }
+    if (!applied) {
       return reply.code(400).send({ code: 'INVALID_PARAM', error: '缺少 statsMode、artistStatsVisible 或 statsEnabled' })
     }
     const mode = trackingService.getStatsMode()

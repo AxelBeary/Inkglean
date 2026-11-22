@@ -138,9 +138,13 @@ export function removeContent(
     return { success: true }
   }
   // message：复用现有管理员软删除（deleted_by_admin=1），公开端立即不可见
-  const msg = guestbookService.adminDeleteMessage(targetId)
+  // F0129: 删除与审计留痕必须同事务——否则特权处置可能删了内容却查不到账（与 artwork 分支同纪律）
+  const msg = db.transaction(() => {
+    const deleted = guestbookService.adminDeleteMessage(targetId)
+    if (deleted) writeAdminAction(adminId, 'content_remove', 'message', targetId, reason, adminIp)
+    return deleted
+  })()
   if (!msg) return { success: false }
-  writeAdminAction(adminId, 'content_remove', 'message', targetId, reason, adminIp)
   return { success: true }
 }
 
@@ -153,9 +157,11 @@ export function restoreContent(
   adminId: number,
   reason?: string | null,
   adminIp?: string | null
-): { success: boolean } {
+): { success: boolean; already?: boolean } { // F0130: 幂等命中时多带 already，调用方据此避免重复提示
   const artwork = artistService.getArtworkById(artworkId)
   if (!artwork) return { success: false }
+  // F0130: 幂等守卫——已恢复（未处于下架态）再点一次不重复刷审计记录，避免一笔误双击变成两笔处置留痕
+  if (artwork.takedown_at == null) return { success: true, already: true }
   db.transaction(() => {
     artistService.restoreArtwork(artworkId)
     writeAdminAction(adminId, 'content_restore', 'artwork', artworkId, reason, adminIp)

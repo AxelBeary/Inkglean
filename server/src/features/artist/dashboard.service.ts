@@ -1,7 +1,7 @@
 import db from '../../db/connection.js'
 import { PRICE_FALLBACK_SQL } from '../../utils/price.js'
 import { COMPLETED_ORDER_SQL, ACTIVE_ORDER_SQL } from '../../utils/order-status.js'
-import { toSqliteDate, localDayStartSqlite, localDayEndSqlite, localDateRangeToUtc, toLocalDateString } from '../../utils/date.js'
+import { toSqliteDate, localDayStartSqlite, localDayEndSqlite, localDateRangeToUtc, toLocalDateString, parseSqliteUtcDate } from '../../utils/date.js'
 import { getIncomeSummary } from './tools.service.js'
 
 // ============================================
@@ -59,7 +59,8 @@ export function getRevenue(artistId: number, period: string = 'month') {
   const year = now.getFullYear()
 
   let bars: RevenueBar[]
-  let currentStart: string, prevStart: string, prevEnd: string
+  // F0123: prevEnd 已移除——环比改用与当前周期等长的窗口（见下方汇总处），不再依赖整周期终点
+  let currentStart: string, prevStart: string
 
   if (period === 'month') {
     // 按月内每天聚合（1~31）
@@ -68,7 +69,6 @@ export function getRevenue(artistId: number, period: string = 'month') {
     currentStart = localMonthStart(year, month)
     const nextMonthStart = localMonthStart(year, month + 1)
     prevStart = localMonthStart(year, month - 1)
-    prevEnd = currentStart
 
     // 查询当月每天的完成收入（P2-1：时区换算在应用层，SQL 取 UTC 原始值）
     // audit-a P3-3: 去掉 GROUP BY completed_at——同秒完成多单价格不同时，GROUP BY 只取任意一行的
@@ -102,7 +102,6 @@ export function getRevenue(artistId: number, period: string = 'month') {
       ? localQuarterStart(year + 1, 0)
       : localQuarterStart(year, quarter + 1)
     prevStart = localQuarterStart(quarter === 0 ? year - 1 : year, quarter === 0 ? 3 : quarter - 1)
-    prevEnd = currentStart
 
     // 查询当季所有完成订单，按本地日期在 JS 层分周
     // 时区口径（P2-1 修复）：SQL 取 UTC 原始值，JS 用 toLocalDate 转本地日期，
@@ -133,7 +132,6 @@ export function getRevenue(artistId: number, period: string = 'month') {
     currentStart = localYearStart(year)
     const nextYearStart = localYearStart(year + 1)
     prevStart = localYearStart(year - 1)
-    prevEnd = currentStart
 
     // audit-a P3-3: 与 month 分支同口径——逐单 SELECT cents，应用层聚合
     const rows = db.prepare(`
@@ -162,15 +160,19 @@ export function getRevenue(artistId: number, period: string = 'month') {
   const totalCents = bars.reduce((s, b) => s + b.cents, 0)
   const completedCount = bars.reduce((s, b) => s + b.count, 0)
 
-  // 环比：上一周期同长度收入
+  // 环比：上一周期「同长度」收入
+  // F0123: 原实现用当前周期至今（如本月 1~15 日）对比上一整周期（上月整月），长度不等使环比失真。
+  // 改为取与「当前周期已过时长」等长的上一周期窗口：[prevStart, prevStart + (now - currentStart))。
   let changePercent: number | null = null
-  if (prevStart && prevEnd) {
+  if (prevStart && currentStart) {
+    const elapsedMs = now.getTime() - parseSqliteUtcDate(currentStart).getTime()
+    const prevEndEqual = toSqliteDate(new Date(parseSqliteUtcDate(prevStart).getTime() + elapsedMs))
     const prevRow = db.prepare(`
       SELECT COALESCE(SUM(${PRICE_FALLBACK_SQL}), 0) as cents
       FROM orders o
       WHERE o.artist_id = ? AND o.${COMPLETED_ORDER_SQL}
         AND o.completed_at >= ? AND o.completed_at < ?
-    `).get(artistId, prevStart, prevEnd) as { cents: number }
+    `).get(artistId, prevStart, prevEndEqual) as { cents: number }
     const prevCents = prevRow.cents
     if (prevCents > 0) {
       changePercent = Math.round((totalCents - prevCents) / prevCents * 100)
@@ -273,6 +275,7 @@ export function getTodoList(artistId: number) {
     dueToday: '截稿',
     pending: '新单',
     revision: '修改',
+    done: '待交付',
     active: '进行中'
   }
 
@@ -282,6 +285,8 @@ export function getTodoList(artistId: number) {
     else if (dueToday.includes(o)) tag = TAG_MAP.dueToday
     else if (o.status === 'pending') tag = TAG_MAP.pending
     else if (o.status === 'revision') tag = TAG_MAP.revision
+    // F0127: done 虽不算终态（尚有交付流程），但打「进行中」标签误导——单已完成制作，应为「待交付」
+    else if (o.status === 'done') tag = TAG_MAP.done
     else tag = TAG_MAP.active
 
     return {

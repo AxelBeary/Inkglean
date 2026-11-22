@@ -152,7 +152,10 @@ export interface Multiplier {
 
 /** 价格明细行 */
 export interface PriceBreakdownItem {
-  type: 'tier' | 'addon' | 'usage' | 'rush'
+  // F-CAPTAIN-01 (captain 补充线索, entities.ts:154): 旧枚举 tier/addon 已在 v50 退役，
+  // DB order_price_breakdown.item_type 现口径为 base/addon_fixed/addon_percent/usage/rush/discount。
+  // 全仓零构造/消费（本类型仅 PriceResult.breakdown 自引用），属死类型漂移，同步到新口径避免误导。
+  type: 'base' | 'addon_fixed' | 'addon_percent' | 'usage' | 'rush' | 'discount'
   name: string
   amount: number
   quantity: number

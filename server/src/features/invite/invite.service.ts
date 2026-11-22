@@ -421,8 +421,15 @@ export function confirmInviteTotp(params: InviteTotpConfirmParams): InviteTotpCo
   // P0-1 纵深修复（2026-09-17）：确认该画师确实经由邀请码注册流程入库——
   // invite_code_uses 有记录 = registerWithInvite 事务成功提交了该画师；
   // 无记录说明该账号非邀请流程产物（如管理员预绑），拒绝通过此公开端点确认。
-  const inviteUse = db.prepare('SELECT id FROM invite_code_uses WHERE artist_id = ?').get(artist.id)
+  const inviteUse = db.prepare('SELECT id, invite_code_id FROM invite_code_uses WHERE artist_id = ?').get(artist.id) as { id: number; invite_code_id: number } | undefined
   if (!inviteUse) rejectInviteTotp('non_invite_flow', artist.id)
+
+  // F0133: 首绑确认复核邀请码状态与入驻模式——码被管理员吊销（revoked）后不再允许完成首绑；
+  // 入驻模式已切回 manual（管理员关闭邀请入驻）同样拒绝，避免关闭后仍有在途邀请完成入驻。
+  // 注意：码用后 status='used' 是正常消费态，不能当作拒绝条件（否则所有合法首绑都被挡）。
+  const inviteCode = db.prepare('SELECT status FROM invite_codes WHERE id = ?').get(inviteUse.invite_code_id) as { status: string } | undefined
+  if (!inviteCode || inviteCode.status === 'revoked') rejectInviteTotp('invite_revoked', artist.id)
+  if (!isInviteOnboardingEnabled()) rejectInviteTotp('onboarding_disabled', artist.id)
 
   // 815 审计 P1-5：防爆破对齐登录路径——锁定期内任何尝试（含正确码）都拒绝；
   // checkTotpLocked/registerTotpFailure 内部仍写库维持锁定，对外统一 TOTP_INVALID 不泄露锁定态。
@@ -449,8 +456,12 @@ export function confirmInviteTotp(params: InviteTotpConfirmParams): InviteTotpCo
   const codeHash = hashTotpCode(artist.id, code, hitCounter)
   try {
     db.prepare('INSERT INTO totp_used_codes (artist_id, code_hash) VALUES (?, ?)').run(artist.id, codeHash)
-  } catch {
-    rejectInviteTotp('replay', artist.id)
+  } catch (err) {
+    // F0132: 只把唯一约束冲突判为 replay；其它 DB 错误（磁盘满/表损坏/锁）必须向上抛，
+    // 原宽泛 catch 把任意错误误报为「重放」，掩盖真实故障且可能让攻击者借错误刷探测。
+    const code = (err as { code?: string }).code ?? ''
+    if (code.startsWith('SQLITE_CONSTRAINT')) rejectInviteTotp('replay', artist.id)
+    throw err
   }
 
   db.prepare('UPDATE artists SET totp_verified = 1, totp_failed_attempts = 0, totp_locked_until = NULL WHERE id = ?').run(artist.id)

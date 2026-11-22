@@ -76,8 +76,9 @@ export function recordLastLogin(artistId: number, ip: string): void {
  * 目录口径为两条 DISTINCT 聚合取交集，避免逐画师 N+1。
  */
 export function getReadyArtistIds(): Set<number> {
+  // F0114: 就绪判定不计入平台已下架作品（与公开端 artworks 读路径 takedown_at IS NULL 同口径）
   const artworkRows = db.prepare(
-    'SELECT DISTINCT artist_id FROM artworks'
+    'SELECT DISTINCT artist_id FROM artworks WHERE takedown_at IS NULL'
   ).all() as Array<{ artist_id: number }>
   const priceRows = db.prepare(`
     SELECT DISTINCT s.artist_id AS artist_id
@@ -91,8 +92,9 @@ export function getReadyArtistIds(): Set<number> {
 
 /** 单画师就绪判定（与开张任务卡 tier 口径共用，防两处漂移） */
 export function isArtistReady(artistId: number): boolean {
+  // F0114: 单画师口径同步——已被平台下架的作品不算有效作品
   const hasArtwork = db.prepare(
-    'SELECT id FROM artworks WHERE artist_id = ? LIMIT 1'
+    'SELECT id FROM artworks WHERE artist_id = ? AND takedown_at IS NULL LIMIT 1'
   ).get(artistId) !== undefined
   if (!hasArtwork) return false
   return db.prepare(`

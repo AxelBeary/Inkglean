@@ -71,6 +71,9 @@ export function deliverOrder(orderId: number, filePath: string, fileName: string
     // audit-a P2-1: 与 deliverOrderWithoutFile 对齐——wip/revision/done 均可迁移，
     // 已交付订单重复传文件只落文件不迁状态（幂等）
     if (order.status !== 'delivered') {
+      // F0135: 带文件交付路径补 status_change 操作日志，与 deliverOrderWithoutFile 对齐——
+      // 原实现只有无文件分支记日志，带文件交付的状态迁移在活动流里查不到。
+      logActivity(orderId, 'status_change', 'artist', { from: order.status, to: 'delivered', withFile: true })
       // D-1: 交付状态迁移带版本守卫（防双标签页旧快照覆盖）
       updateOrderChecked(orderId, expectedVersion, "status = ?, completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP)", 'delivered')
       compactQueue(order.artist_id)

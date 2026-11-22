@@ -48,7 +48,10 @@ describe('仪表盘布局偏好 dashboard prefs（自定义首页批一 v70）',
     const res = await app.inject({ method: 'GET', url: '/api/artist/dashboard/prefs', headers })
     expect(res.statusCode).toBe(200)
     const body = res.json()
-    expect(body.hidden).toEqual(['schedule', 'guestbook'])
+    // F0122: 吞并旧开关时须保留默认隐藏的可选板块（收入类，「钱不进日报」拍板），
+    // 原断言 hidden 恰等于 ['schedule','guestbook'] 是 bug 行为——默认隐藏项被整体替换丢失。
+    expect(body.hidden).toEqual(expect.arrayContaining([...OPTIONAL_MODULES, 'schedule', 'guestbook']))
+    expect(body.hidden).not.toContain('activity') // 旧 true 开关不隐藏
     expect(body.order).toEqual([...CORE_MODULES])
   })
 

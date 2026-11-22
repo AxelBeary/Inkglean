@@ -14,6 +14,15 @@ describe('输入校验 (Validate)', () => {
     expect(clamp(undefined, 'name')).toBeNull()
   })
 
+  // F0162: clamp 按 code point 截断分支——emoji（surrogate pair）不被切半
+  it('TC-V-07 (F0162): clamp 按 code point 截断不切开 surrogate pair', () => {
+    const result = clamp('😀'.repeat(20), 'qq') // limit 15
+    expect([...result!].length).toBe(15)
+    expect(result).toBe('😀'.repeat(15))
+    // 每个字符都是完整 emoji，无孤立代理项
+    for (const ch of result!) expect(ch.codePointAt(0)).toBe(0x1F600)
+  })
+
   // TC-V-03: isValidQq 合法
   it('TC-V-03: 合法QQ号返回 true', () => {
     expect(isValidQq('12345')).toBe(true)

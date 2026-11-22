@@ -175,7 +175,8 @@ describe('合并待办列表 (getTodoList)', () => {
     const result = dashboard.getTodoList(artist.id)
     expect(result).toHaveLength(1)
     expect(result[0].orderNo).toBe('T-016')
-    expect(result[0].tag).toBe('进行中')
+    // F0127: done 已制作完成、尚有交付流程，标签应为「待交付」而非误导性的「进行中」
+    expect(result[0].tag).toBe('待交付')
   })
 
   it('TC-DASH-13: delivered/cancelled 不出现', () => {

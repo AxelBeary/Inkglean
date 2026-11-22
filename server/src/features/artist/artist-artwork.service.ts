@@ -195,7 +195,8 @@ export function setArtworkSizeTags(artistId: number, artworkId: number, sizeIds:
   db.transaction(() => {
     db.prepare('DELETE FROM artwork_size_tags WHERE artwork_id = ?').run(artworkId)
     const insert = db.prepare('INSERT INTO artwork_size_tags (artwork_id, style_size_id) VALUES (?, ?)')
-    for (const sizeId of sizeIds) {
+    // F0115: sizeIds 去重——重复 id 会在第二次 INSERT 撞 (artwork_id, style_size_id) 主键抛 500
+    for (const sizeId of new Set(sizeIds)) {
       // 尺寸归属：style_sizes → art_styles.artist_id
       const own = db.prepare(`
         SELECT ss.id FROM style_sizes ss
@@ -273,8 +274,9 @@ const LIKE_MAX = 99999
 export function likeArtwork(artworkId: number): Artwork | null {
   const artwork = getArtworkById(artworkId)
   if (!artwork || !isArtistVisibleById(artwork.artist_id) || !isArtworkVisible(artwork)) return null
-  const newCount = Math.min((artwork.like_count || 0) + 1, LIKE_MAX)
-  db.prepare('UPDATE artworks SET like_count = ? WHERE id = ?').run(newCount, artworkId)
+  // F0116: 原子自增——原读改写（先读 like_count 再写回）在并发点赞下会互相覆盖丢计数；
+  // 用 SQL 表达式 MIN(like_count+1, 上限) 在单条语句内完成，SQLite 写串行保证不丢。
+  db.prepare('UPDATE artworks SET like_count = MIN(COALESCE(like_count, 0) + 1, ?) WHERE id = ?').run(LIKE_MAX, artworkId)
   return getArtworkById(artworkId) ?? null
 }
 
@@ -282,7 +284,7 @@ export function likeArtwork(artworkId: number): Artwork | null {
 export function unlikeArtwork(artworkId: number): Artwork | null {
   const artwork = getArtworkById(artworkId)
   if (!artwork || !isArtistVisibleById(artwork.artist_id) || !isArtworkVisible(artwork)) return null
-  const newCount = Math.max((artwork.like_count || 0) - 1, 0)
-  db.prepare('UPDATE artworks SET like_count = ? WHERE id = ?').run(newCount, artworkId)
+  // F0116: 原子自减，同 likeArtwork——MAX(COALESCE(like_count,0)-1, 0) 单语句完成不丢计数
+  db.prepare('UPDATE artworks SET like_count = MAX(COALESCE(like_count, 0) - 1, 0) WHERE id = ?').run(artworkId)
   return getArtworkById(artworkId) ?? null
 }

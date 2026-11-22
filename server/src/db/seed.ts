@@ -52,7 +52,13 @@ export const seed = async () => {
 
   // SPEC-PRICE-2（v50）：旧 price_tiers 种子已退役，演示价格改走画风/尺寸模型
   // 幂等：先清空本 seed 画师已有画风（连同尺寸/增项级联）
-  db.prepare('DELETE FROM art_styles WHERE artist_id IN (?, ?)').run(alice.id, bob.id)
+  // F0106: 原无差别 DELETE 会级联把 orders.style_size_id（ON DELETE SET NULL）清空，丢失订单绑定；
+  // 只删除「其尺寸未被任何订单引用」的画风，保护已有订单的 style_size_id 绑定。
+  db.prepare(`DELETE FROM art_styles WHERE artist_id IN (?, ?)
+    AND id NOT IN (
+      SELECT DISTINCT ss.art_style_id FROM style_sizes ss
+      JOIN orders o ON o.style_size_id = ss.id
+    )`).run(alice.id, bob.id)
 
   const insertStyle = db.prepare(
     "INSERT INTO art_styles (artist_id, name, sort_order, is_active) VALUES (?, '默认', 0, 1)"

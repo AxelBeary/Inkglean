@@ -5,6 +5,11 @@
  *
  * 口径：与 artist-tokens.css 宣纸主题取值一致（818 W5 米色宣纸同步）。
  * canvas 导出图不随实时主题变量换色，保持宣纸口径（墨黑主题下导出/预览底仍为宣纸色）。
+ *
+ * F0171 色值事实源锚点：本表宣纸档取值须与下列两端 CSS 的第一处（宣纸主题）声明一致——
+ *   web/src/styles/artist-tokens.css  --sl-t / --th / --zhe
+ *   desktop/src/styles/paper-ink.css  --sl-t / --th / --zhe
+ * 已由 src/__tests__/ink-palette-sync.test.ts 自动校验，改色须三处同步。
  */
 export const INK_PALETTE = {
   paper: '#F0E6CF',

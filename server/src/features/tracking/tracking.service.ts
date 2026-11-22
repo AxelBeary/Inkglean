@@ -84,9 +84,11 @@ export function issueAnonToken(): string {
  * 不存在/已过期 → null（前端静默重取，不打断用户）
  */
 export function resolveAnonToken(token: string): number | null {
+  // F0151: 兑现注释承诺的「30 天滚动续期」——原判据用 created_at，续期写的 last_seen_at 从不参与判定，
+  // 实际是固定 30 天后失效（非滚动）。改为按 last_seen_at 判活跃窗口，每次 resolve 刷新它即真正续期。
   const row = db.prepare(`
     SELECT id FROM anon_tokens
-    WHERE token = ? AND created_at > datetime('now', ?)
+    WHERE token = ? AND last_seen_at > datetime('now', ?)
   `).get(token, `-${ANON_TOKEN_TTL_DAYS} days`) as { id: number } | undefined
   if (!row) return null
   db.prepare("UPDATE anon_tokens SET last_seen_at = datetime('now') WHERE id = ?").run(row.id)
@@ -120,13 +122,16 @@ export function insertEvents(events: TrackedEvent[], artistId: number | null, an
     }
     payloadJsonList.push(payloadJson)
   }
-  let count = 0
-  for (let i = 0; i < events.length; i++) {
-    const ev = events[i]
-    insert.run(String(ev.name), Number(ev.ts), ev.version ?? 1, artistId, anonId, payloadJsonList[i])
-    count++
-  }
-  return count
+  // F0154: 批量落库包事务——原 50 条事件 = 50 次独立提交，中途异常留下半批；事务保证整批原子
+  return db.transaction(() => {
+    let count = 0
+    for (let i = 0; i < events.length; i++) {
+      const ev = events[i]
+      insert.run(String(ev.name), Number(ev.ts), ev.version ?? 1, artistId, anonId, payloadJsonList[i])
+      count++
+    }
+    return count
+  })()
 }
 // ============================================
 // 统计读接口（REQ-033 收尾）

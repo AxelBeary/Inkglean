@@ -71,6 +71,9 @@ export default async function artistRoutes(fastify: FastifyInstance) {
     // SPEC-PRICE-2（v50）：旧档位表已清退；tiers 字段保留空数组仅为前端过渡兼容，价格数据走 /api/public/styles
     const artworks = artistService.getArtworks(artist.id)
     const rules = artistService.getRules(artist.id)
+    // F0119 返工(复核部PART1 FAIL): 名额两项与展示状态一次算好复用（下方 formalCount/bufferCount/slotDisplay/effectiveStatus 共用）
+    const zoneCounts = artistService.getZoneCounts(artist.id)
+    const slotDisplay = artistService.computeSlotDisplay(artist)
 
     return {
       id: artist.id,
@@ -95,11 +98,13 @@ export default async function artistRoutes(fastify: FastifyInstance) {
       // SPEC-004: 名额与缓冲信息
       batchLimit: artist.batch_limit ?? null,
       bufferLimit: artist.buffer_limit ?? 0,
-      formalCount: artistService.getZoneCounts(artist.id).formal,
-      bufferCount: artistService.getZoneCounts(artist.id).buffer,
-      slotDisplay: artistService.computeSlotDisplay(artist),
-      // #54: 额度耗尽时覆盖状态，前端据此显示「已约满」而非「可约稿」
-      effectiveStatus: (artist.status === 'open' && artistService.computeSlotDisplay(artist) === '本月已约满') ? 'full' : artist.status,
+      // F0119 返工(复核部PART1 FAIL): 原实现 getZoneCounts×2 / computeSlotDisplay×2 重复调用，
+      // 各执行一次 SQL 聚合，公开主页单次请求白跑两遍。提取局部变量复用，结果不变。
+      formalCount: zoneCounts.formal,
+      bufferCount: zoneCounts.buffer,
+      slotDisplay: slotDisplay,
+      // #54: 额度耗尽时覆盖状态，前端据此显示「已约满」而非「可约稿」（复用上面的 slotDisplay）
+      effectiveStatus: (artist.status === 'open' && slotDisplay === '本月已约满') ? 'full' : artist.status,
       // S5: 月度额度池
       monthlyQuota: artist.monthly_quota ?? null,
       quotaInfo: artist.monthly_quota != null ? artistService.getMonthlyUsage(artist.id, artist.monthly_quota) : null,
@@ -299,12 +304,16 @@ export default async function artistRoutes(fastify: FastifyInstance) {
         sanitized[dbKey] = typeof v === 'string' ? clamp(v, CLAMP_MAP[dbKey as keyof typeof CLAMP_MAP] || dbKey) : v
       }
       // SPEC-004: N+M ≥ 1 校验（batchLimit 为 null 时跳过）
-      if ('batch_limit' in sanitized && sanitized.batch_limit !== null) {
+      // F0118: 原实现只在提交 batch_limit 时校验，单独改 buffer_limit 可绕过不变式写坏 N+M<1；
+      // 改为两字段任一提交即用「提交值优先、未提交取当前值」重算 N/M 并校验。
+      if ('batch_limit' in sanitized || 'buffer_limit' in sanitized) {
         const current = artistService.getArtistById(request.artist.id)
-        const N = sanitized.batch_limit as number
-        const M = (('buffer_limit' in sanitized) ? sanitized.buffer_limit : (current?.buffer_limit ?? 0)) as number
-        if (N + M < 1) {
-          return reply.code(400).send({ code: 'INVALID_BATCH_LIMIT', error: '名额设置无效（正式位+缓冲位至少为1）' })
+        const N = ('batch_limit' in sanitized ? sanitized.batch_limit : (current?.batch_limit ?? null)) as number | null
+        if (N !== null) {
+          const M = ('buffer_limit' in sanitized ? sanitized.buffer_limit : (current?.buffer_limit ?? 0)) as number
+          if (N + M < 1) {
+            return reply.code(400).send({ code: 'INVALID_BATCH_LIMIT', error: '名额设置无效（正式位+缓冲位至少为1）' })
+          }
         }
       }
       const updated = artistService.updateArtist(request.artist.id, sanitized)

@@ -15,6 +15,12 @@ import type { Artist } from '../../types/entities.js'
 // v76（P4 后端批）：主页可见性判定不再内联，改接 artist-visibility.service 唯一事实源
 // ============================================
 
+// F0131: 严格解析路径 id——parseInt('12abc')=12 会让畸形 id 落到另一条留言；
+// 非纯数字一律返回 -1（不可能的 id），下游查询自然不命中 → 沿用既有 404 处理，不误伤他人留言。
+function strictId(raw: string): number {
+  return /^\d+$/.test(raw) ? Number(raw) : -1
+}
+
 export default async function guestbookRoutes(fastify: FastifyInstance) {
 
   // REQ-041：/api/admin/messages* 同为管理后台路由，受 step-up 入口级守卫保护
@@ -121,7 +127,7 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
 
   /** PUT /api/artist/messages/:id/approve — 通过 */
   fastify.put('/api/artist/messages/:id/approve', { preHandler: requireAuth }, async (request, reply) => {
-    const msg = guestbookService.approveMessage(request.artist.id, parseInt((request.params as { id: string }).id, 10))
+    const msg = guestbookService.approveMessage(request.artist.id, strictId((request.params as { id: string }).id))
     if (!msg) return reply.code(404).send({ error: '留言不存在' })
     return msg
   })
@@ -148,7 +154,7 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
 
   /** PUT /api/artist/messages/:id/reject — 拒绝（静默） */
   fastify.put('/api/artist/messages/:id/reject', { preHandler: requireAuth }, async (request, reply) => {
-    const msg = guestbookService.rejectMessage(request.artist.id, parseInt((request.params as { id: string }).id, 10))
+    const msg = guestbookService.rejectMessage(request.artist.id, strictId((request.params as { id: string }).id))
     if (!msg) return reply.code(404).send({ error: '留言不存在' })
     return { success: true }
   })
@@ -168,7 +174,7 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
     }
   }, async (request, reply) => {
     const body = request.body as { reply: string }
-    const msg = guestbookService.replyMessage(request.artist.id, parseInt((request.params as { id: string }).id, 10), body.reply)
+    const msg = guestbookService.replyMessage(request.artist.id, strictId((request.params as { id: string }).id), body.reply)
     if (!msg) return reply.code(404).send({ error: '留言不存在' })
     return msg
   })
@@ -191,7 +197,7 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
 
   /** DELETE /api/admin/messages/:id — 管理员强制删除（软删除） */
   fastify.delete('/api/admin/messages/:id', { preHandler: requireAdmin }, async (request, reply) => {
-    const msg = guestbookService.adminDeleteMessage(parseInt((request.params as { id: string }).id, 10))
+    const msg = guestbookService.adminDeleteMessage(strictId((request.params as { id: string }).id))
     if (!msg) return reply.code(404).send({ error: '留言不存在' })
     return { success: true }
   })

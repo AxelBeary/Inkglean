@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { toSqliteDate, localDayStartSqlite, localDayEndSqlite, localMonthStartSqlite, localDateRangeToUtc, isValidLocalDateString } from '../src/utils/date.js'
+import { toSqliteDate, localDayStartSqlite, localDayEndSqlite, localMonthStartSqlite, localDateRangeToUtc, isValidLocalDateString, parseSqliteUtcDate } from '../src/utils/date.js'
 
 // ============================================
 // 日期工具函数测试（技术债 B3）
@@ -65,5 +65,28 @@ describe('日期工具 (utils/date.js)', () => {
     const r = localDateRangeToUtc('0099-01-01', '0099-01-02')
     expect(r.startUtc.startsWith('1999-')).toBe(false)
     expect(r.endUtcExclusive.startsWith('1999-')).toBe(false)
+  })
+
+  // F0160: parseSqliteUtcDate 支撑 TOTP 重绑冷却与本地日分组，补单测钉死 UTC 解析口径
+  it('TC-DU-11 (F0160): parseSqliteUtcDate 按 UTC 解析 SQLite 空格格式', () => {
+    const d = parseSqliteUtcDate('2026-08-01 14:30:00')
+    expect(d.toISOString()).toBe('2026-08-01T14:30:00.000Z')
+  })
+
+  it('TC-DU-12 (F0160): parseSqliteUtcDate 兼容 T 分隔符与小数秒', () => {
+    expect(parseSqliteUtcDate('2026-08-01T14:30:00').toISOString()).toBe('2026-08-01T14:30:00.000Z')
+    expect(parseSqliteUtcDate('2026-08-01 14:30:00.123').toISOString()).toBe('2026-08-01T14:30:00.123Z')
+  })
+
+  // F0158: 非字符串 / 非 SQLite 形态返回 Invalid Date，不再抛 TypeError 或静默产出非法 Date
+  it('TC-DU-13 (F0158): 非法输入返回 Invalid Date 而非抛错', () => {
+    expect(Number.isNaN(parseSqliteUtcDate('garbage').getTime())).toBe(true)
+    expect(Number.isNaN(parseSqliteUtcDate(null as unknown as string).getTime())).toBe(true)
+    expect(Number.isNaN(parseSqliteUtcDate('').getTime())).toBe(true)
+  })
+
+  // F0159: 反向区间显式拒绝
+  it('TC-DU-14 (F0159): from > to 抛 VALIDATION', () => {
+    expect(() => localDateRangeToUtc('2026-03-02', '2026-03-01')).toThrow('VALIDATION')
   })
 })

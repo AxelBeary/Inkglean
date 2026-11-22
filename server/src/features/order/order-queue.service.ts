@@ -96,8 +96,15 @@ export function getCompletedQueue(artistId: number, days: number = 7): ArtistOrd
     .toISOString().replace('T', ' ').slice(0, 19)
   // L-13（审计 九#7）: 沉底窗口以 completed_at 判定（任意写操作不再刷新 updated_at 复活展示），
   // 无 completed_at 的存量订单回落 updated_at
+  // F0139: 显式列清单（不再 o.*，去掉队列 UI 不消费的 quote_snapshot 大字段），与 getArtistQueue 同口径
   return db.prepare(`
-    SELECT o.*, st.name as current_stage_name,
+    SELECT o.id, o.order_no, o.style_size_id, o.client_qq, o.client_name, o.description,
+           o.priority, o.status, o.source, o.client_notify, o.queue_position,
+           o.completed_at, o.price_snapshot, o.total_price_cents, o.final_price_cents,
+           o.focus_image_path, o.focus_image_mode, o.current_stage_id, o.deadline,
+           o.start_date, o.queue_zone, o.paid_total_cents, o.discount_code_id,
+           o.discount_amount_cents, o.created_at, o.updated_at, o.version,
+           st.name as current_stage_name,
            (ast.name || ' / ' || ss.name) as tier_name, ss.base_price as tier_price
     FROM orders o
     LEFT JOIN style_sizes ss ON o.style_size_id = ss.id

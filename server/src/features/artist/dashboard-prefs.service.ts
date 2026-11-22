@@ -186,7 +186,9 @@ export function getDashboardPrefs(artistId: number): DashboardPrefs {
 
   const prefs = defaultPrefs()
   const lh = legacyHidden(row.dashboard_modules)
-  if (lh.length > 0) prefs.hidden = lh
+  // F0122: 原整体替换 prefs.hidden=lh 会丢掉 defaultPrefs 默认隐藏的可选板块（收入类），
+  // 导致「钱默认不进日报」拍板被旧数据吞掉；改为与默认隐藏项合并去重。
+  if (lh.length > 0) prefs.hidden = [...new Set([...prefs.hidden, ...lh])]
   return prefs
 }
 

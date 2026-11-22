@@ -357,6 +357,12 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
   fastify.post('/api/artist/orders/:id/regenerate-token', {
     preHandler: [requireAuth, requireOwnOrder]
   }, async (request: FastifyRequest) => {
+    // F0137 返工(复核部PART1 FAIL): 回退此前加的 withIdempotency 包装，恢复无包装原状。
+    // 原因：① 真实前端（web/src/api/modules/artist.ts regenerateToken）不传 idempotency-key，
+    // idempotency.ts 无 key 直接放行，包装对双击无效；② 包装会把含明文 customerToken 的 body
+    // 写进 idempotency_keys.response_json 留存 24h，与 F0134「因缓存明文令牌故不修」的纪律冲突。
+    // 与 F0134 口径统一为「都不缓存明文令牌」；真要幂等须协同前端带稳定 key 且不缓存明文，
+    // 需跨端变更（前端 PART2 进行中，本批不跨 web/ 改动）。
     const customerToken = orderService.generateCustomerToken()
     const tokenHash = orderService.hashCustomerToken(customerToken)
     // L-2（审计 三#5）: 令牌补发属订单写路径——走 updateOrderChecked 递增 version（
