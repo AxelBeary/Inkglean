@@ -279,7 +279,8 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
         properties: {
           amountCents: { type: 'integer', minimum: -MAX_MONEY_CENTS, maximum: MAX_MONEY_CENTS },
           note: { type: ['string', 'null'], maxLength: 200 },
-          installmentId: { type: ['integer', 'null'] },
+          // 0dd34d96 / SRV-02：v52 退役节点实收列后「指定节点收款」是误导入口（接收却不影响节点状态），
+          // 已从 API schema 移除；additionalProperties:false 下旧客户端传 installmentId 直接 400。
           // 审计 #21 条目 4: 负数撤销指向被撤的那笔收款 id
           revokeOfPaymentId: { type: ['integer', 'null'] }
         },
@@ -287,12 +288,12 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
       }
     }
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { amountCents, note, installmentId, revokeOfPaymentId } = request.body as { amountCents: number; note?: string | null; installmentId?: number | null; revokeOfPaymentId?: number | null }
+    const { amountCents, note, revokeOfPaymentId } = request.body as { amountCents: number; note?: string | null; revokeOfPaymentId?: number | null }
     // D-2（R-9）: 收款幂等键——scope 含 orderId（跨订单不串），双标签页/脚本双击同 key
     // 只入账一笔；金额/撤销校验错误不缓存（同 key 修正后重试可成功）
     const idempotencyKey = readIdempotencyKey(request.headers['idempotency-key'])
     const result = withIdempotency(`payment:${request.order.id}`, idempotencyKey, () => {
-      const payment = orderService.addPayment(request.order.id, { amountCents, note, createdBy: 'artist', installmentId: installmentId || null, revokeOfPaymentId: revokeOfPaymentId ?? null })
+      const payment = orderService.addPayment(request.order.id, { amountCents, note, createdBy: 'artist', revokeOfPaymentId: revokeOfPaymentId ?? null })
       const order = orderService.getOrder(request.order.id)
       return {
         statusCode: 200,
@@ -303,7 +304,7 @@ export async function orderActionRoutes(fastify: FastifyInstance) {
           installments: orderService.getOrderInstallments(request.order.id)
         }
       }
-    }, { amountCents, note, installmentId, revokeOfPaymentId })
+    }, { amountCents, note, revokeOfPaymentId })
     return reply.code(result.statusCode).send(result.body)
   })
 

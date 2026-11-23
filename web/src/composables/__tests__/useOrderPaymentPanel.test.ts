@@ -77,7 +77,8 @@ describe('节点快捷收款校验（审计 🔴-3）', () => {
     const [routeId, payload] = (h.addPayment as unknown as Mock).mock.calls[0]
     expect(routeId).toBe('806')
     expect(payload.amountCents).toBe(15000) // 超额照传，后端决定（多收压尾款）
-    expect(payload.installmentId).toBe(7)
+    // 0dd34d96 / SRV-02：节点快捷收款不再传 installmentId（误导入口已收编）
+    expect(payload.installmentId).toBeUndefined()
   })
 
   it('TC-NP-02: <= 0 仍被前端拦截（保留与后端一致的合法性子集）', async () => {

@@ -409,7 +409,8 @@ export interface UpdatePriceRequest extends VersionedOptions {
 export interface AddPaymentRequest {
   amountCents: number
   note?: string | null
-  installmentId?: number | null
+  // 0dd34d96 / SRV-02：installmentId「指定节点收款」误导入口已移除——
+  // v52 后节点已收从 paid_total 顺序推导，传它不影响节点状态；后端 schema 亦已拒绝该字段。
   /** 审计 #21 条目 4: 负数撤销时指向被撤的那笔收款 id（服务端按单笔上限校验） */
   revokeOfPaymentId?: number | null
 }

@@ -332,6 +332,9 @@ CREATE TABLE IF NOT EXISTS order_payment_installments (
 CREATE TABLE IF NOT EXISTS order_payments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   order_id INTEGER NOT NULL,
+  -- 0dd34d96 / SRV-02：v52 退役节点实收列后，本列已不参与节点已收/待收推导（额度池 R7）。
+  -- 保留列定义仅为存量库/历史流水兼容（不新增迁移、不改额度池设计）；API 与前端的
+  -- 「指定节点收款」误导入口已移除，新流水该列恒 NULL。
   installment_id INTEGER DEFAULT NULL,
   amount_cents INTEGER NOT NULL,
   note TEXT DEFAULT NULL,

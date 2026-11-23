@@ -14,8 +14,11 @@
  *   另立计数器必然与它漂。
  *
  * 幂等：三列一律先查 PRAGMA table_info 再 ALTER（与 v77/v80 同款守卫），重复执行不报错。
- * 完整 schema（schema.ts）同步声明了本表与新列——新建库走建表语句、老库走本迁移，
- * 两条路径最终结构一致（audit-batch-f-ddl-consistency 锁死）。
+ * schema.ts 已声明 order_previews 表与 style_sizes.free_revisions（新建库走建表语句）；
+ * 但 orders 的两列（preview_visible_to_client / free_revision_limit）故意不在 schema.ts 声明——
+ * v50 的 orders 重建按「当前列清单」抄进固定定义 orders_new，提前带新列会在 v50 报
+ * 「no column named ...」；这两列新老库都由本迁移幂等补齐（同 download_fail_total 口径），
+ * 两条路径最终结构仍一致（audit-batch-f-ddl-consistency 锁死）。
  * 索引写在本迁移而非 schemaIndexes：查单过程稿是 v81 才出现的读法，
  * 与表同生同灭最省心（initDatabase 迁移先于 schemaIndexes 执行，新老库同样拿得到）。
  */

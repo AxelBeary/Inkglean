@@ -169,8 +169,8 @@ describe('815 P-2 admin 订单分期批量预取', () => {
       .run(o1.id, '定金', 20000, 4000, 1)
     db.prepare('INSERT INTO order_payment_installments (order_id, label, amount_cents, basis_points, sort_order) VALUES (?, ?, ?, ?, ?)')
       .run(o1.id, '尾款', 30000, 6000, 2)
-    const o1Insts = db.prepare('SELECT id FROM order_payment_installments WHERE order_id = ? ORDER BY sort_order').all(o1.id) as Array<{ id: number }>
-    orderService.addPayment(o1.id, { amountCents: 20000, note: '定金到账', installmentId: o1Insts[0].id })
+    // 0dd34d96 / SRV-02：addPayment 不再接收 installmentId（误导入口收编）
+    orderService.addPayment(o1.id, { amountCents: 20000, note: '定金到账' })
 
     // 订单2：第二期部分覆盖（partial）
     const o2 = seedOrder(admin.id)
@@ -179,8 +179,7 @@ describe('815 P-2 admin 订单分期批量预取', () => {
       .run(o2.id, '定金', 10000, 3000, 1)
     db.prepare('INSERT INTO order_payment_installments (order_id, label, amount_cents, basis_points, sort_order) VALUES (?, ?, ?, ?, ?)')
       .run(o2.id, '尾款', 20000, 7000, 2)
-    const o2Insts = db.prepare('SELECT id FROM order_payment_installments WHERE order_id = ? ORDER BY sort_order').all(o2.id) as Array<{ id: number }>
-    orderService.addPayment(o2.id, { amountCents: 15000, note: '部分收款', installmentId: o2Insts[1].id })
+    orderService.addPayment(o2.id, { amountCents: 15000, note: '部分收款' })
 
     // 订单3：无分期
     seedOrder(admin.id)
