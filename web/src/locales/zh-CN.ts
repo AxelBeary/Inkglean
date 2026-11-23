@@ -1149,9 +1149,6 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     helpDesc: '动态口令需要验证器 App 来生成，推荐口径如下：',
     helpNote: '绑定后每 30 秒刷新一次，登录时输入当前显示的 6 位数字。'
   },
-  // P0-9: 倍率管理（MultiplierManager）i18n
-  multiplier: {
-  },
   // v0.42 Step5: 画师统计独立页（REQ-033 埋点三态：off 关 / hidden 不显 / on 开）
   stats: {
     title: '数据统计',
