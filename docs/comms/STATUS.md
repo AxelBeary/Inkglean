@@ -1,10 +1,14 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-11-22 历史交付连续性批已合入 master；十九道全绿）
+## 看板（2026-11-23 GitHub 存量 PR 批量合入批；十九道全绿）
 
-- **HEAD 与推送**：`59366674`（历史交付连续性 + 管理员补发批，含交叉 debug 修复）已合入 master；本批 = 已付款客户在画师不可见后仍可领取已有交付、签名按原有效期失效、管理员逐文件补签
-  - 门禁：`scripts/accept.ps1` 十九道全绿 @ `59366674`（184s；server 2096 / web 1284 / desktop 672 / shared 44 / E2E 15）
-  - 报告：`AGENTS/workspace/temp/accept-master-20261122-071332.md`
+- **HEAD 与推送**：`3ce3ad9a`（GitHub 存量 7 条 PR 批量合入）已进 master；收口件 `7118b53c`
+  - 门禁：`scripts/accept.ps1` 十九道全绿 @ `7118b53c`（356s；server 2105 / web 1308 / desktop 678 / shared 47 / E2E 15）
+  - 报告：`AGENTS/workspace/temp/accept-master-20261123-185506.md`
+  - 合入 7 条：#100 桌面更新通道 / #103 依赖 7 项 / #104 文档债 10 项 / #105 根因收编 4 处 / #101 后端共享批 / #99 桌面 44 项 / #102 前端 122 项；逐条审计后按冲突面排序合入，open PR 7→0
+  - 根因修复（非本批 PR 引入）：`web/vitest.config.ts` 的 `test.poolOptions` 在 Vitest 4 已移除且**静默不生效**，28 核 Windows 上门禁必假红（实测 186/188 文件、1303/1308 用例）；改顶层 `maxWorkers: 8` 后 1308 全过
+  - 基线同步：`accept-baseline.json` → server 2105 / web 1308 / desktop 678 / shared 47 / e2e 15
+- **上一笔 HEAD**：`59366674`（历史交付连续性 + 管理员补发批，含交叉 debug 修复）；门禁十九道全绿 184s，报告 `AGENTS/workspace/temp/accept-master-20261122-071332.md`
   - 上一笔 `cadfdb85`（minimatch 整改批）+ `e55dabe7`（update.sh 拉取分诊）已推；历史瘦身批重写校验＝master 树与 8 个 tag 快照**逐字节一致**（`507a7004`）
   - 本批 `cadfdb85` = minimatch 10.2.6 → 11.0.9（Dependabot #112/#113 关闭；web 1233 / shared 44 / desktop build 全绿）
     - 手法：`@typescript-eslint/*` 8.73.0 走正常升级；glob@13/editorconfig@3 精准 overrides 强制 `^11.0.9`
