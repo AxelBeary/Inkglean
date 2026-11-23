@@ -117,10 +117,11 @@ export function useOrderPaymentPanel({ order, routeId, onRefresh }: {
     }
 
     try {
+      // 0dd34d96 / SRV-02：不再传 installmentId——v52 后节点收款一律从 paid_total 推导，
+      // 「点哪个节点」仅用于预填金额与备注文案，收款本身记到订单级（nodes 由引擎回填）。
       await addPayment(routeId, {
         amountCents: cents,
-        note: nodePayForm.value.note || t('orderDetail.nodePayNoteFallback', { name: nodePayTarget.value.name }),
-        installmentId: nodePayTarget.value.id
+        note: nodePayForm.value.note || t('orderDetail.nodePayNoteFallback', { name: nodePayTarget.value.name })
       })
       ElMessage.success(t('orderDetail.paySuccess'))
       nodePayDialogVisible.value = false

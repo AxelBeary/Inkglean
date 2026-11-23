@@ -22,6 +22,7 @@ import {
   computeLockedState,
   allocateDelta,
   assertConservation,
+  deriveInstallmentProgress,
   type EngineInstallment
 } from '../src/features/pricing/pricing-engine.js'
 import { AppError, E } from '../src/shared/errors.js'
@@ -199,6 +200,96 @@ describe('checkOrderConservation R8 断言（审计批 260830 H-1）', () => {
       expect(e.code).toBe(E.PRICING_CONSERVATION)
       expect((e.detail as Record<string, unknown>).assertion).toBe('R8')
     }
+  })
+})
+
+// ============================================
+// a7959104 收编等价性（t4 复核方案 A 返工）：合法域 Σ 相等 + 脏域前置拒绝
+// ============================================
+
+/** 旧内联顺序填充（checkOrderConservation 收编前实现，仅测试对照用） */
+function legacyInlineFill(amounts: number[], paid: number): number[] {
+  const sum = amounts.reduce((s, v) => s + v, 0)
+  const remaining: number[] = []
+  let covered = Math.min(paid, sum)
+  for (const amt of amounts) {
+    const take = Math.max(0, Math.min(covered, amt))
+    remaining.push(amt - take)
+    covered -= take
+  }
+  const pureOverpay = Math.max(0, paid - sum)
+  if (pureOverpay > 0) remaining[remaining.length - 1] -= pureOverpay
+  return remaining
+}
+
+/** 新原语填充（与 checkOrderConservation 生产调用同形） */
+function primitiveFill(amounts: number[], paid: number): number[] {
+  return deriveInstallmentProgress(
+    amounts.map((amountCents, sortOrder) => ({ sortOrder, amountCents })),
+    paid
+  ).map(row => row.remainingCents)
+}
+
+const sumOf = (values: number[]) => values.reduce((s, v) => s + v, 0)
+
+describe('a7959104 顺序填充收编等价性（t4 返工方案 A）', () => {
+  it('TC-EQ-01: 合法域（paidTotal≥0 且 S≥0）两种填充 Σ 恒等（含负尾款/超付/部分收款）', () => {
+    // 合法域反例族：非尾款 ≥0（R8）、尾款可为负但 S≥0、paidTotal≥0
+    const cases: Array<{ amounts: number[]; paid: number }> = [
+      { amounts: [50, 70], paid: 50 },          // 部分收款
+      { amounts: [50, 70], paid: 120 },         // 付清
+      { amounts: [50, 70], paid: 150 },         // 纯超付压尾款
+      { amounts: [10500, -500], paid: 11000 },  // 负尾款 + 超付
+      { amounts: [3000, 4000, 2000], paid: 5000 }, // 多节点部分收款
+      { amounts: [10000, 0, -2000], paid: 0 }   // 0 价中间节点 + 负尾款
+    ]
+    for (const { amounts, paid } of cases) {
+      const sumAmounts = sumOf(amounts)
+      expect(paid).toBeGreaterThanOrEqual(0)
+      expect(sumAmounts).toBeGreaterThanOrEqual(0)
+      expect(sumOf(legacyInlineFill(amounts, paid))).toBe(sumOf(primitiveFill(amounts, paid)))
+      // 新原语在合法域恒满足 A2 的 Σ = S − paidTotal
+      expect(sumOf(primitiveFill(amounts, paid))).toBe(sumAmounts - paid)
+    }
+  })
+
+  it('TC-EQ-02: 脏域 paidTotal<0（[50,70], paid=-50）旧 A2 拒绝 → 现由 PRECONDITION 前置校验拒绝', () => {
+    const artist = seedArtist({ qq_number: '88507', subdomain: 'eq-dirty-paid' })
+    const orderId = seedConservationOrder(artist, { orderNo: 'EQ-DIRTY-PAID', finalCents: 120, bps: [5000, 5000], amounts: [50, 70], paidTotal: -50 })
+    try {
+      orderService.checkOrderConservation(orderId)
+      expect.unreachable('paidTotal<0 应由前置校验拒绝')
+    } catch (err) {
+      const e = err as AppError
+      expect(e.code).toBe(E.PRICING_CONSERVATION)
+      const detail = e.detail as Record<string, unknown>
+      expect(detail.assertion).toBe('PRECONDITION')
+      expect(detail.paidTotalCents).toBe(-50)
+      expect(detail.sumAmountsCents).toBe(120)
+    }
+  })
+
+  it('TC-EQ-03: 脏域 S<0（[10,-30], S=-20, paid=50）旧 A2 拒绝 → 现由 PRECONDITION 前置校验拒绝', () => {
+    const artist = seedArtist({ qq_number: '88508', subdomain: 'eq-dirty-sum' })
+    // A1 仍成立（总价 = S = -20），R8 也放行（仅尾款为负）——只有前置校验能挡住该脏域
+    const orderId = seedConservationOrder(artist, { orderNo: 'EQ-DIRTY-SUM', finalCents: -20, bps: [2500, 7500], amounts: [10, -30], paidTotal: 50 })
+    try {
+      orderService.checkOrderConservation(orderId)
+      expect.unreachable('S<0 应由前置校验拒绝')
+    } catch (err) {
+      const e = err as AppError
+      expect(e.code).toBe(E.PRICING_CONSERVATION)
+      const detail = e.detail as Record<string, unknown>
+      expect(detail.assertion).toBe('PRECONDITION')
+      expect(detail.paidTotalCents).toBe(50)
+      expect(detail.sumAmountsCents).toBe(-20)
+    }
+  })
+
+  it('TC-EQ-04: 合法域负尾款超付（paid=11000, amounts=[10500,-500]）不误伤，仍走 A2 通过', () => {
+    const artist = seedArtist({ qq_number: '88509', subdomain: 'eq-legal-tail' })
+    const orderId = seedConservationOrder(artist, { orderNo: 'EQ-LEGAL-TAIL', finalCents: 10000, bps: [5000, 5000], amounts: [10500, -500], paidTotal: 11000 })
+    expect(() => orderService.checkOrderConservation(orderId)).not.toThrow()
   })
 })
 

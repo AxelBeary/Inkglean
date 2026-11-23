@@ -2,6 +2,7 @@
 // 覆盖：收款/撤销请求在途时 submitting=true、try/finally 结束后恢复 false（含失败路径）；
 //       每次提交意图带 idempotency-key header，同一次提交重试复用同 key，成功后换新 key
 // WEB-10 回归：add 与 revoke 幂等键隔离——一方失败不污染另一方
+// 0dd34d96 / SRV-02：收款请求体不再带 installmentId（v52 后节点关联是误导入口）
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { PaymentRow } from '../../api/types'
 
@@ -47,7 +48,7 @@ describe('useOrderPayments submitting（R-4）', () => {
     h.addPayment.mockReturnValueOnce(d.promise)
     const payments = useOrderPayments()
 
-    const req = payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金', installmentId: null })
+    const req = payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金' })
     expect(payments.submitting.value).toBe(true)
 
     d.resolve({})
@@ -71,7 +72,7 @@ describe('useOrderPayments submitting（R-4）', () => {
   it('addPayment 每次提交带 idempotency-key header（UUID 格式）', async () => {
     h.addPayment.mockResolvedValue({})
     const payments = useOrderPayments()
-    await payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金', installmentId: null })
+    await payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金' })
     const options = h.addPayment.mock.calls[0][2]
     expect(options.headers['idempotency-key']).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
   })
@@ -80,9 +81,9 @@ describe('useOrderPayments submitting（R-4）', () => {
     h.addPayment.mockRejectedValueOnce(new Error('boom'))
     h.addPayment.mockResolvedValueOnce({})
     const payments = useOrderPayments()
-    await expect(payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金', installmentId: null }))
+    await expect(payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金' }))
       .rejects.toThrow('boom')
-    await payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金', installmentId: null })
+    await payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金' })
     const key1 = h.addPayment.mock.calls[0][2].headers['idempotency-key']
     const key2 = h.addPayment.mock.calls[1][2].headers['idempotency-key']
     expect(key1).toBe(key2)
@@ -91,8 +92,8 @@ describe('useOrderPayments submitting（R-4）', () => {
   it('提交成功后下一次提交换新 key', async () => {
     h.addPayment.mockResolvedValue({})
     const payments = useOrderPayments()
-    await payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金', installmentId: null })
-    await payments.addPayment('806' as unknown as number, { amountCents: 2000, note: '尾款', installmentId: null })
+    await payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金' })
+    await payments.addPayment('806' as unknown as number, { amountCents: 2000, note: '尾款' })
     const key1 = h.addPayment.mock.calls[0][2].headers['idempotency-key']
     const key2 = h.addPayment.mock.calls[1][2].headers['idempotency-key']
     expect(key1).not.toBe(key2)
@@ -118,7 +119,7 @@ describe('useOrderPayments WEB-10: add/revoke 幂等键隔离', () => {
   it('addPayment 与 revokePayment 使用不同 key（即使在同一实例上连续调用）', async () => {
     h.addPayment.mockResolvedValue({})
     const payments = useOrderPayments()
-    await payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金', installmentId: null })
+    await payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金' })
     await payments.revokePayment('806' as unknown as number, { id: 7, amount_cents: 1000 } as unknown as PaymentRow)
     const addKey = h.addPayment.mock.calls[0][2].headers['idempotency-key']
     const revokeKey = h.addPayment.mock.calls[1][2].headers['idempotency-key']
@@ -130,7 +131,7 @@ describe('useOrderPayments WEB-10: add/revoke 幂等键隔离', () => {
     h.addPayment.mockRejectedValueOnce(new Error('network timeout'))
     h.addPayment.mockResolvedValueOnce({})
     const payments = useOrderPayments()
-    await expect(payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金', installmentId: null }))
+    await expect(payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金' }))
       .rejects.toThrow('network timeout')
     // revoke 应使用全新 key，不是 add 残留的那个
     await payments.revokePayment('806' as unknown as number, { id: 7, amount_cents: 1000 } as unknown as PaymentRow)
@@ -145,7 +146,7 @@ describe('useOrderPayments WEB-10: add/revoke 幂等键隔离', () => {
     const payments = useOrderPayments()
     await expect(payments.revokePayment('806' as unknown as number, { id: 7, amount_cents: 1000 } as unknown as PaymentRow))
       .rejects.toThrow('network timeout')
-    await payments.addPayment('806' as unknown as number, { amountCents: 2000, note: '尾款', installmentId: null })
+    await payments.addPayment('806' as unknown as number, { amountCents: 2000, note: '尾款' })
     const revokeKey = h.addPayment.mock.calls[0][2].headers['idempotency-key']
     const addKey = h.addPayment.mock.calls[1][2].headers['idempotency-key']
     expect(revokeKey).not.toBe(addKey)
@@ -168,12 +169,12 @@ describe('useOrderPayments WEB-10: add/revoke 幂等键隔离', () => {
     h.addPayment.mockResolvedValueOnce({})
     h.addPayment.mockResolvedValueOnce({})
     const payments = useOrderPayments()
-    await expect(payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '', installmentId: null }))
+    await expect(payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '' }))
       .rejects.toThrow('boom')
     // 中间插入一次 revoke 成功
     await payments.revokePayment('806' as unknown as number, { id: 8, amount_cents: 500 } as unknown as PaymentRow)
     // add 重试仍复用之前的 add key
-    await payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '', installmentId: null })
+    await payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '' })
     const addKey1 = h.addPayment.mock.calls[0][2].headers['idempotency-key']
     const addKey2 = h.addPayment.mock.calls[2][2].headers['idempotency-key']
     expect(addKey1).toBe(addKey2)
@@ -198,10 +199,10 @@ describe('useOrderPayments 409 载荷冲突后换新幂等键（#21-3）', () =>
     const payments = useOrderPayments()
 
     await expect(
-      payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金', installmentId: null })
+      payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金' })
     ).rejects.toThrow('本次提交与此前已受理的提交内容不同')
 
-    await payments.addPayment('806' as unknown as number, { amountCents: 2000, note: '定金', installmentId: null })
+    await payments.addPayment('806' as unknown as number, { amountCents: 2000, note: '定金' })
     const key1 = h.addPayment.mock.calls[0][2].headers['idempotency-key']
     const key2 = h.addPayment.mock.calls[1][2].headers['idempotency-key']
     expect(key1).not.toBe(key2)
@@ -228,9 +229,9 @@ describe('useOrderPayments 409 载荷冲突后换新幂等键（#21-3）', () =>
     const payments = useOrderPayments()
 
     await expect(
-      payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金', installmentId: null })
+      payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金' })
     ).rejects.toThrow('boom')
-    await payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金', installmentId: null })
+    await payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金' })
 
     const key1 = h.addPayment.mock.calls[0][2].headers['idempotency-key']
     const key2 = h.addPayment.mock.calls[1][2].headers['idempotency-key']

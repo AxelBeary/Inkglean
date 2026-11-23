@@ -442,16 +442,28 @@ export function checkOrderConservation(orderId: number): void {
   const extraChargeCents = entries.filter(e => e.type === 'extra_charge_after_close').reduce((s, e) => s + e.deltaCents, 0)
   const extraRefundCents = -entries.filter(e => e.type === 'extra_refund_after_close').reduce((s, e) => s + e.deltaCents, 0)
   const paidTotal = order.paid_total_cents ?? 0
-  // 节点待收：顺序填充（每节点至多填满），超出 Σ 节点价的纯超付压到尾款待收（变负，可退）
-  const nodeRemainingCents: number[] = []
-  let covered = Math.min(paidTotal, sumAmounts)
-  for (const amt of nodeAmountsCents) {
-    const take = Math.max(0, Math.min(covered, amt))
-    nodeRemainingCents.push(amt - take)
-    covered -= take
+  // t4 复核返工（方案 A，a7959104 收编前提）：R8 只保证非尾款节点价 ≥ 0，
+  // 不保证 paidTotal≥0 / S=Σ节点价≥0。旧内联填充在 paidTotal<0 或 S<0 时会令 A2 违约拒绝；
+  // 新原语在这两域会放行（A2 退化为 A1 推论）。故进入断言前显式拒绝脏状态，维持旧拒绝语义。
+  if (paidTotal < 0 || sumAmounts < 0) {
+    throw new AppError(E.PRICING_CONSERVATION, 500, {
+      assertion: 'PRECONDITION',
+      paidTotalCents: paidTotal,
+      sumAmountsCents: sumAmounts,
+      message: '守恒断言前置条件不成立：已收总额与节点价之和必须非负'
+    })
   }
-  const pureOverpay = Math.max(0, paidTotal - sumAmounts)
-  if (pureOverpay > 0) nodeRemainingCents[nodeRemainingCents.length - 1] -= pureOverpay
+  // a7959104 / STATUS:205 收编债：第三份内联顺序填充（covered/take/pureOverpay）已收编到
+  // 引擎原语 deriveInstallmentProgress，杜绝「多份自实现钳制」再次分叉。等价性带前提成立：
+  // **仅当 paidTotal≥0 且 S≥0 时**两种填充的 Σ 才恒等——前者由 addPayment 的原子守卫
+  // （UPDATE ... WHERE paid_total_cents + ? >= 0，见 addPayment 事务内）保证，后者由 A1
+  // （总价 = S + 额外应收 − 额外应退，合法总价非负）在合法路径保证；上方前置校验已挡脏域。
+  // R8 守卫使原语的「非尾款待收下限 0」为空操作，尾款负待收（纯超付可退）由 forwardFill 保留；
+  // assertConservation 的 A2 只校验 Σ待收，故上述前提下行为等价、不再另起一份实现。
+  const nodeRemainingCents = deriveInstallmentProgress(
+    nodeAmountsCents.map((amountCents, sortOrder) => ({ sortOrder, amountCents })),
+    paidTotal
+  ).map(row => row.remainingCents)
   assertConservation({
     totalCents,
     paidTotalCents: paidTotal,
@@ -668,9 +680,11 @@ function assertRevokeAllowed(orderId: number, revokeOfPaymentId: number, amountC
 /**
  * 记录一笔收款（正数）或撤销/退款（负数）
  * 事务原子：INSERT 流水 + UPDATE paid_total_cents；节点已收一律从 paid_total 推导（R7）
- * v0.31 F4: 可选 installmentId 关联到具体节点
+ * 0dd34d96 / SRV-02 收编：v52 退役节点实收列后不再接收 installmentId——
+ * 「指定节点收款」参数即便接收并落库也不影响节点已收/待收（额度池 R7），属误导入口；
+ * 已从 API schema 与前端一并去掉，后端额度池设计不变。
  */
-export function addPayment(orderId: number, { amountCents, note, createdBy, installmentId, revokeOfPaymentId }: { amountCents: number; note?: string | null; createdBy?: string; installmentId?: number | null; revokeOfPaymentId?: number | null }): PaymentRow {
+export function addPayment(orderId: number, { amountCents, note, createdBy, revokeOfPaymentId }: { amountCents: number; note?: string | null; createdBy?: string; revokeOfPaymentId?: number | null }): PaymentRow {
   const order = getOrder(orderId)
   if (!order) throw new AppError(E.ORDER_NOT_FOUND)
 
@@ -699,12 +713,6 @@ export function addPayment(orderId: number, { amountCents, note, createdBy, inst
     })
   }
 
-  // v0.31 F4: 校验节点归属
-  if (installmentId) {
-    const inst = db.prepare('SELECT * FROM order_payment_installments WHERE id = ? AND order_id = ?').get(installmentId, orderId)
-    if (!inst) throw new AppError(E.NOT_FOUND, 404, { installmentId })
-  }
-
   // 审计 #21 条目 4: 撤销关联只允许挂在负数流水上
   if (amountCents > 0 && revokeOfPaymentId != null) {
     throw new AppError(E.VALIDATION, 400, { field: 'revokeOfPaymentId', message: '正数收款不能携带撤销关联' })
@@ -714,9 +722,11 @@ export function addPayment(orderId: number, { amountCents, note, createdBy, inst
   }
 
   return db.transaction(() => {
+    // 0dd34d96 / SRV-02：不再写 installment_id——该列自 v52 起不参与节点已收/待收推导，
+    // 写它只会制造「指定了节点」的假象。列本身保留（不改额度池设计、不动迁移），新流水恒 NULL。
     const result = db.prepare(
-      'INSERT INTO order_payments (order_id, installment_id, amount_cents, note, created_by, revoke_of_payment_id) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(orderId, installmentId || null, amountCents, note || null, createdBy || 'artist', amountCents < 0 ? revokeOfPaymentId ?? null : null)
+      'INSERT INTO order_payments (order_id, amount_cents, note, created_by, revoke_of_payment_id) VALUES (?, ?, ?, ?, ?)'
+    ).run(orderId, amountCents, note || null, createdBy || 'artist', amountCents < 0 ? revokeOfPaymentId ?? null : null)
 
     // P2-F4: 退款下限校验移入事务内，并改为原子条件更新——
     // 防止基于事务外快照判定（并发撤销可把 paid_total_cents 推到负数）；
@@ -733,7 +743,7 @@ export function addPayment(orderId: number, { amountCents, note, createdBy, inst
     refreshInstallmentLocks(orderId)
 
     // v0.31 REQ-021 F1: 操作日志
-    logActivity(orderId, 'payment', createdBy || 'artist', { amountCents, note: note || null, installmentId: installmentId || null })
+    logActivity(orderId, 'payment', createdBy || 'artist', { amountCents, note: note || null })
 
     // REQ-025 R11: 守恒自检（收款不改总价/节点价，A2 由待收推导自然闭合；挂载防脏数据）
     checkOrderConservation(orderId)

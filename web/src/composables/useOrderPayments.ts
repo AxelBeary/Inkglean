@@ -42,18 +42,17 @@ export function useOrderPayments() {
     }
   }
 
-  /** 记录一笔收款（正数），v0.31 F4: 可关联节点 */
-  async function addPayment(orderId: number, { amountCents, note, installmentId }: {
+  /** 记录一笔收款（正数）。0dd34d96 / SRV-02：节点关联 installmentId 误导入口已移除 */
+  async function addPayment(orderId: number, { amountCents, note }: {
     amountCents: number
     note?: string | null
-    installmentId?: number | null
   }): Promise<AddPaymentResult> {
     if (!addIdemKey) addIdemKey = generateId()
     submitting.value = true
     try {
       const res = await artistApi.addPayment(
         orderId,
-        { amountCents, note, installmentId: installmentId || null },
+        { amountCents, note },
         { headers: { 'idempotency-key': addIdemKey } }
       )
       addIdemKey = null
