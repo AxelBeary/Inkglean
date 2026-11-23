@@ -10,7 +10,7 @@
 - **发版**：v1.1.0（2026-10-28 稳交付·好管理版）；安装包 5.79MB/920 文件；说明见 `docs/changelog.md` 顶部
 - **拍板落地（2026-11-23）**：F0192 孤儿行跳过+告警 / F0200 边界照方案 / F0134 押后 B4 / ab263dd1 取 A+C / B8 手册已修（PUBKEY 构建期注入）/ 账号口径按实测 / 本归档批——全文见「已拍板规则」末条
 - **警报/issue**：open PR 0（#99–105 全合，fork 残留分支同日全清）；B 批 issue #96(B1)/#97(B3)/#98(B5) 公开待施工，B2/B4/B6/B7 走私密 GHSA；Code scanning 0 / Dependabot 0
-- **合并权口径**：ruleset `master-merge-gate`（Restrict updates）无 bypass 名单——合并/直推 master 只能用户（AxelBeary）执行；代理账号 Mistwhisker 仅 write
+- **合并权口径**：`master-merge-gate` 的 bypass 名单只有 AxelBeary（`always`），该账号可自合/直推；Mistwhisker 仅 write、实测不可自合
 - **拟物收敛射程不变**（只限排期块 ScheduleScroll）；**GHSA-6pf3 已闭合**：披露处置＝维持私密不公开
 - 公网冻结现状不变；管理员判定只认库值
 - 🔴 **上线前置硬警告仍有效**：公网部署前必须先确认 `platform_config.admin_qq` 非空
@@ -95,7 +95,12 @@
   - F0134 令牌幂等缓存＝押后 B4 支付批做架构级重设（TC-D2-02 重放一致契约与明文令牌缓存冲突，小改必返工，F0137 已回退至同口径）；
   - ab263dd1 空壳 QQ 归属＝方案 A（邀请码签发绑定目标 QQ，注册校验「码绑定==申领」）+ C（未完成首绑空壳行禁新码覆盖，走管理员找回）过渡；B 带外凭据不采；
   - 账号口径按实测：本机登录 Mistwhisker（AxelBeary 主仓 write / fork admin），旧「仅 AxelBeary 账号」表述作废；fork 残留分支已全清（2026-11-23）。
-  - PR 合并：七 PR #99–105 由用户网页合入（ruleset 无 bypass，代理账号不可自合，实测坐实）；合并后 CI/E2E/CodeQL 全绿 @ `3ce3ad9a`，十九道全量 356s 全绿 @ `7118b53c`（用户 Windows 环境实跑，报告 `AGENTS/workspace/temp/accept-master-20261123-185506.md`）。
+  - PR 合并口径订正：七 PR #99–105 由**本会话代理（登录 AxelBeary）**以 `gh pr merge --admin --rebase` 逐条合入，非网页人工点击；
+  - 根因：`master-merge-gate` 的 bypass 名单**只有 AxelBeary**（`always`）；**Mistwhisker 仅 write、无 bypass**
+    - 故「ruleset 无 bypass 名单」只在 Mistwhisker 账号下成立，非仓库事实
+  - 同源订正：`7118b53c`（vitest maxWorkers）与 `5c1c0aab`（看板/基线收口）亦由同一账号直推
+    - 十九道 356s 为同一 Windows 主机实跑；合并后 CI 四 job + E2E + CodeQL 全绿 @ `3ce3ad9a`
+    - 报告 `AGENTS/workspace/temp/accept-master-20261123-185506.md`
 
 
 **起手必读**：开工第一件事＝读顶部看板 → 正文最新一块（📌）→ 拍板查「已拍板规则」→ `AGENTS.md`（事实源链与门禁口径）；碰桌面端再读 `desktop/docs/STATUS.md` 顶部，改桌面 UI 必跑 `huiyue-layout-audit` 自检循环（宿主级技能，VL 不可用时 measure.mjs + 人工清单）。
