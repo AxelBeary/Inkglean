@@ -1151,9 +1151,6 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     helpDesc: 'Codes need an authenticator app. Our recommendations:',
     helpNote: 'After binding, the code refreshes every 30 seconds. Enter the 6 digits currently shown.'
   },
-  // P0-9: MultiplierManager i18n
-  multiplier: {
-  },
   // v0.42 Step5: artist stats page (REQ-033 three-state: off / hidden / on)
   stats: {
     title: 'Statistics',

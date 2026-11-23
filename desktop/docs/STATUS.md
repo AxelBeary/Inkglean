@@ -9,7 +9,7 @@
 - **U46 防线**：`tests/acl.rs` 用 tauri::test mock runtime 走真 IPC/ACL；`build.rs` 把 Windows manifest 链进测试 exe；CI desktop job 由 `cargo check` 改 `cargo test`
 - **依赖**：`@tauri-apps/*` JS 与 Cargo 成对现状不变（本批只给 tauri crate 加 `protocol-asset` feature，`npx tauri info` 无 mismatch）
 - **平台范围**：**只支持 Windows**（2026-10-27 拍板；`bundle.targets = ["nsis"]`，macOS/Linux 不构建不承诺）
-- **默认窗 1200×820**（9/5 拍板，内滚实测 1px≈零）；最小窗 **1200×600 不动**（826 亲定「不允许放太小」）
+- **默认窗 1200×820**（9/5 拍板，内滚实测 1px≈零）；最小窗 **768×600**（2026-11-06 issue #83 拍板：`minWidth=768`，1080P@125% 半屏仅 768、原 1200 必 Snap 失败；旧「1200×600 不动」已作废，768 档真机终验见主 STATUS 下一步第 9 条）
 - **待用户终验（两摊）**：波1 终验清单 9 组 37 条（=待办 U6）+ 10-13 成对升级后的窗口行为清单（标题栏/托盘/通知/文件选择器/本地库/悬浮窗）
 - **本批新增待真机**：发布包启动后的 asset 图缓存与模块 data 帧、悬浮窗逐窗回执/贴回同步各一遍
 - **发布前必查**：`desktop/docs/发布前待办清单-825.md`（第 19/20 项发布流水线缺陷；第 1 项已改 v74→现状 v76）

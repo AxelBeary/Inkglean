@@ -1,6 +1,7 @@
 // 桌面端更新通道桥（tauri-plugin-updater 收口，825 更新通道施工批）
 // 防投毒口径（REQ-014 安全口径三）：验签失败＝拒装——插件内部以公钥验签，签名不合直接抛错，
-// 绝不落到 install；公钥内置于 tauri.conf.json，endpoint 经 DESKTOP_UPDATE_ENDPOINT 构建期注入。
+// 绝不落到 install；验签公钥与更新端点均配置在 desktop/src-tauri/tauri.conf.json 的 plugins.updater
+//（pubkey / endpoints）；原 DESKTOP_UPDATE_ENDPOINT 构建期注入口径已废弃、代码零引用。
 // 逃生门纪律：纯浏览器环境抛 BridgeUnavailableError；网络失败/端点未配置由调用方静默吞掉不打扰。
 import { isDesktop } from './env'
 import { BridgeUnavailableError } from './errors'
