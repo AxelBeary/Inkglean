@@ -1,30 +1,28 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-11-23 存量 PR 批量合入 + 拍板落地 + 归档批；十九道全绿）
+## 看板（2026-11-24 收口态：origin/master=0b3c5db2；#107–#113 七 PR 全 OPEN，#109/#112 两红定位中）
 
-- **HEAD**：`3ce3ad9a` = GitHub 存量 7 条 PR 批量合入（#100/#103/#104/#105/#101/#99/#102，逐条审计后按冲突面排序；open PR 7→0）
-  - 门禁：`scripts/accept.ps1` 十九道全绿 @ `7118b53c`（356s；server 2105 / web 1308 / desktop 678 / shared 47 / E2E 15）；报告 `AGENTS/workspace/temp/accept-master-20261123-185506.md`
-  - 根因顺手修：`web/vitest.config.ts` 的 poolOptions 在 Vitest 4 静默失效（28 核 Windows 门禁假红）→ 顶层 `maxWorkers: 8`
-  - 总交接 `AGENTS/debug-swarm-20261122/HANDOFF.md`（116 子代理两轮风暴）；拍板材料 `AGENTS/拍板材料-20261123/DECISIONS.md`（7 项已用户确认「全部按建议执行」）
-- **基线**：`accept-baseline.json` 已同步（server 2105 / web 1308 / desktop 678 / shared 47 / e2e 15）；迁移 v82；cargo 39 另计
+- **HEAD**：`origin/master` = `0b3c5db2`（PR #106 收口版，master 未再前移；施工七 PR 集成在 fork，待统一推上游）
+  - 本机无 pwsh/chromium/cargo/playwright：只报「CI + 本机等价门禁」，不得称十九道全绿；CI 四 job 为权威，十九道由 Windows 环境实跑
+- **本机等价门禁（2026-11-24）**：server 2179 / web 1370 / desktop 682 / shared 48；台账 `AGENTS/门禁-20261124/`
+- **PR 状态**：#107–#113 共 7 条全部 OPEN/BLOCKED、文件级零交集无冲突；合并顺序 #109 先于 #112（F0283 server 侧→前端消费）
+  - #109 file-size 红：`useOrderForm.ts` 827 行超 800 冻结值——ci-web 修复中（t1）；#112 server 两例失败：admin messages limit——ci-server 修复中（t2）
+- **基线**：`accept-baseline.json` server 2105 / web 1308 / desktop 678 / shared 47 / e2e 15；迁移 v82；cargo 39 另计
 - **发版**：v1.1.0（2026-10-28 稳交付·好管理版）；安装包 5.79MB/920 文件；说明见 `docs/changelog.md` 顶部
-- **拍板落地（2026-11-23）**：F0192 孤儿行跳过+告警 / F0200 边界照方案 / F0134 押后 B4 / ab263dd1 取 A+C / B8 手册已修（PUBKEY 构建期注入）/ 账号口径按实测 / 本归档批——全文见「已拍板规则」末条
-- **警报/issue**：open PR 0（#99–105 全合，fork 残留分支同日全清）；B 批 issue #96(B1)/#97(B3)/#98(B5) 公开待施工，B2/B4/B6/B7 走私密 GHSA；Code scanning 0 / Dependabot 0
-- **施工批（2026-11-24）**：跨端 5 项 + B2-high + 尾巴 + B5/B6/B7 共 107 文件六批 PR **#107–#112 已开**（多代理编排施工 + 对抗复核闭环）；四端门禁全量绿（server 2179 假红定性 / web 1370 / desktop 682 / shared 48），台账 `AGENTS/门禁-20261124/`
-- **合并权口径**：`master-merge-gate` 的 bypass 名单只有 AxelBeary（`always`），该账号可自合/直推；Mistwhisker 仅 write、实测不可自合
-- **拟物收敛射程不变**（只限排期块 ScheduleScroll）；**GHSA-6pf3 已闭合**：披露处置＝维持私密不公开
-- 公网冻结现状不变；管理员判定只认库值
+- **拍板落地（2026-11-23）**：F0192 孤儿行跳过+告警 / F0200 边界照方案 / F0134 押后 B4 / ab263dd1 A+C / B8 手册已修 / 账号口径按实测——全文见「已拍板规则」末条
+- **警报/issue**：B 批 #96(B1)/#97(B3)/#98(B5) 公开待施工，B2/B4/B6/B7 走私密 GHSA；Code scanning 0 / Dependabot 0
+- **合并权口径**：`master-merge-gate` bypass 只有 AxelBeary（always），可自合/直推；Mistwhisker 仅 write、实测不可自合
+- **范围不变项**：拟物收敛只限排期块 ScheduleScroll；GHSA-6pf3 维持私密不公开；公网冻结现状不变；管理员判定只认库值
 - 🔴 **上线前置硬警告仍有效**：公网部署前必须先确认 `platform_config.admin_qq` 非空
 
 **下一步（按优先级）**
 
-1. **合并六批施工 PR（2026-11-24 已开）**：#107 跨端 / #108 DB B2-high / #109 尾巴 / #110 B5 / #111 B6 / #112 B7
-   - **建议顺序 #109 先于 #112**（F0283 server 侧在 #109、消费在 #112），其余任意；六批文件级零交集、locales 按 hunk 拆分
-   - 归档 PR（STATUS 本批登记）随后开出；合并后盯 CI 首跑（e2e 为 B5/B6 权威回归）→ 最终 master 复跑十九道留痕
-2. **B8 用户配置（你的操作）**：密钥对 + Secrets/Variables + 真机终验——照做清单 `AGENTS/拍板材料-20261123/B8-照做清单.md`；ab263dd1 空壳 QQ 方案（A+C）随 B8 批实施
-3. **B 批余量推进**：B1（8 条幂等守卫）/ B2 余 10 条 / B3（11 条测试覆盖）——DB 迁移类需逐版本回归；**B4 支付批**启动时并入 F0134 架构级重设；公开 issue #96/#97/#98，私密走 GHSA
-4. **待用户终验项沿旧**：发布包真机、悬浮窗真机、桌面 768 分屏终验；B8 代码侧 U33 发版流水线未跑（vars/secrets 配好前首版必红）；U26 tsx 生产依赖待拍板
-5. **新登记待拍板**：F0180 发现——publicArtistDTO 将 calendar_feed_token（可旋转凭证）平铺给画师本人 /auth/me 响应、web 端零消费，是否剔除属 API 契约问题
+1. **推进 B1/B3/B4/B8（fork 内施工，不等上游合并）**：施工图、F 编号映射与派工清单见 `AGENTS/handoff-20261124/PLAN-REMAINING.md`
+   - 口径：fork 内集成与等价门禁全绿后，再统一推上游；代理只 push fork、不 push origin
+   - 七 PR #107–#113 全 OPEN（#109 先于 #112）；合并后盯 CI 首跑（e2e 为 B5/B6 权威回归），master 十九道由 Windows 环境实跑留痕
+2. **B8 用户配置（你的操作）**：密钥对 + Secrets/Variables + 真机终验——照做清单 `AGENTS/拍板材料-20261123/B8-照做清单.md`；ab263dd1 空壳 QQ 方案（A+C）代码侧随 B8 批
+3. **待用户终验项沿旧**：发布包真机、悬浮窗真机、桌面 768 分屏；U33 发版流水线未跑（vars/secrets 配好前首版必红）；U26 tsx 生产依赖待拍板
+4. **待拍板 F0180**：publicArtistDTO 将 calendar_feed_token（可旋转凭证）平铺给画师 /auth/me 响应、web 零消费，是否剔除属 API 契约问题
 
 **常驻纪律（事故换来的，不得退色）**
 
