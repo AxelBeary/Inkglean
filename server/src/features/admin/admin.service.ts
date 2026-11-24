@@ -74,21 +74,38 @@ export function listRecycleBin(): RecycleBinItem[] {
 }
 
 /**
- * 无 stat 轻量遍历（B7-F0110）：只收集回收站内相对路径，排序后再按页 stat——
- * 此前分页每页都同步全量遍历并 stat 所有文件
+ * SVR-06：按顶层日期目录分片。回收站结构为 YYYY-MM-DD/<原始路径>/<文件>，
+ * 顶层每个条目即一个「分片」（日期目录或少量顶层散文件）。分片名倒序 = relToBin 倒序的
+ * 首段序，按此顺序处理即可早停，无需一次性铺开全库条目。
  */
-function walkRecycleBinEntries(binRoot: string): Array<{ relToBin: string; fileName: string; originalPath: string }> {
-  const entries: Array<{ relToBin: string; fileName: string; originalPath: string }> = []
-  const walk = (dir: string): void => {
-    for (const e of readdirSync(dir, { withFileTypes: true })) {
-      const full = join(dir, e.name)
-      if (e.isDirectory()) { walk(full); continue }
-      const relToBin = relative(binRoot, full).replace(/\\/g, '/')
-      entries.push({ relToBin, fileName: e.name, originalPath: relToBin.replace(/^\d{4}-\d{2}-\d{2}\//, '') })
-    }
+interface RecycleShard { name: string; abs: string; isDir: boolean }
+function listRecycleShards(binRoot: string): RecycleShard[] {
+  // 显式标注条目形状：即便本机 fs 类型声明缺失（TS2591 环境 artifact），回调也不退化成隐式 any
+  const dirents = readdirSync(binRoot, { withFileTypes: true }) as Array<{ name: string; isDirectory(): boolean }>
+  const shards: RecycleShard[] = []
+  for (const e of dirents) shards.push({ name: e.name, abs: join(binRoot, e.name), isDir: e.isDirectory() })
+  shards.sort((a, b) => (a.name < b.name ? 1 : a.name > b.name ? -1 : 0)) // 日期目录字典序倒序 = 时间倒序
+  return shards
+}
+
+/** 只数文件数（不 stat、不构造条目对象、不排序）——用于精确 total */
+function countShardFiles(dir: string): number {
+  let n = 0
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    if (e.isDirectory()) n += countShardFiles(join(dir, e.name))
+    else n++
   }
-  walk(binRoot)
-  return entries
+  return n
+}
+
+/** 收集单个分片内的相对路径条目（无 stat） */
+function collectShardEntries(dir: string, binRoot: string, out: Array<{ relToBin: string; fileName: string; originalPath: string }>): void {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, e.name)
+    if (e.isDirectory()) { collectShardEntries(full, binRoot, out); continue }
+    const relToBin = relative(binRoot, full).replace(/\\/g, '/')
+    out.push({ relToBin, fileName: e.name, originalPath: relToBin.replace(/^\d{4}-\d{2}-\d{2}\//, '') })
+  }
 }
 
 /**
@@ -106,13 +123,32 @@ export function listRecycleBinPaged(page: number, pageSize: number): {
 } {
   const binRoot = getRecycleBinRoot()
   if (!existsSync(binRoot)) return { items: [], total: 0, page, pageSize }
-  const entries = walkRecycleBinEntries(binRoot)
-  // 倒序取最新（日期目录字典序 = 时间序；同日多条按路径倒序稳定取值，与恢复接口一致）
-  entries.sort((a, b) => (a.relToBin < b.relToBin ? 1 : a.relToBin > b.relToBin ? -1 : 0))
-  const total = entries.length
+  const shards = listRecycleShards(binRoot)
   const start = (page - 1) * pageSize
-  // B7-F0110：只 stat 当前页的条目
-  const items = entries.slice(start, start + pageSize).map(en => {
+  const need = start + pageSize // 早停阈：只需铺开到此为止的条目
+  let total = 0
+  const pool: Array<{ relToBin: string; fileName: string; originalPath: string }> = []
+  for (const shard of shards) {
+    if (shard.isDir) {
+      const n = countShardFiles(shard.abs)
+      total += n
+      // SVR-06：仅当本分片可能覆盖目标页时才收集并排序它；更旧的分片只数不铺开
+      if (n > 0 && pool.length < need) {
+        const bucket: Array<{ relToBin: string; fileName: string; originalPath: string }> = []
+        collectShardEntries(shard.abs, binRoot, bucket)
+        bucket.sort((a, b) => (a.relToBin < b.relToBin ? 1 : a.relToBin > b.relToBin ? -1 : 0))
+        for (const e of bucket) { if (pool.length >= need) break; pool.push(e) }
+      }
+    } else {
+      total += 1
+      if (pool.length < need) {
+        const relToBin = shard.name
+        pool.push({ relToBin, fileName: shard.name, originalPath: relToBin.replace(/^\d{4}-\d{2}-\d{2}\//, '') })
+      }
+    }
+  }
+  // B7-F0110：只 stat 当前页的条目；SVR-06：铺开量被 need 截断而非全库
+  const items = pool.slice(start, start + pageSize).map(en => {
     const st = statSync(join(binRoot, en.relToBin))
     return {
       fileName: en.fileName,

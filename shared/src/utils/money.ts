@@ -44,12 +44,26 @@ export function formatCents(cents: number | string | null | undefined): string {
 
 /**
  * 元 → 分（b1: 各组件散落的 Math.round(x*100) 收口；非法输入按 0）
+ *
+ * F0168：复用 toFiniteNumber 消毒——NaN/±Infinity/非法字符串一律归 0，
+ * 杜绝 Infinity 原样进入舍入产生非有限分值。
+ * F0169：十进制字符串指数移位替代 `Math.round(n*100)` 的 IEEE754 截断误差：
+ * `1.005*100` 在二进制浮点里是 100.499999…，旧口径得 100（少算 1 分）；
+ * `Number('1.005e2')` 由字符串解析直接得到精确的 100.5，Math.round → 101。
+ * 该写法保留 Math.round 原生「半数向 +∞」语义（负数与旧口径一致）；
+ * n 的十进制表示已是指数记法时直接把指数 +2，整数末尾的 0 不被吞。
+ *
  * @param {number|string|null|undefined} yuan 金额（元）
  * @returns {number} 分（整数）
  */
 export function yuanToCents(yuan: number | string | null | undefined): number {
-  const n = Number(yuan)
-  return Math.round((Number.isNaN(n) ? 0 : n) * 100)
+  const n = toFiniteNumber(yuan)
+  // 从 Number 的最短十进制表示直接取尾数/指数，指数 +2 即乘 100，
+  // 全程不经二进制乘法；整数末尾的 0 因此不会被误删（1e21 → 1e23 分）。
+  const parts = /^(-?)(\d+(?:\.\d+)?)(?:e([+-]?\d+))?$/.exec(n.toString())
+  if (!parts) return Math.round(n * 100)
+  const shifted = Number(`${parts[1]}${parts[2]}e${(parts[3] ? Number(parts[3]) : 0) + 2}`)
+  return Number.isFinite(shifted) ? Math.round(shifted) : Math.round(n * 100)
 }
 
 /** 金额分 → 「¥元」字符串（¥ 前缀 + formatCents；负数输出 ¥-12.00，与旧各点 `¥{{ (x/100).toFixed(2) }}` 等价） */

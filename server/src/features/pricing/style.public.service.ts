@@ -68,14 +68,15 @@ export function getPublicGallery(artistId: number): {
   const sizesByStyle = new Map<number, Array<{ id: number; name: string; sort_order: number }>>()
   const styleIds = styles.map(s => s.id)
   if (styleIds.length > 0) {
-    const sizePlaceholders = styleIds.map(() => '?').join(',')
+    // F0149：用 json_each(?) 传 ID 数组，避免大画师触发 SQLITE_MAX_VARIABLE_NUMBER
+    // （SQLite 变量上限通常 999）；单一 SQL 保住全局 ORDER BY，无需分批再排序。
     const sizeRows = db.prepare(
       // B7-F0145：对齐 getPublicStyles 的 v49 三态规则——closed 档位完全隐藏，
       // 此前漏过滤导致闭档尺寸泄漏为公开筛选标签与作品标注
       `SELECT id, name, sort_order, art_style_id FROM style_sizes
-       WHERE art_style_id IN (${sizePlaceholders}) AND display_status != 'closed'
+       WHERE art_style_id IN (SELECT value FROM json_each(?)) AND display_status != 'closed'
        ORDER BY art_style_id ASC, sort_order ASC`
-    ).all(...styleIds) as Array<{ id: number; name: string; sort_order: number; art_style_id: number }>
+    ).all(JSON.stringify(styleIds)) as Array<{ id: number; name: string; sort_order: number; art_style_id: number }>
     for (const size of sizeRows) {
       const list = sizesByStyle.get(size.art_style_id) ?? []
       list.push(size)
@@ -108,12 +109,12 @@ export function getPublicGallery(artistId: number): {
   const tagRowsByArtwork = new Map<number, Array<{ style_size_id: number }>>()
   const artworkIds = rows.map(r => r.id)
   if (artworkIds.length > 0) {
-    const tagPlaceholders = artworkIds.map(() => '?').join(',')
+    // F0149：json_each 传数组，无变量数上限，顺序仍由 SQL 全局保证
     const tagRows = db.prepare(
       `SELECT artwork_id, style_size_id FROM artwork_size_tags
-       WHERE artwork_id IN (${tagPlaceholders})
+       WHERE artwork_id IN (SELECT value FROM json_each(?))
        ORDER BY artwork_id ASC, rowid ASC`
-    ).all(...artworkIds) as Array<{ artwork_id: number; style_size_id: number }>
+    ).all(JSON.stringify(artworkIds)) as Array<{ artwork_id: number; style_size_id: number }>
     for (const tag of tagRows) {
       const list = tagRowsByArtwork.get(tag.artwork_id) ?? []
       list.push({ style_size_id: tag.style_size_id })
@@ -151,10 +152,10 @@ function resolveArtworkImagePaths(artworkIds: Array<number | null>): Map<number,
   const ids = [...new Set(artworkIds.filter((id): id is number => id != null))]
   const map = new Map<number, string>()
   if (ids.length === 0) return map
-  const placeholders = ids.map(() => '?').join(',')
+  // F0149：json_each 传数组，规避 IN 占位符上限（画师档位配图可能超千张）
   const rows = db.prepare(
-    `SELECT id, image_path FROM artworks WHERE id IN (${placeholders}) AND takedown_at IS NULL`
-  ).all(...ids) as Array<{ id: number; image_path: string }>
+    `SELECT id, image_path FROM artworks WHERE id IN (SELECT value FROM json_each(?)) AND takedown_at IS NULL`
+  ).all(JSON.stringify(ids)) as Array<{ id: number; image_path: string }>
   for (const row of rows) map.set(row.id, row.image_path)
   return map
 }
@@ -233,14 +234,16 @@ export function getPublicStyles(artistId: number): PublicArtStyle[] {
   const allSizeRows: StyleSize[] = []
 
   if (styleIds.length > 0) {
-    const stylePlaceholders = styleIds.map(() => '?').join(',')
+    // F0149：三处 IN 统一改 json_each(?)，ID 数组以单个参数传入；
+    // 避免大画师/多画风触发 too many SQL variables，ORDER BY 仍由 SQL 全局保证。
+    const styleIdsJson = JSON.stringify(styleIds)
 
     // v49 (REQ-036): 三态——closed 完全隐藏不返回；showcase 返回（带状态，前端禁「去约稿」）
     const sizeRows = db.prepare(
       `SELECT * FROM style_sizes
-       WHERE art_style_id IN (${stylePlaceholders}) AND display_status != 'closed'
+       WHERE art_style_id IN (SELECT value FROM json_each(?)) AND display_status != 'closed'
        ORDER BY art_style_id ASC, sort_order ASC`
-    ).all(...styleIds) as StyleSize[]
+    ).all(styleIdsJson) as StyleSize[]
     allSizeRows.push(...sizeRows)
     for (const size of sizeRows) {
       const list = sizesByStyle.get(size.art_style_id) ?? []
@@ -260,9 +263,9 @@ export function getPublicStyles(artistId: number): PublicArtStyle[] {
              CASE WHEN sa.addon_template_id IS NULL THEN sa.tpl_max_quantity ELSE at.max_quantity END AS tpl_max_quantity
       FROM style_addons sa
       LEFT JOIN addon_templates at ON at.id = sa.addon_template_id
-      WHERE sa.art_style_id IN (${stylePlaceholders}) AND sa.is_enabled = 1
+      WHERE sa.art_style_id IN (SELECT value FROM json_each(?)) AND sa.is_enabled = 1
       ORDER BY sa.art_style_id ASC, (sa.addon_template_id IS NOT NULL) DESC, at.sort_order ASC, sa.id ASC
-    `).all(...styleIds) as Array<{
+    `).all(styleIdsJson) as Array<{
       id: number; art_style_id: number; addon_template_id: number | null; price_override: number | null
       tpl_name: string; tpl_control_type: string; tpl_price_mode: string
       tpl_default_price: number; tpl_unit_label: string | null
@@ -277,12 +280,12 @@ export function getPublicStyles(artistId: number): PublicArtStyle[] {
 
   const allSizeIds = allSizeRows.map(s => s.id)
   if (allSizeIds.length > 0) {
-    const sizePlaceholders = allSizeIds.map(() => '?').join(',')
+    // F0149：同 json_each 口径（尺寸覆盖表也可能超变量上限）
     const overrideRows = db.prepare(
       `SELECT * FROM size_addon_overrides
-       WHERE style_size_id IN (${sizePlaceholders})
+       WHERE style_size_id IN (SELECT value FROM json_each(?))
        ORDER BY style_size_id ASC, id ASC`
-    ).all(...allSizeIds) as SizeAddonOverride[]
+    ).all(JSON.stringify(allSizeIds)) as SizeAddonOverride[]
     for (const override of overrideRows) {
       const list = overridesBySize.get(override.style_size_id) ?? []
       list.push(override)

@@ -815,6 +815,44 @@ describe('管理员路由 (Admin Routes)', () => {
     expect(body.page).toBe(999)
   })
 
+  it('TC-SVR06-01: 多日期分片 + 大旧分片——分页顺序/边界/精确 total 不变（早停只铺开目标页所需分片）', async () => {
+    const admin = setAdmin('10001')
+    const auth = { Authorization: `Bearer ${adminToken(admin)}` }
+    // 三个日期分片：新 5 条、中 30 条、旧 2 条（旧分片放嵌套子目录，覆盖递归计数路径）
+    const specs: Array<[string, string, number]> = [
+      ['2026-08-07', 'new', 5],
+      ['2026-08-06', 'mid', 30],
+      ['2026-08-05', 'old', 2]
+    ]
+    const allNames: string[] = []
+    for (const [dir, prefix, n] of specs) {
+      const nested = dir === '2026-08-05'
+      const dirAbs = nested ? join(rbBinRoot, dir, 'nested') : join(rbBinRoot, dir)
+      mkdirSync(dirAbs, { recursive: true })
+      for (let i = 0; i < n; i++) {
+        const name = `${prefix}-${String(i).padStart(2, '0')}.png`
+        writeFileSync(join(dirAbs, name), name)
+        allNames.push(nested ? `${dir}/nested/${name}` : `${dir}/${name}`)
+      }
+    }
+    // 全局期望 = relToBin 字典序倒序（日期新→旧，同日文件名倒序）
+    const expectedDesc = allNames.slice().sort().reverse()
+
+    const p1 = (await app.inject({ method: 'GET', url: '/api/admin/recycle-bin?page=1&pageSize=10', headers: auth })).json()
+    expect(p1.total).toBe(37)
+    expect(p1.items.map((i: { binPath: string }) => i.binPath)).toEqual(expectedDesc.slice(0, 10))
+
+    const p4 = (await app.inject({ method: 'GET', url: '/api/admin/recycle-bin?page=4&pageSize=10', headers: auth })).json()
+    expect(p4.total).toBe(37)
+    expect(p4.items.map((i: { binPath: string }) => i.binPath)).toEqual(expectedDesc.slice(30))
+    // 页间无重叠、合计覆盖全部
+    const seen = [...p1.items, ...(await Promise.all([2, 3].map(p =>
+      app.inject({ method: 'GET', url: `/api/admin/recycle-bin?page=${p}&pageSize=10`, headers: auth })
+        .then(r => r.json().items as Array<{ binPath: string }>)))).flat(), ...p4.items]
+      .map((i: { binPath: string }) => i.binPath)
+    expect(new Set(seen).size).toBe(37)
+  })
+
   it('TC-RB-05: pageSize/page 非法入参 400（F-3 schema 校验）', async () => {
     const admin = setAdmin('10001')
     seedRecycleFiles(3)

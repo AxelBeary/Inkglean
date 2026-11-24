@@ -527,6 +527,37 @@ export function getAllSizeOverrides(artistId: number): SizeAddonOverrideBatchIte
   `).all(artistId) as SizeAddonOverrideBatchItem[]
 }
 
+/** 尺寸覆盖纯写操作：按已有行 id 决定 UPDATE / INSERT，不查库、不做归属校验（由调用方负责）。
+ *  SVR-04：从 upsert 中剥出，供「单行路径」与「批量预取路径」共用同一份写逻辑，逐字保持行为不变。
+ *  @returns 实际落库行 id（INSERT 时为新 id）——批量路径据此回填 Map，兼容同批重复 sizeId。 */
+function writeSizeOverrideRow(
+  styleAddonId: number,
+  sizeId: number,
+  fields: { price_override?: number | null; is_hidden?: boolean },
+  existingId?: number
+): number {
+  if (existingId !== undefined) {
+    const updates: string[] = []
+    const params: unknown[] = []
+    if (fields.price_override !== undefined) { updates.push('price_override = ?'); params.push(fields.price_override) }
+    if (fields.is_hidden !== undefined) { updates.push('is_hidden = ?'); params.push(fields.is_hidden ? 1 : 0) }
+    if (updates.length > 0) {
+      params.push(existingId)
+      db.prepare(`UPDATE size_addon_overrides SET ${updates.join(', ')} WHERE id = ?`).run(...params)
+    }
+    return existingId
+  }
+  const info = db.prepare(
+    'INSERT INTO size_addon_overrides (style_size_id, style_addon_id, price_override, is_hidden) VALUES (?, ?, ?, ?)'
+  ).run(
+    sizeId,
+    styleAddonId,
+    fields.price_override ?? null,
+    fields.is_hidden ? 1 : 0
+  )
+  return Number(info.lastInsertRowid)
+}
+
 /** 尺寸覆盖单行 upsert（含 style_addon 归属校验）——F0192 自 setSizeOverrides 循环体原样抽出，行为一字未改 */
 function upsertSizeOverrideRow(styleId: number, sizeId: number, item: OverrideSetItem): void {
   // 验证 style_addon 属于该画风
@@ -539,25 +570,29 @@ function upsertSizeOverrideRow(styleId: number, sizeId: number, item: OverrideSe
     'SELECT id FROM size_addon_overrides WHERE style_size_id = ? AND style_addon_id = ?'
   ).get(sizeId, item.style_addon_id) as { id: number } | undefined
 
-  if (existing) {
-    const updates: string[] = []
-    const params: unknown[] = []
-    if (item.price_override !== undefined) { updates.push('price_override = ?'); params.push(item.price_override) }
-    if (item.is_hidden !== undefined) { updates.push('is_hidden = ?'); params.push(item.is_hidden ? 1 : 0) }
-    if (updates.length > 0) {
-      params.push(existing.id)
-      db.prepare(`UPDATE size_addon_overrides SET ${updates.join(', ')} WHERE id = ?`).run(...params)
-    }
-  } else {
-    db.prepare(
-      'INSERT INTO size_addon_overrides (style_size_id, style_addon_id, price_override, is_hidden) VALUES (?, ?, ?, ?)'
-    ).run(
-      sizeId,
-      item.style_addon_id,
-      item.price_override ?? null,
-      item.is_hidden ? 1 : 0
-    )
-  }
+  writeSizeOverrideRow(item.style_addon_id, sizeId, item, existing?.id)
+}
+
+/** SVR-04：循环外批量预取——合法 size id Set + 现有覆盖行 id Map（键 sizeId）。
+ *  把每项的 3 条 SELECT（style_addons 归属 / style_sizes 归属 / 覆盖行存在性）压成固定 2 条，
+ *  saveAddonSettings 的写锁内不再随 sizeOverrides 数量线性增长（原 max 50 → ~200 SQL）。
+ *  style_addon 归属由入口 target 定位（saveAddonSettings 开头）一次性校验，此处不重复。 */
+function prefetchSizeOverrideContext(styleId: number, styleAddonId: number, sizeIds: number[]): {
+  validSizeIds: Set<number>
+  existingOverrideIdBySizeId: Map<number, number>
+} {
+  const validSizeIds = new Set<number>()
+  const existingOverrideIdBySizeId = new Map<number, number>()
+  const ids = Array.from(new Set(sizeIds))
+  if (ids.length === 0) return { validSizeIds, existingOverrideIdBySizeId }
+  const ph = ids.map(() => '?').join(',')
+  const sizes = db.prepare(`SELECT id FROM style_sizes WHERE art_style_id = ? AND id IN (${ph})`).all(styleId, ...ids) as Array<{ id: number }>
+  for (const s of sizes) validSizeIds.add(s.id)
+  const existing = db.prepare(
+    `SELECT style_size_id, id FROM size_addon_overrides WHERE style_addon_id = ? AND style_size_id IN (${ph})`
+  ).all(styleAddonId, ...ids) as Array<{ style_size_id: number; id: number }>
+  for (const e of existing) existingOverrideIdBySizeId.set(e.style_size_id, e.id)
+  return { validSizeIds, existingOverrideIdBySizeId }
 }
 
 /**
@@ -657,17 +692,18 @@ export function saveAddonSettings(artistId: number, styleId: number, input: Save
       disableMutexSiblingAddons(styleId, target.id)
     }
 
-    // ── 尺寸级：覆盖 upsert（共用 helper；size 归属逐项校验，非法即整体回滚） ──
+    // ── 尺寸级：覆盖 upsert（SVR-04：循环外 2 条批量预取替掉每项 3 查询；size 归属逐项校验，非法即整体回滚） ──
+    const { validSizeIds, existingOverrideIdBySizeId } = prefetchSizeOverrideContext(
+      styleId, target.id, input.sizeOverrides.map(x => x.sizeId)
+    )
     for (const item of input.sizeOverrides) {
-      const size = db.prepare(
-        'SELECT id FROM style_sizes WHERE id = ? AND art_style_id = ?'
-      ).get(item.sizeId, styleId)
-      if (!size) throw new AppError(E.STYLE_SIZE_NOT_FOUND, 404, { sizeId: item.sizeId })
-      upsertSizeOverrideRow(styleId, item.sizeId, {
-        style_addon_id: target.id,
+      if (!validSizeIds.has(item.sizeId)) throw new AppError(E.STYLE_SIZE_NOT_FOUND, 404, { sizeId: item.sizeId })
+      // 共用纯写 helper；同批重复 sizeId 靠回填 Map 命中同一行（UNIQUE(style_size_id, style_addon_id) 约束）
+      const rowId = writeSizeOverrideRow(target.id, item.sizeId, {
         price_override: item.priceOverride,
         is_hidden: item.isHidden
-      })
+      }, existingOverrideIdBySizeId.get(item.sizeId))
+      existingOverrideIdBySizeId.set(item.sizeId, rowId)
     }
 
     // 聚合最新状态（复用既有只读 helper；sizeOverrides 取画师级批量版——单尺寸 getSizeOverrides 覆盖不了多尺寸一次保存）

@@ -104,6 +104,18 @@ export interface ResolvedAddonSelection {
 }
 
 /**
+ * F0146：百分比增项（含用途/加急倍率）的取值范围守卫——必须是 0-1000 的整数。
+ * 此前只对 percent 分支做了 `pct < 0` 检查，usage/rush 分支完全无范围校验，
+ * 异常倍率（如 100000%）会算出错误报价；非整数百分比同样拒绝（不再静默 Math.round）。
+ */
+function assertPercentRange(value: number, name: string): number {
+  if (!Number.isFinite(value) || !Number.isInteger(value) || value < 0 || value > 1000) {
+    throw new AppError(E.VALIDATION, 400, { hint: `增项 "${name}" 百分比须为 0-1000 的整数` })
+  }
+  return value
+}
+
+/**
  * 解析增项选择（F-7（P3-31）: 原 calculateStylePrice 步骤 3 拆出）
  * 职责：去重 + 归属/启用/尺寸隐藏校验 + 数量解析 + 价格优先级 + 用途/加急分组互斥
  * 铁律转为段内校验：用途/加急各只生效一个 → 违反抛 ADDON_SELECTION_MUTEX（不再是注释约定）
@@ -175,7 +187,7 @@ export function resolveSelectedAddons(styleId: number, styleSizeId: number, sele
       if (sa.price_mode !== 'percent') {
         throw new AppError(E.VALIDATION, 400, { hint: '用途/加急增项必须是百分比计价' })
       }
-      const pct = Math.round(unitPrice)
+      const pct = assertPercentRange(unitPrice, sa.name)
       const selection = { name: sa.name, percent: pct }
       if (sa.category === 'usage') {
         if (usageSelection) throw new AppError(E.ADDON_SELECTION_MUTEX, 400)
@@ -189,8 +201,7 @@ export function resolveSelectedAddons(styleId: number, styleSizeId: number, sele
 
     // category=add：按计价方式分派给 buildPriceLines（百分比金额只基于基础价——见下一段断言）
     if (sa.price_mode === 'percent') {
-      const pct = Math.round(unitPrice)
-      if (pct < 0) throw new AppError(E.VALIDATION, 400, { hint: '增项 "' + sa.name + '" 百分比不能为负' })
+      assertPercentRange(unitPrice, sa.name)
     }
     addons.push({ name: sa.name, price_mode: sa.price_mode, unitPrice, source, quantity })
   }
@@ -207,8 +218,10 @@ export interface PriceLinesResult {
 }
 
 /**
- * F-7 铁律断言：百分比增项金额必须以基础价为基数（不允许基于小计/其他增项）。
- * 独立重算校验——未来若把金额计算改成基于小计，此处会抛错而不是靠注释提醒。
+ * F-7 铁律守卫：百分比增项金额必须以基础价为基数（不允许基于小计/其他增项）。
+ * F0150 口径订正：此处与 buildPriceLines 共用同一公式，属「防公式漂移的回归护栏」
+ * 而非独立重算证明；真正保证基数的是 buildPriceLines 只接收 baseCents 的结构。
+ * 固定答案向量（base=1000, 10%, qty=1 → 100）由单测覆盖，避免同公式自证。
  * 导出供单测直接验证断言本身。
  */
 export function assertPercentAmountOnBase(name: string, percent: number, quantity: number, baseCents: number, amountCents: number): void {

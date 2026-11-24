@@ -67,6 +67,26 @@ describe('F1 客户访问令牌化', () => {
     expect(row.customer_token_hash).not.toContain(body.customerToken)
   })
 
+  it('TC-CT-01b: F0134 带幂等键下单——缓存只存 enc:v1 信封，明文令牌/追踪 URL 不落表', async () => {
+    const artist = seedArtist({ qq_number: '88019', subdomain: 'ct-create-idem' })
+    seedArtistStages(artist.id)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/orders',
+      headers: { 'idempotency-key': 'ct-f0134-key' },
+      payload: { subdomain: 'ct-create-idem', clientQq: '99019', clientName: '信封测试', agreeRules: true }
+    })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    const row = db.prepare(
+      "SELECT response_json FROM idempotency_keys WHERE key = 'ct-f0134-key'"
+    ).get() as { response_json: string } | undefined
+    expect(row?.response_json).toMatch(/^enc:v1:/)
+    expect(row?.response_json).not.toContain(body.customerToken)
+    expect(row?.response_json).not.toContain(body.trackUrl)
+    expect(row?.response_json).not.toContain('token=')
+  })
+
   it('TC-CT-02: 正确令牌 track 200，错误/缺令牌与不存在订单号响应同形 404', async () => {
     const artist = seedArtist({ qq_number: '88002', subdomain: 'ct-track' })
     seedArtistStages(artist.id)

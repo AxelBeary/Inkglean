@@ -16,7 +16,9 @@ export function quoteTotalCents(items: QuoteItem[] | null | undefined): number {
 
 /** 模板占位符替换（{name}/{total}/{note}），labels 由视图按当前语言传入 */
 function fill(template: string, map: Record<string, string>): string {
-  return template.replace(/\{(\w+)\}/g, (raw, key) => (key in map ? map[key] : raw))
+  // F0271：`key in map` 会命中 Object.prototype（{constructor}/{toString} 等），
+  // 把原型方法字符串塞进模板；Object.hasOwn 只认字面声明的键。
+  return template.replace(/\{(\w+)\}/g, (raw, key) => (Object.hasOwn(map, key) ? map[key] : raw))
 }
 
 /** 文字版报价 labels（标题/客户行/合计行/备注行/平台落款） */
@@ -56,14 +58,18 @@ const FONT_BODY = '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif'
 /** 固定宽度（纸墨简版报价单：单模板，不做自由布局） */
 export const QUOTE_CANVAS_W = 800
 
-/** 按条目数计算画布高度（纯函数，便于测试与后续扩展） */
-export function quoteCanvasHeight(itemCount: number, hasNote: boolean): number {
+/**
+ * 按条目数计算画布高度（纯函数，便于测试与后续扩展）
+ * F0273：第三参 noteLineCount 让备注按实际换行行数撑高画布；
+ * 省略或 ≤3 时保持原 70px 预算，与既有调用/测试完全兼容。
+ */
+export function quoteCanvasHeight(itemCount: number, hasNote: boolean, noteLineCount?: number): number {
   const PAD = 48
   const title = 70
   const meta = 34
   const items = 44
   const total = 58
-  const note = hasNote ? 70 : 0
+  const note = hasNote ? Math.max(70, Math.max(0, noteLineCount ?? 0) * 20 + 10) : 0
   const footer = 46
   return PAD * 2 + title + meta * 2 + items * Math.max(1, itemCount) + total + note + footer
 }
@@ -126,13 +132,23 @@ export function renderQuoteCanvas(canvas: HTMLCanvasElement, opts: QuoteCanvasOp
     footer = ''
   } = opts
   const W = QUOTE_CANVAS_W
-  const H = quoteCanvasHeight(items.length, Boolean(note.trim()))
-  canvas.width = W
-  canvas.height = H
+  const PAD = 48
   const ctx = canvas.getContext('2d')
   if (!ctx) return canvas
 
-  const PAD = 48
+  // F0273：先按备注字体测量换行行数，再决定画布高度——旧代码固定 3 行、
+  // 第 4 行起静默丢弃，导致导出图片与文字版内容不一致。此处渲染全部行。
+  const noteText = note.trim()
+  const notePrefix = noteLabel
+  let noteLines: string[] = []
+  if (noteText) {
+    ctx.font = `400 13px ${FONT_BODY}`
+    noteLines = wrapText(ctx, noteText, W - PAD * 2 - ctx.measureText(notePrefix).width)
+  }
+  const H = quoteCanvasHeight(items.length, noteLines.length > 0, noteLines.length)
+  canvas.width = W
+  canvas.height = H
+
   const paper = '#FAF9F6'
   const ink = '#262520'
   const ink2 = '#5A564B'
@@ -178,10 +194,25 @@ export function renderQuoteCanvas(canvas: HTMLCanvasElement, opts: QuoteCanvasOp
     ctx.fillStyle = ink
     ctx.font = `400 15px ${FONT_BODY}`
     ctx.fillText(String(i + 1).padStart(2, '0'), PAD, y)
-    ctx.fillText(it.name, PAD + 44, y)
+    // F0272：按右对齐金额的实际宽度预留空间，过长名称用 measureText 截断加省略号，
+    // 杜绝长名称与金额重叠/溢出固定宽度画布。
+    const amountText = formatYuan(it.cents)
+    ctx.textAlign = 'right'
+    const amountWidth = ctx.measureText(amountText).width
+    ctx.textAlign = 'left'
+    const nameX = PAD + 44
+    const maxNameWidth = Math.max(20, W - PAD - amountWidth - 16 - nameX)
+    let name = String(it.name ?? '')
+    if (ctx.measureText(name).width > maxNameWidth) {
+      while (name.length > 1 && ctx.measureText(`${name}…`).width > maxNameWidth) {
+        name = name.slice(0, -1)
+      }
+      name = `${name}…`
+    }
+    ctx.fillText(name, nameX, y)
     ctx.fillStyle = ink2
     ctx.textAlign = 'right'
-    ctx.fillText(formatYuan(it.cents), W - PAD, y)
+    ctx.fillText(amountText, W - PAD, y)
     ctx.textAlign = 'left'
     ctx.strokeStyle = lineColor
     ctx.beginPath()
@@ -211,17 +242,14 @@ export function renderQuoteCanvas(canvas: HTMLCanvasElement, opts: QuoteCanvasOp
   ctx.textAlign = 'left'
   y += 58
 
-  // 备注（最多 3 行换行）
-  const noteText = note.trim()
-  if (noteText) {
+  // 备注（F0273：渲染 wrapText 的全部行，画布高度已按行数预留，与文字版一致）
+  if (noteLines.length > 0) {
     ctx.fillStyle = ink3
     ctx.font = `400 13px ${FONT_BODY}`
-    const prefix = noteLabel
-    const bodyLines = wrapText(ctx, noteText, W - PAD * 2 - ctx.measureText(prefix).width)
-    bodyLines.slice(0, 3).forEach((line, i) => {
-      ctx.fillText(i === 0 ? `${prefix}${line}` : line, PAD, y + i * 20)
+    noteLines.forEach((line, i) => {
+      ctx.fillText(i === 0 ? `${notePrefix}${line}` : line, PAD, y + i * 20)
     })
-    y += 70
+    y += Math.max(70, noteLines.length * 20 + 10)
   }
 
   // 平台小字（居中）
