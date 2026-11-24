@@ -261,8 +261,52 @@ async function waitForChildExit(child: ChildProcess, timeoutMs: number): Promise
   return child.exitCode !== null || child.signalCode !== null
 }
 
+/**
+ * XEND-08：chromium 前置检查。本机无预装浏览器时，Playwright 会在第一个测试里以晦涩的
+ * `browserType.launch: Executable doesn't exist` 失败，看起来像「E2E 全红=功能坏」。
+ * 这里在 globalSetup 最顶部显式校验浏览器可执行文件，缺失即抛带安装指引的明确错误——
+ * 不跳过测试、不伪造 PASS、不静默降级。动态 import 避免让不依赖浏览器的回归脚本
+ * （token-refresh.regression.ts 等 import 本文件）承担 @playwright/test 的加载成本。
+ */
+async function assertChromiumInstalled(): Promise<void> {
+  let exe = ''
+  try {
+    const { chromium } = await import('@playwright/test')
+    exe = chromium.executablePath()
+  } catch (err) {
+    throw new Error(`E2E chromium 前置检查失败：无法加载 @playwright/test（${(err as Error).message}）——请先 npm ci 安装根依赖`)
+  }
+  if (!existsSync(exe)) {
+    throw new Error(
+      `Playwright chromium 未安装（期望路径 ${exe}）。请先执行 npx playwright install chromium --with-deps 再跑 npm run test:e2e；` +
+      `无浏览器环境请改用浏览器无关门禁：npm run typecheck:e2e && npm run check:e2e && npx tsx e2e/scripts/{token-refresh,build-freshness,check-locators}.regression.ts。`
+    )
+  }
+  console.log(`✅ E2E: chromium 前置检查通过（${exe}）`)
+}
+
+/**
+ * XEND-09：setup 阶段失败的统一服务器清理（步骤 5 健康检查 / 步骤 6 预登录共用）。
+ * 我们持有 spawn 的 ChildProcess 句柄，直接 kill 无 PID 复用风险；沿用 teardown 口径：
+ * SIGKILL 后轮询确认退出，确认后才删 PID；超时未确认则保留 PID 交 globalTeardown 核身兜底。
+ */
+async function stopServerAfterSetupFailure(server: ChildProcess): Promise<void> {
+  if (server.exitCode === null && server.signalCode === null) {
+    try { server.kill('SIGKILL') } catch { /* 已退出 */ }
+  }
+  if (await waitForChildExit(server, 5_000)) {
+    if (existsSync(PID_FILE)) rmSync(PID_FILE)
+  } else {
+    console.warn('⚠️ E2E: setup 失败清理时服务器 SIGKILL 后 5s 内未确认退出——保留 .server-pid 交 teardown 统一清理')
+  }
+}
+
 export default async function globalSetup(): Promise<void> {
   const baseURL = E2E_BASE_URL
+
+  // -1. XEND-08: 浏览器前置检查放在最顶部——无 chromium 时零成本失败并给出安装指引，
+  //     不白跑构建/播种/启服，也不让晦涩的 browserType.launch 错误伪装成功能回归。
+  await assertChromiumInstalled()
 
   // 0. SCR-01: 端口探测提到删库/构建之前——占用时零成本失败，不白跑最贵步骤；
   //    且校验 health 特征（200 + status:ok），避免把任意 HTTP 响应误判为「遗留 E2E 服务器」。
@@ -345,50 +389,52 @@ export default async function globalSetup(): Promise<void> {
   }
   writeFileSync(PID_FILE, String(server.pid))
 
-  // 5. 等待健康检查
-  // F0050: 窗口耗尽必须抛错——旧实现循环超时后静默继续，启动失败被拖到预登录才暴露
-  const deadline = Date.now() + 30_000
-  let healthy = false
-  let earlyExit: string | null = null
-  while (Date.now() < deadline) {
-    if (server.exitCode !== null || server.signalCode !== null) {
-      // 子进程在等待期内退出（端口被占/启动崩溃等）——立即收口，日志已由 F0051 转发
-      earlyExit = `exitCode=${server.exitCode ?? 'null'} signalCode=${server.signalCode ?? 'null'}`
-      break
+  // XEND-09: 从 PID 落盘这一刻起，健康检查与预登录的任何失败都必须走统一清理。
+  // 修复前：步骤 6 预登录/step-up 抛错绕过 kill+删 PID，残留存活 server + .server-pid，
+  // 且部分 runner 在 setup 失败时不调用 teardown，导致下次 setup 在本函数步骤 0 直接拒绝。
+  // 这里用 try/catch 把两步骤包起来，异常统一 stopServerAfterSetupFailure（核身口径的 kill+
+  // 轮询确认+确认后才删 PID，未确认保留交 teardown 兜底），再原样抛出，绝不全吞。
+  try {
+    // 5. 等待健康检查
+    // F0050: 窗口耗尽必须抛错——旧实现循环超时后静默继续，启动失败被拖到预登录才暴露
+    const deadline = Date.now() + 30_000
+    let healthy = false
+    let earlyExit: string | null = null
+    while (Date.now() < deadline) {
+      if (server.exitCode !== null || server.signalCode !== null) {
+        // 子进程在等待期内退出（端口被占/启动崩溃等）——立即收口，日志已由 F0051 转发
+        earlyExit = `exitCode=${server.exitCode ?? 'null'} signalCode=${server.signalCode ?? 'null'}`
+        break
+      }
+      // SCR-01: 与端口探测同口径——不仅 200，还要 body.status==='ok' 才算真健康（别的服务假绿挡不住）
+      if ((await fetchHealth(baseURL)).statusOk) {
+        healthy = true
+        break
+      }
+      await new Promise(r => setTimeout(r, 500))
     }
-    // SCR-01: 与端口探测同口径——不仅 200，还要 body.status==='ok' 才算真健康（别的服务假绿挡不住）
-    if ((await fetchHealth(baseURL)).statusOk) {
-      healthy = true
-      break
+    if (!healthy) {
+      // F0050: 失败必须当场抛错；统一清理交给下方 catch（kill+确认退出+确认后才删 PID）
+      throw new Error(
+        earlyExit
+          ? `E2E 服务器启动即退出（${earlyExit}），详见上方转发的服务器日志`
+          : `E2E 服务器 30s 内未通过健康检查（${baseURL}/api/health），详见上方转发的服务器日志`
+      )
     }
-    await new Promise(r => setTimeout(r, 500))
-  }
-  if (!healthy) {
-    // F0050: 失败必须当场抛错；子进程若还活着（只是慢），杀掉本次 spawn 的实例，不留孤儿占端口
-    server.kill('SIGKILL')
-    // SCR-02: SIGKILL 是异步信号——必须轮询确认子进程退出后再删 PID 文件，
-    // 否则 setup 抛错后 teardown 见 PID 文件已不在就立刻删库，与仍在退出的 server 竞态（WAL 可能半截重建）。
-    // 超时仍未确认退出时保留 PID 文件，交 teardown 统一 kill + 确认后清理。
-    if (await waitForChildExit(server, 5_000)) {
-      rmSync(PID_FILE)
-    } else {
-      console.warn('⚠️ E2E: 服务器 SIGKILL 后 5s 内未确认退出——保留 .server-pid 交 teardown 统一清理')
-    }
-    throw new Error(
-      earlyExit
-        ? `E2E 服务器启动即退出（${earlyExit}），详见上方转发的服务器日志`
-        : `E2E 服务器 30s 内未通过健康检查（${baseURL}/api/health），详见上方转发的服务器日志`
-    )
-  }
 
-  // 6. 预登录画师 + 管理员，token 写入文件（fixture 只读文件，不网络请求）
-  console.log('🔑 E2E: 预登录...')
-  const artistToken = await apiLogin(baseURL, '10001')
-  const adminToken = await apiLogin(baseURL, '10003')
-  // REQ-041：管理后台已挂 step-up 入口级守卫——管理员会话必须升级后缓存，
-  // 否则既有 admin E2E 用例会被 401 STEP_UP_REQUIRED 拦截
-  const adminUpgradedToken = await apiStepUp(baseURL, adminToken, '10003')
-  writeTokens({ artist: artistToken, admin: adminUpgradedToken })
+    // 6. 预登录画师 + 管理员，token 写入文件（fixture 只读文件，不网络请求）
+    console.log('🔑 E2E: 预登录...')
+    const artistToken = await apiLogin(baseURL, '10001')
+    const adminToken = await apiLogin(baseURL, '10003')
+    // REQ-041：管理后台已挂 step-up 入口级守卫——管理员会话必须升级后缓存，
+    // 否则既有 admin E2E 用例会被 401 STEP_UP_REQUIRED 拦截
+    const adminUpgradedToken = await apiStepUp(baseURL, adminToken, '10003')
+    writeTokens({ artist: artistToken, admin: adminUpgradedToken })
+  } catch (err) {
+    // 统一收口：kill 本次 spawn 的实例 + 轮询确认退出 + 确认后才删 PID；随后原样抛错（不吞异常）
+    await stopServerAfterSetupFailure(server)
+    throw err
+  }
 
   console.log('✅ E2E: 服务器就绪，token 已缓存')
 }
