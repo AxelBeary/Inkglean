@@ -102,11 +102,15 @@ describe('GuestbookReviewCard 三态', () => {
   })
 
   it('重试按钮点击后重新加载', async () => {
+    // WEB-03：load 已改 Promise.all 并发——首轮「列表请求」失败即进错误态（计数请求同时发出）；
+    // 之后的请求按参数分叉返回，不能再用「一次一份」的顺序 mock（并发下两份会被首轮一起消耗）。
     h.getMessages
       .mockRejectedValueOnce(new Error('Network error'))
-      // 尾巴批 pr-review-20261123 后 load 发两请求（显示列表 + status 过滤计数），成功路径各备一份
-      .mockResolvedValueOnce({ items: [{ id: 1, nickname: 'Retry', content: 'After retry', status: 'approved', created_at: '2026-08-01T12:00:00' }] })
-      .mockResolvedValueOnce({ items: [], total: 0, page: 1, pageSize: 1 })
+      .mockImplementation((params: { status?: string }) => Promise.resolve(
+        params.status === 'pending'
+          ? { items: [], total: 0, page: 1, pageSize: 1 }
+          : { items: [{ id: 1, nickname: 'Retry', content: 'After retry', status: 'approved', created_at: '2026-08-01T12:00:00' }] }
+      ))
     const wrapper = mountCard()
     await flushPromises()
     await wrapper.vm.$nextTick()
@@ -123,6 +127,28 @@ describe('GuestbookReviewCard 三态', () => {
 })
 
 describe('GuestbookReviewCard 操作', () => {
+  // WEB-03（debug-swarm 11-24）：列表与计数两请求无依赖，必须并发发起。
+  // 修复前串行 await：列表未 resolve 前第二个请求根本没发出，角标白等一个 RTT。
+  it('WEB-03: 列表与计数请求并发发起（列表未 resolve 时计数已发出）', async () => {
+    let resolveList!: (v: unknown) => void
+    let resolveCount!: (v: unknown) => void
+    h.getMessages
+      .mockImplementationOnce(() => new Promise(r => { resolveList = r }))
+      .mockImplementationOnce(() => new Promise(r => { resolveCount = r }))
+
+    const wrapper = mountCard()
+    await flushPromises()
+    // 两个请求都已发出，尽管列表 Promise 仍未 resolve
+    expect(h.getMessages).toHaveBeenCalledTimes(2)
+    expect(h.getMessages.mock.calls[0][0]).toEqual({ page: 1, pageSize: 20 })
+    expect(h.getMessages.mock.calls[1][0]).toEqual({ page: 1, pageSize: 1, status: 'pending' })
+
+    resolveList({ items: [{ id: 1, nickname: '甲', content: 'hi', status: 'pending', created_at: '2026-08-01T10:00:00' }] })
+    resolveCount({ items: [], total: 4, page: 1, pageSize: 1 })
+    await flushPromises()
+    expect((wrapper.vm as unknown as { pendingCount: number }).pendingCount).toBe(4)
+  })
+
   it('F0205 返工: 待审计数走服务端 status 过滤单请求，本地审核即时递减', async () => {
     // 尾巴批 pr-review-20261123：显示列表（无 status 参数）与计数请求（status=pending）分叉返回
     h.getMessages.mockImplementation((params: { status?: string }) => Promise.resolve(

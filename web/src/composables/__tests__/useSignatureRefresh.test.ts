@@ -300,5 +300,27 @@ describe('useSignatureRefresh 分片刷新（issue #52-5）', () => {
       w1.wrapper.unmount()
       w2.wrapper.unmount()
     })
+
+    // WEB-01（debug-swarm 11-24）：跨页面首败警告被吞回归。
+    // 复现：A 页唯一实例离线失败（警告弹出、模块标志置位且全程保持离线）→ 卸载 A 页
+    //（活跃实例归零 → 清标志）→ 路由到 B 页新实例 → 首败必须重新弹出可见警告。
+    it('跨页面：A 页失败后卸载，B 页新实例首败仍提示（活跃实例归零清标志）', async () => {
+      const paths = makePaths(10)
+      h.refreshSignatures.mockReset()
+      h.refreshSignatures.mockRejectedValue(new Error('offline'))
+
+      // 页面 A：唯一实例离线首败，弹一条
+      const pageA = mountHost({ collect: () => paths })
+      await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL_MS + 100)
+      expect(h.messageWarning).toHaveBeenCalledTimes(1)
+      // 保持离线、不做任何成功刷新，直接离开页面
+      pageA.wrapper.unmount()
+
+      // 页面 B：全新实例首败；标志已随 A 卸载归零复位 → 必须重新提示（修复前被吞）
+      const pageB = mountHost({ collect: () => paths })
+      await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL_MS + 100)
+      expect(h.messageWarning).toHaveBeenCalledTimes(2)
+      pageB.wrapper.unmount()
+    })
   })
 })

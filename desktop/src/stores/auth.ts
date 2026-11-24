@@ -77,12 +77,22 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(qqNumber: string, code: string): Promise<void> {
     const deviceUuid = await ensureDeviceUuid()
     const result = await desktopLogin({ qqNumber, code, deviceUuid })
+    // DTK-01（debug-swarm 11-24）：先完成全部落盘，再原子写内存态。
+    // 原实现先置 token/loggedIn 再存 DPAPI：落盘失败会留下「界面报失败但 loggedIn=true、
+    // 凭证未落盘」半态（重启丢失且无法回本地模式）。现把内存提交放到两次 saveSecret 之后。
+    await saveSecret(KEY_TOKEN, result.token)
+    try {
+      await saveSecret(KEY_ARTIST, JSON.stringify(result.artist))
+    } catch (err) {
+      // 第二把失败：回滚第一把，避免残留孤立 token 密文 / 半套凭证；原错误照常抛出由调用方展示
+      try { await deleteSecret(KEY_TOKEN) } catch { /* 回滚尽力而为，不吞原始落盘错误 */ }
+      throw err
+    }
+    // 全部落盘成功后一次性提交内存态（loggedIn 由 token 派生，天然原子）
     token.value = result.token
     artist.value = result.artist
     localMode.value = false // 登录成功即切云端，本地模式会话语义终止（标记同步清）
     writeLocalModePref(false)
-    await saveSecret(KEY_TOKEN, result.token)
-    await saveSecret(KEY_ARTIST, JSON.stringify(result.artist))
   }
 
   /** 登出（切出）：先撕服务端账本再清本地；827 用户终验口径：切出默认回本地模式（用户报障：切出能回本地但需重新选） */

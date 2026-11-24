@@ -100,10 +100,14 @@ async function load() {
   state.value = 'loading'
   try {
     // F0205 返工（尾巴批 pr-review-20261123）：显示列表单页拉取（回 v144 有界口径，同 ActivityFeed 只拉 10 条的范式）；
-    // 待审计数单请求取 total（服务端 status 过滤），替代全量翻页累计
-    const first = await artistApi.getMessages({ page: 1, pageSize: UI_PAGE_SIZE })
+    // 待审计数单请求取 total（服务端 status 过滤），替代全量翻页累计。
+    // WEB-03（debug-swarm 11-24）：两请求无依赖，改 Promise.all 并发，角标不再多等一个 RTT。
+    // 数组顺序即调用顺序（列表在前、计数在后），顺序 mock 的既有用例不受影响。
+    const [first, cnt] = await Promise.all([
+      artistApi.getMessages({ page: 1, pageSize: UI_PAGE_SIZE }),
+      artistApi.getMessages({ page: 1, pageSize: 1, status: 'pending' })
+    ])
     guestbookMessages.value = (first.items || []).filter((m: GuestbookMessage) => !m.deleted_by_admin)
-    const cnt = await artistApi.getMessages({ page: 1, pageSize: 1, status: 'pending' })
     pendingCount.value = cnt.total ?? 0
     state.value = 'ok'
   } catch {

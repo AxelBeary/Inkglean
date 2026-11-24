@@ -9,7 +9,9 @@ const h = vi.hoisted(() => ({
   artist: null as string | null,
   loadError: null as Error | null,
   saveSecret: vi.fn(),
-  deleteSecret: vi.fn()
+  deleteSecret: vi.fn(),
+  desktopLogin: vi.fn(),
+  desktopLogout: vi.fn()
 }))
 
 vi.mock('../bridge/env', () => ({ isDesktop: () => true }))
@@ -23,8 +25,8 @@ vi.mock('../bridge/secureStore', () => ({
   deleteSecret: h.deleteSecret
 }))
 vi.mock('../api/desktop', () => ({
-  desktopLogin: vi.fn(),
-  desktopLogout: vi.fn()
+  desktopLogin: h.desktopLogin,
+  desktopLogout: h.desktopLogout
 }))
 
 import { useAuthStore } from '../stores/auth'
@@ -74,5 +76,54 @@ describe('restore() 会话恢复（F0031 半态守卫）', () => {
     expect(store.loggedIn).toBe(false)
     expect(store.token).toBeNull()
     expect(store.artist).toBeNull()
+  })
+})
+
+// DTK-01（debug-swarm 11-24）：login 必须「先全部落盘、再原子写内存」；落盘失败不留登录半态。
+describe('login() 落盘与内存时序（DTK-01）', () => {
+  const NEW_ARTIST = { id: 2, name: '新画师', subdomain: 'new', qqNumber: '20002' }
+
+  beforeEach(() => {
+    h.desktopLogin.mockReset().mockResolvedValue({ token: 'new-token', artist: NEW_ARTIST })
+    h.saveSecret.mockReset().mockResolvedValue(undefined)
+    h.deleteSecret.mockReset().mockResolvedValue(undefined)
+  })
+
+  it('成功：两把凭证都落盘后才提交内存态（loggedIn 由 token 派生）', async () => {
+    const order: string[] = []
+    h.saveSecret.mockImplementation(async (key: string) => { order.push(`save:${key}`) })
+    const store = useAuthStore()
+
+    await store.login('20002', '123456')
+
+    expect(order).toEqual(['save:session-token', 'save:session-artist'])
+    expect(store.token).toBe('new-token')
+    expect(store.loggedIn).toBe(true)
+    expect(store.artist).toMatchObject(NEW_ARTIST)
+  })
+
+  it('第一把落盘失败：内存保持未登录，不写第二把', async () => {
+    const boom = new Error('token write failed')
+    h.saveSecret.mockReset().mockRejectedValueOnce(boom)
+    const store = useAuthStore()
+
+    await expect(store.login('20002', '123456')).rejects.toBe(boom)
+    expect(h.saveSecret).toHaveBeenCalledTimes(1)
+    expect(store.loggedIn).toBe(false)
+    expect(store.token).toBeNull()
+  })
+
+  it('第二把落盘失败：回滚第一把且内存保持未登录，原始错误照常抛出', async () => {
+    const boom = new Error('artist write failed')
+    h.saveSecret.mockReset()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(boom)
+    const store = useAuthStore()
+
+    await expect(store.login('20002', '123456')).rejects.toBe(boom)
+    // 回滚删除已写入的第一把 token，避免残留半套凭证
+    expect(h.deleteSecret).toHaveBeenCalledWith('session-token')
+    expect(store.loggedIn).toBe(false)
+    expect(store.token).toBeNull()
   })
 })

@@ -2234,6 +2234,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
       filterByReplied: 'By reply', repliedYes: 'Replied', repliedNo: 'Not replied',
       filterLabel: 'Filter messages',
       filterDesc: 'Filter by artist, review status, and reply status',
+      listLimit: 'Show limit', limitN: 'Latest {n}',
+      listTruncated: 'Only the latest {n} messages are shown; raise the show limit or narrow the filters above to find older ones.',
       delete: 'Force delete', deleteConfirm: 'Delete this message? It will no longer appear on the client page.', deleted: 'Message deleted'
     },
     // HC: system health check
