@@ -19,9 +19,10 @@ export const migration: Migration = {
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
     `)
-    // 查询索引：按码校验（唯一已由 UNIQUE 约束覆盖，此处建普通索引供 status 过滤）+ 状态列表
+    // B3-F0088：删除冗余的 idx_invite_codes_code——code 列已 UNIQUE，SQLite 为其自动建
+    // sqlite_autoindex，再建普通索引纯属重复占空间；原注释称「供 status 过滤」也不成立（status 索引另建）。
+    // 仅保留 status 列表索引；按码校验走 UNIQUE 自动索引，service 层 validateInviteCode 无性能变化。
     database.exec(`
-      CREATE INDEX IF NOT EXISTS idx_invite_codes_code ON invite_codes(code);
       CREATE INDEX IF NOT EXISTS idx_invite_codes_status ON invite_codes(status);
     `)
   }
