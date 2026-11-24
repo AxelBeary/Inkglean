@@ -38,8 +38,14 @@ export async function adminGreetingRoutes(fastify: FastifyInstance) {
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as { text: string; timeSlot?: string; specialDayId?: number }
     // E5：特别日存在性校验（不存在 404，防 FK 裸抛 500）
-    if (body.specialDayId !== undefined && !greetingService.getSpecialDay(body.specialDayId)) {
-      return reply.code(404).send({ error: '特别日不存在' })
+    // B7-F0108：反向归属校验——全局模板只能挂全平台特别日（artist_id IS NULL），
+    // 与画师侧 POST 的 SRV-11 镜像对称，否则画师 A 的专属日可被全局文案污染
+    if (body.specialDayId !== undefined) {
+      const day = greetingService.getSpecialDay(body.specialDayId)
+      if (!day) return reply.code(404).send({ error: '特别日不存在' })
+      if (day.artist_id !== null) {
+        return reply.code(400).send({ error: '全平台文案不得挂到画师专属特别日，请为该画师创建专属文案' })
+      }
     }
     return greetingService.createGlobalGreeting(body)
   })
@@ -68,8 +74,13 @@ export async function adminGreetingRoutes(fastify: FastifyInstance) {
     if (!existing) return reply.code(404).send({ error: '模板不存在' })
     const body = request.body as { text?: string; timeSlot?: string; isEnabled?: boolean; specialDayId?: number | null }
     // E5：换挂/清挂特别日前的存在性校验（null=解除关联）
-    if (typeof body.specialDayId === 'number' && !greetingService.getSpecialDay(body.specialDayId)) {
-      return reply.code(404).send({ error: '特别日不存在' })
+    // B7-F0108：反向归属校验同 POST——全局模板不得换挂画师专属特别日
+    if (typeof body.specialDayId === 'number') {
+      const day = greetingService.getSpecialDay(body.specialDayId)
+      if (!day) return reply.code(404).send({ error: '特别日不存在' })
+      if (day.artist_id !== null) {
+        return reply.code(400).send({ error: '全平台文案不得挂到画师专属特别日，请为该画师创建专属文案' })
+      }
     }
     const result = greetingService.updateGreeting(id, body)
     if (!result) return reply.code(404).send({ error: '模板不存在' })

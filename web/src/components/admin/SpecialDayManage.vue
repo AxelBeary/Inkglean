@@ -257,15 +257,30 @@ async function selectDay(day: SpecialDayListItem) {
   await loadGreetings()
 }
 
+// B7-F0184：当日文案请求序号门闩——快速切换特别日时旧响应不得覆盖当前选中日的文案
+let greetingsSeq = 0
+
 async function loadGreetings() {
   if (!selected.value) return
+  const seq = ++greetingsSeq
+  const dayId = selected.value.id
   greetingsLoading.value = true
-  try { greetings.value = await adminApi.getSpecialDayGreetings(selected.value.id) }
-  catch (err) { ElMessage.error((err as Error).message) }
-  finally { greetingsLoading.value = false }
+  try {
+    const rows = await adminApi.getSpecialDayGreetings(dayId)
+    if (seq !== greetingsSeq || selected.value?.id !== dayId) return
+    greetings.value = rows
+  } catch (err) {
+    if (seq !== greetingsSeq || selected.value?.id !== dayId) return
+    ElMessage.error((err as Error).message)
+  } finally {
+    if (seq === greetingsSeq) greetingsLoading.value = false
+  }
 }
 
 async function addGreeting() {
+  // B7-F0188：在途守卫——按钮有 :loading 但输入框 keyup.enter 不受其约束，
+  // 连续回车会在 newText 清空前重复提交，创建重复文案
+  if (saving.value) return
   if (!newText.value.trim() || !selected.value) return
   saving.value = true
   try {

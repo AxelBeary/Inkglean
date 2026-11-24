@@ -255,15 +255,22 @@ const removingDeviceId = ref<number | null>(null)
 
 async function loadDevices() {
   if (!props.artist) return
+  // B7-F0286：捕获请求时的画师 id——响应落地前抽屉可能已切到另一位画师，
+  // 旧画师的响应不得写进当前画师的面板（与 loadProfile 同款门闩）
+  const artistId = props.artist.id
   devicesLoading.value = true
   devicesError.value = ''
   try {
     // 管理端 GET 返回裸数组（全列，按最近活跃倒序），非画师端的 {devices} 包裹
-    devices.value = await adminApi.getArtistDevices(props.artist.id)
+    const rows = await adminApi.getArtistDevices(artistId)
+    if (props.artist?.id !== artistId) return
+    devices.value = rows
   } catch {
+    if (props.artist?.id !== artistId) return
     devicesError.value = t('account.devicesLoadFailed')
   } finally {
-    devicesLoading.value = false
+    // B7-F0286：旧画师的迟到响应不得提前熄灭新画师请求的 loading（对齐 QueueBoard/useOrderPayments 的 seq 范式）
+    if (props.artist?.id === artistId) devicesLoading.value = false
   }
 }
 
@@ -292,17 +299,22 @@ watch(() => props.artist, async (a) => {
 
 async function loadProfile() {
   if (!props.artist) return
+  // B7-F0286：捕获请求时的画师 id——旧画师的迟到响应不得覆盖当前画师资料
+  // （此前仅判 props.artist 非空，切人后旧响应照写，造成跨画师资料串显）
+  const artistId = props.artist.id
   profileLoading.value = true
   profileLoadFailed.value = false
   try {
-    const p = await adminApi.getArtistProfile(props.artist.id)
-    if (!props.artist) return
+    const p = await adminApi.getArtistProfile(artistId)
+    if (props.artist?.id !== artistId) return
     profile.value = { name: p.name, bio: p.bio || '', status: p.status, artist_code: p.artist_code || '', contact_qq: p.contact_qq || '' }
     originalProfile.value = { ...profile.value } // M-2: 快照初始值
   } catch {
+    if (props.artist?.id !== artistId) return
     profileLoadFailed.value = true
   }
-  finally { profileLoading.value = false }
+  // B7-F0286：旧画师的迟到响应不得提前熄灭新画师请求的 loading（对齐 seq 范式）
+  finally { if (props.artist?.id === artistId) profileLoading.value = false }
 }
 
 watch(tab, (tabName) => {
@@ -314,10 +326,19 @@ watch(tab, (tabName) => {
 
 async function loadPricing() {
   if (!props.artist) return
+  // B7-F0286：同 loadProfile 的画师身份门闩——价格概览不得被旧画师响应覆盖
+  const artistId = props.artist.id
   pricingLoading.value = true
-  try { stylesOverview.value = await adminApi.getArtistPricingOverview(props.artist.id) }
-  catch (err) { ElMessage.error((err as Error).message) }
-  finally { pricingLoading.value = false }
+  try {
+    const rows = await adminApi.getArtistPricingOverview(artistId)
+    if (props.artist?.id !== artistId) return
+    stylesOverview.value = rows
+  } catch (err) {
+    if (props.artist?.id !== artistId) return
+    ElMessage.error((err as Error).message)
+  }
+  // B7-F0286：旧画师的迟到响应不得提前熄灭新画师请求的 loading（对齐 seq 范式）
+  finally { if (props.artist?.id === artistId) pricingLoading.value = false }
 }
 
 /** 尺寸三态展示（与后端 display_status 枚举对齐） */
@@ -332,23 +353,37 @@ function sizeStatusType(status: string) {
 
 async function loadArtworks() {
   if (!props.artist) return
+  // B7-F0286：同 loadProfile 的画师身份门闩——作品列表不得被旧画师响应覆盖
+  const artistId = props.artist.id
   artworksLoading.value = true
-  try { artworks.value = await adminApi.getArtistArtworks(props.artist.id) }
-  catch (err) { ElMessage.error((err as Error).message) }
-  finally { artworksLoading.value = false }
+  try {
+    const rows = await adminApi.getArtistArtworks(artistId)
+    if (props.artist?.id !== artistId) return
+    artworks.value = rows
+  } catch (err) {
+    if (props.artist?.id !== artistId) return
+    ElMessage.error((err as Error).message)
+  }
+  // B7-F0286：旧画师的迟到响应不得提前熄灭新画师请求的 loading（对齐 seq 范式）
+  finally { if (props.artist?.id === artistId) artworksLoading.value = false }
 }
 
 async function loadRules() {
   if (!props.artist) return
+  // B7-F0286：同 loadProfile 的画师身份门闩——约稿须知不得被旧画师响应覆盖
+  const artistId = props.artist.id
   rulesLoading.value = true
   rulesLoadFailed.value = false
   try {
-    const r = await adminApi.getArtistRules(props.artist.id)
+    const r = await adminApi.getArtistRules(artistId)
+    if (props.artist?.id !== artistId) return
     rulesContent.value = r?.content || ''
   } catch {
+    if (props.artist?.id !== artistId) return
     rulesLoadFailed.value = true
   }
-  finally { rulesLoading.value = false }
+  // B7-F0286：旧画师的迟到响应不得提前熄灭新画师请求的 loading（对齐 seq 范式）
+  finally { if (props.artist?.id === artistId) rulesLoading.value = false }
 }
 
 async function saveProfile() {

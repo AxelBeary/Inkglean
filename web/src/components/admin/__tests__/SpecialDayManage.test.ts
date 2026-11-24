@@ -161,4 +161,57 @@ describe('SpecialDayManage 特别日区块（E5）', () => {
     // el-switch stub 不触发 change，直接验证数据形状：列表行带 is_enabled 数值态
     expect((wrapper.vm as unknown as SpecialDayVm).days[0].is_enabled).toBe(1)
   })
+
+  it('B7-F0184: 快速切换特别日时旧日的慢响应不得覆盖当前日文案', async () => {
+    let resolveA!: (v: unknown[]) => void
+    const slowA = new Promise<unknown[]>(r => { resolveA = r })
+    h.getSpecialDayGreetings.mockImplementation((dayId: number) =>
+      dayId === 1
+        ? slowA
+        : Promise.resolve([{ id: 20, text: 'B日文案', time_slot: 'any', is_enabled: 1, special_day_id: 2 }])
+    )
+    const wrapper = await mountComponent()
+
+    const editBtns = wrapper.findAll('button').filter(b => b.text() === 'admin.specialDayEditGreetings')
+    expect(editBtns).toHaveLength(2)
+    // 先点日 1（慢响应在途），随即切到日 2（快响应）
+    await editBtns[0].trigger('click')
+    await editBtns[1].trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('B日文案')
+
+    // 日 1 的慢响应迟到 → 门闩拦下，不得覆盖日 2 的文案区
+    resolveA([{ id: 10, text: 'A日文案', time_slot: 'any', is_enabled: 1, special_day_id: 1 }])
+    await flushPromises()
+    expect(wrapper.text()).toContain('B日文案')
+    expect(wrapper.text()).not.toContain('A日文案')
+  })
+
+  it('B7-F0188: 当日文案添加在途时连续触发只发一次 create', async () => {
+    let resolveCreate!: () => void
+    h.createGreeting.mockReturnValue(new Promise<void>(r => { resolveCreate = r }))
+    const wrapper = await mountComponent()
+
+    const editBtns = wrapper.findAll('button').filter(b => b.text() === 'admin.specialDayEditGreetings')
+    await editBtns[0].trigger('click')
+    await flushPromises()
+
+    await wrapper.get('.sd-greeting-input').setValue('新当日文案')
+    const addBtn = wrapper.findAll('button').find(b => b.text().includes('common.add'))!
+    await addBtn.trigger('click')
+    await addBtn.trigger('click') // keyup.enter 在 :loading 拦不住的路径
+    await flushPromises()
+
+    expect(h.createGreeting).toHaveBeenCalledTimes(1)
+
+    resolveCreate()
+    await flushPromises()
+    // 守卫释放：可再次提交
+    h.createGreeting.mockResolvedValue({ id: 9, text: '再来一条', time_slot: 'any', is_enabled: 1, special_day_id: 1 })
+    await wrapper.get('.sd-greeting-input').setValue('再来一条')
+    await addBtn.trigger('click')
+    await flushPromises()
+    expect(h.createGreeting).toHaveBeenCalledTimes(2)
+  })
 })

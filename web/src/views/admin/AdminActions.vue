@@ -74,7 +74,9 @@ const { t } = useI18n()
 const ACTION_OPTIONS = [
   'report_resolve', 'content_remove', 'content_restore',
   'artist_ban', 'artist_unban', 'home_takedown', 'home_restore',
-  'artist_status_set', 'artist_remove', 'delivery_link_reissue'
+  'artist_status_set', 'artist_remove', 'delivery_link_reissue',
+  // B7-F0111：更换管理员留痕动作（对齐后端白名单新登记项）
+  'admin_transfer'
 ] as const
 /** 对象类型取值（后端 writeAdminAction 实际写入的 target_type） */
 const TARGET_TYPE_OPTIONS = ['report', 'artwork', 'message', 'artist', 'deliverable'] as const

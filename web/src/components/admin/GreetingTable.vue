@@ -126,14 +126,29 @@ const api = computed(() => props.artistId
     }
 )
 
+// B7-F0185：请求序号门闩——artistId 变化触发的 load 与在途旧请求竞速时，
+// 旧画师的响应不得覆盖当前画师的问候语列表
+let loadSeq = 0
+
 async function load() {
+  const seq = ++loadSeq
   loading.value = true
-  try { greetings.value = await api.value.list() }
-  catch (err) { ElMessage.error((err as Error).message) }
-  finally { loading.value = false }
+  try {
+    const rows = await api.value.list()
+    if (seq !== loadSeq) return
+    greetings.value = rows
+  } catch (err) {
+    if (seq !== loadSeq) return
+    ElMessage.error((err as Error).message)
+  } finally {
+    if (seq === loadSeq) loading.value = false
+  }
 }
 
 async function addGreeting() {
+  // B7-F0187：在途守卫——按钮有 :loading 但输入框 keyup.enter 不受其约束，
+  // 连续回车会在 newText 清空前重复提交，创建重复问候语
+  if (saving.value) return
   if (!newText.value.trim()) return
   saving.value = true
   try {

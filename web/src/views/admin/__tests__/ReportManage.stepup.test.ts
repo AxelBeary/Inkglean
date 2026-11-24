@@ -60,7 +60,13 @@ const EP_STUBS = {
     props: ['loading', 'disabled'],
     template: '<button type="button" :disabled="disabled || loading" @click="$emit(\'click\')"><slot /></button>'
   },
-  'el-tabs': { template: '<div><slot /></div>' },
+  'el-tabs': {
+    // B7-F0288：补 name/props/emits——测试需驱动 v-model 与 tab-change 切 Tab
+    name: 'ElTabs',
+    props: ['modelValue'],
+    emits: ['update:modelValue', 'tab-change'],
+    template: '<div class="tabs-stub"><slot /></div>'
+  },
   'el-tab-pane': { template: '<div><slot /></div>' },
   'el-table': { template: '<div class="table-stub"><slot /></div>' },
   'el-table-column': {
@@ -216,5 +222,62 @@ describe('ReportManage 封禁/解封两步确认（815-b3-ban）', () => {
     expect(h.prompt).toHaveBeenCalledWith('compliance.admin.homeTakedownConfirm', 'compliance.admin.homeTakedown', expect.anything())
     expect(h.homeTakedown).toHaveBeenCalledWith(10, '原因')
     expect(h.msgSuccess).toHaveBeenCalledWith('compliance.admin.homeTakedownToast')
+  })
+})
+
+// ═══ B7-F0288：举报列表请求序号门闩——快速切 Tab 时旧 Tab 的响应不得覆盖 ═══
+describe('B7-F0288 Tab 切换竞速门闩', () => {
+  /** vm 上的 setup 状态形状（VTU 经实例代理暴露 script-setup refs） */
+  interface ReportsVm {
+    reports: Array<{ id: number; status: string }>
+  }
+
+  async function switchTab(wrapper: ReturnType<typeof mount>, name: 'pending' | 'resolved') {
+    const tabs = wrapper.getComponent({ name: 'ElTabs' })
+    await tabs.vm.$emit('update:modelValue', name)
+    await tabs.vm.$emit('tab-change', name)
+    await flushPromises()
+  }
+
+  it('pending 慢响应迟到 → 不得覆盖 resolved Tab 的列表，也不触发错误提示', async () => {
+    let resolvePending!: (v: unknown[]) => void
+    h.getReports.mockImplementation((tab: 'pending' | 'resolved') =>
+      tab === 'pending'
+        ? new Promise(r => { resolvePending = r })
+        : Promise.resolve([{ id: 99, target_type: 'artist_home', target_id: 10, description: '已处理', contact: null, status: 'resolved', resolved_by: 1, resolved_at: '2026-08-16', created_at: '2026-08-15' }])
+    )
+    const wrapper = mountPage()
+    await flushPromises() // pending 的请求在途（慢）
+
+    await switchTab(wrapper, 'resolved')
+    const vm = wrapper.vm as unknown as ReportsVm
+    expect(vm.reports.map(r => r.id)).toEqual([99])
+
+    // pending 的慢响应迟到 → 门闩拦下：列表仍是 resolved 的数据
+    resolvePending([{ id: 1, target_type: 'artist_home', target_id: 10, description: 'd', contact: null, status: 'pending', resolved_by: null, resolved_at: null, created_at: '2026-08-15' }])
+    await flushPromises()
+    expect(vm.reports.map(r => r.id)).toEqual([99])
+    expect(h.msgError).not.toHaveBeenCalled()
+  })
+
+  it('pending 慢失败迟到 → 不清空 resolved 列表、不弹错误提示', async () => {
+    let rejectPending!: (e: Error) => void
+    h.getReports.mockImplementation((tab: 'pending' | 'resolved') =>
+      tab === 'pending'
+        ? new Promise((_, rej) => { rejectPending = rej })
+        : Promise.resolve([{ id: 99, target_type: 'artist_home', target_id: 10, description: '已处理', contact: null, status: 'resolved', resolved_by: 1, resolved_at: '2026-08-16', created_at: '2026-08-15' }])
+    )
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await switchTab(wrapper, 'resolved')
+    const vm = wrapper.vm as unknown as ReportsVm
+    expect(vm.reports.map(r => r.id)).toEqual([99])
+
+    // 修复前：旧 Tab 的迟到失败会走 catch 清空当前列表并弹错误
+    rejectPending(new Error('pending 加载失败'))
+    await flushPromises()
+    expect(vm.reports.map(r => r.id)).toEqual([99])
+    expect(h.msgError).not.toHaveBeenCalled()
   })
 })

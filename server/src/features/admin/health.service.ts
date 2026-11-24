@@ -39,7 +39,18 @@ function checkDb(): HealthCheckResult {
     }
     return { id: 'db', name: '数据库连接', status: 'ok', summary: '读写正常', detail: {} }
   } catch (err) {
-    return { id: 'db', name: '数据库连接', status: 'fail', summary: (err as Error).message, detail: { error: (err as Error).message } }
+    // B7-F0117：异常路径尽力清理 _health_check_tmp（可能已 CREATE 未及 DROP），
+    // 残表会跨次堆积且下次走 IF NOT EXISTS 掩盖问题；清理失败不吞原始错误（仅记录）
+    let cleanupError: string | null = null
+    try {
+      db.exec('DROP TABLE IF EXISTS _health_check_tmp')
+    } catch (cleanupErr) {
+      cleanupError = (cleanupErr as Error).message
+    }
+    return {
+      id: 'db', name: '数据库连接', status: 'fail', summary: (err as Error).message,
+      detail: cleanupError ? { error: (err as Error).message, tmpCleanupError: cleanupError } : { error: (err as Error).message }
+    }
   }
 }
 
@@ -97,9 +108,11 @@ export interface DiskHeadroom {
 /**
  * statfs 读数 → 水位判定（纯计算，报表与守卫共用同一个函数，杜绝两套判据劈叉）。
  * 阈值 0 = 守卫关闭（运维显式声明），其余情况按「可用 MB ≥ 阈值 MB」放行。
+ * B7-F0113：改用 bavail（非特权进程实际可用块）——bfree 含 root 保留块，
+ * 守卫按 bfree 判会高估可用空间，真到水位线时上传仍被内核 ENOSPC 拒绝。
  */
-function headroomFromStats(stats: Pick<StatsFs, 'bfree' | 'bsize'>, minFreeMb: number): DiskHeadroom {
-  const freeMb = Math.floor((stats.bfree * stats.bsize) / (1024 * 1024))
+function headroomFromStats(stats: Pick<StatsFs, 'bavail' | 'bsize'>, minFreeMb: number): DiskHeadroom {
+  const freeMb = Math.floor((stats.bavail * stats.bsize) / (1024 * 1024))
   return { ok: minFreeMb <= 0 || freeMb >= minFreeMb, freeMb, minFreeMb, probeError: null }
 }
 
@@ -121,8 +134,9 @@ async function checkDisk(): Promise<HealthCheckResult> {
   try {
     const stats = await statfs(UPLOAD_DIR)
     const totalBytes = stats.blocks * stats.bsize
-    const freeBytes = stats.bfree * stats.bsize
-    const usedBytes = totalBytes - freeBytes
+    // B7-F0113：显示「剩余」与守卫同口径用 bavail（df 的 avail 列）；used 取 df 口径 total-bfree
+    const freeBytes = stats.bavail * stats.bsize
+    const usedBytes = totalBytes - stats.bfree * stats.bsize
     const totalGB = (totalBytes / 1073741824).toFixed(1)
     const freeGB = (freeBytes / 1073741824).toFixed(1)
     const usedPct = totalBytes > 0 ? ((usedBytes / totalBytes) * 100).toFixed(1) : '0'

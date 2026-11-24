@@ -278,6 +278,36 @@ describe('P2-F6 重绑链路安全加固', () => {
     expect(blocked.json().code).toBe('TOTP_LOCKED')
   })
 
+  it('TC-B7-F0125: verify-current 成功清账号级失败计数——后续需重新累计 5 次才锁定', async () => {
+    const { artist, secret } = bindArtist('88805', 'b7-vc-clear')
+    const token = createSession(artist.id, artist.token_version)
+    const headers = { Authorization: 'Bearer ' + token }
+    const right = computeTotp(secret, Date.now())
+    const wrong = String((parseInt(right, 10) + 1) % 1000000).padStart(6, '0')
+
+    // 错 3 次（未达 5 次锁定阈值）
+    for (let i = 0; i < 3; i++) {
+      const res = await app.inject({ method: 'POST', url: '/api/auth/totp/verify-current', headers, payload: { code: wrong } })
+      expect(res.statusCode).toBe(401)
+    }
+
+    // 正确码验证成功 → 计数清零（修复前：成功不清零，3 次误输一直挂着，
+    // 用户再误输 2 次即触发锁定——一次成功校验本应证明操作者掌握正确码）
+    const ok = await app.inject({ method: 'POST', url: '/api/auth/totp/verify-current', headers, payload: { code: right } })
+    expect(ok.statusCode).toBe(200)
+    const cleared = db.prepare('SELECT totp_failed_attempts FROM artists WHERE id = ?').get(artist.id) as { totp_failed_attempts: number }
+    expect(cleared.totp_failed_attempts).toBe(0)
+
+    // 清零后重新累计：连错到第 5 次才锁定（而非此前残留 3 次再 2 次即锁）
+    for (let i = 0; i < 4; i++) {
+      const res = await app.inject({ method: 'POST', url: '/api/auth/totp/verify-current', headers, payload: { code: wrong } })
+      expect(res.statusCode).toBe(401)
+    }
+    const fifth = await app.inject({ method: 'POST', url: '/api/auth/totp/verify-current', headers, payload: { code: wrong } })
+    expect(fifth.statusCode).toBe(429)
+    expect(fifth.json().code).toBe('TOTP_LOCKED')
+  })
+
   it('TC-F6-02: rebind-init 超过 10 次/5 分钟 → 429 RATE_LIMITED', async () => {
     const { artist } = bindArtist('88802', 'f6-init-limit')
     const token = createSession(artist.id, artist.token_version)

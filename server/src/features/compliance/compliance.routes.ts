@@ -35,7 +35,9 @@ export default async function complianceRoutes(fastify: FastifyInstance) {
     'artist_ban', 'artist_unban', 'home_takedown', 'home_restore',
     'artist_status_set', 'artist_remove',
     // GHSA-6pf3 S3：画师资料更新已写留痕，白名单漏它会让 ?action= 精确筛不到
-    'artist_profile_update', 'delivery_link_reissue'
+    'artist_profile_update', 'delivery_link_reissue',
+    // B7-F0111：更换管理员（admin_qq）已写留痕，同步登记白名单
+    'admin_transfer'
   ]
 
   /**

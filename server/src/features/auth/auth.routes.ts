@@ -1,4 +1,4 @@
-import { verifyTotpLogin, createSession, checkTotpLocked, registerTotpFailure, TOTP_MAX_ATTEMPTS } from './auth.service.js'
+import { verifyTotpLogin, createSession, checkTotpLocked, registerTotpFailure, clearTotpFailures, TOTP_MAX_ATTEMPTS } from './auth.service.js'
 import type { CreateSessionOptions } from './auth.service.js'
 import { registerDesktopDevice } from './devices.service.js'
 import { requireAuth, getAdminQq } from '../../shared/middleware/auth.js'
@@ -574,6 +574,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
       registerTotpFailure(artist.id)
       throw new AppError(E.TOTP_INVALID, 401)
     }
+    // B7-F0125：校验成功清累计失败计数（对齐登录路径 verifyTotpLogin 成功清零语义）——
+    // 此前成功不清零，历史误输叠加一次新误输即触发账号锁定
+    clearTotpFailures(artist.id)
     return { ok: true }
   })
 

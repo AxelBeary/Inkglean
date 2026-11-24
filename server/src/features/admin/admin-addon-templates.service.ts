@@ -1,5 +1,6 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
+import { sanitizeStoredText } from '../../shared/sanitize.js'
 import type { AddonTemplate } from '../pricing/style.service.js'
 
 // ============================================
@@ -124,11 +125,12 @@ export function createSystemAddonTemplate(input: CreateSystemAddonTemplateInput)
     INSERT INTO addon_templates (artist_id, name, control_type, price_mode, default_price, unit_label, sort_order, category, max_quantity)
     VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
-    v.name,
+    // B7-F0105：系统模板 name/unit_label 与画师侧 createAddonTemplate 同款消毒（此前裸写入）
+    sanitizeStoredText(v.name).trim(),
     v.controlType,
     v.priceMode,
     v.defaultPrice,
-    input.unit_label || null,
+    sanitizeStoredText(input.unit_label) || null,
     sortOrder,
     v.category,
     input.max_quantity ?? null
@@ -151,6 +153,17 @@ export function updateSystemAddonTemplate(
     const tpl = getSystemAddonTemplate(templateId)
 
     // ─── 冻结（默认）───
+    // B7-F0103：单独改 price_mode 同样会重定价所有绑定引用行——绑定行的计价模式以模板为权威
+    // （style_addons 无 mode 覆盖列，price_override 冻结不了模式），冻结模式下直接拒绝，
+    // sync=true 是显式「引用行跟随」语义才放行；无引用的模板可自由改
+    if (fields.price_mode !== undefined && fields.price_mode !== tpl.price_mode && fields.sync !== true) {
+      const refs = db.prepare(
+        'SELECT COUNT(*) AS c FROM style_addons WHERE addon_template_id = ?'
+      ).get(templateId) as { c: number }
+      if (refs.c > 0) {
+        throw new AppError(E.ADDON_TEMPLATE_MODE_LOCKED, 400, { referenced: refs.c })
+      }
+    }
     if (fields.sync !== true && fields.default_price !== undefined && fields.default_price !== tpl.default_price) {
       db.prepare(
         'UPDATE style_addons SET price_override = ? WHERE addon_template_id = ? AND price_override IS NULL'
@@ -160,7 +173,8 @@ export function updateSystemAddonTemplate(
     // ─── 字段更新 ───
     if (fields.name !== undefined) {
       if (!fields.name.trim()) throw new AppError(E.ADDON_TEMPLATE_NAME_EMPTY)
-      db.prepare('UPDATE addon_templates SET name = ? WHERE id = ?').run(fields.name.trim(), templateId)
+      // B7-F0105：对齐画师侧 updateAddonTemplate 的 name 消毒
+      db.prepare('UPDATE addon_templates SET name = ? WHERE id = ?').run(sanitizeStoredText(fields.name).trim(), templateId)
     }
     if (fields.control_type !== undefined) {
       if (!VALID_CONTROL_TYPES.includes(fields.control_type as typeof VALID_CONTROL_TYPES[number])) {
@@ -179,7 +193,8 @@ export function updateSystemAddonTemplate(
       db.prepare('UPDATE addon_templates SET default_price = ? WHERE id = ?').run(fields.default_price, templateId)
     }
     if (fields.unit_label !== undefined) {
-      db.prepare('UPDATE addon_templates SET unit_label = ? WHERE id = ?').run(fields.unit_label || null, templateId)
+      // B7-F0105：对齐画师侧 updateAddonTemplate 的 unit_label 消毒
+      db.prepare('UPDATE addon_templates SET unit_label = ? WHERE id = ?').run(sanitizeStoredText(fields.unit_label) || null, templateId)
     }
     if (fields.sort_order !== undefined) {
       if (!Number.isInteger(fields.sort_order) || fields.sort_order < 0 || fields.sort_order > 9999) {
@@ -227,24 +242,29 @@ export function updateSystemAddonTemplate(
  * 再显式解绑并删除。返回引用数供前端二次确认文案使用。
  */
 export function deleteSystemAddonTemplate(templateId: number): { deleted: boolean; referenced: number } {
-  const tpl = getSystemAddonTemplate(templateId) // 非系统模板一律 404
-  const refs = db.prepare(
-    'SELECT COUNT(*) AS c FROM style_addons WHERE addon_template_id = ?'
-  ).get(templateId) as { c: number }
-  if (refs.c > 0) {
-    // 快照模板数据（解绑后独立增项保留名称/控件/价格/上限等展示数据）
-    db.prepare(`
-      UPDATE style_addons SET
-        tpl_name = ?, tpl_control_type = ?, tpl_price_mode = ?, tpl_default_price = ?,
-        tpl_unit_label = ?, tpl_category = ?, tpl_max_quantity = ?
-      WHERE addon_template_id = ?
-    `).run(
-      tpl.name, tpl.control_type, tpl.price_mode, tpl.default_price,
-      tpl.unit_label, tpl.category, tpl.max_quantity, templateId
-    )
-    // 显式解绑（外键 ON DELETE SET NULL 双保险，保证快照一致性）
-    db.prepare('UPDATE style_addons SET addon_template_id = NULL WHERE addon_template_id = ?').run(templateId)
-  }
-  db.prepare('DELETE FROM addon_templates WHERE id = ?').run(templateId)
-  return { deleted: true, referenced: refs.c }
+  // B7-F0104：快照/解绑/删除三步包事务——中途任一步抛错整体回滚，不再留下
+  // 「已解绑但模板还在」或「快照写入一半」的半态（对齐同域 updateSystemAddonTemplate 的事务范式）
+  return db.transaction(() => {
+    const tpl = getSystemAddonTemplate(templateId) // 非系统模板一律 404
+    const refs = db.prepare(
+      'SELECT COUNT(*) AS c FROM style_addons WHERE addon_template_id = ?'
+    ).get(templateId) as { c: number }
+    if (refs.c > 0) {
+      // 快照模板数据（解绑后独立增项保留名称/控件/价格/上限等展示数据）
+      // B7-F0105：快照写入同款消毒（对齐画师侧 deleteAddonTemplate）
+      db.prepare(`
+        UPDATE style_addons SET
+          tpl_name = ?, tpl_control_type = ?, tpl_price_mode = ?, tpl_default_price = ?,
+          tpl_unit_label = ?, tpl_category = ?, tpl_max_quantity = ?
+        WHERE addon_template_id = ?
+      `).run(
+        sanitizeStoredText(tpl.name), tpl.control_type, tpl.price_mode, tpl.default_price,
+        sanitizeStoredText(tpl.unit_label), tpl.category, tpl.max_quantity, templateId
+      )
+      // 显式解绑（外键 ON DELETE SET NULL 双保险，保证快照一致性）
+      db.prepare('UPDATE style_addons SET addon_template_id = NULL WHERE addon_template_id = ?').run(templateId)
+    }
+    db.prepare('DELETE FROM addon_templates WHERE id = ?').run(templateId)
+    return { deleted: true, referenced: refs.c }
+  })()
 }
