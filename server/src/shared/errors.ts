@@ -98,6 +98,9 @@ export const E = {
   ORDER_CONFLICT: 'ORDER_CONFLICT',
   // 审计 #21 条目 3: 同一幂等键携带不同请求载荷（不是重放，是两次不同意图）
   IDEMPOTENCY_CONFLICT: 'IDEMPOTENCY_CONFLICT',
+  // TASK2-01: 幂等响应信封解密失败/密钥轮换——与「载荷冲突」不同码，
+  // 前端不得清 key（清 key 会引导重复下单/重复扣款）
+  IDEMPOTENCY_ENVELOPE_INVALID: 'IDEMPOTENCY_ENVELOPE_INVALID',
   DELIVER_WRONG_STATUS: 'DELIVER_WRONG_STATUS',
   TIER_NOT_FOUND: 'TIER_NOT_FOUND',
   ILLEGAL_PATH: 'ILLEGAL_PATH',
@@ -369,6 +372,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
   PAYMENT_REVOKE_LIMIT: '该笔收款已撤销到上限，不能重复撤销',
   ORDER_CONFLICT: '订单已被其他操作更新，请刷新后重试',
   IDEMPOTENCY_CONFLICT: '本次提交与此前已受理的提交内容不同，请确认金额等信息后重新提交',
+  // TASK2-01: 解密失败不得引导换 key——该提交可能已经受理，换 key 重提会重复下单/扣款
+  IDEMPOTENCY_ENVELOPE_INVALID: '该提交可能已受理，请勿重复提交；如未确认请联系客服',
   DELIVER_WRONG_STATUS: '当前状态不允许交付',
   TIER_NOT_FOUND: '价格档位不存在',
   ORDER_INVALID_STATUS: '无效的订单状态',
