@@ -1,5 +1,5 @@
-import { execSync, spawn } from 'child_process'
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs'
+import { execSync, spawn, type ChildProcess } from 'child_process'
+import { existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { createRequire } from 'module'
@@ -80,13 +80,18 @@ function isTotpInvalid401(err: unknown): boolean {
 
 /**
  * E8 登出后解毒：用真实 TOTP 登录重签 artist token 并写回 .tokens.json。
- * 逐个尝试 ±1 窗口内未被本进程消费的时间步；若同一窗口内的候选全部命中重放防护
- * （如 E7 已消费 current+1、global-setup 已消费 current），则等到下一时间步再试，
- * 保证用例失败重试时共享缓存仍持有有效 token。
+ * 逐个尝试 ±1 窗口内未被本进程消费的时间步；若候选全部命中 TOTP_INVALID
+ * （锁定/封禁/重放等五态统一错误），短退避后用当前时间步重新算的码立即重试（上限见下方常量），
+ * 在用例超时前抛出最后一次真实错误，不空等 30s 边界。
  */
 // F0052: 等下一时间步的重试必须有上限——匿名 401 五态统一后锁定/封禁不再可判别，
-// 无上限的旧实现会无限递归烧防爆破预算（每 30s 一轮直到人为中断）
+// 无上限的旧实现会无限递归烧防爆破预算（每 30s 一轮直到人为中断）。
+// F-02/SCR-03: 预算必须与唯一调用方 E8（e8-passkey.spec.ts）的 test.setTimeout 对账——
+//   旧：3 轮 × 每轮死等到 30s 边界 ≈ 90s > E8 的 60s，用例先裸超时，F0052 抛出的 lastError 永远没机会呈现；
+//   新：每轮失败后仅短退避 1s，下一轮基于当前时间步重新计算候选码（跨步即拿到新步的码）立即重试，
+//       最坏 ≈ 3 轮 × (3 次登录请求 + 1s 退避)，远小于 E8 的 120s，真实错误可在超时前呈现。
 const TOKEN_REFRESH_MAX_ROUNDS = 3
+const TOTP_RETRY_BACKOFF_MS = 1_000
 
 export async function refreshArtistTokenCache(baseURL: string, qqNumber: string = '10001'): Promise<string> {
   let lastError: unknown = null
@@ -109,8 +114,9 @@ export async function refreshArtistTokenCache(baseURL: string, qqNumber: string 
         if (!isTotpInvalid401(err)) throw err
       }
     }
-    const waitMs = 30_000 - (Date.now() % 30_000) + 100
-    await new Promise(r => setTimeout(r, waitMs))
+    // F-02/SCR-03: 不再死等到 30s 边界——五态统一后锁定/封禁/重放无法区分，空等只会把真实错误
+    // 拖到用例超时之后；短退避后下一轮重新调用 nextLoginTotp 拿当前（可能已进入新步）的码。
+    await new Promise(r => setTimeout(r, TOTP_RETRY_BACKOFF_MS))
     return attempt(round + 1)
   }
   return attempt(0)
@@ -134,7 +140,86 @@ async function apiStepUp(baseURL: string, token: string, qqNumber: string): Prom
   return tokenCookie.split(';')[0].split('=').slice(1).join('=')
 }
 
+/**
+ * SCR-08: 判断 web/dist 是否需要重建。
+ * - E2E_SKIP_BUILD=1：调用方（如 scripts/accept.ps1 的 web-build 门禁）已构建，显式跳过；
+ * - 否则按 mtime 增量：dist/index.html 存在且不早于 web/src 最新源文件与关键配置则跳过。
+ * 保持单向职责：本函数只判定，不执行构建。
+ */
+function needsWebBuild(): boolean {
+  if (process.env.E2E_SKIP_BUILD === '1') {
+    console.log('📦 E2E: E2E_SKIP_BUILD=1，跳过前端构建（调用方已构建 web/dist）')
+    return false
+  }
+  const distIndex = resolve(ROOT, 'web/dist/index.html')
+  if (!existsSync(distIndex)) return true
+  const builtAt = statSync(distIndex).mtimeMs
+
+  let newestSource = 0
+  const srcDir = resolve(ROOT, 'web/src')
+  if (existsSync(srcDir)) newestSource = newestMtime(srcDir)
+  for (const cfg of ['web/index.html', 'web/vite.config.ts', 'web/package.json']) {
+    const cfgPath = resolve(ROOT, cfg)
+    if (existsSync(cfgPath)) newestSource = Math.max(newestSource, statSync(cfgPath).mtimeMs)
+  }
+  return newestSource > builtAt
+}
+
+/** 递归返回目录下最新文件的 mtime（ms），空目录返回 0 */
+function newestMtime(dir: string): number {
+  let newest = 0
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const p = resolve(dir, entry.name)
+    if (entry.isDirectory()) newest = Math.max(newest, newestMtime(p))
+    else if (entry.isFile()) newest = Math.max(newest, statSync(p).mtimeMs)
+  }
+  return newest
+}
+
+/**
+ * SCR-01: 探测目标端口上的服务健康特征。
+ * 200 且 body.status==='ok' 才算「本套件遗留的 E2E 服务器」；其它 HTTP 响应（404/503/非 JSON）
+ * 只算「端口被其它进程占用」；连接失败/超时算端口空闲（真被占用时 spawn 的 earlyExit 会收口）。
+ */
+interface HealthProbe { httpOk: boolean; statusOk: boolean }
+async function fetchHealth(baseURL: string): Promise<HealthProbe> {
+  try {
+    const res = await fetch(`${baseURL}/api/health`, { signal: AbortSignal.timeout(3_000) })
+    if (!res.ok) return { httpOk: false, statusOk: false }
+    let status: unknown
+    try {
+      status = (await res.json() as { status?: unknown }).status
+    } catch {
+      // 非 JSON 响应：不是本套件的健康端点
+    }
+    return { httpOk: true, statusOk: status === 'ok' }
+  } catch {
+    return { httpOk: false, statusOk: false }
+  }
+}
+
+/** SCR-02: 轮询等待子进程退出（SIGKILL 是异步信号）——exitCode/signalCode 非空即确认退出 */
+async function waitForChildExit(child: ChildProcess, timeoutMs: number): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null || child.signalCode !== null) return true
+    await new Promise(r => setTimeout(r, 100))
+  }
+  return child.exitCode !== null || child.signalCode !== null
+}
+
 export default async function globalSetup(): Promise<void> {
+  const baseURL = E2E_BASE_URL
+
+  // 0. SCR-01: 端口探测提到删库/构建之前——占用时零成本失败，不白跑最贵步骤；
+  //    且校验 health 特征（200 + status:ok），避免把任意 HTTP 响应误判为「遗留 E2E 服务器」。
+  const probe = await fetchHealth(baseURL)
+  if (probe.statusOk) {
+    throw new Error(`端口 ${E2E_PORT} 有遗留 E2E 服务器在响应 ${baseURL}/api/health——请先停掉上一次的 E2E 服务器（或改用 E2E_PORT）`)
+  }
+  if (probe.httpOk) {
+    throw new Error(`端口 ${E2E_PORT} 已被其它进程占用（${baseURL}/api/health 未返回健康 E2E 特征 status:ok）——请释放端口或改用 E2E_PORT`)
+  }
   // 1. 清理旧测试数据（P-AC3: 不污染开发数据）
   for (const f of [TEST_DB, `${TEST_DB}-wal`, `${TEST_DB}-shm`, `${TEST_DB}-journal`]) {
     if (existsSync(f)) rmSync(f)
@@ -147,8 +232,12 @@ export default async function globalSetup(): Promise<void> {
     console.log('📦 E2E: 安装前端依赖...')
     execSync('npm install', { cwd: resolve(ROOT, 'web'), stdio: 'inherit', timeout: 120_000 })
   }
-  console.log('📦 E2E: 构建前端...')
-  execSync('npm run build', { cwd: resolve(ROOT, 'web'), stdio: 'inherit', timeout: 120_000 })
+  if (needsWebBuild()) {
+    console.log('📦 E2E: 构建前端...')
+    execSync('npm run build', { cwd: resolve(ROOT, 'web'), stdio: 'inherit', timeout: 120_000 })
+  } else {
+    console.log('📦 E2E: web/dist 已是最新，跳过构建（SCR-08；需要重建时更新源码 mtime 或去掉 E2E_SKIP_BUILD）')
+  }
 
   // 3. 初始化 + 种子数据库
   if (!existsSync(resolve(ROOT, 'server/node_modules/.bin'))) {
@@ -170,15 +259,7 @@ export default async function globalSetup(): Promise<void> {
   console.log('🔐 E2E: 注入测试 TOTP 密钥...')
   seedTotpForE2e()
 
-  // 4. 启动服务器
-  // F0054: spawn 前先探一次端口——此刻本套件尚无子进程，任何响应都只能是上次遗留的服务器，
-  // 直接报错拒绝（否则下面的健康检查会打到旧进程上假绿，预登录踩到陈旧数据/陈旧端口）
-  const baseURL = E2E_BASE_URL
-  const stalePort = await fetch(`${baseURL}/api/health`).then(() => true, () => false)
-  if (stalePort) {
-    throw new Error(`端口 ${E2E_PORT} 已有遗留进程在响应 ${baseURL}/api/health——请先停掉上一次的 E2E 服务器（或改用 E2E_PORT）`)
-  }
-
+  // 4. 启动服务器（端口探测已前移到最顶部，见步骤 0 / SCR-01）
   console.log(`🚀 E2E: 启动服务器 (port ${E2E_PORT})...`)
   const server = spawn(process.execPath, [tsxCli, 'src/index.ts'], {
     cwd: resolve(ROOT, 'server'),
@@ -222,19 +303,24 @@ export default async function globalSetup(): Promise<void> {
       earlyExit = `exitCode=${server.exitCode ?? 'null'} signalCode=${server.signalCode ?? 'null'}`
       break
     }
-    try {
-      const res = await fetch(`${baseURL}/api/health`)
-      if (res.ok) {
-        healthy = true
-        break
-      }
-    } catch { /* 重试 */ }
+    // SCR-01: 与端口探测同口径——不仅 200，还要 body.status==='ok' 才算真健康（别的服务假绿挡不住）
+    if ((await fetchHealth(baseURL)).statusOk) {
+      healthy = true
+      break
+    }
     await new Promise(r => setTimeout(r, 500))
   }
   if (!healthy) {
     // F0050: 失败必须当场抛错；子进程若还活着（只是慢），杀掉本次 spawn 的实例，不留孤儿占端口
     server.kill('SIGKILL')
-    rmSync(PID_FILE)
+    // SCR-02: SIGKILL 是异步信号——必须轮询确认子进程退出后再删 PID 文件，
+    // 否则 setup 抛错后 teardown 见 PID 文件已不在就立刻删库，与仍在退出的 server 竞态（WAL 可能半截重建）。
+    // 超时仍未确认退出时保留 PID 文件，交 teardown 统一 kill + 确认后清理。
+    if (await waitForChildExit(server, 5_000)) {
+      rmSync(PID_FILE)
+    } else {
+      console.warn('⚠️ E2E: 服务器 SIGKILL 后 5s 内未确认退出——保留 .server-pid 交 teardown 统一清理')
+    }
     throw new Error(
       earlyExit
         ? `E2E 服务器启动即退出（${earlyExit}），详见上方转发的服务器日志`
