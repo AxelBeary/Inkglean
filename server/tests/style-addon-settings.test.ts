@@ -177,20 +177,83 @@ describe('F0192 saveAddonSettings（service 层）', () => {
     expect(after.find(r => r.id === orphanId)!.is_enabled).toBe(0)
   })
 
-  it('TC-F1-06: 系统预置模板改价 → 复用 updateAddonTemplate 归属规则 404，且整体回滚', () => {
-    // 系统预置加急（artist_id NULL）被 createArtStyle 自动绑定且启用
-    const sysRush = styleService.getStyleAddons(style.id).find(r => r.template_category === 'rush')!
-    expect(sysRush.addon_template_id).not.toBeNull()
+  it('TC-F1-06: 系统预置模板行 scope=all 带模板价 → 跳过模板级写入+告警，不 404、不回滚用户自有修改（XEND-01/R1-F13）', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      // 系统预置加急（artist_id NULL）被 createArtStyle 自动绑定且启用
+      const sysRush = styleService.getStyleAddons(style.id).find(r => r.template_category === 'rush')!
+      expect(sysRush.addon_template_id).not.toBeNull()
+      const sysTplId = sysRush.addon_template_id!
+      const priceBefore = styleService.getAddonTemplate(artist.id, sysTplId).default_price
+
+      const result = styleService.saveAddonSettings(artist.id, style.id, {
+        styleAddonId: sysRush.id,
+        templateDefaultPrice: 999,      // 系统模板画师不可改 → 应跳过 + 告警（旧实现 404 整批回滚）
+        stylePriceOverride: 33,         // 画师自有行的合法修改，必须照常生效
+        styleEnabled: true,
+        sizeOverrides: [{ sizeId: size1.id, priceOverride: 7, isHidden: false }]
+      })
+
+      // 不 404：调用成功；系统模板全局默认价未被改写
+      expect(styleService.getAddonTemplate(artist.id, sysTplId).default_price).toBe(priceBefore)
+      // 画师自有行的合法修改未被回滚
+      const after = result.addons.find(r => r.id === sysRush.id)!
+      expect(after.price_override).toBe(33)
+      expect(after.is_enabled).toBe(1)
+      expect(styleService.getSizeOverrides(artist.id, style.id, size1.id).find(o => o.style_addon_id === sysRush.id)!.price_override).toBe(7)
+      // 告警含 F0192 线索（与孤儿行同口径）
+      expect(warnSpy).toHaveBeenCalled()
+      expect(String(warnSpy.mock.calls[0]?.[0])).toContain('F0192')
+    } finally {
+      warnSpy.mockRestore()
+    }
+  })
+
+  it('TC-F1-08: 系统模板行存在时 scope=all 保存成功且只改画师自有行（系统模板价与其他行均不受影响）', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      // 画师自有加急模板 + 绑定行（可改模板价）
+      const own = styleService.createAddonTemplate(artist.id, { name: '自有加急', category: 'rush', price_mode: 'percent', default_price: 20 })
+      styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: own.id }])
+      const ownRow = styleService.getStyleAddons(style.id).find(r => r.addon_template_id === own.id)!
+      // 系统预置行快照：模板价 + 行激活态
+      const sysRush = styleService.getStyleAddons(style.id).find(r => r.template_category === 'rush' && r.addon_template_id !== own.id)!
+      const sysTplId = sysRush.addon_template_id!
+      const sysPriceBefore = styleService.getAddonTemplate(artist.id, sysTplId).default_price
+      const sysEnabledBefore = sysRush.is_enabled
+
+      // 对「画师自有行」做 scope=all 保存：只应改自有模板价，系统模板行原样
+      styleService.saveAddonSettings(artist.id, style.id, {
+        styleAddonId: ownRow.id,
+        templateDefaultPrice: 45,
+        sizeOverrides: []
+      })
+
+      expect(styleService.getAddonTemplate(artist.id, own.id).default_price).toBe(45)
+      expect(styleService.getAddonTemplate(artist.id, sysTplId).default_price).toBe(sysPriceBefore)
+      const sysAfter = styleService.getStyleAddons(style.id).find(r => r.id === sysRush.id)!
+      expect(sysAfter.is_enabled).toBe(sysEnabledBefore)
+      expect(sysAfter.price_override).toBe(sysRush.price_override)
+    } finally {
+      warnSpy.mockRestore()
+    }
+  })
+
+  it('TC-F1-09: 归属校验不放宽——行绑定他人模板（数据异常/越权）仍 404，不吞真实越权', () => {
+    const other = seedArtist({ qq_number: '77212', subdomain: 'f0192-foreign' })
+    const foreignTpl = styleService.createAddonTemplate(other.id, { name: '他人模板', category: 'rush', price_mode: 'percent', default_price: 30 })
+    // 直接在画师自有画风内造一条指向他人模板的行（正常 API 不会产生，仅模拟数据异常/越权载体）
+    const foreignRowId = Number(db.prepare(
+      'INSERT INTO style_addons (art_style_id, addon_template_id, is_enabled, price_override) VALUES (?, ?, 1, NULL)'
+    ).run(style.id, foreignTpl.id).lastInsertRowid)
 
     expect(() => styleService.saveAddonSettings(artist.id, style.id, {
-      styleAddonId: sysRush.id,
-      templateDefaultPrice: 50, // 系统模板画师不可改 → ADDON_TEMPLATE_NOT_FOUND
+      styleAddonId: foreignRowId,
+      templateDefaultPrice: 88,
       sizeOverrides: []
     })).toThrow('ADDON_TEMPLATE_NOT_FOUND')
-
-    // 整体回滚：目标行激活态未变（未附带激活字段，行原样）
-    const after = styleService.getStyleAddons(style.id).find(r => r.id === sysRush.id)!
-    expect(after.is_enabled).toBe(1)
+    // 他人模板价未被越权改写
+    expect(styleService.getAddonTemplate(other.id, foreignTpl.id).default_price).toBe(30)
   })
 
   it('TC-F1-07: 归属校验——跨画师画风 404 / 不存在行 404', () => {

@@ -112,6 +112,12 @@
   - F0314 二阶段待办：服务端 nextDueCents 字段稳定后删除前端 legacyNextDueCents 回退；
   - F0081/F0077 存量结论：旧增项表已随 v43/v50 拍板 DROP，已过该版本存量库不可恢复（修复仅防重蹈）；v24 首跑无真实资金丢失（派生值可从流水重算）；
   - 行为变更知悉项：F0103 冻结模式改计价模式 400 拒绝（sync 放行）；F0110 回收站排序改路径字典序；F0283 留言仪表盘 limit=200；F0189 后 B6 弹窗打开需显式点生成（旧截图文案过时）。
+- R3-① v32 CHECK 收敛裁定（2026-11-24，③DB 席 review 修复批）：三条新增 CHECK 仅新装库/首次建表升级库具备，存量库不重建、不新增迁移号。
+  - 约束内容：discount_value>0 / max_uses>=0 / used_count>=0，属本轮新增 DDL 防御层；保留 REAL 双语义（percent/fixed 元，禁用 cents）。
+  - 存量口径：version=32 已被 migrate.ts 跳过、CREATE TABLE IF NOT EXISTS 不重建 → 存量库保持无 CHECK（预期，非缺陷）。
+  - 理由：discount.service.ts 已校验兜底；重建表（关 FK + 12 步搬运）对存量库风险高于收益。
+  - 口径固化：`audit-batch-f-ddl-consistency.test.ts` 加 CHECK 断言——新装/迁移链两路径均带三 CHECK、存量旧形无 CHECK 属预期；不新增迁移版本号。
+- R3-②/③ v83 索引守卫与留言排序（2026-11-24，③DB 席 review 修复批）：v83 幂等守卫改列+索引双判据（半态崩溃补建索引，保持 noTransaction 与备份顺序）；getAdminMessages 的 LIMIT 查询排序补 id DESC 作 tiebreaker（created_at 秒精度同秒并列稳定）。
 
 
 **起手必读**：开工第一件事＝读顶部看板 → 正文最新一块（📌）→ 拍板查「已拍板规则」→ `AGENTS.md`（事实源链与门禁口径）；碰桌面端再读 `desktop/docs/STATUS.md` 顶部，改桌面 UI 必跑 `huiyue-layout-audit` 自检循环（宿主级技能，VL 不可用时 measure.mjs + 人工清单）。

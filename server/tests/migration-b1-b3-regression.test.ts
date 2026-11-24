@@ -11,6 +11,7 @@ import { migration as v71 } from '../src/db/migrations/v71-invite-codes-multi-us
 import { migration as v66 } from '../src/db/migrations/v66-deliverables-one-time-download.js'
 import { migration as v50 } from '../src/db/migrations/v50-price-model-unify-spec-price-2.js'
 import { migration as v67 } from '../src/db/migrations/v67-greeting-slot-rework.js'
+import { migration as v83 } from '../src/db/migrations/v83-invite-codes-bound-qq.js'
 import { addForensicIpColumn } from '../src/db/migrations/v75-forensic-ip.js'
 
 /**
@@ -422,6 +423,57 @@ describe('B3-F0088/F0095/F0102: 冗余索引、幂等守卫、标识符白名单
     expect(() => addForensicIpColumn(mem, 't', 'ip')).not.toThrow()
     expect(colNames(mem, 't')).toContain('ip')
     expect(tableExists(mem, 't')).toBe(true)
+    mem.close()
+  })
+})
+
+describe('R3-②: v83 幂等守卫改列+索引双判据（半态崩溃补索引）', () => {
+  function buildInviteDb(withColumn: boolean, withIndex: boolean): Database.Database {
+    const mem = new Database(':memory:')
+    mem.exec(`
+      CREATE TABLE invite_codes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT NOT NULL UNIQUE,
+        status TEXT NOT NULL DEFAULT 'unused',
+        expires_at TEXT NOT NULL,
+        created_by INTEGER,
+        max_uses INTEGER NOT NULL DEFAULT 1,
+        use_count INTEGER NOT NULL DEFAULT 0
+        ${withColumn ? ', qq_number TEXT NULL' : ''}
+      )
+    `)
+    if (withIndex) mem.exec('CREATE INDEX idx_invite_codes_qq ON invite_codes(qq_number)')
+    return mem
+  }
+
+  const indexExists = (mem: Database.Database): boolean => !!mem.prepare(
+    "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_invite_codes_qq'"
+  ).get()
+
+  it('TC-R3-V83-01: 列已存在但索引缺失（半态）→ 重跑补建索引', () => {
+    const mem = buildInviteDb(true, false)
+    expect(colNames(mem, 'invite_codes')).toContain('qq_number')
+    expect(indexExists(mem)).toBe(false)
+    expect(() => v83.up(mem)).not.toThrow()
+    expect(colNames(mem, 'invite_codes')).toContain('qq_number')
+    expect(indexExists(mem)).toBe(true) // 索引补齐
+    mem.close()
+  })
+
+  it('TC-R3-V83-02: 列与索引齐全 → 重跑幂等、不重复备份', () => {
+    const mem = buildInviteDb(true, true)
+    expect(() => v83.up(mem)).not.toThrow()
+    expect(indexExists(mem)).toBe(true)
+    // qq_number 列只应有一份（PRAGMA 不重复追加）
+    expect(colNames(mem, 'invite_codes').filter(c => c === 'qq_number')).toHaveLength(1)
+    mem.close()
+  })
+
+  it('TC-R3-V83-03: 全新形态（无列无索引）→ 一次补齐列+索引', () => {
+    const mem = buildInviteDb(false, false)
+    expect(() => v83.up(mem)).not.toThrow()
+    expect(colNames(mem, 'invite_codes')).toContain('qq_number')
+    expect(indexExists(mem)).toBe(true)
     mem.close()
   })
 })

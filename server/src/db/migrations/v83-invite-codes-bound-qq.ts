@@ -17,26 +17,34 @@ import type { ColumnInfo, Migration } from './types.js'
  *
  * 对齐 v71 的 ALTER 风格：
  * - **必须 noTransaction**：备份的 VACUUM INTO 在事务内不可用（v68 生产实测）。
- * - 幂等：PRAGMA table_info 命中 qq_number 即跳过（含失败残留）。
+ * - 幂等（R3-② 加固）：列 + 索引双判据都齐全才跳过。原守卫只认列，ALTER 与
+ *   CREATE INDEX 写在同一 exec（多语句顺序执行、非整体原子），若在两语句之间崩溃，
+ *   重启后列已存在 → 旧守卫直接 return → idx_invite_codes_qq 永久缺失（本轮 v66/v69/v71
+ *   已修同型缺陷，此处不再重蹈）。缺哪补哪，备份顺序不变。
  */
+const INDEX_NAME = 'idx_invite_codes_qq'
+
 export const migration: Migration = {
   version: 83,
   name: 'invite_codes_bound_qq',
   // ⚠️ 事务外执行：backupDbBeforeMigration 依赖 VACUUM INTO（事务内不可用），与 v64~v71 同口径
   noTransaction: true,
   up(database) {
-    // 幂等守卫：列已存在 = 已迁移过（含失败残留），直接跳过
     const cols = database.prepare('PRAGMA table_info(invite_codes)').all() as ColumnInfo[]
-    if (cols.some(c => c.name === 'qq_number')) {
-      return
-    }
+    const hasColumn = cols.some(c => c.name === 'qq_number')
+    const hasIndex = (database.prepare('PRAGMA index_list(invite_codes)').all() as Array<{ name: string }>)
+      .some(idx => idx.name === INDEX_NAME)
+    if (hasColumn && hasIndex) return // 列 + 索引齐全 = 已完整迁移（含失败残留修复完成）
 
     backupDbBeforeMigration(83, database)
 
-    database.exec(`
-      ALTER TABLE invite_codes ADD COLUMN qq_number TEXT NULL;
-      CREATE INDEX IF NOT EXISTS idx_invite_codes_qq ON invite_codes(qq_number);
-    `)
+    // 缺列补列、缺索引补索引——两条语句拆开，任一半态重跑都能收敛
+    if (!hasColumn) {
+      database.exec('ALTER TABLE invite_codes ADD COLUMN qq_number TEXT NULL')
+    }
+    if (!hasIndex) {
+      database.exec(`CREATE INDEX IF NOT EXISTS ${INDEX_NAME} ON invite_codes(qq_number)`)
+    }
 
     console.log('📦 迁移 v83: invite_codes.qq_number（方案 A 签发绑定 QQ）已就绪')
   }

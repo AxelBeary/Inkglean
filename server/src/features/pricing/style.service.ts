@@ -614,14 +614,15 @@ export function setSizeOverrides(artistId: number, styleId: number, sizeId: numb
   ).all(sizeId) as SizeAddonOverride[]
 }
 
-// ─── F0192: 增项「一次保存」事务端点（孤儿行口径已拍板＝服务端跳过模板级写入 + 告警，不 422 整批拒） ───
+// ─── F0192: 增项「一次保存」事务端点（不可改模板价的行口径＝服务端跳过模板级写入 + 告警，不 422/404 整批拒） ───
+//  覆盖两类行：孤儿行 addon_template_id=NULL（模板已删）、系统预置行 artist_id=NULL（XEND-01/R1-F13，画师不可改系统模板全局价）。
 
 /** F0192「一次保存」payload —— 身份键 styleAddonId（style_addons 行 id），非施工图建议形状的 addonTemplateId：
  *  孤儿行 addon_template_id 为 null（模板已删、快照独立增项），靠模板 id 定位不到行（同画风可有多条孤儿行）；
  *  模板 id 一律由服务端从行内读取、不信前端回传（根治 F0190/F0191 的孤儿 null 被当 number 回传问题）。 */
 export interface SaveAddonSettingsInput {
   styleAddonId: number
-  /** 模板级本身价（scope=all 且模板价变更才带）；孤儿行带此项 → 服务端跳过模板级写入并告警（拍板口径） */
+  /** 模板级本身价（scope=all 且模板价变更才带）；孤儿行 / 系统预置行带此项 → 服务端跳过模板级写入并告警（拍板口径） */
   templateDefaultPrice?: number
   /** 画风价覆盖；null = 清覆盖跟随模板（继承语义，与 setStyleAddons 同口径） */
   stylePriceOverride?: number | null
@@ -656,9 +657,10 @@ function disableMutexSiblingAddons(styleId: number, targetSaId: number): void {
 /**
  * F0192: 增项设置「一次保存」——模板价 / 画风价覆盖 / 激活互斥 / 尺寸覆盖合并进单个 db.transaction，
  * 全成全败（替代前端对三类端点串行多次写导致的「部分生效无回滚」）。
- * 业务规则复用既有实现，不复制第三份：模板价走 updateAddonTemplate（归属校验 + percent 整数约束 +
- * 负价拒绝全在既有实现内）；行级写入走 applyStyleAddonFields / upsertSizeOverrideRow（老端点同调，
- * price_override=null=继承语义单点维护）；互斥按库内 category 推导（含孤儿行快照类别）。
+ * 业务规则复用既有实现，不复制第三份：可改模板价走 updateAddonTemplate（归属校验 + percent 整数约束 +
+ * 负价拒绝全在既有实现内），孤儿行 / 系统预置行不可改模板级价则跳过 + 告警（不放宽归属校验、不吞真实越权）；
+ * 行级写入走 applyStyleAddonFields / upsertSizeOverrideRow（老端点同调，price_override=null=继承语义单点维护）；
+ * 互斥按库内 category 推导（含孤儿行快照类别）。
  */
 export function saveAddonSettings(artistId: number, styleId: number, input: SaveAddonSettingsInput): SaveAddonSettingsResult {
   getArtStyle(artistId, styleId) // 画风归属校验
@@ -675,8 +677,19 @@ export function saveAddonSettings(artistId: number, styleId: number, input: Save
         // F0192 拍板口径：孤儿行无模板可改价 → 跳过模板级写入并告警，不 422 整批拒（其余层级照常生效）
         console.warn(`[F0192] 孤儿增项行（styleId=${styleId}, styleAddonId=${target.id}）无模板可改价，跳过模板级写入`)
       } else {
-        // 复用 updateAddonTemplate：模板归属校验 + percent 整数约束 + 负价拒绝全在既有实现内
-        updateAddonTemplate(artistId, target.addon_template_id, { default_price: input.templateDefaultPrice })
+        // XEND-01/R1-F13：系统预置模板（artist_id NULL，管理员后台维护）画师不可改其全局默认价，
+        // 与孤儿行同口径跳过模板级写入 + 告警，不 404 整批回滚用户自有行的合法修改。
+        // 归属校验不放宽：只有 artist_id IS NULL（系统模板）才跳过；若绑定行指向他人模板（数据异常/越权），
+        // 仍交由 updateAddonTemplate 既有归属校验抛 404，绝不吞掉真实越权。模板缺失时同样落到该校验抛错，不静默放行。
+        const tplOwner = db.prepare(
+          'SELECT artist_id FROM addon_templates WHERE id = ?'
+        ).get(target.addon_template_id) as { artist_id: number | null } | undefined
+        if (tplOwner && tplOwner.artist_id === null) {
+          console.warn(`[F0192] 系统预置模板增项行（styleId=${styleId}, styleAddonId=${target.id}, templateId=${target.addon_template_id}）画师不可改模板级价，跳过模板级写入`)
+        } else {
+          // 复用 updateAddonTemplate：模板归属校验 + percent 整数约束 + 负价拒绝全在既有实现内
+          updateAddonTemplate(artistId, target.addon_template_id, { default_price: input.templateDefaultPrice })
+        }
       }
     }
 
