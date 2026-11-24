@@ -19,6 +19,20 @@ function isProcessAlive(pid: number): boolean {
 }
 
 /**
+ * SCR-09: 轮询 isProcessAlive 等待进程退出，替代固定 setTimeout(2000)+500。
+ * server 通常 ~200ms 就退出，旧实现无论死活都硬等 2.5s；本函数退出即返回，
+ * 仅在确需等待时才占用时间，返回是否在超时前确认退出。
+ */
+async function waitForProcessExit(pid: number, timeoutMs: number, intervalMs = 100): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (!isProcessAlive(pid)) return true
+    await new Promise(r => setTimeout(r, intervalMs))
+  }
+  return !isProcessAlive(pid)
+}
+
+/**
  * F0055: 校验 PID 对应进程确实是本套件的测试服务器（tsx 跑 server/src/index.ts），
  * 防 PID 复用后误杀无关进程——旧实现仅凭存活检查就敢 SIGKILL。
  * Linux 读 /proc/<pid>/cmdline 匹配特征；无 /proc 的平台（Windows）无法核身，
@@ -64,13 +78,13 @@ export default async function globalTeardown(): Promise<void> {
       try {
         process.kill(pid, 'SIGTERM')
       } catch { /* 已退出 */ }
-      // 优雅关闭等待（服务器有 10s 超时强退）
-      await new Promise(r => setTimeout(r, 2000))
-      if (isProcessAlive(pid) && looksLikeE2eServer(pid)) {
+      // 优雅关闭轮询（服务器自身有 10s 超时强退）：已退出立即返回，不再硬等 2s（SCR-09）
+      const gracefulExit = await waitForProcessExit(pid, 10_000)
+      if (!gracefulExit && isProcessAlive(pid) && looksLikeE2eServer(pid)) {
         try {
           process.kill(pid, 'SIGKILL')
         } catch { /* 已退出 */ }
-        await new Promise(r => setTimeout(r, 500))
+        await waitForProcessExit(pid, 2_000)
       }
       // F0055: SIGTERM 等待期间身份校验不通过（PID 被复用）则不再补刀
       if (isProcessAlive(pid)) {
