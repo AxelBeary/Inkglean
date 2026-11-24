@@ -1,5 +1,5 @@
 import { backupDbBeforeMigration } from '../migrate.js'
-import type { ColumnInfo, CountRow, IdRow, LegacyPriceAddonRow, LegacyPriceTierRow, Migration } from './types.js'
+import type { ColumnInfo, IdRow, LegacyPriceAddonRow, LegacyPriceTierRow, Migration } from './types.js'
 
 export const migration: Migration = {
     version: 36,
@@ -78,15 +78,25 @@ export const migration: Migration = {
       database.exec('CREATE INDEX IF NOT EXISTS idx_style_addons_style ON style_addons(art_style_id)')
       database.exec('CREATE INDEX IF NOT EXISTS idx_size_addon_overrides_size ON size_addon_overrides(style_size_id)')
 
-      // ─── 老数据迁移（幂等：已有 art_styles 数据则跳过） ───
+      // ─── 老数据迁移（幂等守卫：画师粒度） ───
       // 形状感知守卫（SPEC-PRICE-2 v50）：新库基线已是新形（无 pricing_mode 列）且旧表为空，
       // 无需搬运旧数据（真实老库早已应用过本迁移，不会再到这里）
       const atColsV36 = (database.prepare('PRAGMA table_info(addon_templates)').all() as ColumnInfo[]).map(c => c.name)
       if (!atColsV36.includes('pricing_mode')) return
-      const existingStyles = (database.prepare('SELECT COUNT(*) AS c FROM art_styles').get() as CountRow).c
-      if (existingStyles > 0) return // 已迁移过
+      // F0081（B2 high）：旧全局守卫 `if (existingStyles > 0) return` 按「任一画师已有画风」跳过全体，
+      // 部分迁移/重放（版本表丢失修复）时其余画师的旧档位与旧增项被整体放弃（生产库 carol 实例，
+      // migrate.ts F5 曾以逐画师守卫补齐过档位）；本迁移改为同一范式：已有画风的画师逐个跳过。
+      // 前置守卫：v43 已按用户拍板 DROP price_addons、v50 已 DROP price_tiers（冻结依据见两迁移注释），
+      // 任一旧表缺失即无可搬数据，直接返回——防修复重放时裸 SELECT 撞「no such table」崩溃
+      const legacyTableExists = (table: string) => !!database.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name = ?"
+      ).get(table)
+      if (!legacyTableExists('price_tiers') || !legacyTableExists('price_addons')) return
 
-      const artists = database.prepare('SELECT id FROM artists').all() as IdRow[]
+      // F0081: 逐画师 NOT EXISTS 幂等（migrateF5OldModelArtists 同款范式，migrate.ts）
+      const artists = database.prepare(
+        'SELECT id FROM artists WHERE NOT EXISTS (SELECT 1 FROM art_styles WHERE art_styles.artist_id = artists.id)'
+      ).all() as IdRow[]
       const insertStyle = database.prepare(
         'INSERT INTO art_styles (artist_id, name, sort_order, is_active) VALUES (?, ?, 0, 1)'
       )

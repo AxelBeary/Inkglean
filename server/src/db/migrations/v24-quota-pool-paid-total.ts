@@ -17,12 +17,22 @@ export const migration: Migration = {
       // 仅旧形态库（含 status 列）照常执行。探测风格与第 1 步一致：PRAGMA table_info
       const instCols = database.prepare('PRAGMA table_info(order_payment_installments)').all() as ColumnInfo[]
       if (instCols.some(c => c.name === 'status')) {
+        // F0077（B2 high）：旧实现裸 UPDATE 无条件覆盖全部订单已收金额——修复重放（版本表丢失）会把
+        // v24 之后由 addPayment 流水维护的 paid_total_cents（order-pricing.ts 原子自增）冲回旧分期和；
+        // 改为 WHERE 双条件：① EXISTS 只锁定确有已付分期的目标行（不再扫全体订单），
+        // ② 原值校验只覆盖从未写过的基线值（COALESCE(paid_total_cents,0)=0；ALTER 新增列的存量行即基线）。
+        // 注：0 无法区分「从未写」与「冲正归零」，统一按基线处理，不为凑线索编造回填。
         database.exec(`
           UPDATE orders SET paid_total_cents = (
             SELECT COALESCE(SUM(amount_cents), 0)
             FROM order_payment_installments
             WHERE order_id = orders.id AND status = 'paid'
           )
+          WHERE COALESCE(paid_total_cents, 0) = 0
+            AND EXISTS (
+              SELECT 1 FROM order_payment_installments
+              WHERE order_id = orders.id AND status = 'paid'
+            )
         `)
       }
       // 3. 收款流水表
