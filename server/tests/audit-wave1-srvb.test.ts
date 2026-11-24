@@ -10,7 +10,7 @@ import { mkdirSync, writeFileSync } from 'fs'
 import { join, resolve } from 'path'
 import { db, cleanDb, seedArtist, seedOrder, type ArtistRow, type SeededOrder } from './setup.js'
 import { buildOgMeta, clearOgCache, getOgCacheSize, OG_CACHE_MAX } from '../src/features/og/og-meta.service.js'
-import { withIdempotency } from '../src/shared/idempotency.js'
+import { withIdempotency, unsealIdempotencyResponse } from '../src/shared/idempotency.js'
 import { signFilePath } from '../src/shared/file-sign.js'
 import * as orderGalleryService from '../src/features/order/order-gallery.service.js'
 import { buildApp } from '../src/app.js'
@@ -191,7 +191,9 @@ describe('SRV-13: 幂等缓存过期行残留主键——upsert 修复', () => {
       'SELECT status_code, response_json FROM idempotency_keys WHERE scope = ? AND key = ?'
     ).get(scope, key) as { status_code: number; response_json: string }
     expect(row.status_code).toBe(200)
-    expect(JSON.parse(row.response_json)).toEqual({ fresh: true })
+    // F0134：新写入的缓存行为 enc:v1 信封（旧明文行仅兼容读）
+    expect(row.response_json).toMatch(/^enc:v1:/)
+    expect(JSON.parse(unsealIdempotencyResponse(row.response_json, scope, key))).toEqual({ fresh: true })
   })
 
   it('TC-SRV13-02: 过期行重放后 created_at 被刷新（重新获得 24h 时效窗口）', () => {

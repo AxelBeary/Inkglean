@@ -51,4 +51,13 @@ describe('money.js 科学计数法消毒（817）', () => {
     expect(yuanToCents('8.21')).toBe(821)
     expect(yuanToCents('abc')).toBe(0)
   })
+
+  it('TC-MONEY-06b: F0168/F0169 非有限归 0 + 三位小数精确舍入', () => {
+    expect(yuanToCents(Infinity)).toBe(0)
+    expect(yuanToCents(-Infinity)).toBe(0)
+    expect(yuanToCents(NaN)).toBe(0)
+    expect(yuanToCents(1.005)).toBe(101)
+    expect(yuanToCents(8.215)).toBe(822)
+    expect(yuanToCents('1e5')).toBe(10000000)
+  })
 })

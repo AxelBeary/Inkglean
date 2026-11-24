@@ -82,33 +82,43 @@ interface UpdateDiscountCodeFields {
 
 /** 更新折扣码（码本身不可改，需删了重建） */
 export function updateDiscountCode(artistId: number, codeId: number, fields: UpdateDiscountCodeFields): DiscountCode {
-  const code = db.prepare(
-    'SELECT * FROM discount_codes WHERE id = ? AND artist_id = ?'
-  ).get(codeId, artistId) as DiscountCode | undefined
-  if (!code) throw new AppError(E.DISCOUNT_CODE_NOT_FOUND, 404)
+  // F0142：校验与全部字段更新必须在同一事务内。此前 discountValue/maxUses 先写、
+  // expiresAt 校验在第三步才抛错，失败时留下部分写入（折扣已改但过期时间未改）。
+  return db.transaction(() => {
+    const code = db.prepare(
+      'SELECT * FROM discount_codes WHERE id = ? AND artist_id = ?'
+    ).get(codeId, artistId) as DiscountCode | undefined
+    if (!code) throw new AppError(E.DISCOUNT_CODE_NOT_FOUND, 404)
 
-  if (fields.discountValue !== undefined) {
-    if (code.discount_type === 'percent' && (fields.discountValue <= 0 || fields.discountValue > 100)) {
-      throw new AppError(E.VALIDATION, 400, { field: 'discountValue' })
+    // 先校验全部字段，再统一写入——任一校验失败整批回滚（零部分写入）
+    if (fields.discountValue !== undefined) {
+      if (code.discount_type === 'percent' && (fields.discountValue <= 0 || fields.discountValue > 100)) {
+        throw new AppError(E.VALIDATION, 400, { field: 'discountValue' })
+      }
+      if (code.discount_type === 'fixed' && fields.discountValue <= 0) {
+        throw new AppError(E.VALIDATION, 400, { field: 'discountValue' })
+      }
     }
-    if (code.discount_type === 'fixed' && fields.discountValue <= 0) {
-      throw new AppError(E.VALIDATION, 400, { field: 'discountValue' })
+    if (fields.expiresAt !== undefined) {
+      // audit-a P2-4: 更新入口同样兜底校验（与 create 对称）
+      assertValidExpiresAt(fields.expiresAt)
     }
-    db.prepare('UPDATE discount_codes SET discount_value = ? WHERE id = ?').run(fields.discountValue, codeId)
-  }
-  if (fields.maxUses !== undefined) {
-    db.prepare('UPDATE discount_codes SET max_uses = ? WHERE id = ?').run(fields.maxUses, codeId)
-  }
-  if (fields.expiresAt !== undefined) {
-    // audit-a P2-4: 更新入口同样兜底校验（与 create 对称）
-    assertValidExpiresAt(fields.expiresAt)
-    db.prepare('UPDATE discount_codes SET expires_at = ? WHERE id = ?').run(fields.expiresAt, codeId)
-  }
-  if (fields.enabled !== undefined) {
-    db.prepare('UPDATE discount_codes SET enabled = ? WHERE id = ?').run(fields.enabled ? 1 : 0, codeId)
-  }
 
-  return db.prepare('SELECT * FROM discount_codes WHERE id = ?').get(codeId) as DiscountCode
+    if (fields.discountValue !== undefined) {
+      db.prepare('UPDATE discount_codes SET discount_value = ? WHERE id = ?').run(fields.discountValue, codeId)
+    }
+    if (fields.maxUses !== undefined) {
+      db.prepare('UPDATE discount_codes SET max_uses = ? WHERE id = ?').run(fields.maxUses, codeId)
+    }
+    if (fields.expiresAt !== undefined) {
+      db.prepare('UPDATE discount_codes SET expires_at = ? WHERE id = ?').run(fields.expiresAt, codeId)
+    }
+    if (fields.enabled !== undefined) {
+      db.prepare('UPDATE discount_codes SET enabled = ? WHERE id = ?').run(fields.enabled ? 1 : 0, codeId)
+    }
+
+    return db.prepare('SELECT * FROM discount_codes WHERE id = ?').get(codeId) as DiscountCode
+  })()
 }
 
 /** 删除折扣码 */
@@ -176,6 +186,23 @@ export function validateDiscountCode(artistId: number, codeStr: string): Discoun
 /** audit-a P2-4: expiresAt 写入口校验——非 null 且不可解析即拒绝（YYYY-MM-DD 或 ISO 8601） */
 function assertValidExpiresAt(expiresAt: string | null | undefined): void {
   if (expiresAt == null) return
+  // F0144：JS 的 Date 会把不存在的日历日期静默归一化（2026-02-30 → 03-02、
+  // 2026-02-29 → 03-01），仅靠 isNaN 会接受假日期。回拆 y/m/d 用 Date.UTC
+  // 往返比对，任何溢出都拒绝；完整时间戳同样先校验其日期段。
+  const datePart = /^(\d{4})-(\d{2})-(\d{2})(?:$|[T ])/.exec(expiresAt)
+  if (datePart) {
+    const y = Number(datePart[1])
+    const m = Number(datePart[2])
+    const d = Number(datePart[3])
+    // setUTCFullYear 而非 Date.UTC：后者把 0-99 年映射到 1900-1999，
+    // 会让 '0099-02-28' 这类合法四位年份被误判。
+    const utc = new Date(0)
+    utc.setUTCFullYear(y, m - 1, d)
+    utc.setUTCHours(0, 0, 0, 0)
+    if (utc.getUTCFullYear() !== y || utc.getUTCMonth() !== m - 1 || utc.getUTCDate() !== d) {
+      throw new AppError(E.VALIDATION, 400, { field: 'expiresAt', message: '过期时间格式无效（不存在的日历日期）' })
+    }
+  }
   if (isNaN(new Date(expiresAt).getTime())) {
     throw new AppError(E.VALIDATION, 400, { field: 'expiresAt', message: '过期时间格式无效（须为 YYYY-MM-DD 或 ISO 8601）' })
   }
@@ -198,9 +225,20 @@ export function computeDiscountCents(code: DiscountCode, totalPriceCents: number
   return Math.min(fixedCents, totalPriceCents)
 }
 
-/** 递增使用次数（下单成功后调用） */
+/**
+ * 递增使用次数（下单成功后调用）
+ *
+ * F0080 服务侧（与 t6 的 v32 CHECK 约束协作）：此前 validateDiscountCode 校验
+ * used_count < max_uses 与本函数自增分离，并发/重入下可超额使用。改为单条条件
+ * UPDATE——只有当 max_uses 为空或未用尽时才 +1，changes=0 即判超额并抛错，
+ * 校验与自增收进同一条原子 SQL。调用方无需改（成功仍是 void，失败抛错）。
+ */
 export function incrementUsage(codeId: number): void {
-  db.prepare('UPDATE discount_codes SET used_count = used_count + 1 WHERE id = ?').run(codeId)
+  const result = db.prepare(
+    `UPDATE discount_codes SET used_count = used_count + 1
+     WHERE id = ? AND (max_uses IS NULL OR used_count < max_uses)`
+  ).run(codeId)
+  if (result.changes !== 1) throw new AppError(E.DISCOUNT_CODE_EXHAUSTED)
 }
 
 // ─── 画师偏好：折扣开关 ───

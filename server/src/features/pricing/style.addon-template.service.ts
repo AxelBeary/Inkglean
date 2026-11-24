@@ -190,26 +190,30 @@ export function updateAddonTemplate(artistId: number, templateId: number, fields
  * 返回 referenced N：前端弹窗提示「有 N 个画风在用，删除后它们将保留为独立增项」
  */
 export function deleteAddonTemplate(artistId: number, templateId: number): { deleted: boolean; referenced: number } {
-  const tpl = getAddonTemplate(artistId, templateId) // 归属校验
-  // 系统预置模板（artist_id NULL）画师不可删（管理员后台维护）
-  if (tpl.artist_id !== artistId) throw new AppError(E.ADDON_TEMPLATE_NOT_FOUND, 404)
-  const refs = db.prepare(
-    'SELECT COUNT(*) AS c FROM style_addons WHERE addon_template_id = ?'
-  ).get(templateId) as { c: number }
-  if (refs.c > 0) {
-    // 快照模板数据（解绑后独立增项保留名称/控件/价格/上限等展示数据；SPEC-PRICE-2 新维度）
-    db.prepare(`
-      UPDATE style_addons SET
-        tpl_name = ?, tpl_control_type = ?, tpl_price_mode = ?, tpl_default_price = ?,
-        tpl_unit_label = ?, tpl_category = ?, tpl_max_quantity = ?
-      WHERE addon_template_id = ?
-    `).run(
-      sanitizeStoredText(tpl.name), tpl.control_type, tpl.price_mode, tpl.default_price,
-      sanitizeStoredText(tpl.unit_label), tpl.category, tpl.max_quantity, templateId
-    )
-    // 解除引用（外键 ON DELETE SET NULL 双保险，此处显式置空保证快照一致性）
-    db.prepare('UPDATE style_addons SET addon_template_id = NULL WHERE addon_template_id = ?').run(templateId)
-  }
-  db.prepare('DELETE FROM addon_templates WHERE id = ?').run(templateId)
-  return { deleted: true, referenced: refs.c }
+  // F0148：快照 → 解绑 → 删除三步必须原子，任一步失败整批回滚，
+  // 否则中途失败会留下「快照已写但引用还在」或「模板已删但快照缺失」的半态。
+  return db.transaction(() => {
+    const tpl = getAddonTemplate(artistId, templateId) // 归属校验
+    // 系统预置模板（artist_id NULL）画师不可删（管理员后台维护）
+    if (tpl.artist_id !== artistId) throw new AppError(E.ADDON_TEMPLATE_NOT_FOUND, 404)
+    const refs = db.prepare(
+      'SELECT COUNT(*) AS c FROM style_addons WHERE addon_template_id = ?'
+    ).get(templateId) as { c: number }
+    if (refs.c > 0) {
+      // 快照模板数据（解绑后独立增项保留名称/控件/价格/上限等展示数据；SPEC-PRICE-2 新维度）
+      db.prepare(`
+        UPDATE style_addons SET
+          tpl_name = ?, tpl_control_type = ?, tpl_price_mode = ?, tpl_default_price = ?,
+          tpl_unit_label = ?, tpl_category = ?, tpl_max_quantity = ?
+        WHERE addon_template_id = ?
+      `).run(
+        sanitizeStoredText(tpl.name), tpl.control_type, tpl.price_mode, tpl.default_price,
+        sanitizeStoredText(tpl.unit_label), tpl.category, tpl.max_quantity, templateId
+      )
+      // 解除引用（外键 ON DELETE SET NULL 双保险，此处显式置空保证快照一致性）
+      db.prepare('UPDATE style_addons SET addon_template_id = NULL WHERE addon_template_id = ?').run(templateId)
+    }
+    db.prepare('DELETE FROM addon_templates WHERE id = ?').run(templateId)
+    return { deleted: true, referenced: refs.c }
+  })()
 }

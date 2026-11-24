@@ -4,7 +4,7 @@
 // 新行为：同 key 不同载荷 → 409 IDEMPOTENCY_CONFLICT；不带 payload / 存量无指纹行 → 维持旧重放语义。
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db, cleanDb, seedArtist, seedOrder } from './setup.js'
-import { withIdempotency, hashIdempotencyPayload } from '../src/shared/idempotency.js'
+import { withIdempotency, hashIdempotencyPayload, unsealIdempotencyResponse } from '../src/shared/idempotency.js'
 import { buildApp } from '../src/app.js'
 import { createSession } from '../src/features/auth/auth.service.js'
 
@@ -54,7 +54,9 @@ describe('幂等键绑定请求载荷（#21-3）', () => {
 
     expect(c.calls).toBe(1)
     const row = readRow('payment:2', 'k-mix')
-    expect(row?.response_json).toBe(JSON.stringify({ seq: 1 }))
+    // F0134：落库为 enc:v1 信封，解封后才是原响应体
+    expect(row?.response_json).toMatch(/^enc:v1:/)
+    expect(unsealIdempotencyResponse(row!.response_json, 'payment:2', 'k-mix')).toBe(JSON.stringify({ seq: 1 }))
     expect(row?.request_hash).toBe(hashIdempotencyPayload({ amountCents: 1000 }))
   })
 
