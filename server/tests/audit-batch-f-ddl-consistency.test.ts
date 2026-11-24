@@ -50,6 +50,45 @@ interface ColumnSnapshot {
 /** 库结构快照：表名 → 列清单 */
 type SchemaSnapshot = Record<string, ColumnSnapshot[]>
 
+/** B3-F0101: 外键清单行（PRAGMA foreign_key_list） */
+interface FkRow {
+  table: string
+  from: string
+  ref_table: string
+  to: string
+  on_delete: string
+  on_update: string
+}
+
+/**
+ * B3-F0101: 关键索引白名单（新装库 A 与老库升级路径 B 都必须具备）。
+ * 只选具名索引，避开 sqlite_autoindex_N 编号（编号对列声明顺序敏感、ALTER 加列会漂移）；
+ * 这些都是 DDL 双事实源不该漂移的查询侧索引，存在性断言即可抓住「新装库漏建索引」类真实 bug。
+ */
+const KEY_INDEXES: Array<{ table: string; index: string }> = [
+  { table: 'invite_codes', index: 'idx_invite_codes_status' }, // v58
+  { table: 'discount_codes', index: 'idx_discount_codes_artist' }, // v32
+  { table: 'greeting_templates', index: 'idx_greeting_artist' }, // v06
+  { table: 'greeting_templates', index: 'idx_greeting_templates_special_day' }, // v64 + schemaIndexes（F0101 修补）
+  { table: 'preview_uploads', index: 'idx_preview_uploads_artist' }, // v82 + schemaIndexes
+]
+
+/**
+ * B3-F0101: 采集外键清单（表名 → 规范化 FK 元组排序数组）。
+ * 子代理实测两库 FK 0 差异，可作全量断言；规范化忽略 rowid 顺序噪声。
+ */
+function snapshotForeignKeys(database: Database.Database): Record<string, string[]> {
+  const tables = (database.prepare(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+  ).all() as TableNameRow[]).map(r => r.name)
+  const result: Record<string, string[]> = {}
+  for (const table of tables) {
+    const rows = database.prepare(`PRAGMA foreign_key_list(${JSON.stringify(table)})`).all() as FkRow[]
+    result[table] = rows.map(r => `${r.table}|${r.from}|${r.ref_table}|${r.to}|${r.on_delete}|${r.on_update}`).sort()
+  }
+  return result
+}
+
 const V1_BASELINE_SQL = `
 -- 画师表
 CREATE TABLE IF NOT EXISTS artists (
@@ -266,5 +305,47 @@ describe('审计批 F-6: DDL 双事实源一致性（完整 schema vs v1 起步 
     expect(() => dbC.exec(schema)).not.toThrow()
     expect(() => dbC.exec(schemaIndexes)).not.toThrow()
     dbC.close()
+  })
+
+  // B3-F0101：把外键与关键索引纳入 DDL 双事实源校验（列快照之外的补充）。
+  // 全量索引 toEqual 不可行：sqlite_autoindex_N 编号/创建顺序属噪声，且 artists.artist_code
+  // 在两路径下分别为隐式 UNIQUE 与命名索引（功能等价、DDL 不同）——故采用
+  // 「外键全量相等（实测 0 差异）+ 具名关键索引白名单存在性」组合，既抓真实漂移又不被噪声误伤。
+  it('TC-B3-F0101-01: 两库外键清单完全一致（全量）', () => {
+    const dbA = new Database(':memory:')
+    initDatabase(dbA)
+    const dbB = new Database(':memory:')
+    dbB.pragma('foreign_keys = ON')
+    dbB.exec(V1_BASELINE_SQL)
+    dbB.exec('CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at DATETIME DEFAULT CURRENT_TIMESTAMP)')
+    dbB.exec('CREATE TABLE IF NOT EXISTS platform_config (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
+    expect(() => applyMigrationChain(dbB)).not.toThrow()
+    const fkA = snapshotForeignKeys(dbA)
+    const fkB = snapshotForeignKeys(dbB)
+    expect(fkA).toEqual(fkB)
+    dbA.close()
+    dbB.close()
+  })
+
+  it('TC-B3-F0101-02: 两库都具备关键索引（含 F0101 修补的 special_day_id 索引）', () => {
+    for (const build of ['new', 'chain'] as const) {
+      const database = new Database(':memory:')
+      if (build === 'new') {
+        initDatabase(database)
+      } else {
+        database.pragma('foreign_keys = ON')
+        database.exec(V1_BASELINE_SQL)
+        database.exec('CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at DATETIME DEFAULT CURRENT_TIMESTAMP)')
+        database.exec('CREATE TABLE IF NOT EXISTS platform_config (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
+        applyMigrationChain(database)
+      }
+      for (const { table, index } of KEY_INDEXES) {
+        const row = database.prepare(
+          "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name=? AND name=?"
+        ).get(table, index)
+        expect(row, `${build} 路径应含索引 ${table}.${index}`).toBeDefined()
+      }
+      database.close()
+    }
   })
 })

@@ -678,13 +678,18 @@ describe('REQ-039 邀请码注册（invite）', () => {
     expect(res.json().code).toBe('VALIDATION')
   })
 
-  it('TC-INV-17: 迁移 v58 建表（invite_codes 存在 + 索引存在）', () => {
+  it('TC-INV-17: 迁移 v58 建表（invite_codes 存在 + status 索引存在 + 冗余 code 索引已删）', () => {
     const table = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='invite_codes'").get()
     expect(table).toBeTruthy()
     const indexes = db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='invite_codes'").all() as Array<{ name: string }>
-    expect(indexes.map(i => i.name)).toEqual(
-      expect.arrayContaining(['idx_invite_codes_code', 'idx_invite_codes_status'])
-    )
+    // B3-F0088：code 列已 UNIQUE（sqlite_autoindex 自动覆盖按码查询），冗余的
+    // idx_invite_codes_code 已删；这里断言 status 索引仍在、code 索引确实不再建。
+    expect(indexes.map(i => i.name)).toEqual(expect.arrayContaining(['idx_invite_codes_status']))
+    expect(indexes.map(i => i.name)).not.toContain('idx_invite_codes_code')
+    // code 仍具 UNIQUE 约束（按码校验的性能/唯一语义不因删冗余索引而失效）
+    const uniqueCols = (db.prepare('PRAGMA index_list(invite_codes)').all() as Array<{ origin: string; unique: number }>)
+      .filter(i => i.unique === 1 && i.origin === 'u')
+    expect(uniqueCols.length).toBeGreaterThanOrEqual(1)
   })
 
   it('TC-INV-18: 服务层 revokeInviteCode 对不存在 id 返回 NOT_FOUND', () => {

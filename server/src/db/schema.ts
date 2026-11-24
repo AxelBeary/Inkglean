@@ -477,9 +477,12 @@ CREATE TABLE IF NOT EXISTS discount_codes (
   artist_id INTEGER NOT NULL,
   code TEXT NOT NULL,
   discount_type TEXT NOT NULL DEFAULT 'percent' CHECK(discount_type IN ('percent', 'fixed')),
-  discount_value REAL NOT NULL,
-  max_uses INTEGER DEFAULT NULL,
-  used_count INTEGER DEFAULT 0,
+  -- B3-F0079（队长裁定）：保留 REAL 双语义（percent 1-100 / fixed 元），只补 CHECK 拦非法值；
+  -- 与 v32-discount-codes.ts 双事实源同步。禁止转 cents（会破坏 discount.service.ts 双语义计价）。
+  discount_value REAL NOT NULL CHECK(discount_value > 0),
+  -- B3-F0080：与 v32 同步补 max_uses/used_count 的 CHECK 约束。
+  max_uses INTEGER DEFAULT NULL CHECK(max_uses IS NULL OR max_uses >= 0),
+  used_count INTEGER DEFAULT 0 CHECK(used_count >= 0),
   expires_at DATETIME DEFAULT NULL,
   enabled INTEGER DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -625,6 +628,10 @@ CREATE INDEX IF NOT EXISTS idx_artists_qq ON artists(qq_number);
 CREATE INDEX IF NOT EXISTS idx_extra_items_order ON order_extra_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_orders_queue_zone ON orders(artist_id, queue_zone);
 CREATE INDEX IF NOT EXISTS idx_guestbook_artist ON guestbook_messages(artist_id, status);
+-- B3-F0101：v64 在重建事务内建 greeting_templates(special_day_id) 索引，但新装库走 v64 守卫
+-- （已含 special_day_id 列即跳过）不进重建分支 → 该索引在新装库缺失。归口 schemaIndexes 一处，
+-- 老库升级（迁移已建、IF NOT EXISTS 幂等）与新装同径拿到，消除双事实源漂移。
+CREATE INDEX IF NOT EXISTS idx_greeting_templates_special_day ON greeting_templates(special_day_id);
 CREATE INDEX IF NOT EXISTS idx_order_payments_order ON order_payments(order_id);
 CREATE INDEX IF NOT EXISTS idx_addon_templates_artist ON addon_templates(artist_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_art_styles_artist ON art_styles(artist_id, sort_order);

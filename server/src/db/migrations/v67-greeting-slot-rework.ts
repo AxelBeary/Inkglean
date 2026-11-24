@@ -77,12 +77,14 @@ export const migration: Migration = {
         database.exec('DROP TABLE greeting_templates')
         database.exec('ALTER TABLE greeting_templates_new RENAME TO greeting_templates')
         for (const idx of indexes) database.exec(idx.sql)
+        // B3-F0099：同 v64——foreign_key_check 移入事务（COMMIT 前最后一步）失败即整体回滚，
+        // 并定向校验被重建的 greeting_templates，不被无关表历史悬空引用误伤。
+        // 原「提交后全库扫描」既误伤无关表，错误又被下次守卫吞成永久跳过。
+        const fkViolations = database.pragma("foreign_key_check('greeting_templates')") as FkViolation[]
+        if (fkViolations.length > 0) {
+          throw new Error('迁移 v67: foreign_key_check 发现 ' + fkViolations.length + ' 处悬空引用，中止: ' + JSON.stringify(fkViolations.slice(0, 3)))
+        }
       })()
-      // 官方 12 步流程要求：FK 关闭期间完成重建后，恢复前验证无悬空外键引用
-      const fkViolations = database.pragma('foreign_key_check') as FkViolation[]
-      if (fkViolations.length > 0) {
-        throw new Error('迁移 v67: foreign_key_check 发现 ' + fkViolations.length + ' 处悬空引用，中止: ' + JSON.stringify(fkViolations.slice(0, 3)))
-      }
     } finally {
       // 事务失败也必须恢复 FK，否则连接留在 OFF 状态（后续 CASCADE 全部失效）
       database.pragma('foreign_keys = ON')

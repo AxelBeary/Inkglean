@@ -11,9 +11,14 @@ export const migration: Migration = {
           artist_id INTEGER NOT NULL,
           code TEXT NOT NULL,
           discount_type TEXT NOT NULL DEFAULT 'percent' CHECK(discount_type IN ('percent', 'fixed')),
-          discount_value REAL NOT NULL,
-          max_uses INTEGER DEFAULT NULL,
-          used_count INTEGER DEFAULT 0,
+          -- B3-F0079（2026-11-24 队长裁定）：保留 REAL 双语义（percent 1-100 / fixed 元），
+          -- 只补 CHECK 拦非法值。禁止转 INTEGER cents——discount.service.ts 的 percent=discount_value/100、
+          -- fixed=discount_value*100 双语义计价依赖浮点，转 cents 会同时破坏两种口径（详见台账裁定依据）。
+          discount_value REAL NOT NULL CHECK(discount_value > 0),
+          -- B3-F0080：max_uses 默认 NULL=不限；used_count 默认 0。补 CHECK 拦负值/零额度，
+          -- 服务层「校验+自增原子化」由 B4 批（money-worker）在同文件协同落地，本迁移只管 DDL 约束。
+          max_uses INTEGER DEFAULT NULL CHECK(max_uses IS NULL OR max_uses >= 0),
+          used_count INTEGER DEFAULT 0 CHECK(used_count >= 0),
           expires_at DATETIME DEFAULT NULL,
           enabled INTEGER DEFAULT 1,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
