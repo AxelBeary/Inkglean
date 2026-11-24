@@ -322,5 +322,39 @@ describe('useSignatureRefresh 分片刷新（issue #52-5）', () => {
       expect(h.messageWarning).toHaveBeenCalledTimes(2)
       pageB.wrapper.unmount()
     })
+
+    // TASK2-05（第二轮审计）：A 页在途 doRefresh 卸载后才 reject，不得重新置位跨实例标志 /
+    // 弹过期 toast，否则正好吞掉 B 页首败警告（反噬 WEB-01）。
+    it('跨页在途：A 卸载后慢请求先失败保持静默，B 首败仍提示一次', async () => {
+      const paths = makePaths(10)
+      let rejectA!: (e: unknown) => void
+      let rejectB!: (e: unknown) => void
+      h.refreshSignatures.mockReset()
+      // A：首请求做成可控 pending；其余请求（B）默认离线 reject
+      h.refreshSignatures.mockImplementationOnce(() => new Promise((_, rej) => { rejectA = rej }))
+      h.refreshSignatures.mockRejectedValue(new Error('offline'))
+
+      const pageA = mountHost({ collect: () => paths })
+      await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL_MS + 100)
+      expect(h.refreshSignatures).toHaveBeenCalledTimes(1)
+      // A 在途请求未 settle 就离开页面
+      pageA.wrapper.unmount()
+
+      // B 挂载，其首请求也做成 pending，确保 A 的过期失败先落地
+      h.refreshSignatures.mockImplementationOnce(() => new Promise((_, rej) => { rejectB = rej }))
+      const pageB = mountHost({ collect: () => paths })
+      await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL_MS + 100)
+
+      // A 的过期失败：修复后必须完全静默（不置标志、不弹 toast）
+      rejectA!(new Error('stale'))
+      await vi.advanceTimersByTimeAsync(0)
+      expect(h.messageWarning).not.toHaveBeenCalled()
+
+      // B 首败照常提示一次（未被 A 的过期失败吞掉）
+      rejectB!(new Error('B down'))
+      await vi.advanceTimersByTimeAsync(0)
+      expect(h.messageWarning).toHaveBeenCalledTimes(1)
+      pageB.wrapper.unmount()
+    })
   })
 })

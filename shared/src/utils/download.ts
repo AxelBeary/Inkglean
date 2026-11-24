@@ -20,15 +20,21 @@ export interface DownloadResult {
 }
 
 export function downloadBlob(blob: Blob, filename: string): Promise<DownloadResult> {
+  // TASK2-04: url 提到 try 外——click() 真抛错时下面的 1s 延迟 revoke 不会执行，
+  // 若不在 catch 里补注销，每次失败导出都泄漏一个 Blob URL（PNG 可达数 MB，重试会累积）。
+  let objectUrl: string | null = null
   try {
-    const url = URL.createObjectURL(blob)
+    objectUrl = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url
+    a.href = objectUrl
     a.download = filename
     a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    // 成功路径仍保留 1s 延迟（非 Chromium 内核消费窗口口径不变）
+    setTimeout(() => URL.revokeObjectURL(objectUrl!), 1000)
     return Promise.resolve({ ok: true })
   } catch (err) {
+    // 失败路径立即注销（此时 click 未成功，下载不会异步消费该 URL）
+    if (objectUrl) URL.revokeObjectURL(objectUrl)
     return Promise.resolve({ ok: false, error: err instanceof Error ? err.message : String(err) })
   }
 }

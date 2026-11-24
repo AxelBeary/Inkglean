@@ -88,6 +88,9 @@ export function useSignatureRefresh({ collect, apply, onSkipped, intervalMs = DE
   request?: (paths: string[]) => Promise<{ urls: Record<string, string>; skipped?: string[] }>
 }) {
   activeInstances++ // WEB-01：记录同屏活跃实例组规模；归零时清跨实例去重标志（见 onUnmounted）
+  // TASK2-05：实例级卸载闸门。在途 doRefresh 的 await 恢复后必须止步，否则卸载页的过期失败
+  // 会重新置位 crossInstanceWarned 并弹 toast，吞掉新页面实例的首次失败警告（反噬 WEB-01）。
+  let unmounted = false
   let refreshing = false
   let debounceTimer: number | null = null
   let lastRefreshAt = Date.now()
@@ -118,11 +121,14 @@ export function useSignatureRefresh({ collect, apply, onSkipped, intervalMs = DE
       for (let i = 0; i < targets.length; i += SIGNATURE_REFRESH_BATCH_SIZE) {
         const chunk = targets.slice(i, i + SIGNATURE_REFRESH_BATCH_SIZE)
         const res = await request(chunk)
+        // TASK2-05：await 恢复后先确认本实例仍挂载——卸载后不写响应式数据、不回调页面
+        if (unmounted) return
         apply(res.urls)
         // 失效路径（画师关开关/删图）：交给页面摘掉对应图，避免留一张 403 裂图
         if (res.skipped && res.skipped.length > 0) onSkipped?.(res.skipped)
         done = i + chunk.length
       }
+      if (unmounted) return // 卸载后的成功回执不得复位跨实例标志（新页可能已置位）
       lastRefreshAt = Date.now() // 只按成功刷新计时（失败不推迟补刷）
       refreshError.value = null
       // 可选第 6 件：跨实例去重标志随「有实例恢复成功」复位（单实例等价于原「恢复重置」语义）；
@@ -130,6 +136,9 @@ export function useSignatureRefresh({ collect, apply, onSkipped, intervalMs = DE
       crossInstanceWarned = false
       for (const p of targets) errorRetries.delete(p) // 刷新成功 → 清除该图计数
     } catch (err) {
+      // TASK2-05：卸载后的在途失败一律止步——不置模块标志、不弹过期 toast、不动重试计数；
+      // 由 finally 收回 refreshing 即可，跨页首败警告的槽位留给新实例。
+      if (unmounted) return
       // #52-5: 失败即停止后续分片，但把失败暴露出去（原实现整段静默）
       // #62 尾巴清收：refreshError 只是「暴露」，全仓无页面消费它仍不可见——分片失败整批停后，
       // 用户只看到裂图毫无解释。失败连发开始时弹一次可见提示：3 分钟定时仍在重试，
@@ -144,8 +153,13 @@ export function useSignatureRefresh({ collect, apply, onSkipped, intervalMs = DE
       if (becameFailure) crossInstanceWarned = true
       if (shouldWarn) {
         void import('../i18n/index')
-          .then(({ i18n }) => { ElMessage.warning(i18n.global.t('common.networkError')) })
+          .then(({ i18n }) => {
+            // TASK2-05：i18n 动态 import 是真实 IO，若加载期间页面已卸载，不再弹过期 toast
+            if (unmounted) return
+            ElMessage.warning(i18n.global.t('common.networkError'))
+          })
           .catch(() => {
+            if (unmounted) return // TASK2-05：兜底文案同样不给已卸载页面弹
             // i18n 加载失败时的兜底（http.ts:154 同款回落）——i18n 不可用便无法 t()，
             // 只能给原始文案；走变量赋值而非 ElMessage 直参字面量，同 http.ts 不入 check-i18n 的 message-en 规则
             const fallback = 'Network error, please try again later'
@@ -190,6 +204,7 @@ export function useSignatureRefresh({ collect, apply, onSkipped, intervalMs = DE
   const timer = setInterval(() => doRefresh(), intervalMs)
   document.addEventListener('visibilitychange', onVisibilityChange)
   onUnmounted(() => {
+    unmounted = true // TASK2-05：先关闸门，再清定时器/计数；在途 doRefresh 恢复后据此止步
     clearInterval(timer)
     if (debounceTimer != null) clearTimeout(debounceTimer)
     document.removeEventListener('visibilitychange', onVisibilityChange)
