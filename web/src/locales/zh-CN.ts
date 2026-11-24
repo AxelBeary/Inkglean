@@ -2134,6 +2134,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     totpReset: '重置绑定', totpResetConfirm: '确定重置「{name}」的动态口令绑定？旧密钥立即失效，画师须重新绑定才能登录',
     totpResetSuccess: '已重置绑定',
     totpRegenerate: '重新生成二维码', totpRegenerateHint: '重新生成会使旧二维码立即失效，画师需重新扫码',
+    // F0189（B6）: 打开弹窗不再自动换绑——生成改为显式确认触发，两键分别承载首产按钮与副作用警示文案
+    totpGenerate: '生成二维码',
+    totpGenConfirm: '生成新二维码会覆盖「{name}」现有的动态口令密钥：旧绑定立即失效，画师当前全部登录会话将被踢出，须重新扫码绑定后才能登录。确定生成？',
     orderColNo: '订单号', orderColQq: '客户QQ', orderColStatus: '状态',
     orderColType: '类型', orderColTime: '下单时间',
     greetingManage: '问候语管理', greetingPlaceholder: "输入问候语，用 {'{'}name{'}'} 代替画师名",

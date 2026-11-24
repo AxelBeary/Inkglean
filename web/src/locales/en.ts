@@ -2139,6 +2139,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     totpReset: 'Reset binding', totpResetConfirm: 'Reset the dynamic code binding for "{name}"? The old secret becomes invalid immediately; the artist must re-bind before logging in.',
     totpResetSuccess: 'Binding reset',
     totpRegenerate: 'Regenerate QR', totpRegenerateHint: 'Regenerating invalidates the old QR immediately; the artist must scan again',
+    // F0189（B6）: opening the dialog no longer auto-rebinds — generation now requires explicit confirmation
+    totpGenerate: 'Generate QR code',
+    totpGenConfirm: 'Generating a new QR code overwrites the current TOTP secret of "{name}": the old binding is invalidated immediately, all active sessions of the artist are signed out, and a re-scan is required before login. Generate now?',
     orderColNo: 'Order No.', orderColQq: 'Client QQ', orderColStatus: 'Status',
     orderColType: 'Type', orderColTime: 'Order time',
     greetingManage: 'Greeting Manager', greetingPlaceholder: "Enter greeting, use {'{'}name{'}'} for artist name",

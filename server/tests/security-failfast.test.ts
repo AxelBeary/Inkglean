@@ -9,7 +9,10 @@ const ORIGINAL_SESSION_SECRET = process.env.SESSION_SECRET
 
 // 815 拍板 #12 后生产环境会拦弱 SESSION_SECRET；本文件测的是 AUTH_DEV_MODE，
 // 切 production 时配套注入强值密钥避免误伤（afterEach 恢复）
-const STRONG_TEST_SECRET = 'f'.repeat(64)
+// F0156（B6 批熵检测）连带适配：旧 fixture 'f'.repeat(64) 是低熵长串，会被新的
+// isWeakSessionSecret 判弱、令 SESSION_SECRET fail-fast 先于本批用例的目标断言抛出。
+// 改用高熵 64-hex（字符种类充足、无短周期），既满足老口径长度≥32 也过新熵检测。
+const STRONG_TEST_SECRET = '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08'
 
 afterEach(() => {
   process.env.NODE_ENV = ORIGINAL_NODE_ENV
