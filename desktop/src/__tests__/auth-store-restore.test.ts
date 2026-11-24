@@ -177,4 +177,68 @@ describe('login() 落盘与内存时序（DTK-01）', () => {
       errSpy.mockRestore()
     }
   })
+
+  // XEND-04：token B 落盘 + artist B 写失败 + token 回滚 delete 也失败 →
+  // 磁盘残留 token=B/artist=A（旧号）；必须落 tombstone，重启 restore() 拒绝恢复，不错配。
+  it('XEND-04: 回滚 delete 失败落 tombstone，重启不会读成 token=B/artist=A 错配账号', async () => {
+    const TOMBSTONE = 'FORCE_REAUTH_REQUIRED__v1' // 与 auth.ts FORCE_REAUTH_TOMBSTONE 同值
+    const boom = new Error('artist write failed')
+    h.token = 'old-token-A'          // 磁盘旧号 A 的 token
+    h.artist = ARTIST_JSON           // 磁盘旧号 A 的 artist 档案（id=1）
+    h.desktopLogin.mockReset().mockResolvedValue({ token: 'new-token-B', artist: NEW_ARTIST })
+    // saveSecret 覆盖写模拟：让磁盘状态随写入变化（token B 成功、artist B 抛错由 mockRejected 无法区分，
+    // 这里按 key 决定：token 写入成功、artist 写入失败）
+    h.saveSecret.mockReset().mockImplementation(async (key: string, value: string) => {
+      if (key === 'session-artist' && value !== TOMBSTONE) throw boom // artist B 落盘失败；tombstone 覆盖写入成功
+      if (key === 'session-token') h.token = value
+      else if (key === 'session-artist') h.artist = value
+    })
+    // 所有 delete 失败：artist 预清 + token/artist 回滚均失败 → 磁盘残留 token=B/artist=A
+    h.deleteSecret.mockReset().mockRejectedValue(new Error('secure delete blocked'))
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const store = useAuthStore()
+    try {
+      await expect(store.login('20002', '123456')).rejects.toBe(boom)
+      // 关键断言：tombstone 覆盖写两把，磁盘已不是可错配的 token=B/artist=A
+      expect(h.saveSecret).toHaveBeenCalledWith('session-token', TOMBSTONE)
+      expect(h.saveSecret).toHaveBeenCalledWith('session-artist', TOMBSTONE)
+      expect(h.token).toBe(TOMBSTONE)
+      expect(h.artist).toBe(TOMBSTONE)
+      // 不吞错：原错对象/message 不变，delete + 标记失败全上报
+      expect(boom.message).toBe('artist write failed')
+      expect((boom as Error & { secretCleanupErrors?: string[] }).secretCleanupErrors?.length).toBeGreaterThan(0)
+      expect(errSpy).toHaveBeenCalled()
+      expect(store.loggedIn).toBe(false)
+
+      // 模拟重启：全新 store 从磁盘恢复，遇 tombstone 一律拒绝 → 不拼出错账号
+      setActivePinia(createPinia())
+      const restarted = useAuthStore()
+      await restarted.restore()
+      expect(restarted.loggedIn).toBe(false)
+      expect(restarted.token).toBeNull()
+      expect(restarted.artist).toBeNull()
+    } finally {
+      errSpy.mockRestore()
+    }
+  })
+
+  // 不放宽成功路径 / delete 全成功则无需标记：回滚 delete 都成功时不得写 tombstone。
+  it('XEND-04: 回滚 delete 全成功——磁盘已清空，不写 tombstone（成功/干净回滚不受影响）', async () => {
+    const boom = new Error('artist write failed')
+    h.saveSecret.mockReset()
+      .mockResolvedValueOnce(undefined) // token B 落盘
+      .mockRejectedValueOnce(boom)      // artist B 落盘失败
+    h.deleteSecret.mockReset().mockResolvedValue(undefined) // 两把 delete 全成功
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const store = useAuthStore()
+    try {
+      await expect(store.login('20002', '123456')).rejects.toBe(boom)
+      // 无 delete 失败 → 不触发 tombstone 覆盖写（saveSecret 只有业务两次，无额外标记写）
+      const tombstoneWrites = h.saveSecret.mock.calls.filter(c => c[1] === 'FORCE_REAUTH_REQUIRED__v1')
+      expect(tombstoneWrites).toHaveLength(0)
+      expect(store.loggedIn).toBe(false)
+    } finally {
+      errSpy.mockRestore()
+    }
+  })
 })

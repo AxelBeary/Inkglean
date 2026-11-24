@@ -9,6 +9,12 @@ import { isDesktop } from '../bridge/env'
 const KEY_TOKEN = 'session-token'
 const KEY_ARTIST = 'session-artist'
 const KEY_DEVICE = 'device-uuid'
+// XEND-04: 登录回滚 delete 失败时，磁盘可能残留 token=B / artist=A 的跨账号半态。
+// 由于 delete 可能失败，改用「覆盖写无效标记」落地——saveSecret 覆盖同 key 旧值
+// （secureStore.ts 注释 + Rust secure_save 覆盖语义），不依赖 delete 成功，也不新增
+// 保险箱键（避免动 src-tauri 键白名单/cargo）。restore() 见到本标记一律拒绝恢复。
+// 取值刻意非合法 token、非合法 JSON，双重保险（即便漏检也会被 restore 的 JSON.parse 兜住）。
+const FORCE_REAUTH_TOMBSTONE = 'FORCE_REAUTH_REQUIRED__v1'
 // 827 用户终验整改：本地模式标记落盘（原纯内存，撕出的悬浮小窗是独立页认不出本地态被拦回登录页；
 // 重开会话也按上次选择直接进本地，不再逼回登录页重选）。归一同款纪律：读失败当非本地。
 const LOCAL_MODE_KEY = 'shihui-desktop-local-mode-v1'
@@ -59,8 +65,12 @@ export const useAuthStore = defineStore('auth', () => {
   async function restore(): Promise<void> {
     if (!isDesktop() || loggedIn.value) return
     try {
+      // XEND-04: 先看强制重登标记——登录回滚 delete 失败时两把被覆盖成 tombstone，
+      // 此时磁盘可能是 token=B/artist=A 的错配，必须一律拒绝恢复，进入未登录态
+      // （调用方路由守卫据此走重新登录 / 本地模式），绝不拼出一个错账号会话。
       const t = await loadSecret(KEY_TOKEN)
       const a = await loadSecret(KEY_ARTIST)
+      if (t === FORCE_REAUTH_TOMBSTONE || a === FORCE_REAUTH_TOMBSTONE) return
       if (t && a) {
         // F0031（B6）: 档案先解析成功再落 token+artist——若先写 token 再 parse，
         // 密文损坏抛错被外层 catch 吞掉后会留下「loggedIn 但 artist 为空」半态。
@@ -107,6 +117,17 @@ export const useAuthStore = defineStore('auth', () => {
       // 任一把写失败：精确回滚 TOKEN + ARTIST 两把，避免只删一把留下跨账号错配；
       // delete 失败 console.error 上报并挂到原错误上，原错误对象/message 不变（调用方展示口径不变）。
       await clearBothKeys()
+      // XEND-04：只要有一次 delete 失败，磁盘就可能残留半态（典型：token=B 已落、
+      // artist=B 写失败、token 回滚 delete 也失败 → 残留 token=B/artist=A 跨账号错配）。
+      // 全部 delete 成功则磁盘干净、无需标记。覆盖写 tombstone 到两把——saveSecret 覆盖同 key
+      // 旧值且不依赖 delete 成功，restore() 见标记一律拒绝恢复，强制重新登录/本地模式。
+      // 标记写入失败同样如实上报（不吞错），并一并挂到原错误的 secretCleanupErrors。
+      if (cleanupErrors.length > 0) {
+        for (const key of [KEY_TOKEN, KEY_ARTIST]) {
+          try { await saveSecret(key, FORCE_REAUTH_TOMBSTONE) }
+          catch (e) { noteCleanupFailure(`写入强制重登标记 ${key} 失败`, e) }
+        }
+      }
       if (cleanupErrors.length && err instanceof Error) {
         ;(err as Error & { secretCleanupErrors?: string[] }).secretCleanupErrors = cleanupErrors
       }
