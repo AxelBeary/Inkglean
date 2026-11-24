@@ -97,6 +97,9 @@ describe('login() 落盘与内存时序（DTK-01）', () => {
     await store.login('20002', '123456')
 
     expect(order).toEqual(['save:session-token', 'save:session-artist'])
+    // TASK2-07：写新 token 前先清旧 artist（破坏旧半态），且删除先于任何 save
+    expect(h.deleteSecret).toHaveBeenCalledWith('session-artist')
+    expect(h.deleteSecret.mock.invocationCallOrder[0]).toBeLessThan(h.saveSecret.mock.invocationCallOrder[0])
     expect(store.token).toBe('new-token')
     expect(store.loggedIn).toBe(true)
     expect(store.artist).toMatchObject(NEW_ARTIST)
@@ -113,7 +116,7 @@ describe('login() 落盘与内存时序（DTK-01）', () => {
     expect(store.token).toBeNull()
   })
 
-  it('第二把落盘失败：回滚第一把且内存保持未登录，原始错误照常抛出', async () => {
+  it('第二把落盘失败：回滚两把且内存保持未登录，原始错误照常抛出', async () => {
     const boom = new Error('artist write failed')
     h.saveSecret.mockReset()
       .mockResolvedValueOnce(undefined)
@@ -121,9 +124,57 @@ describe('login() 落盘与内存时序（DTK-01）', () => {
     const store = useAuthStore()
 
     await expect(store.login('20002', '123456')).rejects.toBe(boom)
-    // 回滚删除已写入的第一把 token，避免残留半套凭证
+    // TASK2-07：回滚同时清 token + artist 两把，不只删 token
     expect(h.deleteSecret).toHaveBeenCalledWith('session-token')
+    expect(h.deleteSecret.mock.calls.filter(c => c[0] === 'session-artist').length).toBeGreaterThanOrEqual(1)
     expect(store.loggedIn).toBe(false)
     expect(store.token).toBeNull()
+  })
+
+  it('TASK2-07: 第二把写失败 + 回滚 delete 失败——不吞 delete 错误，原错对象/消息不变，无跨账号半态', async () => {
+    const boom = new Error('artist write failed')
+    const disk = { token: 'old-token-A' as string | null }
+    h.saveSecret.mockReset()
+      .mockResolvedValueOnce(undefined) // token B 落盘
+      .mockRejectedValueOnce(boom)      // artist B 落盘失败
+    h.deleteSecret.mockReset().mockImplementation(async (key: string) => {
+      if (key === 'session-artist') throw new Error('artist delete blocked') // 预清 + 回滚均失败
+      if (key === 'session-token') disk.token = null // token 回滚成功
+    })
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const store = useAuthStore()
+    try {
+      await expect(store.login('20002', '123456')).rejects.toBe(boom)
+
+      // delete 失败如实上报（console.error + 挂到原错误），原错误对象与 message 不变
+      expect(errSpy).toHaveBeenCalled()
+      expect((boom as Error & { secretCleanupErrors?: string[] }).secretCleanupErrors?.length).toBeGreaterThan(0)
+      expect(boom.message).toBe('artist write failed')
+      // 两把都尝试过清理；token 已清 → 重启 restore() 无 token，不会产生 token=B + artist=A 错配
+      expect(h.deleteSecret).toHaveBeenCalledWith('session-token')
+      expect(disk.token).toBeNull()
+      expect(store.loggedIn).toBe(false)
+      expect(store.token).toBeNull()
+    } finally {
+      errSpy.mockRestore()
+    }
+  })
+
+  it('TASK2-07: 两把回滚 delete 均失败——两把都尝试、错误全上报，内存仍不半登录', async () => {
+    const boom = new Error('token write failed')
+    h.saveSecret.mockReset().mockRejectedValueOnce(boom) // 第一把即失败
+    h.deleteSecret.mockReset().mockRejectedValue(new Error('secure store gone'))
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const store = useAuthStore()
+    try {
+      await expect(store.login('20002', '123456')).rejects.toBe(boom)
+      expect(h.deleteSecret).toHaveBeenCalledWith('session-token')
+      expect(h.deleteSecret).toHaveBeenCalledWith('session-artist')
+      // 预清 artist + 回滚 token + 回滚 artist 三次 delete 失败全部记录
+      expect((boom as Error & { secretCleanupErrors?: string[] }).secretCleanupErrors?.length).toBe(3)
+      expect(store.loggedIn).toBe(false)
+    } finally {
+      errSpy.mockRestore()
+    }
   })
 })

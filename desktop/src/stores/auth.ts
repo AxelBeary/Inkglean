@@ -80,12 +80,36 @@ export const useAuthStore = defineStore('auth', () => {
     // DTK-01（debug-swarm 11-24）：先完成全部落盘，再原子写内存态。
     // 原实现先置 token/loggedIn 再存 DPAPI：落盘失败会留下「界面报失败但 loggedIn=true、
     // 凭证未落盘」半态（重启丢失且无法回本地模式）。现把内存提交放到两次 saveSecret 之后。
-    await saveSecret(KEY_TOKEN, result.token)
+    // TASK2-07：清理由两把凭证组成——旧回滚只 delete(TOKEN) 且吞 delete 失败，若磁盘残留旧 artist，
+    // 重启 restore() 会读成 token=B + artist=A 的跨账号错配半态。
+    const cleanupErrors: string[] = []
+    const noteCleanupFailure = (scope: string, err: unknown): void => {
+      const detail = err instanceof Error ? err.message : String(err)
+      cleanupErrors.push(`${scope}: ${detail}`)
+      console.error(`[auth] ${scope}: ${detail}`) // delete 失败如实上报，不静默吞
+    }
+    const clearBothKeys = async (): Promise<void> => {
+      for (const key of [KEY_TOKEN, KEY_ARTIST]) {
+        try { await deleteSecret(key) }
+        catch (e) { noteCleanupFailure(`回滚清理 ${key} 失败`, e) }
+      }
+    }
+
+    // 先破坏旧半态：写新 token 前清掉可能残留的旧 artist 键（含历史登录残留）。
+    // 此步失败不致命——后续新 artist 覆盖写入即可；若最终失败，错误已记入 cleanupErrors 随原错上报。
+    try { await deleteSecret(KEY_ARTIST) }
+    catch (e) { noteCleanupFailure('写新凭证前清理旧 artist 失败', e) }
+
     try {
+      await saveSecret(KEY_TOKEN, result.token)
       await saveSecret(KEY_ARTIST, JSON.stringify(result.artist))
     } catch (err) {
-      // 第二把失败：回滚第一把，避免残留孤立 token 密文 / 半套凭证；原错误照常抛出由调用方展示
-      try { await deleteSecret(KEY_TOKEN) } catch { /* 回滚尽力而为，不吞原始落盘错误 */ }
+      // 任一把写失败：精确回滚 TOKEN + ARTIST 两把，避免只删一把留下跨账号错配；
+      // delete 失败 console.error 上报并挂到原错误上，原错误对象/message 不变（调用方展示口径不变）。
+      await clearBothKeys()
+      if (cleanupErrors.length && err instanceof Error) {
+        ;(err as Error & { secretCleanupErrors?: string[] }).secretCleanupErrors = cleanupErrors
+      }
       throw err
     }
     // 全部落盘成功后一次性提交内存态（loggedIn 由 token 派生，天然原子）
