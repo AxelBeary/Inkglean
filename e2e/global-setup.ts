@@ -80,24 +80,44 @@ function isTotpInvalid401(err: unknown): boolean {
 
 /**
  * E8 登出后解毒：用真实 TOTP 登录重签 artist token 并写回 .tokens.json。
- * 逐个尝试 ±1 窗口内未被本进程消费的时间步；若候选全部命中 TOTP_INVALID
- * （锁定/封禁/重放等五态统一错误），短退避后用当前时间步重新算的码立即重试（上限见下方常量），
- * 在用例超时前抛出最后一次真实错误，不空等 30s 边界。
+ * 逐个尝试 ±1 窗口内未被本进程消费的时间步；全部命中 TOTP_INVALID（锁定/封禁/重放五态统一）
+ * 时按「时间步是否推进」分流：步已推进直接用新码快重试，步未推进则**最多等一次**到下个 30s 边界
+ * 拿 n+2 新码（恢复能力）；已等过一次仍全 401 说明是持久拒绝，立刻抛最后一次真实错误。
  */
 // F0052: 等下一时间步的重试必须有上限——匿名 401 五态统一后锁定/封禁不再可判别，
 // 无上限的旧实现会无限递归烧防爆破预算（每 30s 一轮直到人为中断）。
-// F-02/SCR-03: 预算必须与唯一调用方 E8（e8-passkey.spec.ts）的 test.setTimeout 对账——
-//   旧：3 轮 × 每轮死等到 30s 边界 ≈ 90s > E8 的 60s，用例先裸超时，F0052 抛出的 lastError 永远没机会呈现；
-//   新：每轮失败后仅短退避 1s，下一轮基于当前时间步重新计算候选码（跨步即拿到新步的码）立即重试，
-//       最坏 ≈ 3 轮 × (3 次登录请求 + 1s 退避)，远小于 E8 的 120s，真实错误可在超时前呈现。
-const TOKEN_REFRESH_MAX_ROUNDS = 3
-const TOTP_RETRY_BACKOFF_MS = 1_000
+// F-02/SCR-03 + TASK2-03: 预算必须与唯一调用方 E8（e8-passkey.spec.ts）的 120s 超时对账，
+//   且不能丢掉旧实现「同窗口全被消费→等下一时间步拿新码」的恢复路径（E7 消费 n+1、setup 消费 n、
+//   E8 重试 worker 消费 n-1 时，只有 n+2 能救场）。最终策略：
+//   - 每轮全 401 时先看时间步是否已在轮内自然推进（跨步）→ 直接用新码快重试，零额外等待；
+//   - 步未推进且从未等过 → 等到下个 30s 边界（≤30s），拿新步的码重试一次（恢复窗口被消费的场景）；
+//   - 已等过一次仍全 401 → 立即抛 lastError（锁定/封禁/持久拒绝，等再久也不会变绿）。
+//   最坏 ≈ 1 次边界等待(≤30s) + ≤4 轮 × 3 次登录，远小于 120s；首次成功路径零等待。
+const TOKEN_REFRESH_MAX_ROUNDS = 4 // 安全上限（含一次跨步等待）；正常路径 2~3 轮内收敛
+const TOTP_STEP_MS = 30_000
+const TOTP_BOUNDARY_SKEW_MS = 100 // 跨过边界后的微小余量，避免恰好卡在整 30s
 
-export async function refreshArtistTokenCache(baseURL: string, qqNumber: string = '10001'): Promise<string> {
+/** 可注入的时钟/等待——生产走真实 Date.now/setTimeout；定向回归样例用伪时钟证明跨步恢复与快失败两场景 */
+export interface RefreshTiming {
+  now: () => number
+  sleep: (ms: number) => Promise<void>
+}
+const REAL_TIMING: RefreshTiming = {
+  now: () => Date.now(),
+  sleep: ms => new Promise(r => setTimeout(r, ms))
+}
+
+export async function refreshArtistTokenCache(
+  baseURL: string,
+  qqNumber: string = '10001',
+  timing: RefreshTiming = REAL_TIMING
+): Promise<string> {
   let lastError: unknown = null
+  let crossStepWaited = false
+  let baseStep = Math.floor(timing.now() / TOTP_STEP_MS)
+
   const attempt = async (round: number): Promise<string> => {
-    // F0052: 上限检查放在每轮尝试之前——最多 3 轮（≤9 次尝试）后抛出最后一次真实错误（不吞），
-    // 由调用方决定失败语义；旧实现无上限会无限递归烧防爆破预算
+    // F0052: 上限检查放在每轮尝试之前——超限抛最后一次真实错误（不吞），由调用方决定失败语义
     if (round >= TOKEN_REFRESH_MAX_ROUNDS) {
       throw lastError ?? new Error(`TOTP 刷新登录重试 ${TOKEN_REFRESH_MAX_ROUNDS} 轮后仍未成功 (QQ: ${qqNumber})`)
     }
@@ -114,9 +134,22 @@ export async function refreshArtistTokenCache(baseURL: string, qqNumber: string 
         if (!isTotpInvalid401(err)) throw err
       }
     }
-    // F-02/SCR-03: 不再死等到 30s 边界——五态统一后锁定/封禁/重放无法区分，空等只会把真实错误
-    // 拖到用例超时之后；短退避后下一轮重新调用 nextLoginTotp 拿当前（可能已进入新步）的码。
-    await new Promise(r => setTimeout(r, TOTP_RETRY_BACKOFF_MS))
+    // 本轮候选中 TOTP 级拒绝（五态统一，无法区分「窗口被消费」与「持久拒绝」）
+    const currentStep = Math.floor(timing.now() / TOTP_STEP_MS)
+    if (currentStep > baseStep) {
+      // 轮内已自然跨步：nextLoginTotp 下一轮会给出新步的码，零等待快重试
+      baseStep = currentStep
+      return attempt(round + 1)
+    }
+    if (crossStepWaited) {
+      // 已等过一次完整边界、在新步仍全 401 → 持久拒绝，立刻抛真实错误（F-02 核心：不裸超时）
+      throw lastError
+    }
+    // 步未推进 → 等一次到下个边界拿 n+2 新码（TASK2-03 恢复路径，全程仅此一次长等待）
+    crossStepWaited = true
+    const waitMs = TOTP_STEP_MS - (timing.now() % TOTP_STEP_MS) + TOTP_BOUNDARY_SKEW_MS
+    await timing.sleep(waitMs)
+    baseStep = Math.floor(timing.now() / TOTP_STEP_MS)
     return attempt(round + 1)
   }
   return attempt(0)
@@ -141,11 +174,38 @@ async function apiStepUp(baseURL: string, token: string, qqNumber: string): Prom
 }
 
 /**
- * SCR-08: 判断 web/dist 是否需要重建。
+ * SCR-08 + TASK2-02: 判断 web/dist 是否需要重建。
  * - E2E_SKIP_BUILD=1：调用方（如 scripts/accept.ps1 的 web-build 门禁）已构建，显式跳过；
- * - 否则按 mtime 增量：dist/index.html 存在且不早于 web/src 最新源文件与关键配置则跳过。
+ * - 否则按 mtime 增量：dist/index.html 存在且不早于全部真实构建输入则跳过。
+ * 真实输入须含：
+ *   · web/src（web 应用源码）
+ *   · shared/src + shared/package.json（web 经 "file:../shared" 依赖，exports 指向 ./src/index.ts，
+ *     Vite 直接内联编译——本批 SHR-02/SHR-04 正是只改 shared 源码，漏算会导致 E2E 跑旧 bundle 假绿）
+ *   · vite.config.ts（envDir 指向仓库根）、web/package.json、web/index.html
+ *   · 根 .env / .env.local / .env.production（vite 从根读取，VITE_* 影响构建产物）
  * 保持单向职责：本函数只判定，不执行构建。
  */
+export const WEB_BUILD_INPUT_DIRS = ['web/src', 'shared/src']
+export const WEB_BUILD_INPUT_FILES = [
+  'web/index.html', 'web/vite.config.ts', 'web/package.json',
+  'shared/package.json',
+  '.env', '.env.local', '.env.production'
+]
+
+/** 计算全部构建输入的最新 mtime（ms）——导出供 TASK2-02 定向样例验证「shared/.env 纳入判定」 */
+export function newestBuildInputMtime(root: string, dirs: readonly string[], files: readonly string[]): number {
+  let newest = 0
+  for (const dir of dirs) {
+    const p = resolve(root, dir)
+    if (existsSync(p)) newest = Math.max(newest, newestMtime(p))
+  }
+  for (const cfg of files) {
+    const cfgPath = resolve(root, cfg)
+    if (existsSync(cfgPath)) newest = Math.max(newest, statSync(cfgPath).mtimeMs)
+  }
+  return newest
+}
+
 function needsWebBuild(): boolean {
   if (process.env.E2E_SKIP_BUILD === '1') {
     console.log('📦 E2E: E2E_SKIP_BUILD=1，跳过前端构建（调用方已构建 web/dist）')
@@ -154,14 +214,7 @@ function needsWebBuild(): boolean {
   const distIndex = resolve(ROOT, 'web/dist/index.html')
   if (!existsSync(distIndex)) return true
   const builtAt = statSync(distIndex).mtimeMs
-
-  let newestSource = 0
-  const srcDir = resolve(ROOT, 'web/src')
-  if (existsSync(srcDir)) newestSource = newestMtime(srcDir)
-  for (const cfg of ['web/index.html', 'web/vite.config.ts', 'web/package.json']) {
-    const cfgPath = resolve(ROOT, cfg)
-    if (existsSync(cfgPath)) newestSource = Math.max(newestSource, statSync(cfgPath).mtimeMs)
-  }
+  const newestSource = newestBuildInputMtime(ROOT, WEB_BUILD_INPUT_DIRS, WEB_BUILD_INPUT_FILES)
   return newestSource > builtAt
 }
 
