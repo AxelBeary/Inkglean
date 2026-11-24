@@ -230,14 +230,36 @@ describe('B1-F0096/F0097: noTransaction 全列守卫 + 半态修复', () => {
     mem.close()
   })
 
-  it('TC-B1-F0096-02: 结构完整时 v71 直接跳过（不重复备份/回填）', () => {
+  it('TC-B1-F0096-02: 结构完整时 v71 不重复备份/回填（use_count 与明细行原样保留）', () => {
     const mem = new Database(':memory:')
     mem.exec(`
       CREATE TABLE invite_codes (id INTEGER PRIMARY KEY, code TEXT, status TEXT, used_by_artist_id INTEGER, used_at TEXT, max_uses INTEGER, use_count INTEGER);
       CREATE TABLE invite_code_uses (id INTEGER PRIMARY KEY, invite_code_id INTEGER, artist_id INTEGER, used_at TEXT, UNIQUE(invite_code_id, artist_id));
       CREATE INDEX idx_invite_code_uses_code ON invite_code_uses(invite_code_id);
+      -- 完整形态下预置一条「已被多次消费」的码（use_count=5）及其唯一明细行：
+      -- 若 up() 误走回填（UPDATE use_count=1 / INSERT 明细），use_count 会被重置、明细会重复，此处即可观察。
+      INSERT INTO invite_codes (id, code, status, used_by_artist_id, used_at, max_uses, use_count)
+        VALUES (1, 'USED5', 'used', 42, '2026-01-01T00:00:00Z', 10, 5);
+      INSERT INTO invite_code_uses (id, invite_code_id, artist_id, used_at)
+        VALUES (1, 1, 42, '2026-01-01T00:00:00Z');
     `)
+    // 完整性前提：三要素齐备（max_uses / use_count 列 + 明细表），确保 up() 走「完整态跳过」分支
+    expect(colNames(mem, 'invite_codes')).toContain('max_uses')
+    expect(colNames(mem, 'invite_codes')).toContain('use_count')
+    expect(tableExists(mem, 'invite_code_uses')).toBe(true)
+
     expect(() => v71.up(mem)).not.toThrow()
+
+    // (a) 已被多次消费的码 use_count=5 不得被回填重置为 1
+    expect((mem.prepare("SELECT use_count FROM invite_codes WHERE code='USED5'").get() as { use_count: number }).use_count).toBe(5)
+    // (b) 明细行不重复插入（INSERT OR IGNORE 遇 UNIQUE 跳过），仍恰好 1 行且内容不变
+    expect((mem.prepare('SELECT COUNT(*) AS n FROM invite_code_uses').get() as { n: number }).n).toBe(1)
+    expect((mem.prepare('SELECT used_at FROM invite_code_uses WHERE invite_code_id=1').get() as { used_at: string }).used_at).toBe('2026-01-01T00:00:00Z')
+
+    // (c) 幂等：再跑一次 use_count/明细行数完全不变（重复回填/重复备份若发生即在此暴露）
+    expect(() => v71.up(mem)).not.toThrow()
+    expect((mem.prepare("SELECT use_count FROM invite_codes WHERE code='USED5'").get() as { use_count: number }).use_count).toBe(5)
+    expect((mem.prepare('SELECT COUNT(*) AS n FROM invite_code_uses').get() as { n: number }).n).toBe(1)
     mem.close()
   })
 })

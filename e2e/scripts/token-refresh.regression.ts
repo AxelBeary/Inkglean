@@ -9,8 +9,12 @@ import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { refreshArtistTokenCache, type RefreshTiming } from '../global-setup.js'
 
-// .tokens.json 归 e2e/ 目录（token-store.ts 以自身所在目录为基准），本脚本在 e2e/scripts/ 下需回退一级
-const TOKENS_FILE = resolve(dirname(fileURLToPath(import.meta.url)), '..', '.tokens.json')
+// XEND-10: 回归专用隔离缓存——经 E2E_TOKENS_FILE 让 token-store 的读写落到本脚本专属临时文件，
+// 绝不再无条件覆写 e2e/.tokens.json（那是 global-setup/fixture 共享的有效 token 缓存，
+// 覆写后即便本脚本退出，真实缓存已被 placeholder 污染，下轮 E2E 带假 token 全批失败）。
+// token-store.tokensFile() 在每次调用时读 env（惰性），故此处设置对 writeArtistToken 同样生效。
+const TOKENS_FILE = resolve(dirname(fileURLToPath(import.meta.url)), '.token-refresh.regression.tokens.json')
+process.env.E2E_TOKENS_FILE = TOKENS_FILE
 
 function makeTiming(startMs: number): { timing: RefreshTiming; waits: number[]; now: () => number } {
   let now = startMs
@@ -43,8 +47,9 @@ function check(name: string, ok: boolean, detail = ''): void {
 }
 
 const originalFetch = globalThis.fetch
-const hadTokens = existsSync(TOKENS_FILE)
-// writeArtistToken 读回共享缓存，测试需一份最小合法 .tokens.json
+// writeArtistToken 从隔离缓存读回，测试需一份最小合法 .tokens.json；
+// 路径归本脚本专属，先清理任何上次崩溃残留再写，避免旧 token 干扰断言。
+if (existsSync(TOKENS_FILE)) unlinkSync(TOKENS_FILE)
 writeFileSync(TOKENS_FILE, JSON.stringify({ artist: 'placeholder', admin: 'placeholder' }))
 
 async function main(): Promise<void> {
@@ -100,5 +105,7 @@ async function main(): Promise<void> {
 
 void main().finally(() => {
   globalThis.fetch = originalFetch
-  if (!hadTokens && existsSync(TOKENS_FILE)) unlinkSync(TOKENS_FILE)
+  // XEND-10: 只删本脚本专属的隔离缓存，绝不碰 e2e/.tokens.json（真实缓存自始至终未被读写）
+  if (existsSync(TOKENS_FILE)) unlinkSync(TOKENS_FILE)
+  delete process.env.E2E_TOKENS_FILE
 })
