@@ -479,8 +479,12 @@ CREATE TABLE IF NOT EXISTS discount_codes (
   discount_type TEXT NOT NULL DEFAULT 'percent' CHECK(discount_type IN ('percent', 'fixed')),
   -- B3-F0079（队长裁定）：保留 REAL 双语义（percent 1-100 / fixed 元），只补 CHECK 拦非法值；
   -- 与 v32-discount-codes.ts 双事实源同步。禁止转 cents（会破坏 discount.service.ts 双语义计价）。
+  -- R3-① 收敛裁定（2026-11-24，见 docs/comms/STATUS.md「已拍板规则」）：这三条 CHECK 属本轮新增
+  -- DDL 防御约束，仅新装库（本 schema）与 v32 首次建表的升级库具备；存量库已有 version=32 被
+  -- migrate.ts 跳过、CREATE TABLE IF NOT EXISTS 不重建，故保持无 CHECK——不新增迁移号、不重建存量表。
+  -- 服务层 discount.service.ts 已校验兜底，重建表（关 FK + 12 步搬运）风险高于收益。
   discount_value REAL NOT NULL CHECK(discount_value > 0),
-  -- B3-F0080：与 v32 同步补 max_uses/used_count 的 CHECK 约束。
+  -- B3-F0080：与 v32 同步补 max_uses/used_count 的 CHECK 约束（存量口径见上 R3-① 裁定）。
   max_uses INTEGER DEFAULT NULL CHECK(max_uses IS NULL OR max_uses >= 0),
   used_count INTEGER DEFAULT 0 CHECK(used_count >= 0),
   expires_at DATETIME DEFAULT NULL,

@@ -202,12 +202,14 @@ export function getAdminMessages(filters: AdminMessageFilters = {}): Array<Guest
   const limitSql = limit != null ? 'LIMIT ?' : ''
   if (limit != null) params.push(limit)
   // 管理端刻意保持 m.*（要看到 v75 的 ip 才能做纠纷取证）；返回类型收窄到 GuestbookMessageWithIp
+  // R3-③: LIMIT 需确定性排序——created_at 秒精度，同秒并列时补 id DESC 作 tiebreaker，
+  // 与画师端 getArtistMessages / 邀请码列表同口径，刷新不会在并列行中换条目。
   return db.prepare(`
     SELECT m.*, a.name AS artist_name
     FROM guestbook_messages m
     LEFT JOIN artists a ON m.artist_id = a.id
     ${where}
-    ORDER BY m.created_at DESC
+    ORDER BY m.created_at DESC, m.id DESC
     ${limitSql}
   `).all(...params) as Array<GuestbookMessageWithIp & { artist_name: string | null }>
 }

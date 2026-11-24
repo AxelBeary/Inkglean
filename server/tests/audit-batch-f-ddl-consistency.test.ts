@@ -11,6 +11,12 @@ import { initDatabase, schema, schemaIndexes, MIGRATIONS } from '../src/db/init.
  *   B 走 v1 基线（引入版本化迁移前的历史建表 SQL，提取自 7b9141d initial release）+ 全部迁移
  * 比对两库的表清单 + 每表列清单（PRAGMA table_info）完全一致，不一致即失败并输出差异。
  *
+ * R3-① CHECK 口径（2026-11-24）：PRAGMA table_info 不含 CHECK，本文件另加 CHECK 快照断言：
+ *   - 新装库 A 与 v1 迁移链库 B（discount_codes 由当前 v32 DDL 首次建表）都必须带三条新增 CHECK；
+ *   - 存量库（version=32 已应用、旧形 discount_codes）重启后保持无 CHECK 属 R3-① 裁定预期
+ *     （migrate.ts 跳过 v32 + CREATE TABLE IF NOT EXISTS 不重建；不新增迁移号、不重建存量表）。
+ *   两口径差异由 STATUS「已拍板规则」R3-① 条固化。
+ *
  * 语义说明：
  * - 列按 name 排序比较（SQLite 不保证 ALTER 追加列与 schema 声明列的顺序一致，顺序差异不构成漂移）。
  * - B 额外手工建 schema_migrations / platform_config：真实老库升级时由 initDatabase 的
@@ -72,6 +78,24 @@ const KEY_INDEXES: Array<{ table: string; index: string }> = [
   { table: 'greeting_templates', index: 'idx_greeting_templates_special_day' }, // v64 + schemaIndexes（F0101 修补）
   { table: 'preview_uploads', index: 'idx_preview_uploads_artist' }, // v82 + schemaIndexes
 ]
+
+/**
+ * R3-①: discount_codes 的三条新增 CHECK 原文（与 schema.ts / v32 双事实源同款）。
+ * PRAGMA table_info 不含 CHECK，故从 sqlite_master.sql 取建表原文、压 whitespace 后子串断言。
+ */
+const DISCOUNT_CHECKS = [
+  'CHECK(discount_value > 0)',
+  'CHECK(max_uses IS NULL OR max_uses >= 0)',
+  'CHECK(used_count >= 0)',
+] as const
+
+/** R3-①: 取表建表 SQL（归一化空白），缺表返回空串 */
+function tableCreateSql(database: Database.Database, table: string): string {
+  const row = database.prepare(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?"
+  ).get(table) as { sql: string } | undefined
+  return (row?.sql ?? '').replace(/\s+/g, ' ')
+}
 
 /**
  * B3-F0101: 采集外键清单（表名 → 规范化 FK 元组排序数组）。
@@ -347,5 +371,61 @@ describe('审计批 F-6: DDL 双事实源一致性（完整 schema vs v1 起步 
       }
       database.close()
     }
+  })
+
+  // R3-① CHECK 口径固化：新装库 A 与 v1 迁移链库 B（当前 v32 DDL 首次建表）都必须带三条 CHECK。
+  it('TC-R3-CHECK-01: 新装库与迁移链库 discount_codes 都带三条新增 CHECK', () => {
+    for (const build of ['new', 'chain'] as const) {
+      const database = new Database(':memory:')
+      if (build === 'new') {
+        initDatabase(database)
+      } else {
+        database.pragma('foreign_keys = ON')
+        database.exec(V1_BASELINE_SQL)
+        database.exec('CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at DATETIME DEFAULT CURRENT_TIMESTAMP)')
+        database.exec('CREATE TABLE IF NOT EXISTS platform_config (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
+        applyMigrationChain(database)
+      }
+      const sql = tableCreateSql(database, 'discount_codes')
+      for (const check of DISCOUNT_CHECKS) {
+        expect(sql, `${build} 路径 discount_codes 应含 ${check}`).toContain(check)
+      }
+      database.close()
+    }
+  })
+
+  // R3-① 存量口径：version=32 已应用且旧形 discount_codes（无 CHECK）存在时，initDatabase 的
+  // schema exec 是 IF NOT EXISTS、v32 被跳过 → CHECK 不会被补上。这是裁定后的预期而非缺陷。
+  it('TC-R3-CHECK-02: 存量旧形库重启后 discount_codes 保持无 CHECK（裁定预期，不新增迁移号）', () => {
+    const database = new Database(':memory:')
+    database.exec(`
+      CREATE TABLE discount_codes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        artist_id INTEGER NOT NULL,
+        code TEXT NOT NULL,
+        discount_type TEXT NOT NULL DEFAULT 'percent',
+        discount_value REAL NOT NULL,
+        max_uses INTEGER DEFAULT NULL,
+        used_count INTEGER DEFAULT 0,
+        expires_at DATETIME DEFAULT NULL,
+        enabled INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE,
+        UNIQUE(artist_id, code)
+      )
+    `)
+    // 模拟存量已应用 v32（及全部迁移），initDatabase 只 exec(schema) + 索引，不重放 v32
+    database.exec('CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL)')
+    for (let v = 1; v <= MIGRATIONS.length; v++) {
+      database.prepare('INSERT INTO schema_migrations (version, name) VALUES (?, ?)').run(v, `v${v}`)
+    }
+    expect(() => initDatabase(database)).not.toThrow()
+    const sql = tableCreateSql(database, 'discount_codes')
+    for (const check of DISCOUNT_CHECKS) {
+      expect(sql, `存量旧形库不应被补上 ${check}`).not.toContain(check)
+    }
+    // 关键：裁定生效——未新增迁移号来重建存量表（迁移总数仍 83）
+    expect(MIGRATIONS.length).toBe(83)
+    database.close()
   })
 })
