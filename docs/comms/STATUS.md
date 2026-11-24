@@ -1,29 +1,29 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-11-24 收口态：origin/master=0b3c5db2；#107–#113 七 PR 全 OPEN，#109/#112 两红定位中）
+## 看板（2026-11-24 最终收口态：origin/master=0b3c5db2；fork 集成 0ff41a5d 含 7 PR + 全部修复批；fork 内全绿、待统一推上游）
 
-- **HEAD**：`origin/master` = `0b3c5db2`（PR #106 收口版，master 未再前移；施工七 PR 集成在 fork，待统一推上游）
+- **HEAD**：`origin/master` = `0b3c5db2`（上游未前移）；fork 集成 `0ff41a5d` 含 7 PR + 8 施工/修复批 + 8 条 TASK2 闭合，待用户确认后统一推上游
   - 本机无 pwsh/chromium/cargo/playwright：只报「CI + 本机等价门禁」，不得称十九道全绿；CI 四 job 为权威，十九道由 Windows 环境实跑
-- **本机等价门禁（2026-11-24）**：server 2179 / web 1370 / desktop 682 / shared 48；台账 `AGENTS/门禁-20261124/`
-- **PR 状态**：#107–#113 共 7 条全部 OPEN/BLOCKED、文件级零交集无冲突；合并顺序 #109 先于 #112（F0283 理由见下一步第 1 条）
-  - #109 file-size 红：`useOrderForm.ts` 827 行超 800 冻结值——ci-web 修复中（t1）；#112 server 两例失败：admin messages limit——ci-server 修复中（t2）
+- **本机等价门禁（t22 重签）**：server 194/2223 / web 197/1387 / desktop 52/693 / shared 9/60；18 道全过，台账 `AGENTS/gate-20261124-followup/GATE.md`
+- **PR 状态**：#107–#113 上游仍 OPEN；fork 内已集成、两红闭合，推上游顺序 #109 先于 #112（理由见下一步第 1 条）
+  - 两红已闭合：web 拆分 useOrderForm.ts 827→674 行；#112 为集成顺序 artifact，按 #109→#112 后 12/12；TASK2-01 资金高危另闭合
 - **基线**：`accept-baseline.json` server 2105 / web 1308 / desktop 678 / shared 47 / e2e 15；迁移 v82；cargo 39 另计
 - **发版**：v1.1.0（2026-10-28 稳交付·好管理版）；安装包 5.79MB/920 文件；说明见 `docs/changelog.md` 顶部
 - **拍板落地（2026-11-23）**：F0192 孤儿行跳过+告警 / F0200 边界照方案 / F0134 押后 B4 / ab263dd1 A+C / B8 手册已修 / 账号口径按实测——全文见「已拍板规则」末条
-- **警报/issue**：B 批 #96(B1)/#97(B3)/#98(B5) 公开待施工，B2/B4/B6/B7 走私密 GHSA；Code scanning 0 / Dependabot 0
+- **警报/issue**：B1/B3/B4/B8 已落地 fork 集成；#96/#97/#98 仍公开待推，B2/B4/B6/B7 私密 GHSA；Code scanning 0 / Dependabot 0
 - **合并权口径**：`master-merge-gate` bypass 只有 AxelBeary（always），可自合/直推；Mistwhisker 仅 write、实测不可自合
 - **范围不变项**：拟物收敛只限排期块 ScheduleScroll；GHSA-6pf3 维持私密不公开；公网冻结现状不变；管理员判定只认库值
 - 🔴 **上线前置硬警告仍有效**：公网部署前必须先确认 `platform_config.admin_qq` 非空
 
 **下一步（按优先级）**
 
-1. **推进 B1/B3/B4/B8（fork 内施工，不等上游合并）**：施工图、F 编号映射与派工清单见 `AGENTS/handoff-20261124/PLAN-REMAINING.md`
-   - 口径：fork 内集成与等价门禁全绿后，再统一推上游；代理只 push fork、不 push origin
-   - 七 PR #107–#113 全 OPEN（#109 先于 #112）；合并后盯 CI 首跑（e2e 为 B5/B6 权威回归），master 十九道由 Windows 环境实跑留痕
-     - F0283 顺序订正：server 实现与 web 消费均在 #109；#112 仅新增 ?limit 回归测试，故须 #109 先合，反序必红 3 例
-2. **B8 用户配置（你的操作）**：密钥对 + Secrets/Variables + 真机终验——照做清单 `AGENTS/拍板材料-20261123/B8-照做清单.md`；ab263dd1 空壳 QQ 方案（A+C）代码侧随 B8 批
-3. **待用户终验项沿旧**：发布包真机、悬浮窗真机、桌面 768 分屏；U33 发版流水线未跑（vars/secrets 配好前首版必红）；U26 tsx 生产依赖待拍板
-4. **待拍板 F0180**：publicArtistDTO 将 calendar_feed_token（可旋转凭证）平铺给画师 /auth/me 响应、web 零消费，是否剔除属 API 契约问题
+1. **推上游（待用户确认）**：fork 集成 `0ff41a5d` 已含 7 PR + 8 施工/修复批 + 8 条 TASK2 闭合；顺序 #109 先于 #112，全部准备好后统一推上游
+   - 口径：代理只 push fork、不 push origin、不提上游 PR；自包含交接档 `AGENTS/handoff-20261124/FOLLOWUP-DELIVERY.md`
+   - F0283 顺序订正：server 实现与 web 消费均在 #109；#112 仅新增 ?limit 回归测试，故须 #109 先合，反序必红 3 例
+2. **施工批覆盖**：B1 6 条 + B3 11 条 + B4 12 条（含 F0134 信封）+ B8 方案 A+C 与 U33；施工图 `AGENTS/handoff-20261124/PLAN-REMAINING.md`
+3. **两轮审计与扫描（摘要）**：第一轮 51 条（真缺陷 23）+ 第二轮 8 条（high 1 资金）全闭合；性能/体验 low 20+ 条带 F 注释落地；详情见 `AGENTS/debug-swarm-20261124-followup/`
+4. **B8 用户配置（你的操作）**：密钥对 + Secrets/Variables + 真机终验——照做清单 `AGENTS/拍板材料-20261123/B8-照做清单.md`
+5. **待用户终验/拍板**：发布包真机、悬浮窗、桌面 768 分屏、U33 流水线；F0180 剔除与否、方案 C 运营 SOP、TASK2-05 低危不可达观察
 
 **常驻纪律（事故换来的，不得退色）**
 
