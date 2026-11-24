@@ -1493,6 +1493,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     shareOpened: 'Publish page opened in a new tab',
     shareCopied: 'Text copied — paste it on the publish page',
     shareNoHomepage: 'Text contains {homepage} but no homepage link for this platform was found — add one in Page Settings first',
+    // F0217: fallback open blocked by an invalid hostname — visible notice (copied text still usable manually)
+    shareInvalidHost: 'This platform address is invalid, so the publish page was not opened. The text is copied — please open the platform manually.',
     // Wave 3-2: share platform list load-failure error state + retry
     shareLoadFailed: 'Failed to load share platforms. Please retry.',
     // 818-D: reorder from a past order (reuse info for a new order)
