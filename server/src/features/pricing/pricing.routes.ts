@@ -83,7 +83,9 @@ export default async function pricingRoutes(fastify: FastifyInstance) {
         properties: {
           code: { type: 'string', minLength: 2, maxLength: 20 },
           discountType: { type: 'string', enum: ['percent', 'fixed'], default: 'percent' },
-          discountValue: { type: 'number', minimum: 0.01, maximum: 100 },
+          // XEND-12: 金额字段统一 moneyPrecision（与 style.routes.ts 各金额字段同口径），
+          // 拒 fixed=1.005 之类超分精度值，防报价/实扣因换算口径分裂差 1 分
+          discountValue: { type: 'number', minimum: 0.01, maximum: 100, moneyPrecision: true },
           maxUses: { type: ['integer', 'null'], minimum: 1, maximum: 99999 },
           expiresAt: { type: ['string', 'null'], maxLength: 50, pattern: EXPIRES_AT_PATTERN }
         },
@@ -101,7 +103,8 @@ export default async function pricingRoutes(fastify: FastifyInstance) {
       body: {
         type: 'object',
         properties: {
-          discountValue: { type: 'number', minimum: 0.01, maximum: 100 },
+          // XEND-12: 同创建口，更新口 discountValue 也补 moneyPrecision，避免 PUT 写入超分精度值
+          discountValue: { type: 'number', minimum: 0.01, maximum: 100, moneyPrecision: true },
           maxUses: { type: ['integer', 'null'], minimum: 1, maximum: 99999 },
           expiresAt: { type: ['string', 'null'], maxLength: 50, pattern: EXPIRES_AT_PATTERN },
           enabled: { type: 'boolean' }

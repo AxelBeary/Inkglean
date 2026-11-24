@@ -1,5 +1,6 @@
 import db from '../../db/connection.js'
 import { AppError, E } from '../../shared/errors.js'
+import { yuanToCents } from '../../shared/money.js'
 
 // ============================================
 // 折扣码服务 - CRUD + 验证 + 应用（v0.31 F3）
@@ -220,8 +221,10 @@ export function computeDiscountCents(code: DiscountCode, totalPriceCents: number
     // 两者口径不同属有意——折扣码用于下单计价、小票是画师手动出具的对账单，属独立子系统，差 ≤1 分无资金损坏，勿顺手统一。
     return Math.floor(totalPriceCents * code.discount_value / 100)
   }
-  // fixed: 元 → 分
-  const fixedCents = Math.round(code.discount_value * 100)
+  // XEND-12: fixed 元 → 分走服务端金额单一事实源（镜像 shared/src/utils/money.ts 的 yuanToCents）。
+  // 原 Math.round(discount_value*100) 对 1.005 等三位小数会 IEEE754 截断成 100 分，
+  // 而前端 orderFormDiscount.ts 用 yuanToCents 报 101 分 → 报价/实扣差 1 分（资金口径）。
+  const fixedCents = yuanToCents(code.discount_value)
   return Math.min(fixedCents, totalPriceCents)
 }
 
