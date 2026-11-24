@@ -49,7 +49,8 @@ function adminToken(artist: ArtistRow) {
 /**
  * 邀请流程自产的「空壳」：先经 registerWithInvite 建号（写入 invite_code_uses，坐实邀请来源），
  * 再把 TOTP 密钥/验证态置回「从未生成」（模拟受邀入驻后被管理员 reset、待重新推倒重来）。
- * GHSA-6pf3 修复②后，只有这类带 invite_code_uses 的空壳才允许被新邀请码覆盖。
+ * ab263dd1 方案 C 后，这类带 invite_code_uses 的空壳同样禁止被新邀请码覆盖
+ * （统一走管理员找回/重置），本 helper 用于构造「QQ 已占用」场景的回归。
  */
 function seedInviteShell(qqNumber: string, subdomain: string, name: string): ArtistRow {
   const [c] = generateInviteCodes(1, 3, 1)
@@ -196,54 +197,38 @@ describe('REQ-039 邀请码注册（invite）', () => {
     expect(row.used_by_artist_id).toBeNull()
   })
 
-  // ─── 空壳账号覆盖（GHSA-6pf3 修复②：只允许覆盖「邀请流程自产」的空壳——带 invite_code_uses）───
+  // ─── 空壳账号禁覆盖（ab263dd1 方案 C：任何既有 QQ 行一律 QQ_TAKEN，走管理员找回/重置）───
 
-  it('TC-INV-07b: 邀请流程自产的空壳（受邀后被 reset）可被新码覆盖重来', async () => {
+  it('TC-INV-07b (ab263dd1-C): 邀请流程自产空壳（受邀后被 reset）禁止被新码覆盖 → QQ_TAKEN', async () => {
     setAdmin()
-    // 先邀请建号（写入 invite_code_uses），再置回未生成密钥态 → 邀请来源坐实的合法空壳
+    // 先邀请建号（写入 invite_code_uses），再置回未生成密钥态 → 邀请来源坐实的空壳
     const shellRow = seedInviteShell('21001', 'shell1', '首次')
-    // 模拟壳上已有简介（覆盖后应置空）
     db.prepare("UPDATE artists SET bio = '旧简介' WHERE id = ?").run(shellRow.id)
-    const stagesBefore = (db.prepare('SELECT COUNT(*) AS c FROM artist_workflow_stages WHERE artist_id = ?').get(shellRow.id) as { c: number }).c
 
-    // 新码推倒重来（改写 name/子域名）
+    // 方案 C：持新邀请码 + 该 QQ 试图覆盖 → 拒绝（不再有「推倒重来」路径）
     const [invite] = generateInviteCodes(1, 3, 1)
     const res = await app.inject({
       method: 'POST',
       url: '/api/invite/register',
       payload: { code: invite.code, qqNumber: '21001', name: '重来', subdomain: 'shell1x' }
     })
-    expect(res.statusCode).toBe(201)
-    const body = res.json()
-    expect(body.qqNumber).toBe('21001')
-    expect(body.otpauthUri).toContain('secret=')
+    expect(res.statusCode).toBe(400)
+    expect(res.json().code).toBe('QQ_TAKEN')
+    expect(res.json().error).toBe('该QQ号已被注册')
 
-    // 就地更新既有行：id 保留，新入参生效，bio 置空，状态回 hidden
-    const updated = db.prepare("SELECT * FROM artists WHERE qq_number = '21001'").get() as ArtistRow
-    expect(updated.id).toBe(shellRow.id)
-    expect(updated.name).toBe('重来')
-    expect(updated.subdomain).toBe('shell1x')
-    expect(updated.artist_code).toBe('SHELL1X')
-    expect(updated.bio).toBeNull()
-    expect(updated.status).toBe('hidden')
-    expect(updated.totp_verified).toBe(0)
-    expect(updated.totp_secret).toBeTruthy()
-
-    // 不重复初始化：须知仍 1 条、工作流不重复（与覆盖前同数）
-    const rules = db.prepare('SELECT COUNT(*) AS c FROM commission_rules WHERE artist_id = ?').get(updated.id) as { c: number }
-    expect(rules.c).toBe(1)
-    const stagesAfter = (db.prepare('SELECT COUNT(*) AS c FROM artist_workflow_stages WHERE artist_id = ?').get(updated.id) as { c: number }).c
-    expect(stagesAfter).toBe(stagesBefore)
-
-    // 码被消费且归属壳 id
+    // 攻击码未消费
     const usedRow = db.prepare('SELECT * FROM invite_codes WHERE id = ?').get(invite.id) as InviteCodeRowLite
-    expect(usedRow.status).toBe('used')
-    expect(usedRow.used_by_artist_id).toBe(shellRow.id)
-
-    // 未删行重建：该 QQ 名下仍只有一行，且 id 未变
+    expect(usedRow.status).toBe('unused')
+    // 空壳行未被篡改（name/subdomain/bio 原样）
+    const intact = db.prepare('SELECT * FROM artists WHERE id = ?').get(shellRow.id) as ArtistRow
+    expect(intact.name).toBe('首次')
+    expect(intact.subdomain).toBe('shell1')
+    expect(intact.bio).toBe('旧简介')
+    // QQ 名下仍只有一行
     const count = db.prepare("SELECT COUNT(*) AS c FROM artists WHERE qq_number = '21001'").get() as { c: number }
     expect(count.c).toBe(1)
   })
+
 
   // GHSA-6pf3 修复②核心回归防线：管理员预建号（createArtist 不写 totp_secret → 天然满足空壳三条件）
   // 若不收紧，攻击者持该号 QQ + 任一新邀请码即可原地覆盖接管。无 invite_code_uses → 拒绝覆盖。
@@ -340,9 +325,9 @@ describe('REQ-039 邀请码注册（invite）', () => {
     expect(original.name).toBe('受害者')
   })
 
-  it('TC-INV-07c: 覆盖时空壳自身 subdomain/artist_code 复用合法（不报 TAKEN）', async () => {
+  it('TC-INV-07c (ab263dd1-C): 空壳 QQ 即便 subdomain/artist_code 与入参同名也 QQ_TAKEN（无覆盖路径）', async () => {
     setAdmin()
-    // 邀请流程自产空壳（GHSA-6pf3 修复②后唯一允许覆盖的来源）
+    // 邀请流程自产空壳；方案 C 下其 QQ 已占用，任何新码注册都拒绝
     seedInviteShell('21002', 'shell2', '首次')
 
     const [invite] = generateInviteCodes(1, 3, 1)
@@ -351,17 +336,18 @@ describe('REQ-039 邀请码注册（invite）', () => {
       url: '/api/invite/register',
       payload: { code: invite.code, qqNumber: '21002', name: '同名重来', subdomain: 'shell2' }
     })
-    expect(res2.statusCode).toBe(201)
-    const updated2 = db.prepare("SELECT * FROM artists WHERE qq_number = '21002'").get() as ArtistRow
-    expect(updated2.name).toBe('同名重来')
-    expect(updated2.subdomain).toBe('shell2')
+    expect(res2.statusCode).toBe(400)
+    expect(res2.json().code).toBe('QQ_TAKEN')
+    const row2 = db.prepare('SELECT * FROM invite_codes WHERE id = ?').get(invite.id) as InviteCodeRowLite
+    expect(row2.status).toBe('unused')
+    const intact = db.prepare("SELECT name FROM artists WHERE qq_number = '21002'").get() as { name: string }
+    expect(intact.name).toBe('首次')
   })
 
-  it('TC-INV-07d: 覆盖时 subdomain 与其他账号冲突 → SUBDOMAIN_TAKEN，码不消费', async () => {
+  it('TC-INV-07d (ab263dd1-C): 空壳 QQ + 他号 subdomain 冲突 → 仍 QQ_TAKEN（QQ 判据优先），码不消费', async () => {
     setAdmin()
-    // 冲突账号：artist_code 故意与 subdomain 解耦，确保只触发 subdomain 碰撞分支
+    // 冲突账号：subdomain 被他号占用
     seedArtist({ qq_number: '29001', subdomain: 'occupied', artist_code: 'OTHERCODE' })
-    // 邀请流程自产空壳（须先具备邀请来源，才能走到 subdomain 碰撞判定，而非先被预建拒绝）
     seedInviteShell('21003', 'shell3', '首次')
 
     const [invite3] = generateInviteCodes(1, 3, 1)
@@ -370,11 +356,13 @@ describe('REQ-039 邀请码注册（invite）', () => {
       url: '/api/invite/register',
       payload: { code: invite3.code, qqNumber: '21003', name: '冲突', subdomain: 'occupied' }
     })
+    // 方案 C：QQ 已存在 → QQ_TAKEN 先命中，不再走到 subdomain 碰撞判定
     expect(res3.statusCode).toBe(400)
-    expect(res3.json().code).toBe('SUBDOMAIN_TAKEN')
+    expect(res3.json().code).toBe('QQ_TAKEN')
     const row3 = db.prepare('SELECT * FROM invite_codes WHERE id = ?').get(invite3.id) as InviteCodeRowLite
     expect(row3.status).toBe('unused')
   })
+
 
   it('TC-INV-07e: 已验证/已删除/已封禁账号仍报 QQ_TAKEN（不可覆盖）', async () => {
     setAdmin()
@@ -830,6 +818,90 @@ describe('REQ-039 邀请码注册（invite）', () => {
 
     const missing = await app.inject({ method: 'GET', url: '/api/admin/invite-codes/99999/uses', headers })
     expect(missing.statusCode).toBe(404)
+  })
+
+  // ─── ab263dd1 方案 A：签发绑定 QQ（v83）────────────────────────────
+  it('TC-INV-25 (ab263dd1-A): 迁移 v83 增加 invite_codes.qq_number 列 + 索引', () => {
+    const cols = db.prepare('PRAGMA table_info(invite_codes)').all() as Array<{ name: string }>
+    expect(cols.map(c => c.name)).toContain('qq_number')
+    const indexes = db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='invite_codes'").all() as Array<{ name: string }>
+    expect(indexes.map(i => i.name)).toEqual(expect.arrayContaining(['idx_invite_codes_qq']))
+  })
+
+  it('TC-INV-26 (ab263dd1-A): 绑定码签发落 qq_number，列表/生成响应回显 boundQq', async () => {
+    const admin = setAdmin()
+    const headers = { Authorization: `Bearer ${adminToken(admin)}` }
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/admin/invite-codes',
+      headers,
+      payload: { count: 2, qqNumber: '32001' }
+    })
+    expect(res.statusCode).toBe(201)
+    expect(res.json().codes).toHaveLength(2)
+    for (const c of res.json().codes) expect(c.qqNumber).toBe('32001')
+
+    // service 层回读
+    const rows = generateInviteCodes(1, 3, 1, null, '32002')
+    expect(rows[0].qq_number).toBe('32002')
+    const dbRow = db.prepare('SELECT qq_number FROM invite_codes WHERE id = ?').get(rows[0].id) as { qq_number: string | null }
+    expect(dbRow.qq_number).toBe('32002')
+    // 通用码 qq_number 为 NULL（向后兼容）
+    const [generic] = generateInviteCodes(1)
+    expect(generic.qq_number).toBeNull()
+
+    // 列表响应回显 boundQq
+    const list = await app.inject({ method: 'GET', url: '/api/admin/invite-codes', headers })
+    expect(list.statusCode).toBe(200)
+    const matched = list.json().codes.find((c: { id: number }) => c.id === rows[0].id)
+    expect(matched.qqNumber).toBe('32002')
+  })
+
+  it('TC-INV-27 (ab263dd1-A): 绑定码仅匹配 QQ 可注册；错 QQ → INVITE_INVALID 且码不消费', async () => {
+    setAdmin()
+    // 绑定 32001 的码
+    const [invite] = generateInviteCodes(1, 3, 1, null, '32001')
+
+    // 错 QQ → INVITE_INVALID（防枚举：与无效码同响应），码保持 unused
+    const wrong = await app.inject({
+      method: 'POST',
+      url: '/api/invite/register',
+      payload: { code: invite.code, qqNumber: '32999', name: '冒领者', subdomain: 'hijackqq' }
+    })
+    expect(wrong.statusCode).toBe(400)
+    expect(wrong.json().code).toBe('INVITE_INVALID')
+    const row = db.prepare('SELECT status FROM invite_codes WHERE id = ?').get(invite.id) as { status: string }
+    expect(row.status).toBe('unused')
+    expect(db.prepare("SELECT COUNT(*) AS c FROM artists WHERE qq_number = '32999'").get() as { c: number }).toEqual({ c: 0 })
+
+    // 正确 QQ → 注册成功并消费码
+    const ok = await app.inject({
+      method: 'POST',
+      url: '/api/invite/register',
+      payload: { code: invite.code, qqNumber: '32001', name: '合法画师', subdomain: 'legitqq' }
+    })
+    expect(ok.statusCode).toBe(201)
+    expect(ok.json().qqNumber).toBe('32001')
+    const used = db.prepare('SELECT status FROM invite_codes WHERE id = ?').get(invite.id) as { status: string }
+    expect(used.status).toBe('used')
+  })
+
+  it('TC-INV-28 (ab263dd1-A): 通用码（未绑定）任意 QQ 可注册——存量行为零变化', async () => {
+    setAdmin()
+    const [invite] = generateInviteCodes(1, 3, 1) // 无 boundQq → NULL
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/invite/register',
+      payload: { code: invite.code, qqNumber: '32123', name: '通用画师', subdomain: 'genericqq' }
+    })
+    expect(res.statusCode).toBe(201)
+    expect(res.json().qqNumber).toBe('32123')
+  })
+
+  it('TC-INV-29 (ab263dd1-A): 绑定 QQ 格式非法（非数字/越界）→ VALIDATION', () => {
+    expect(() => generateInviteCodes(1, 3, 1, null, 'abc')).toThrow('VALIDATION')
+    expect(() => generateInviteCodes(1, 3, 1, null, '1234')).toThrow('VALIDATION')
+    expect(() => generateInviteCodes(1, 3, 1, null, '1'.repeat(16))).toThrow('VALIDATION')
   })
 
   // ─── 限流（放在最后：rate-limit 桶为模块级全局，前面的注册用例已累计计数） ───

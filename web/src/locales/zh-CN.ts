@@ -2709,6 +2709,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     validDaysHint: '1-30 天',
     maxUsesLabel: '每码可用次数',
     maxUsesHint: '1-100 次，默认 1（一次性）',
+    bindQqHint: '5-15 位数字。留空=通用码（任意 QQ 可注册）；填了则整批码仅该 QQ 可用（防冒领）',
     generateBtn: '生成',
     generated: '已生成 {count} 个邀请码',
     colCode: '邀请码',

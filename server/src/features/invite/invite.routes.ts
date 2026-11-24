@@ -115,6 +115,8 @@ export default async function inviteRoutes(fastify: FastifyInstance) {
   /**
    * POST /api/admin/invite-codes
    * 批量生成（数量 1-50，有效期默认 3 天，1-30 天；每码可用次数 1-100 默认 1）
+   * ab263dd1 方案 A：可选 qqNumber 把批次码绑定到目标 QQ（注册时校验码绑定==申领）；
+   *   省略=通用码（任意 QQ 可注册，存量行为不变）。
    */
   fastify.post('/api/admin/invite-codes', {
     preHandler: requireAdmin,
@@ -125,16 +127,17 @@ export default async function inviteRoutes(fastify: FastifyInstance) {
         properties: {
           count: { type: 'integer', minimum: 1, maximum: 50 },
           validDays: { type: 'integer', minimum: 1, maximum: 30 },
-          maxUses: { type: 'integer', minimum: 1, maximum: 100 }
+          maxUses: { type: 'integer', minimum: 1, maximum: 100 },
+          qqNumber: { type: 'string', minLength: 5, maxLength: 15, pattern: '^[0-9]+$' }
         },
         additionalProperties: false
       }
     }
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const body = request.body as { count: number; validDays?: number; maxUses?: number }
-    const codes = generateInviteCodes(body.count, body.validDays, body.maxUses, request.artist.id)
+    const body = request.body as { count: number; validDays?: number; maxUses?: number; qqNumber?: string }
+    const codes = generateInviteCodes(body.count, body.validDays, body.maxUses, request.artist.id, body.qqNumber)
     return reply.code(201).send({
-      codes: codes.map(c => ({ id: c.id, code: c.code, expiresAt: c.expires_at }))
+      codes: codes.map(c => ({ id: c.id, code: c.code, expiresAt: c.expires_at, qqNumber: c.qq_number }))
     })
   })
 
@@ -173,6 +176,8 @@ export default async function inviteRoutes(fastify: FastifyInstance) {
         createdBy: r.created_by,
         maxUses: r.max_uses,
         useCount: r.use_count,
+        // ab263dd1 方案 A：签发绑定 QQ（null=通用码），供管理端列表展示归属
+        qqNumber: r.qq_number,
         // 派生态：unused 且已到期（前端置灰显「已过期」，与筛选口径一致）
         expired: r.status === 'unused' && new Date(r.expires_at).getTime() <= now,
         usedBy: r.used_by_artist_id != null

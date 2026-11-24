@@ -100,6 +100,8 @@ interface InviteVM {
   inviteStatusFilter: string
   inviteQuery: string
   inviteMaxUses: number
+  /** ab263dd1 方案 A：签发绑定 QQ（空=通用码） */
+  inviteBindQq: string
   inviteUses: Array<Record<string, unknown>>
   inviteUsesVisible: boolean
   openInviteCodes: () => Promise<void>
@@ -227,6 +229,27 @@ describe('ArtistManage 邀请码弹窗（REQ-039 升级）', () => {
     // 超范围 → 告警且不发请求
     h.generateInviteCodes.mockClear()
     vm.inviteMaxUses = 101
+    await vm.generateInviteCodes()
+    expect(h.generateInviteCodes).not.toHaveBeenCalled()
+    expect(h.msgWarning).toHaveBeenCalled()
+  })
+
+  // ab263dd1 方案 A：签发绑定 QQ 传入 + 非法格式拦截 + 与 F0194 回第1页逻辑共存
+  it('ab263dd1-A: 填绑定 QQ → 生成载荷带 qqNumber；非法 QQ 拦截且不发请求', async () => {
+    h.generateInviteCodes.mockResolvedValue({ codes: [{ id: 1, code: 'X', expiresAt: '', qqNumber: '32001' }] })
+    const { vm } = await mountPage()
+    await vm.openInviteCodes()
+
+    vm.inviteBindQq = '32001'
+    await vm.generateInviteCodes()
+    await flushPromises()
+    expect(h.generateInviteCodes).toHaveBeenCalledWith({
+      count: 5, validDays: 3, maxUses: 1, qqNumber: '32001'
+    })
+
+    // 非法格式（非数字）→ 告警，不发请求
+    h.generateInviteCodes.mockClear()
+    vm.inviteBindQq = 'abc'
     await vm.generateInviteCodes()
     expect(h.generateInviteCodes).not.toHaveBeenCalled()
     expect(h.msgWarning).toHaveBeenCalled()
