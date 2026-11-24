@@ -225,6 +225,11 @@ async function generateInviteCodes() {
       maxUses: inviteMaxUses.value
     })
     ElMessage.success(t('invite.generated', { count: res.codes.length }))
+    // B7-F0194：生成成功后回第 1 页并清筛选/搜索——新码是 unused 状态且排最前，
+    // 此前保持当前页/筛选（如 used/第 5 页）时新码不在视图里，提示「生成成功」却看不到新码
+    invitePage.value = 1
+    inviteStatusFilter.value = 'all'
+    inviteQuery.value = ''
     await loadInviteCodes()
   } catch (err) {
     ElMessage.error((err as Error).message)

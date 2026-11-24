@@ -70,8 +70,10 @@ export function getPublicGallery(artistId: number): {
   if (styleIds.length > 0) {
     const sizePlaceholders = styleIds.map(() => '?').join(',')
     const sizeRows = db.prepare(
+      // B7-F0145：对齐 getPublicStyles 的 v49 三态规则——closed 档位完全隐藏，
+      // 此前漏过滤导致闭档尺寸泄漏为公开筛选标签与作品标注
       `SELECT id, name, sort_order, art_style_id FROM style_sizes
-       WHERE art_style_id IN (${sizePlaceholders})
+       WHERE art_style_id IN (${sizePlaceholders}) AND display_status != 'closed'
        ORDER BY art_style_id ASC, sort_order ASC`
     ).all(...styleIds) as Array<{ id: number; name: string; sort_order: number; art_style_id: number }>
     for (const size of sizeRows) {

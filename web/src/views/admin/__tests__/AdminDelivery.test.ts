@@ -263,4 +263,38 @@ describe('管理交付取件合同', () => {
     expect(wrapper.find(COPY).exists()).toBe(false)
     expect(wrapper.text()).toContain('Link expired')
   })
+
+  it('B7-F0285: 回执 TTL 畸形但链接可用 → 降级展示不丢弃（解锁态同步、无倒计时）', async () => {
+    const wrapper = mountPage()
+    fetchMock.mockResolvedValueOnce(responseForOrder()).mockResolvedValueOnce(json({ url: LINK, expiresInSeconds: 0 }))
+    await search(wrapper, ORDER_A)
+    expect(fileRow(wrapper).text()).toContain('下载已锁定')
+
+    await reissue(wrapper)
+    await flushPromises()
+
+    // 服务端已重签：解锁态照实同步（修复前整份收据抛错，解锁态也不落地）
+    expect(fileRow(wrapper).text()).toContain('下载未锁定')
+    // 链接不丢弃：降级收据展示链接与「有效期未知」文案（不虚构倒计时数字）
+    const receipt = fileRow(wrapper).get(RECEIPT)
+    const linkInput = receipt.get<HTMLInputElement>('input')
+    expect(linkInput.element.value).toBe(new URL(LINK, window.location.origin).href)
+    expect(receipt.text()).toContain('有效期信息异常')
+    expect(fakes.error).not.toHaveBeenCalled()
+  })
+
+  it('B7-F0285: 回执 URL 跨源不可用 → 报错不出链接，但服务端已发生的解锁态仍如实同步', async () => {
+    const wrapper = mountPage()
+    fetchMock
+      .mockResolvedValueOnce(responseForOrder())
+      .mockResolvedValueOnce(json({ url: 'https://evil.example.com/link', expiresInSeconds: 300 }))
+    await search(wrapper, ORDER_A)
+    await reissue(wrapper)
+    await flushPromises()
+
+    expect(fakes.error).toHaveBeenCalledWith(zhCN.admin.delivery.issueFailed)
+    expect(wrapper.find(RECEIPT).exists()).toBe(false)
+    // 重签 HTTP 已成功——解锁态不因收据畸形回滚成「锁定」
+    expect(fileRow(wrapper).text()).toContain('下载未锁定')
+  })
 })

@@ -233,6 +233,8 @@ export default {
     ADDON_TEMPLATE_INVALID_PRICE: 'Invalid addon template price',
     ADDON_TEMPLATE_INVALID_CONTROL: 'Invalid control type',
     ADDON_TEMPLATE_INVALID_PRICING: 'Invalid pricing mode',
+    // B7-F0103: pricing-mode change rejected under freeze semantics ({referenced} interpolated from detail)
+    ADDON_TEMPLATE_MODE_LOCKED: 'This template is referenced by {referenced} style(s); changing its pricing mode under freeze would silently reprice them. Enable "Sync" to let references follow',
     STYLE_ADDON_NOT_FOUND: 'Style addon not found',
     STYLE_ADDON_DUPLICATE: 'This addon is already imported into this style',
     SIZE_OVERRIDE_NOT_FOUND: 'Size override not found',
@@ -894,6 +896,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     descSoftTitle: 'Empty description', descSoftMsg: 'You have not described what you want. Continue anyway? (The artist may not fully understand your idea.)',
     descSoftContinue: 'Continue',
     refLabel: 'Reference images (optional, up to 5, ≤10MB each)', refExceed: 'Up to 5 reference images',
+    // #61-②: submit gate for entries without filePath (in-flight/failed) — no longer silently dropped
+    refNotReady: 'Some reference images are still uploading or failed. Wait for them to finish or remove them before submitting.',
     tagTooLong: 'Description is full, cannot add this tag', // F0316
     refTip: 'The artist can add more references to the order gallery after you submit. Gallery total limit: 20 images.',
     refUpload: 'Upload reference image',
@@ -2095,6 +2099,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
       linkLabel: 'Single-use pickup link',
       ttlMinutes: 'One download only. Valid for {n} min after issue.',
       ttlSeconds: 'One download only. Valid for {n} sec after issue.',
+      // B7-F0285: degraded copy when the link is usable but the receipt TTL is malformed
+      ttlUnknown: 'Link issued (expiry metadata malformed — copy and use it soon).',
       expired: 'Link expired',
       copy: 'Copy link',
       copied: 'Link copied'
@@ -2593,7 +2599,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
         home_restore: 'Restore home',
         artist_status_set: 'Set artist status',
         artist_remove: 'Remove artist',
-        delivery_link_reissue: 'Reissue delivery link'
+        delivery_link_reissue: 'Reissue delivery link',
+        // B7-F0111: admin transfer audit action label
+        admin_transfer: 'Transfer admin'
       },
       targetType: {
         report: 'Report',

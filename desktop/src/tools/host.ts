@@ -3,6 +3,7 @@
 // 纪律：哑组件不碰这些能力，全部经本层；纯浏览器环境一律留降级出口不留死按钮。
 import { ref } from 'vue'
 import { computed } from 'vue'
+import { downloadBlob } from '@inkglean/shared'
 import { exportSaveB64 } from '../bridge/files'
 import { isDesktop } from '../bridge'
 import { makeT } from './i18n-zh'
@@ -46,13 +47,9 @@ export async function savePng(blob: Blob, filename: string): Promise<'saved' | '
     }
   }
   try {
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.click()
-    // F0038: click() 后同步 revoke 会让非 Chromium 内核来不及取 blob 导致下载失败；延迟到下一宏任务再回收
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    // F0038 原修复语义（延迟 revoke 防非 Chromium 内核取不到 blob）由 downloadBlob 承接；
+    // 尾巴批 pr-review-20261123：与 web PriceCard/ReceiptPrinter 三处同型收口进 @inkglean/shared
+    downloadBlob(blob, filename)
     return 'saved'
   } catch {
     return 'failed'

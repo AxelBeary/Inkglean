@@ -131,4 +131,31 @@ describe('StepUpDialog 二次验证对话框（REQ-041）', () => {
     expect(wrapper.emitted('cancel')).toHaveLength(1)
     expect(wrapper.emitted('update:modelValue')).toEqual([[false]])
   })
+
+  it('B7-F0186: 在途守卫——回车双触发（submit + keyup.enter）只发一次 verify；完成后守卫释放', async () => {
+    let resolveVerify!: (v: { upgraded: boolean }) => void
+    h.verify.mockReturnValue(new Promise<{ upgraded: boolean }>(r => { resolveVerify = r }))
+    const wrapper = mountDialog()
+
+    await wrapper.get('input').setValue('123456')
+    const confirmBtn = wrapper.findAll('button').find((b) => b.text() === 'stepup.confirm')!
+    // 回车同时触发 el-form submit 与 keyup.enter：等价于两次连点
+    await confirmBtn.trigger('click')
+    await confirmBtn.trigger('click')
+    await flushPromises()
+
+    expect(h.verify).toHaveBeenCalledTimes(1)
+
+    resolveVerify({ upgraded: true })
+    await flushPromises()
+    expect(wrapper.emitted('verified')).toHaveLength(1)
+
+    // 守卫释放后可再次提交（换码重试场景）
+    h.verify.mockResolvedValue({ upgraded: true })
+    await wrapper.get('input').setValue('654321')
+    await confirmBtn.trigger('click')
+    await flushPromises()
+    expect(h.verify).toHaveBeenCalledTimes(2)
+    expect(wrapper.emitted('verified')).toHaveLength(2)
+  })
 })

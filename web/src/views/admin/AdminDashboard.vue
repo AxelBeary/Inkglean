@@ -185,6 +185,8 @@ const msgLoadFailed = ref(false)
 const messagesPage = ref(1)
 /** b3 清扫：留言列表分页大小（客户端截断，防全量渲染） */
 const GB_PAGE_SIZE = 10
+/** B7-F0283：服务端拉取上限（只取最近 200 条，配合 ?limit= 传输有界） */
+const ADMIN_MESSAGES_LIMIT = 200
 const pagedAdminMessages = computed(() =>
   adminMessages.value.slice((messagesPage.value - 1) * GB_PAGE_SIZE, messagesPage.value * GB_PAGE_SIZE)
 )
@@ -197,10 +199,13 @@ async function loadAdminMessages() {
   msgLoading.value = true
   msgLoadFailed.value = false
   try {
+    // B7-F0283：服务端 limit 只拉最近一屏（仪表盘概览口径，对齐 AdminActions 留痕页 200 上限档）；
+    // 此前全量拉回再客户端分页，大表时传输/内存无界
     adminMessages.value = (await adminApi.getMessages({
       artistId: filterArtistId.value ?? undefined,
       status: filterStatus.value ?? undefined,
-      replied: filterReplied.value ?? undefined
+      replied: filterReplied.value ?? undefined,
+      limit: ADMIN_MESSAGES_LIMIT
     })) || []
   } catch {
     // P1-B：筛选/加载失败清旧数据（防张冠李戴），明示错误 + 重试

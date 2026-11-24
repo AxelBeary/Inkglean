@@ -218,7 +218,11 @@ function typeLabel(type: string | null | undefined): string {
   return label === key ? type : label
 }
 
+// B7-F0288：举报列表请求序号门闩——快速切换 Tab 时旧 Tab 的响应不得覆盖当前 Tab 的列表
+let loadSeq = 0
+
 async function load() {
+  const seq = ++loadSeq
   loading.value = true
   try {
     const [reportRows, artistRows] = await Promise.all([
@@ -226,17 +230,19 @@ async function load() {
       // 画师列表失败不阻塞举报列表；封禁态未知时按未封禁展示（解封入口仍在画师管理页可用）
       adminApi.getArtists().catch(() => [] as never[]) as Promise<ArtistWithBanState[]>
     ])
+    if (seq !== loadSeq) return
     reports.value = reportRows
     bannedArtistIds.value = new Set(artistRows.filter(a => a.is_banned).map(a => a.id))
     takenDownArtistIds.value = new Set(artistRows.filter(a => a.home_takedown_at).map(a => a.id))
   } catch (err) {
+    if (seq !== loadSeq) return
     // b3 清扫：tab 切换加载失败清空旧 tab 数据，避免残留上一 tab 的举报行
     reports.value = []
     bannedArtistIds.value = new Set()
     takenDownArtistIds.value = new Set()
     ElMessage.error((err as { message?: string }).message || t('compliance.admin.loadFailed'))
   } finally {
-    loading.value = false
+    if (seq === loadSeq) loading.value = false
   }
 }
 

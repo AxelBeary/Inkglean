@@ -10,6 +10,7 @@
 - **发版**：v1.1.0（2026-10-28 稳交付·好管理版）；安装包 5.79MB/920 文件；说明见 `docs/changelog.md` 顶部
 - **拍板落地（2026-11-23）**：F0192 孤儿行跳过+告警 / F0200 边界照方案 / F0134 押后 B4 / ab263dd1 取 A+C / B8 手册已修（PUBKEY 构建期注入）/ 账号口径按实测 / 本归档批——全文见「已拍板规则」末条
 - **警报/issue**：open PR 0（#99–105 全合，fork 残留分支同日全清）；B 批 issue #96(B1)/#97(B3)/#98(B5) 公开待施工，B2/B4/B6/B7 走私密 GHSA；Code scanning 0 / Dependabot 0
+- **施工批（2026-11-24）**：跨端 5 项 + B2-high + 尾巴 + B5/B6/B7 共 107 文件六批 PR **#107–#112 已开**（多代理编排施工 + 对抗复核闭环）；四端门禁全量绿（server 2179 假红定性 / web 1370 / desktop 682 / shared 48），台账 `AGENTS/门禁-20261124/`
 - **合并权口径**：`master-merge-gate` 的 bypass 名单只有 AxelBeary（`always`），该账号可自合/直推；Mistwhisker 仅 write、实测不可自合
 - **拟物收敛射程不变**（只限排期块 ScheduleScroll）；**GHSA-6pf3 已闭合**：披露处置＝维持私密不公开
 - 公网冻结现状不变；管理员判定只认库值
@@ -17,13 +18,13 @@
 
 **下一步（按优先级）**
 
-1. **跨端 5 项落地批**（拍板已确认）：方案全文 `AGENTS/debug-swarm-20261122-followup/crossend/CROSSEND-PLAN.md`，按端拆批施工
-   - F0179 令牌走 header / F0192 增项事务端点（孤儿行＝跳过+告警）/ F0200 清理端点（既定边界）
-   - F0304 Watermark 签名刷新 / F0314 nextDueCents 下发
+1. **合并六批施工 PR（2026-11-24 已开）**：#107 跨端 / #108 DB B2-high / #109 尾巴 / #110 B5 / #111 B6 / #112 B7
+   - **建议顺序 #109 先于 #112**（F0283 server 侧在 #109、消费在 #112），其余任意；六批文件级零交集、locales 按 hunk 拆分
+   - 归档 PR（STATUS 本批登记）随后开出；合并后盯 CI 首跑（e2e 为 B5/B6 权威回归）→ 最终 master 复跑十九道留痕
 2. **B8 用户配置（你的操作）**：密钥对 + Secrets/Variables + 真机终验——照做清单 `AGENTS/拍板材料-20261123/B8-照做清单.md`；ab263dd1 空壳 QQ 方案（A+C）随 B8 批实施
-3. **B 批逐批推进**：B4 支付批启动时并入 F0134 架构级重设；B1–B7 按披露推进（公开 issue #96/#97/#98，B2/B4/B6/B7 私密 GHSA）
-4. **登记未施工（沿旧）**：#61 10MB 静默 return / #62 分片失败整批停 / #65 提交时二次校验；待用户终验项沿旧（发布包真机、悬浮窗真机、桌面 768 分屏终验）
-5. **B8 代码侧遗留**：U33 发版流水线从未跑过（vars/secrets 配好前首版必红）；U26 tsx 生产依赖待拍板
+3. **B 批余量推进**：B1（8 条幂等守卫）/ B2 余 10 条 / B3（11 条测试覆盖）——DB 迁移类需逐版本回归；**B4 支付批**启动时并入 F0134 架构级重设；公开 issue #96/#97/#98，私密走 GHSA
+4. **待用户终验项沿旧**：发布包真机、悬浮窗真机、桌面 768 分屏终验；B8 代码侧 U33 发版流水线未跑（vars/secrets 配好前首版必红）；U26 tsx 生产依赖待拍板
+5. **新登记待拍板**：F0180 发现——publicArtistDTO 将 calendar_feed_token（可旋转凭证）平铺给画师本人 /auth/me 响应、web 端零消费，是否剔除属 API 契约问题
 
 **常驻纪律（事故换来的，不得退色）**
 
@@ -96,6 +97,12 @@
   - ab263dd1 空壳 QQ 归属＝方案 A（邀请码签发绑定目标 QQ，注册校验「码绑定==申领」）+ C（未完成首绑空壳行禁新码覆盖，走管理员找回）过渡；B 带外凭据不采；
   - 账号口径按实测：本机登录 Mistwhisker（AxelBeary 主仓 write / fork admin），旧「仅 AxelBeary 账号」表述作废；fork 残留分支已全清（2026-11-23）。
   - PR 合并口径订正：七 PR #99–105 由**本会话代理（登录 AxelBeary）**以 `gh pr merge --admin --rebase` 逐条合入，非网页人工点击；
+- 施工批契约与待办登记（2026-11-24，六批 PR #107–#112 落地时拍板）：
+  - F0192 新端点契约形状＝PUT /artist/art-styles/:id/addon-settings，**身份键 styleAddonId**（style_addons 行 id）非模板 id——孤儿行 addon_template_id:null 无法靠模板 id 定位、模板 id 由服务端从行内读不信前端回传（F0190/F0191 根治口径）；
+  - F0179 二阶段待办：线上 track/delivery 404 曲线稳定后移除 query.token 回退，**须同步把 e10 e2e 裸 API 调用改走 header**（否则该用例全 404）；
+  - F0314 二阶段待办：服务端 nextDueCents 字段稳定后删除前端 legacyNextDueCents 回退；
+  - F0081/F0077 存量结论：旧增项表已随 v43/v50 拍板 DROP，已过该版本存量库不可恢复（修复仅防重蹈）；v24 首跑无真实资金丢失（派生值可从流水重算）；
+  - 行为变更知悉项：F0103 冻结模式改计价模式 400 拒绝（sync 放行）；F0110 回收站排序改路径字典序；F0283 留言仪表盘 limit=200；F0117 后 B6 弹窗打开需显式点生成（旧截图文案过时）。
   - 根因：`master-merge-gate` 的 bypass 名单**只有 AxelBeary**（`always`）；**Mistwhisker 仅 write、无 bypass**
     - 故「ruleset 无 bypass 名单」只在 Mistwhisker 账号下成立，非仓库事实
   - 同源订正：`7118b53c`（vitest maxWorkers）与 `5c1c0aab`（看板/基线收口）亦由同一账号直推
