@@ -4,6 +4,7 @@ import * as orderService from './order.service.js'
 import * as orderWorkflowService from './order-workflow.service.js'
 import * as orderGalleryService from './order-gallery.service.js'
 import { assertReferenceFileExists, guardRateLimit, UPLOAD_ROOT } from './order-route-utils.js'
+import { getNextDueCents } from './order-pricing.js'
 import { getRules, requireVisibleArtist, isArtistVisibleById } from '../artist/artist.service.js'
 import { getWorkflow } from '../artist/workflow.service.js'
 import { clamp } from '../../shared/validate.js'
@@ -44,8 +45,22 @@ function requireClientDeliveryAccess(order: OrderDetail | null) {
   return { order, deliveryOnly, deliverables }
 }
 
-function requireDeliveryOrder(request: FastifyRequest) {
+/**
+ * F0179：客户访问令牌读取——优先 x-order-token header，缺失/非法时回退 query.token
+ * （兼容窗口：旧版前端与用户收藏的旧请求仍带 query，回退移除另行批次，见 CROSSEND-PLAN §1；
+ * header 被反代丢弃时也有 query 兜底，避免全套客户接口 404）。
+ * 校验口径对齐 download-confirm 对 confirmationToken 的做法（string、非空、≤128 字符）。
+ */
+function readClientToken(request: FastifyRequest): string {
+  const headerToken = request.headers['x-order-token']
+  if (typeof headerToken === 'string' && headerToken.length > 0 && headerToken.length <= 128) return headerToken
   const { token } = (request.query || {}) as { token?: string }
+  return typeof token === 'string' ? token : ''
+}
+
+function requireDeliveryOrder(request: FastifyRequest) {
+  // F0179：delivery + 两个一次性下载端点共用本入口，令牌统一走 readClientToken（header 优先 + query 回退）
+  const token = readClientToken(request)
   const { orderNo } = request.params as { orderNo: string }
   return requireClientDeliveryAccess(orderService.getClientOrderByToken(orderNo, token))
 }
@@ -181,14 +196,16 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
    * GET /api/orders/track/:orderNo
    * F1 围剿：客户凭订单号 + 高熵令牌查询进度（限流：同IP 20次/5分钟）
    * 令牌不符/缺失/订单不存在一律 404 ORDER_NOT_FOUND（不暴露订单存在性）
-   * logLevel=silent：令牌明文在 query 中，禁止进入访问日志/错误日志（纪律：日志不打印令牌）
+   * logLevel=silent：F0179 后令牌经 x-order-token header 承载（query 仅兼容回退），
+   * 无论走哪条都禁止进入访问日志/错误日志（纪律：日志不打印令牌）
    */
   fastify.get('/api/orders/track/:orderNo', { logLevel: 'silent' }, async (request: FastifyRequest) => {
     guardRateLimit(`track:${request.ip}`, 20, 5 * 60_000)
 
-    const { token } = (request.query || {}) as { token?: string }
+    // F0179：header 优先 + query 回退（兼容窗口），getClientQueuePosition 入参不变
+    const token = readClientToken(request)
 
-    const result = orderService.getClientQueuePosition((request.params as { orderNo: string }).orderNo, token || '')
+    const result = orderService.getClientQueuePosition((request.params as { orderNo: string }).orderNo, token)
     if (!result) throw new AppError(E.ORDER_NOT_FOUND, 404)
 
     const { order, position, total } = result
@@ -206,6 +223,9 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
     const stageInfo = orderWorkflowService.getStageInfo(order, order.artist_id)
 
     // 只返回客户需要看到的信息
+    // F0314：installments 是本响应要下发的同一批节点行——此处一次查询，
+    // 下方的 nextDueCents 复用这批行做纯内存推导（getNextDueCents 内走 deriveInstallmentProgress），无新 SQL。
+    const installments = orderService.getOrderInstallments(order.id)
     return {
       orderNo: order.order_no,
       status: order.status,
@@ -242,7 +262,10 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
       })),
       finalPriceCents: order.final_price_cents ?? null,
       paidTotalCents: order.paid_total_cents ?? 0,
-      installments: orderService.getOrderInstallments(order.id),
+      installments,
+      // F0314：下期应付权威值（首个 remainingCents>0 节点，partial 时为其剩余；全付清/无节点为 0）。
+      // 与上面 installments 同一 deriveInstallmentProgress 口径，前端查单页改读本字段、旧算法降为回退。
+      nextDueCents: getNextDueCents(installments, order.paid_total_cents ?? 0),
       // 收款明细（客户可见：金额/备注/时间，负数=退款）
       payments: orderService.getOrderPayments(order.id),
       // 截稿日（无则 null）
@@ -369,7 +392,7 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
   /**
    * GET /api/orders/delivery/:orderNo
    * F1 围剿：交付文件下载页数据（需订单号 + 高熵令牌；不符一律 404）
-   * logLevel=silent：令牌明文在 query 中，禁止进入访问日志/错误日志
+   * logLevel=silent：F0179 后令牌经 x-order-token header 承载（query 仅兼容回退），一律不进日志
    */
   fastify.get('/api/orders/delivery/:orderNo', { logLevel: 'silent' }, async (request: FastifyRequest) => {
     guardRateLimit(`delivery:${request.ip}`, 20, 5 * 60_000)
@@ -401,7 +424,7 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
    * POST /api/orders/delivery/:orderNo/file/:fileId/download-start
    * 815 拍板 #4：客户开始下载——结算上次尝试后签发一次性下载 URL；
    * 锁定/冷却/半途防护逻辑在服务层（startDeliverableDownload）。
-   * logLevel=silent：令牌明文在 query 中，禁止进日志
+   * logLevel=silent：F0179 后令牌经 x-order-token header 承载（query 仅兼容回退），一律不进日志
    */
   fastify.post('/api/orders/delivery/:orderNo/file/:fileId/download-start', { logLevel: 'silent' }, async (request: FastifyRequest) => {
     guardRateLimit(`delivery-dl:${request.ip}`, 20, 5 * 60_000)
@@ -416,7 +439,8 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
   /**
    * POST /api/orders/delivery/:orderNo/file/:fileId/download-confirm
    * 815 拍板 #4：客户确认完整接收（web fetch 全量收到后上报）→ 锁定 + IP/时间留痕
-   * 确认令牌绑定本次实际领取的文件；查询参数与请求体中的令牌均不记日志。
+   * 确认令牌绑定本次实际领取的文件；F0179 后访问令牌走 x-order-token header
+   * （query 仅兼容回退），header/query 与请求体中的令牌均不记日志。
    */
   fastify.post('/api/orders/delivery/:orderNo/file/:fileId/download-confirm', { logLevel: 'silent' }, async (request: FastifyRequest) => {
     guardRateLimit(`delivery-dl:${request.ip}`, 20, 5 * 60_000)

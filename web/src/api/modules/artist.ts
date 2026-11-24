@@ -9,6 +9,29 @@ import type { PagedResult, HasMoreResult, PublicArtistDTO, AuthMeResult, Artwork
 /** F0176: getAllOrders in-flight 去重改为按 q 分槽的 Map——原来单一槽跨 q 并发会互相覆盖，导致重复全量分页 */
 const allOrdersInflight = new Map<string, Promise<ArtistOrderItem[]>>()
 
+// ─── F0192: 增项「一次保存」契约（PUT /artist/art-styles/:id/addon-settings） ───
+// 类型在 modules/artist.ts 本地声明：该契约仅本端点消费，且 types/style.ts 不在本任务允许改动清单内。
+
+/** F0192 一次保存 payload —— 身份键 styleAddonId（style_addons 行 id）而非建议形状的 addonTemplateId：
+ *  孤儿行 addon_template_id 为 null（模板已删、快照独立增项），模板 id 定位不到行；模板 id 由服务端从行内读。 */
+export interface SaveAddonSettingsPayload {
+  styleAddonId: number
+  /** 模板级本身价（scope=all 且变更才带）；孤儿行由服务端跳过模板级写入并告警（拍板口径，不 422） */
+  templateDefaultPrice?: number
+  /** 画风价覆盖；null = 清覆盖跟随模板（继承语义） */
+  stylePriceOverride?: number | null
+  /** 画风级激活；true 时服务端按库内 category 推导同类互斥停用（前端不传互斥项，根治 F0190/F0191） */
+  styleEnabled?: boolean
+  /** 尺寸级覆盖（仅变更行） */
+  sizeOverrides: Array<{ sizeId: number; priceOverride: number | null; isHidden: boolean }>
+}
+
+/** F0192 一次保存响应：聚合最新状态（画风增项 + 画师全量尺寸覆盖），前端免二次拉取 */
+export interface SaveAddonSettingsResult {
+  addons: StyleAddonWithTemplate[]
+  sizeOverrides: SizeAddonOverrideBatchItem[]
+}
+
 // ─── 画师后台 ───
 export const artistApi = {
   // G-1（P2-8）: 会话强校验（布局挂载时调用；以服务端 isAdmin 为准修正本地标记）
@@ -265,6 +288,10 @@ export const artistApi = {
   getAllSizeOverrides: (): Promise<SizeAddonOverrideBatchItem[]> => getJson('/artist/art-styles/overrides'),
   setSizeOverrides: (styleId: number, sizeId: number, items: SizeOverrideSetItem[]): Promise<SizeAddonOverride[]> =>
     putJson(`/artist/art-styles/${styleId}/sizes/${sizeId}/overrides`, { items }),
+  // F0192: 增项设置「一次保存」——模板价/画风覆盖/激活互斥/尺寸覆盖合并进单事务端点（后端全成全败；
+  // 互斥停用项由服务端按库内 category 推导，前端不再拼多笔 updateAddonTemplate/setStyleAddons/setSizeOverrides）
+  saveAddonSettings: (styleId: number, payload: SaveAddonSettingsPayload): Promise<SaveAddonSettingsResult> =>
+    putJson(`/artist/art-styles/${styleId}/addon-settings`, payload),
   // REQ-035 批A: 客户标记 + 老客召回（后端 tools.routes.ts 已就绪）
   getToolsClients: (qq?: string): Promise<ToolsClientsResult> => getJson('/artist/tools/clients', { params: { qq } }),
   getToolsClient: (qq: string): Promise<ToolsClientResult> => getJson(`/artist/tools/clients/${qq}`),

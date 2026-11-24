@@ -171,6 +171,28 @@ export function getOrdersInstallments(orderIds: number[]): Map<number, OrderInst
 }
 
 /**
+ * F0314：客户查单页「下期应付」（分）——与展示侧同源的权威口径。
+ * 内部走引擎 deriveInstallmentProgress（与 computeLockedState「付清即锁」共用同一 forwardFill），
+ * 取首个 remainingCents > 0 的节点（partial 时即该节点剩余）；全部覆盖/无节点返回 0。
+ * 尾款负待收（纯超付应退）不满足 > 0，恒不下发负数。
+ * ⚠ 不是 finalPriceCents - paidTotalCents——那是订单级待收（前端 trackRemainingCents），语义不同勿混。
+ * 入参吃展示行（amountCents 已钳 0 口径）而非再查库：track 组装处复用已查出的同一批
+ * installments 行（order-client.routes.ts），纯内存推导、无新 SQL。
+ */
+export function getNextDueCents(
+  installments: ReadonlyArray<Pick<OrderInstallment, 'amountCents'>>,
+  paidTotalCents: number
+): number {
+  if (installments.length === 0) return 0
+  const progress = deriveInstallmentProgress(
+    installments.map((inst, i) => ({ sortOrder: i, amountCents: inst.amountCents })),
+    paidTotalCents
+  )
+  const nextDue = progress.find(row => row.remainingCents > 0)
+  return nextDue ? nextDue.remainingCents : 0
+}
+
+/**
  * 订单收款明细（客户可见字段——只返回金额/备注/时间，不含 created_by 等内部信息）
  * 按创建时间升序，与额度池收款流水一致；负数=退款（前端按正负展示）
  */

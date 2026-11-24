@@ -1,8 +1,9 @@
 ﻿<template>
   <!-- SPEC-PRICE-2: 胶囊设置弹窗 —— 三层编辑（模板级本身价+范围 / 画风级激活 / 尺寸级表格+批量）+ 移除解绑 -->
   <!-- 数据模型映射（与后端契约一致）:
-       模板级 default_price → updateAddonTemplate；画风级 is_enabled/price_override → setStyleAddons；
-       尺寸级 is_hidden(反义=启用)/price_override → setSizeOverrides。价格优先级: 本尺寸 > 画风价 > 本身价 -->
+       F0192 起保存走 saveAddonSettings 单事务端点（模板价/画风覆盖/激活/尺寸覆盖一次提交、全成全败），
+       旧三端点（updateAddonTemplate/setStyleAddons/setSizeOverrides）保留给其余调用方。
+       价格优先级: 本尺寸 > 画风价 > 本身价 -->
   <el-dialog
     :model-value="modelValue"
     :title="$t('styleManage.addonDialogTitle', { name: sa?.template_name || '' })"
@@ -109,10 +110,14 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { ADDON_PERCENT_MAX, ADDON_FIXED_PRICE_MAX } from '../../constants/addon'
 import { artistApi } from '../../api/index'
+// F0192: 一次保存 payload 契约类型（api/index.ts 不在本任务允许改动清单内，类型直接从 modules 取）
+import type { SaveAddonSettingsPayload } from '../../api/modules/artist'
 import { addonCategory, categoryLabel, addonPriceText, type StyleAddonRow } from './addon-utils'
 
-/** 胶囊行（style_addons 行 + addon_template_id） */
-interface SettingsSa extends StyleAddonRow { addon_template_id: number }
+/** 胶囊行（style_addons 行 + addon_template_id）
+ *  F0190/F0191 口径对齐：孤儿行（模板已删、快照独立增项）addon_template_id 真实为 null——
+ *  F0192 一次保存后本弹窗不再消费该字段（身份键改用行 id sa.id），类型如实放宽、不再当 number。 */
+interface SettingsSa extends StyleAddonRow { addon_template_id: number | null }
 
 /** 尺寸（本弹窗消费字段；_overrides 为父级附加） */
 interface SettingsSizeRow {
@@ -229,67 +234,50 @@ async function save() {
   }
   saving.value = true
   try {
-    // ── 模板级：本身价 ──
+    // F0192「一次保存」：保留原 diff 计算（分支口径与旧多写路径一致），组装单一 payload 单次提交——
+    // 后端单事务全成全败；互斥停用项不再由前端拼（服务端按库内 category 推导，
+    // 孤儿行 addon_template_id:null 不再被当 number 回传，根治 F0190/F0191）
+    const payload: SaveAddonSettingsPayload = { styleAddonId: sa.id, sizeOverrides: [] }
+
+    // ── 模板级 + 画风级价（scope 分支） ──
     if (form.scope === 'all') {
-      if (form.basePrice !== sa.template_default_price) {
-        await artistApi.updateAddonTemplate(sa.addon_template_id, { default_price: form.basePrice })
-      }
-      // 应用到所有画风 → 本画风跟随模板价（清画风价覆盖）
-      if (sa.price_override != null) {
-        await artistApi.setStyleAddons(props.style!.id, [{ addon_template_id: sa.addon_template_id, price_override: null }])
-      }
+      // 应用到所有画风：改模板本身价 + 本画风跟随模板价（清画风价覆盖）
+      if (form.basePrice !== sa.template_default_price) payload.templateDefaultPrice = form.basePrice
+      if (sa.price_override != null) payload.stylePriceOverride = null
     } else {
-      // 仅当前画风：改本身价输入 = 写画风价覆盖（与模板价一致时 = 沿用模板，置 null）
-      const target = form.basePrice
-      const newOverride = target === sa.template_default_price ? null : target
-      if ((sa.price_override ?? null) !== newOverride) {
-        await artistApi.setStyleAddons(props.style!.id, [{ addon_template_id: sa.addon_template_id, price_override: newOverride }])
-      }
+      // 仅当前画风：改本身价输入 = 写画风价覆盖（与模板价一致时 = 沿用模板，置 null 继承）
+      const newOverride = form.basePrice === sa.template_default_price ? null : form.basePrice
+      if ((sa.price_override ?? null) !== newOverride) payload.stylePriceOverride = newOverride
     }
 
-    // ── 画风级：激活开关 ──
-    if (!!sa.is_enabled !== form.styleEnabled) {
-      // 单选约束：打开用途/加急的画风级激活 → 同画风其他同类停用（顾客每单各选一个，后端兜底互斥）
-      const styleItems: Array<{ addon_template_id: number; is_enabled: boolean }> = [{ addon_template_id: sa.addon_template_id, is_enabled: form.styleEnabled }]
-      if (form.styleEnabled) {
-        const cat = addonCategory(sa)
-        if (cat !== 'add') {
-          for (const other of (props.style!.addons || [])) {
-            // F0191: 孤儿行（addon_template_id 为空）不得回传，否则整次 setStyleAddons 404
-            if (other.id !== sa.id && other.addon_template_id != null && addonCategory(other) === cat && !!other.is_enabled) {
-              styleItems.push({ addon_template_id: other.addon_template_id, is_enabled: false })
-            }
-          }
-        }
-      }
-      await artistApi.setStyleAddons(props.style!.id, styleItems)
-    }
+    // ── 画风级激活开关（true 时服务端推导同类互斥停用） ──
+    if (!!sa.is_enabled !== form.styleEnabled) payload.styleEnabled = form.styleEnabled
 
-    // ── 尺寸级：启用开关（is_hidden 反义）+ 差异价 ──
-    const sizeChanges: Array<{ sizeId: number; price_override: number | null; is_hidden: boolean }> = []
+    // ── 尺寸级：启用开关（is_hidden 反义）+ 差异价（仅变更行入 payload） ──
     for (const row of form.sizeRows) {
       const ov = props.style!.sizes!.find(s => s.id === row.sizeId)?._overrides?.[sa.id]
       const cur = { enabled: ov ? !ov.is_hidden : true, diffPrice: ov?.price_override ?? null }
       if (cur.enabled !== row.enabled || (cur.diffPrice ?? null) !== (row.diffPrice ?? null)) {
-        sizeChanges.push({
+        payload.sizeOverrides.push({
           sizeId: row.sizeId,
-          price_override: row.diffPrice ?? null,
-          is_hidden: !row.enabled
+          priceOverride: row.diffPrice ?? null,
+          isHidden: !row.enabled
         })
       }
     }
-    for (const ch of sizeChanges) {
-      await artistApi.setSizeOverrides(props.style!.id, ch.sizeId, [{
-        style_addon_id: sa.id,
-        price_override: ch.price_override,
-        is_hidden: ch.is_hidden
-      }])
-    }
+
+    // 零变更短路：与旧多写路径「无 diff 即不发请求」行为对齐，省一次空事务往返
+    const hasChange = payload.templateDefaultPrice !== undefined
+      || payload.stylePriceOverride !== undefined
+      || payload.styleEnabled !== undefined
+      || payload.sizeOverrides.length > 0
+    if (hasChange) await artistApi.saveAddonSettings(props.style!.id, payload)
 
     ElMessage.success(t('styleManage.addonSaved'))
     emit('update:modelValue', false)
     emit('saved')
   } catch (err) {
+    // 失败只提示、不关弹窗（本地表单无持久残留，重试口径与旧路径一致）
     ElMessage.error((err as Error).message)
   } finally {
     saving.value = false

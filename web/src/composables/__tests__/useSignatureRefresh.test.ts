@@ -1,17 +1,28 @@
 // useSignatureRefresh 后台标签回可见补刷测试（R-15）+ G1 口径哨兵（间隔/阈值必须小于后端签名 TTL）
 // 覆盖：切后台超阈值回可见立即刷新、未超阈值不刷新、卸载后监听清理、定时刷新仍正常
+// #62 尾巴清收：分片失败整批停止时补用户可见提示——失败连发开始弹一次、连续失败不刷屏、恢复后重置
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 
 const h = vi.hoisted(() => ({
-  refreshSignatures: vi.fn()
+  refreshSignatures: vi.fn(),
+  messageWarning: vi.fn()
 }))
 
 vi.mock('../../api/index.js', () => ({
   artistApi: { refreshSignatures: (...args: unknown[]) => h.refreshSignatures(...args) }
 }))
 
-import { useSignatureRefresh, SIGNATURE_TTL_MS, DEFAULT_INTERVAL_MS, VISIBLE_REFRESH_THRESHOLD_MS, SIGNATURE_REFRESH_BATCH_SIZE } from '../useSignatureRefresh'
+// #62：catch 里弹 ElMessage.warning——mock 掉以断言可见反馈（真实 element-plus 在 happy-dom 可渲染，但断言需 mock）
+vi.mock('element-plus', () => ({
+  ElMessage: { warning: h.messageWarning, success: vi.fn(), error: vi.fn(), info: vi.fn() }
+}))
+
+// #62：composable 失败分支动态 import '../i18n/index' 取文案——这里预载进模块注册表，
+// 使 fake timers 窗口内的动态 import 命中缓存、微任务内完成（否则真实 IO 加载会让断言等不到 toast）
+import '../../i18n/index'
+
+import { useSignatureRefresh, __resetCrossInstanceWarnForTest, SIGNATURE_TTL_MS, DEFAULT_INTERVAL_MS, VISIBLE_REFRESH_THRESHOLD_MS, SIGNATURE_REFRESH_BATCH_SIZE } from '../useSignatureRefresh'
 
 function mountHost(overrides: Record<string, unknown> = {}) {
   let ctx!: ReturnType<typeof useSignatureRefresh>
@@ -189,5 +200,105 @@ describe('useSignatureRefresh 分片刷新（issue #52-5）', () => {
     await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL_MS)
     expect(ctx.refreshError.value).toBeNull()
     wrapper.unmount()
+  })
+
+  // ─── #62 尾巴清收：分片失败整批停 → 用户可见提示 ───
+  // refreshError 此前只是「暴露」，全仓无页面消费它，失败对用户仍不可见。
+  // 口径：失败连发开始弹一次（ElMessage.warning）；连续失败不刷屏；恢复后下轮失败重新提示。
+  describe('#62 分片失败可见反馈', () => {
+    beforeEach(() => {
+      h.messageWarning.mockClear()
+      // 可选第 6 件：模块级跨实例去重标志在用例间泄漏会让「首败必弹」断言偶发红，逐用例复位
+      __resetCrossInstanceWarnForTest()
+    })
+
+    it('单片失败整批停 → 弹一次可见提示', async () => {
+      const paths = makePaths(120)
+      h.refreshSignatures.mockReset()
+      h.refreshSignatures.mockResolvedValueOnce({ urls: {} })
+      h.refreshSignatures.mockRejectedValueOnce(new Error('rate limited'))
+
+      const { wrapper } = mountHost({ collect: () => paths })
+      await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL_MS + 100)
+
+      // 第 2 片失败即停（既有回归），且用户可见提示已发出
+      expect(h.refreshSignatures).toHaveBeenCalledTimes(2)
+      expect(h.messageWarning).toHaveBeenCalledTimes(1)
+      wrapper.unmount()
+    })
+
+    it('连续失败不重复刷屏（同一失败连发只提示一次）', async () => {
+      const paths = makePaths(10)
+      h.refreshSignatures.mockReset()
+      h.refreshSignatures.mockRejectedValue(new Error('still down'))
+
+      const { wrapper } = mountHost({ collect: () => paths })
+      // 三轮定时全部失败：只在第一轮结束时弹过一次
+      await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL_MS * 3 + 100)
+      expect(h.messageWarning).toHaveBeenCalledTimes(1)
+      wrapper.unmount()
+    })
+
+    it('恢复成功后再次失败 → 重新提示（streak 重置）', async () => {
+      const paths = makePaths(10)
+      h.refreshSignatures.mockReset()
+      h.refreshSignatures.mockRejectedValueOnce(new Error('down 1'))
+
+      const { wrapper } = mountHost({ collect: () => paths })
+      await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL_MS + 100)
+      expect(h.messageWarning).toHaveBeenCalledTimes(1)
+
+      // 恢复成功（refreshError 清空）→ streak 重置
+      h.refreshSignatures.mockResolvedValueOnce({ urls: {} })
+      await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL_MS)
+      expect(h.messageWarning).toHaveBeenCalledTimes(1)
+
+      // 恢复后的新一轮失败重新提示
+      h.refreshSignatures.mockRejectedValueOnce(new Error('down 2'))
+      await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL_MS)
+      expect(h.messageWarning).toHaveBeenCalledTimes(2)
+      wrapper.unmount()
+    })
+
+    it('@error 触发的失败同样可见（fromError 路径不豁免提示）', async () => {
+      const { wrapper, ctx } = mountHost({ collect: () => [] })
+      // 直接走 @error 入口：collect 为空时空目标不请求，这里显式给 path 触发 pendingPaths → flushPending
+      // （不 mockReset：外层 beforeEach 已设默认 resolved 实现，mockRejectedValueOnce 只覆盖一次）
+      h.refreshSignatures.mockRejectedValueOnce(new Error('boom'))
+      ctx.refreshNow('references/x.png')
+      await vi.advanceTimersByTimeAsync(400)
+      expect(h.messageWarning).toHaveBeenCalledTimes(1)
+      wrapper.unmount()
+    })
+
+    // 可选第 6 件：OrderDetail 主页 + 内嵌 PreviewPanel 同屏双实例，同次网络故障此前弹两条相同警告
+    it('同屏双实例同次故障只弹一条（模块级去重）；恢复后再失败照常提示', async () => {
+      const paths = makePaths(10)
+      h.refreshSignatures.mockReset()
+      h.refreshSignatures.mockRejectedValue(new Error('shared outage'))
+
+      const w1 = mountHost({ collect: () => paths })
+      const w2 = mountHost({ collect: () => paths })
+      // 同一轮定时两实例都失败 → 用户只看到一条相同文案
+      await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL_MS + 100)
+      expect(h.messageWarning).toHaveBeenCalledTimes(1)
+      // 连发不刷屏：各自 becameFailure 已消耗，再来一轮仍不弹
+      await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL_MS)
+      expect(h.messageWarning).toHaveBeenCalledTimes(1)
+
+      // 全恢复 → 模块标志复位
+      h.refreshSignatures.mockReset()
+      h.refreshSignatures.mockResolvedValue({ urls: {} })
+      await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL_MS)
+      expect(h.messageWarning).toHaveBeenCalledTimes(1)
+
+      // 恢复后新一轮：一实例失败 + 一实例成功 → 失败侧重新提示（「恢复重置」语义保持）
+      h.refreshSignatures.mockRejectedValueOnce(new Error('down again'))
+      await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL_MS)
+      expect(h.messageWarning).toHaveBeenCalledTimes(2)
+
+      w1.wrapper.unmount()
+      w2.wrapper.unmount()
+    })
   })
 })

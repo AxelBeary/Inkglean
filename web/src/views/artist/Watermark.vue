@@ -86,7 +86,8 @@
                 :title="d.original_name || ''"
                 @click="pickDeliverable(d)"
               >
-                <img :src="d.url" :alt="d.original_name || ''" loading="lazy" />
+                <!-- F0304: 缩略图 403（签名过期）兜底：按图换签，解析不出 path 时传空串回退全量 -->
+                <img :src="d.url" :alt="d.original_name || ''" loading="lazy" @error="() => refreshNow(uploadedPathFromUrl(d.url) || '')" />
               </button>
             </div>
           </template>
@@ -194,6 +195,8 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { useArtistStore } from '../../stores/artist'
 import { artistApi } from '../../api/index'
+// F0304: 完稿图签名 URL 定时换签（composable 已接入 OrderDetail/QueueBoard/PreviewPanel，本页补齐缺口）
+import { useSignatureRefresh, uploadedPathFromUrl } from '../../composables/useSignatureRefresh'
 import { WM_POSITIONS, WM_POSITION_CORNERS, loadImage, composeWatermarked } from '../../utils/watermark'
 import { safeGetItem, safeSetItem } from '../../utils/storage'
 import { MAX_IMAGE_BYTES, MAX_IMAGE_MB } from '../../constants/upload'
@@ -223,6 +226,8 @@ const deliverablesLoading = ref(false)
 /** 完稿图加载失败（独立错误态 + 重试，不再静默） */
 const deliverablesError = ref(false)
 const selectedOrderId = ref<number | null>(null)
+/** F0304: 当前预览选中的完稿图 id——换签 apply 据此同步回写预览 src（切单/换来源即弃选） */
+const selectedDeliverableId = ref<number | null>(null)
 
 // ─── 水印素材 ───
 const wmType = ref('text') // text | logo
@@ -321,6 +326,8 @@ function acceptImageFile(file: File) {
   }
   const reader = new FileReader()
   reader.onload = () => {
+    // F0304: 预览切到本地图（dataURL）→ 弃选完稿图，防定时换签把预览 src 回写到旧完稿图
+    selectedDeliverableId.value = null
     src.value = reader.result as string
   }
   reader.readAsDataURL(file)
@@ -346,6 +353,8 @@ function artworkSrc(art: ArtworkWithTags) {
 }
 
 function pickArtwork(art: ArtworkWithTags) {
+  // F0304: 预览切到作品图（裸 /uploads 路径无签名）→ 弃选完稿图，防定时换签回写 src
+  selectedDeliverableId.value = null
   src.value = artworkSrc(art)
 }
 
@@ -373,6 +382,8 @@ function orderLabel(o: ArtistOrderItem) {
 async function onOrderChange(orderId: number | null) {
   // 围剿 a1-8: 订单下拉切换取号——慢响应不得覆盖新选中的订单完稿图
   const mySeq = ++deliverablesSeq
+  // F0304: 切单即弃选——旧订单的完稿图 id 不得作为新订单换签回写 src 的依据
+  selectedDeliverableId.value = null
   if (!orderId) {
     deliverables.value = []
     src.value = ''
@@ -401,8 +412,35 @@ function retryDeliverables() {
 }
 
 function pickDeliverable(d: DeliverableRow) {
+  // F0304: 记录选中 id——换签 apply 据此把当前预览 src 同步换成新签名
+  selectedDeliverableId.value = d.id
   src.value = d.url
 }
+
+// ─── F0304: 完稿图签名 URL 定时换签 ───
+// d.url 是 5 分钟 TTL 的载荷签名（getOrder → order-route-utils.ts 预览载荷），页面长停留必 403 裂图。
+// 复用 useSignatureRefresh：3 分钟定时 + 回前台补刷 + @error 按图兜底；默认走画师端
+// POST /api/artist/refresh-signatures（allowedPrefixes 含 deliverables/{artistId}/ 且同口径签发，
+// 见 order-list.routes.ts:290-296），无需注入 request。依赖 signedUrl 不编码路径（uploadedPathFromUrl
+// 注释口径）——signedUrl 载荷/编码若变更需同步核对，否则续签静默失配（表现为图仍裂）。
+const { refreshNow } = useSignatureRefresh({
+  // 仅完稿页签收集：新传图是 dataURL、作品图是裸 /uploads 路径，均无签名不参与换签（零额外请求）
+  collect: () => {
+    if (sourceType.value !== 'deliverable') return []
+    return deliverables.value
+      .map(d => uploadedPathFromUrl(d.url))
+      .filter((p): p is string => !!p)
+  },
+  apply: (urls) => {
+    deliverables.value.forEach(d => {
+      const p = uploadedPathFromUrl(d.url)
+      if (p && urls[p]) d.url = urls[p]
+    })
+    // F0304 最大风险点：缩略图已换新签名而当前预览 src 仍停旧签名 → 按选中 id 回写
+    const picked = deliverables.value.find(d => d.id === selectedDeliverableId.value)
+    if (picked) src.value = picked.url
+  }
+})
 
 // ─── LOGO 上传与持久化 ───
 function onLogoChange(e: Event) {

@@ -41,6 +41,11 @@ const DELIVER_ALLOWED = [
 // 交付文件 MIME 黑名单（拒绝可执行/可渲染脚本的类型）
 const DELIVER_BLOCKED_MIME = ['image/svg+xml', 'text/html', 'application/xhtml+xml']
 
+// F0200：清理端点单次最多删除的路径条数（弹窗内 staged 上限远低于此，防批量滥用）
+const CLEANUP_MAX_ITEMS = 10
+// F0200：单条路径长度上限（images/{artistId}/{nanoid12}{ext} 实际 < 60 字符，200 已宽裕）
+const CLEANUP_PATH_MAX_LEN = 200
+
 // ─── GHSA-6pf3-g4xq-854w（Wave1·高）参考图囤积守卫 ───
 // 单文件 10MB × 10 次/10 分/IP 的次数限流拦不住囤积：未绑定订单的登记行此前全仓零 DELETE，
 // 孤儿回收又把这些行当「DB 仍引用」→ 磁盘只进不出（实算 14.4GB/天/IP）。三道闸：
@@ -603,5 +608,93 @@ export default async function uploadRoutes(fastify: FastifyInstance, opts: { upl
       if (err instanceof AppError) return reply.code(err.statusCode).send({ code: err.code, error: err.message })
       throw err
     }
+  })
+
+  /**
+   * POST /api/upload/cleanup — 清理本弹窗未提交的上传图（F0200，需登录）
+   *
+   * 背景：SizeEditDialog 新建尺寸时 /api/upload/image 立即落盘，用户取消弹窗或 PUT 失败回滚后，
+   * images/{artistId}/ 下的文件成为孤儿（此前全仓零删除端点）。前端只把「本弹窗 staged 未提交」
+   * 的路径发来这里对账删除；服务端不主动扫盘（历史存量孤儿走运维脚本，不进本批）。
+   *
+   * 安全口径（路径校验复用 resolveReferencePath / refresh-signatures 同款纵深防御）：
+   * ① 含 .. 一律 400 拒绝（fail-closed：删除是破坏性操作，坏路径不静默跳过、整单拒）；
+   * ①' F1（尾巴批 cleanup 复核）：非字符串条目同样整单 400 INVALID_FILE_PATHS——
+   *    不与坏路径区别对待（静默跳过会让调用方按 200 对账时误以为该条已被清理）；
+   * ② 只允许 images/${request.artist.id}/ 前缀——与 /api/upload/image 的落盘目录严格对应，
+   *    跨画师路径直接拒，其他目录（references/deliverables/notes/previews）不在清理范围；
+   * ③ resolve 后必须仍在 uploads 根内（P0-B 同 saveUpload）。
+   * 幂等：文件不存在按成功返回（前端重复清理/并发误判不再报错）；只 unlink 精确路径，不递归。
+   * 限流 30 次/10min per-artist（正常一次取消只调一次）。
+   */
+  fastify.post('/api/upload/cleanup', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!rateLimit(`upload-cleanup:${request.artist.id}`, 30, 10 * 60_000)) {
+      return reply.code(429).send({ error: '清理请求过于频繁，请稍后再试' })
+    }
+
+    const filePaths = (request.body as { filePaths?: unknown } | null)?.filePaths
+    if (!Array.isArray(filePaths) || filePaths.length === 0 || filePaths.length > CLEANUP_MAX_ITEMS) {
+      return reply.code(400).send({
+        code: 'INVALID_FILE_PATHS',
+        error: `filePaths 需为 1~${CLEANUP_MAX_ITEMS} 条的数组`
+      })
+    }
+
+    const allowedPrefix = `images/${request.artist.id}/`
+    const root = resolve(UPLOAD_DIR)
+    // 两段式：先全量校验、后执行。逐条边验边删会在撞上坏路径前已删掉同批合法文件，
+    // 破坏性操作必须 fail-closed 整单拒绝，不做部分执行（CROSSEND-PLAN §3「拒 .. / 跨画师」语义）。
+    const valid: Array<{ raw: string; absPath: string }> = []
+    const seen = new Set<string>()
+    for (const raw of filePaths) {
+      // F1（尾巴批 cleanup 复核）：非字符串条目改整单 400——与「坏路径 fail-closed 整单拒」同一哲学，
+      // 静默跳过会让调用方按 200 对账时误以为该条已被清理
+      if (typeof raw !== 'string') {
+        return reply.code(400).send({ code: 'INVALID_FILE_PATHS', error: 'filePaths 数组内含非字符串条目' })
+      }
+      if (seen.has(raw)) continue
+      seen.add(raw)
+      if (raw.length > CLEANUP_PATH_MAX_LEN) {
+        return reply.code(400).send({ code: 'INVALID_FILE_PATHS', error: `路径超长（>${CLEANUP_PATH_MAX_LEN} 字符）` })
+      }
+      if (raw.includes('..') || !raw.startsWith(allowedPrefix)) {
+        // F0200：破坏性操作 fail-closed——含穿越段或越出本人目录前缀，整单拒绝并给码
+        return reply.code(400).send({
+          code: 'ILLEGAL_CLEANUP_PATH',
+          error: '路径不合法：仅允许清理你本人上传的未引用图片'
+        })
+      }
+      // P0-B 同款纵深防御：resolve 后必须在 uploads 根子树内（前缀 + .. 双检后的第三道闸）
+      const absPath = resolve(root, raw)
+      if (!absPath.startsWith(root + sep)) {
+        return reply.code(400).send({ code: 'ILLEGAL_CLEANUP_PATH', error: '路径不合法：仅允许清理你本人上传的未引用图片' })
+      }
+      valid.push({ raw, absPath })
+    }
+    const deleted: string[] = []
+    const failed: Array<{ filePath: string; error: string }> = []
+    for (const { raw, absPath } of valid) {
+      try {
+        unlinkSync(absPath)
+        deleted.push(raw)
+      } catch (err) {
+        // 幂等：已不存在（重复清理/并发）按成功计；其余 IO 故障进结构化失败清单
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          deleted.push(raw)
+        } else {
+          failed.push({ filePath: raw, error: (err as NodeJS.ErrnoException).code || 'UNKNOWN' })
+        }
+      }
+    }
+    if (failed.length > 0) {
+      // 部分删除已生效不可回滚：结构化返回已删/失败清单（只带 errno，不带服务端绝对路径）
+      request.log.warn(`F0200 cleanup 部分失败: deleted=${deleted.length} failed=${failed.length}`)
+      return reply.code(500).send({
+        code: 'UPLOAD_CLEANUP_FAILED',
+        error: '部分图片清理失败，可稍后重试',
+        detail: { deleted, failed }
+      })
+    }
+    return { deleted }
   })
 }

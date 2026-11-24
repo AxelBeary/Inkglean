@@ -28,13 +28,15 @@
  *   回退全量刷新——向后兼容，未改造的消费者行为不变
  *
  * 硬规则：
- * - 失败只暴露不中断（issue #52-5：refreshError 可见，不再静默吞掉整批失败）
+ * - 失败只暴露不中断（issue #52-5：refreshError 可见，不再静默吞掉整批失败）；
+ *   #62 尾巴清收：失败连发开始时另弹一次用户可见提示（连续失败不刷屏，恢复后重置）
  * - 防重入（多张图同时 error 合并为一次批量刷新）
  * - @error 触发的刷新加 300ms 防抖 + 每图最大重试 2 次
  * - 定时刷新不受重试上限限制（定期兜底不应被阻断）
  * - onUnmounted 自动清理定时器和防抖计时器
  */
 import { ref, onUnmounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import { artistApi } from '../api/index'
 
 // G1：后端签名 TTL 已缩至 5 分钟（file-sign.ts FILE_TTL_MS），间隔/阈值同步压缩并 export 做口径哨兵。
@@ -47,6 +49,17 @@ export const VISIBLE_REFRESH_THRESHOLD_MS = 2 * 60 * 1000
 // #52-5：服务端 refresh-signatures 的 paths 上限是 maxItems:50（server/src/features/order/order-list.routes.ts），
 // 整批超限会被 400 拒掉——长列表一次收集上百张图时全量刷新会整体失效，故按上限分片。
 export const SIGNATURE_REFRESH_BATCH_SIZE = 50
+
+// 可选第 6 件（#62 尾巴清收·跨实例补丁）：OrderDetail 主页与其内嵌 PreviewPanel 同屏各持一个
+// 实例，同一次网络故障两实例几乎同时各弹一条相同文案的 warning。模块级标志挡掉第二条；
+// 任一实例刷新成功即复位——单实例「失败连发只弹一次、恢复重置」语义不变
+//（单实例视角下，标志的置位/复位窗口与自身 refreshError 非空窗口逐点重合）。
+let crossInstanceWarned = false
+
+/** 仅供测试：复位跨实例去重标志（模块级状态会跨用例泄漏，warning 断言用例的 beforeEach 须复位） */
+export function __resetCrossInstanceWarnForTest(): void {
+  crossInstanceWarned = false
+}
 
 /**
  * 从签名 URL 取出存储路径（/uploads/<path>?sig=... → <path>）；非上传 URL 返回 null。
@@ -106,10 +119,32 @@ export function useSignatureRefresh({ collect, apply, onSkipped, intervalMs = DE
       }
       lastRefreshAt = Date.now() // 只按成功刷新计时（失败不推迟补刷）
       refreshError.value = null
+      // 可选第 6 件：跨实例去重标志随「有实例恢复成功」复位（单实例等价于原「恢复重置」语义）
+      crossInstanceWarned = false
       for (const p of targets) errorRetries.delete(p) // 刷新成功 → 清除该图计数
     } catch (err) {
       // #52-5: 失败即停止后续分片，但把失败暴露出去（原实现整段静默）
+      // #62 尾巴清收：refreshError 只是「暴露」，全仓无页面消费它仍不可见——分片失败整批停后，
+      // 用户只看到裂图毫无解释。失败连发开始时弹一次可见提示：3 分钟定时仍在重试，
+      // 连续失败不重复刷屏；恢复成功（refreshError 清空）后下轮失败才会再提示。
+      // i18n 动态引用不 await：首次加载 locale 模块是真实 IO，await 会让 refreshing 守卫
+      // 卡在模块加载上、阻塞后续 @error 补刷；挂到 .then 链上失败回落原始文案（同 http.ts 口径）。
+      const becameFailure = refreshError.value === null
       refreshError.value = err
+      // 可选第 6 件（跨实例去重）：本实例是「失败连发开始」，但同屏另一实例已弹过相同文案 → 不再弹；
+      // 标志照常置位（顺带吞掉第三实例的同步首败），直到任一实例恢复成功才复位
+      const shouldWarn = becameFailure && !crossInstanceWarned
+      if (becameFailure) crossInstanceWarned = true
+      if (shouldWarn) {
+        void import('../i18n/index')
+          .then(({ i18n }) => { ElMessage.warning(i18n.global.t('common.networkError')) })
+          .catch(() => {
+            // i18n 加载失败时的兜底（http.ts:154 同款回落）——i18n 不可用便无法 t()，
+            // 只能给原始文案；走变量赋值而非 ElMessage 直参字面量，同 http.ts 不入 check-i18n 的 message-en 规则
+            const fallback = 'Network error, please try again later'
+            ElMessage.warning(fallback)
+          })
+      }
       if (fromError) {
         // BUG-5：按图累加，超限后仅该图不再重试，其他图不受影响
         for (const p of targets.slice(done)) errorRetries.set(p, (errorRetries.get(p) || 0) + 1)
