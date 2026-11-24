@@ -48,9 +48,9 @@ export async function savePng(blob: Blob, filename: string): Promise<'saved' | '
   }
   try {
     // F0038 原修复语义（延迟 revoke 防非 Chromium 内核取不到 blob）由 downloadBlob 承接；
-    // 尾巴批 pr-review-20261123：与 web PriceCard/ReceiptPrinter 三处同型收口进 @inkglean/shared
-    downloadBlob(blob, filename)
-    return 'saved'
+    // SHR-02：downloadBlob 返回回执，失败（链路异常被降级路径拦截）不得再无条件报 'saved'
+    const res = await downloadBlob(blob, filename)
+    return res.ok ? 'saved' : 'failed'
   } catch {
     return 'failed'
   }

@@ -76,9 +76,11 @@ function onNotify({ kind, text }: { kind: 'success' | 'warning' | 'error' | 'inf
 }
 
 // ─── 导出：anchor 下载链路收口 @inkglean/shared（尾巴批 pr-review-20261123：三处同型收口，延迟 revoke 口径不变） ───
-function onExportPng({ blob, filename }: { blob: Blob; filename: string }) {
-  // F0299 原修复语义（延迟 revoke 防同步注销取消下载）由 downloadBlob 承接
-  downloadBlob(blob, filename)
+async function onExportPng({ blob, filename }: { blob: Blob; filename: string }) {
+  // F0299 原修复语义（延迟 revoke 防同步注销取消下载）由 downloadBlob 承接；
+  // SHR-02：按回执反馈，下载链路异常不再静默无提示
+  const res = await downloadBlob(blob, filename)
+  if (!res.ok) ElMessage.error(t('priceCard.exportFailed'))
 }
 
 // ─── 作品库例图：组件已自开弹窗，宿主只管取数并组好 src 直载地址回灌 ───

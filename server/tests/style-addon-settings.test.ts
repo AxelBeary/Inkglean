@@ -207,6 +207,44 @@ describe('F0192 saveAddonSettings（service 层）', () => {
       styleAddonId: 99999, sizeOverrides: []
     })).toThrow('STYLE_ADDON_NOT_FOUND')
   })
+
+  it('TC-SVR04-01: 50 项 sizeOverrides —— 归属/存在性查询固定 2 条批量，无逐项 N+1，且全部落库', () => {
+    const sizes = Array.from({ length: 50 }, (_, i) =>
+      styleService.createStyleSize(artist.id, style.id, { name: `尺寸${i}`, base_price: 100 + i })
+    )
+    const tpl = styleService.createAddonTemplate(artist.id, { name: '加背景', default_price: 80 })
+    styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: tpl.id }])
+    const row = styleService.getStyleAddons(style.id).find(r => r.addon_template_id === tpl.id)!
+
+    const prepareSpy = vi.spyOn(db, 'prepare')
+    const result = styleService.saveAddonSettings(artist.id, style.id, {
+      styleAddonId: row.id,
+      sizeOverrides: sizes.map((s, i) => ({ sizeId: s.id, priceOverride: i, isHidden: i % 2 === 0 }))
+    })
+    const sizeLookups = prepareSpy.mock.calls.filter(([sql]) =>
+      typeof sql === 'string' && /SELECT id FROM style_sizes WHERE id = \? AND art_style_id = \?/.test(sql)).length
+    const overrideLookups = prepareSpy.mock.calls.filter(([sql]) =>
+      typeof sql === 'string' && /SELECT id FROM size_addon_overrides WHERE style_size_id = \? AND style_addon_id = \?/.test(sql)).length
+    const batchSizes = prepareSpy.mock.calls.filter(([sql]) =>
+      typeof sql === 'string' && /SELECT id FROM style_sizes WHERE art_style_id = \? AND id IN \(/.test(sql)).length
+    const batchOverrides = prepareSpy.mock.calls.filter(([sql]) =>
+      typeof sql === 'string' && /SELECT style_size_id, id FROM size_addon_overrides WHERE style_addon_id = \? AND style_size_id IN \(/.test(sql)).length
+    prepareSpy.mockRestore()
+
+    // 逐项 N+1 归零，批量预取固定各 1 条（与 items 数量无关）
+    expect(sizeLookups).toBe(0)
+    expect(overrideLookups).toBe(0)
+    expect(batchSizes).toBe(1)
+    expect(batchOverrides).toBe(1)
+    // 正确性：50 条覆盖全部落库且价格/隐藏值与入参一致
+    const overrides = result.sizeOverrides.filter(o => o.style_id === style.id && o.style_addon_id === row.id)
+    expect(overrides).toHaveLength(50)
+    for (let i = 0; i < 50; i++) {
+      const o = overrides.find(x => x.style_size_id === sizes[i].id)!
+      expect(o.price_override).toBe(i)
+      expect(o.is_hidden).toBe(i % 2 === 0 ? 1 : 0)
+    }
+  })
 })
 
 describe('F0192 saveAddonSettings（路由层集成）', () => {

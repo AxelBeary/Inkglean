@@ -180,7 +180,7 @@
 // props/emits/expose 契约不变，web/desktop 两端宿主壳零跟改。
 import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { formatYuan, yuanToCents } from '../utils/money'
-import { drawCard } from './pricecard/draw'
+import { drawCard, cancelPendingImageLoads } from './pricecard/draw'
 import type { DrawCardInput } from './pricecard/draw'
 import { filledTiers, tierGroups } from './pricecard/tiers'
 import ArtworkPickerModal from './pricecard/ArtworkPickerModal.vue'
@@ -450,19 +450,41 @@ function drawInput(): DrawCardInput {
   }
 }
 
-async function buildCard() {
+async function buildCard(signal?: AbortSignal) {
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')
   if (!ctx) return null
-  await drawCard(ctx, canvas, drawInput())
+  await drawCard(ctx, canvas, drawInput(), signal)
   return canvas
+}
+
+/** SHR-04 兜底：例图单张 10s 超时已在 draw.ts 内，这里对整段绘制再加超时闸门，
+ *  杜绝任何未覆盖的悬挂路径把 exporting 永久置 true（按钮永久禁用、finally 不执行）。
+ *  超时即 abort 在途例图加载并抛错，走下方 notify 错误分支；不吞错误。 */
+const EXPORT_GUARD_MS = 12_000
+async function buildCardGuarded() {
+  const controller = new AbortController()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      buildCard(controller.signal),
+      new Promise<null>((_, reject) => {
+        timer = setTimeout(() => {
+          controller.abort()
+          reject(new Error('export timeout'))
+        }, EXPORT_GUARD_MS)
+      })
+    ])
+  } finally {
+    if (timer !== undefined) clearTimeout(timer)
+  }
 }
 
 async function doExport() {
   if (!validate() || exporting.value) return
   exporting.value = true
   try {
-    const canvas = await buildCard()
+    const canvas = await buildCardGuarded()
     if (!canvas) throw new Error('no canvas')
     const blob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('blob'))), 'image/png')
@@ -507,6 +529,8 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   if (previewTimer) clearTimeout(previewTimer)
+  // SHR-04：取消在途例图加载，避免半开连接续命 / 回调进已卸载组件
+  cancelPendingImageLoads()
 })
 
 defineExpose({

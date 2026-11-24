@@ -94,6 +94,34 @@ describe('迁移 v24: quota_pool_paid_total（F0077 回填限定与原值校验�
     mem.close()
   })
 
+  it('TC-F77-02b: 全额退款归零订单重放不复活金额（SVR-01 组合用例）', () => {
+    // 复现：旧形态库 → 分期 1000+2000 回填 3000 → 流水收 3000 到 6000 → 退款到 0
+    // → 版本表丢失后重放 v24 → 归零金额不得被旧分期和「复活」回 3000。
+    const mem = buildOldShapeDb({ ordersPaidCol: true })
+    const o1 = Number(mem.prepare('INSERT INTO orders (order_no, paid_total_cents) VALUES (?, ?)').run('O-1', 0).lastInsertRowid)
+    const insInst = mem.prepare('INSERT INTO order_payment_installments (order_id, amount_cents, status) VALUES (?, ?, ?)')
+    insInst.run(o1, 1000, 'paid')
+    insInst.run(o1, 2000, 'paid')
+
+    // 首跑：order_payments 建立且为空，基线订单照常回填到分期和 3000
+    expect(() => migration.up(mem)).not.toThrow()
+    const paid = (id: number) => (mem.prepare('SELECT paid_total_cents AS p FROM orders WHERE id = ?').get(id) as { p: number | null }).p
+    expect(paid(o1)).toBe(3000)
+
+    // 流水接管：addPayment +3000（→6000），随后全额退款 -6000（→0），两笔都落 order_payments
+    const insPay = mem.prepare('INSERT INTO order_payments (order_id, amount_cents, note) VALUES (?, ?, ?)')
+    insPay.run(o1, 3000, '收款')
+    mem.prepare('UPDATE orders SET paid_total_cents = 6000 WHERE id = ?').run(o1)
+    insPay.run(o1, -6000, '全额退款')
+    mem.prepare('UPDATE orders SET paid_total_cents = 0 WHERE id = ?').run(o1)
+    expect(paid(o1)).toBe(0)
+
+    // 重放 v24（模拟版本表丢失修复）：NOT EXISTS(order_payments) 哨兵拦下，归零金额不复活
+    expect(() => migration.up(mem)).not.toThrow()
+    expect(paid(o1)).toBe(0)
+    mem.close()
+  })
+
   it('TC-F77-03: 新形态库（v52 已退役 status 列）——不触发换算，只补列', () => {
     const mem = new Database(':memory:')
     mem.exec('CREATE TABLE orders (id INTEGER PRIMARY KEY AUTOINCREMENT, order_no TEXT)')
