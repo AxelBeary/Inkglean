@@ -5,7 +5,7 @@
 - **HEAD**：`origin/master` = `0b3c5db2`（PR #106 收口版，master 未再前移；施工七 PR 集成在 fork，待统一推上游）
   - 本机无 pwsh/chromium/cargo/playwright：只报「CI + 本机等价门禁」，不得称十九道全绿；CI 四 job 为权威，十九道由 Windows 环境实跑
 - **本机等价门禁（2026-11-24）**：server 2179 / web 1370 / desktop 682 / shared 48；台账 `AGENTS/门禁-20261124/`
-- **PR 状态**：#107–#113 共 7 条全部 OPEN/BLOCKED、文件级零交集无冲突；合并顺序 #109 先于 #112（F0283 server 侧→前端消费）
+- **PR 状态**：#107–#113 共 7 条全部 OPEN/BLOCKED、文件级零交集无冲突；合并顺序 #109 先于 #112（F0283 理由见下一步第 1 条）
   - #109 file-size 红：`useOrderForm.ts` 827 行超 800 冻结值——ci-web 修复中（t1）；#112 server 两例失败：admin messages limit——ci-server 修复中（t2）
 - **基线**：`accept-baseline.json` server 2105 / web 1308 / desktop 678 / shared 47 / e2e 15；迁移 v82；cargo 39 另计
 - **发版**：v1.1.0（2026-10-28 稳交付·好管理版）；安装包 5.79MB/920 文件；说明见 `docs/changelog.md` 顶部
@@ -20,6 +20,7 @@
 1. **推进 B1/B3/B4/B8（fork 内施工，不等上游合并）**：施工图、F 编号映射与派工清单见 `AGENTS/handoff-20261124/PLAN-REMAINING.md`
    - 口径：fork 内集成与等价门禁全绿后，再统一推上游；代理只 push fork、不 push origin
    - 七 PR #107–#113 全 OPEN（#109 先于 #112）；合并后盯 CI 首跑（e2e 为 B5/B6 权威回归），master 十九道由 Windows 环境实跑留痕
+     - F0283 顺序订正：server 实现与 web 消费均在 #109；#112 仅新增 ?limit 回归测试，故须 #109 先合，反序必红 3 例
 2. **B8 用户配置（你的操作）**：密钥对 + Secrets/Variables + 真机终验——照做清单 `AGENTS/拍板材料-20261123/B8-照做清单.md`；ab263dd1 空壳 QQ 方案（A+C）代码侧随 B8 批
 3. **待用户终验项沿旧**：发布包真机、悬浮窗真机、桌面 768 分屏；U33 发版流水线未跑（vars/secrets 配好前首版必红）；U26 tsx 生产依赖待拍板
 4. **待拍板 F0180**：publicArtistDTO 将 calendar_feed_token（可旋转凭证）平铺给画师 /auth/me 响应、web 零消费，是否剔除属 API 契约问题
@@ -95,17 +96,17 @@
   - ab263dd1 空壳 QQ 归属＝方案 A（邀请码签发绑定目标 QQ，注册校验「码绑定==申领」）+ C（未完成首绑空壳行禁新码覆盖，走管理员找回）过渡；B 带外凭据不采；
   - 账号口径按实测：本机登录 Mistwhisker（AxelBeary 主仓 write / fork admin），旧「仅 AxelBeary 账号」表述作废；fork 残留分支已全清（2026-11-23）。
   - PR 合并口径订正：七 PR #99–105 由**本会话代理（登录 AxelBeary）**以 `gh pr merge --admin --rebase` 逐条合入，非网页人工点击；
-- 施工批契约与待办登记（2026-11-24，六批 PR #107–#112 落地时拍板）：
-  - F0192 新端点契约形状＝PUT /artist/art-styles/:id/addon-settings，**身份键 styleAddonId**（style_addons 行 id）非模板 id——孤儿行 addon_template_id:null 无法靠模板 id 定位、模板 id 由服务端从行内读不信前端回传（F0190/F0191 根治口径）；
-  - F0179 二阶段待办：线上 track/delivery 404 曲线稳定后移除 query.token 回退，**须同步把 e10 e2e 裸 API 调用改走 header**（否则该用例全 404）；
-  - F0314 二阶段待办：服务端 nextDueCents 字段稳定后删除前端 legacyNextDueCents 回退；
-  - F0081/F0077 存量结论：旧增项表已随 v43/v50 拍板 DROP，已过该版本存量库不可恢复（修复仅防重蹈）；v24 首跑无真实资金丢失（派生值可从流水重算）；
-  - 行为变更知悉项：F0103 冻结模式改计价模式 400 拒绝（sync 放行）；F0110 回收站排序改路径字典序；F0283 留言仪表盘 limit=200；F0117 后 B6 弹窗打开需显式点生成（旧截图文案过时）。
   - 根因：`master-merge-gate` 的 bypass 名单**只有 AxelBeary**（`always`）；**Mistwhisker 仅 write、无 bypass**
     - 故「ruleset 无 bypass 名单」只在 Mistwhisker 账号下成立，非仓库事实
   - 同源订正：`7118b53c`（vitest maxWorkers）与 `5c1c0aab`（看板/基线收口）亦由同一账号直推
     - 十九道 356s 为同一 Windows 主机实跑；合并后 CI 四 job + E2E + CodeQL 全绿 @ `3ce3ad9a`
     - 报告 `AGENTS/workspace/temp/accept-master-20261123-185506.md`
+- 施工批契约与待办登记（2026-11-24，六批 PR #107–#112 落地时拍板）：
+  - F0192 新端点契约形状＝PUT /api/artist/art-styles/:id/addon-settings，**身份键 styleAddonId**（style_addons 行 id）非模板 id——孤儿行 addon_template_id:null 无法靠模板 id 定位、模板 id 由服务端从行内读不信前端回传（F0190/F0191 根治口径）；
+  - F0179 二阶段待办：线上 track/delivery 404 曲线稳定后移除 query.token 回退，**须同步把 e10 e2e 裸 API 调用改走 header**（否则该用例全 404）；
+  - F0314 二阶段待办：服务端 nextDueCents 字段稳定后删除前端 legacyNextDueCents 回退；
+  - F0081/F0077 存量结论：旧增项表已随 v43/v50 拍板 DROP，已过该版本存量库不可恢复（修复仅防重蹈）；v24 首跑无真实资金丢失（派生值可从流水重算）；
+  - 行为变更知悉项：F0103 冻结模式改计价模式 400 拒绝（sync 放行）；F0110 回收站排序改路径字典序；F0283 留言仪表盘 limit=200；F0189 后 B6 弹窗打开需显式点生成（旧截图文案过时）。
 
 
 **起手必读**：开工第一件事＝读顶部看板 → 正文最新一块（📌）→ 拍板查「已拍板规则」→ `AGENTS.md`（事实源链与门禁口径）；碰桌面端再读 `desktop/docs/STATUS.md` 顶部，改桌面 UI 必跑 `huiyue-layout-audit` 自检循环（宿主级技能，VL 不可用时 measure.mjs + 人工清单）。
