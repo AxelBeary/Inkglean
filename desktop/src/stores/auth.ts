@@ -62,8 +62,11 @@ export const useAuthStore = defineStore('auth', () => {
       const t = await loadSecret(KEY_TOKEN)
       const a = await loadSecret(KEY_ARTIST)
       if (t && a) {
+        // F0031（B6）: 档案先解析成功再落 token+artist——若先写 token 再 parse，
+        // 密文损坏抛错被外层 catch 吞掉后会留下「loggedIn 但 artist 为空」半态。
+        const restored = JSON.parse(a) as DesktopArtist
         token.value = t
-        artist.value = JSON.parse(a) as DesktopArtist
+        artist.value = restored
       }
     } catch {
       // 保险箱不可用或密文损坏：按未登录处理，重新登录即可

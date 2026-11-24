@@ -1491,6 +1491,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     shareOpened: '已在新窗口打开发布页',
     shareCopied: '文案已复制，请在发布页粘贴',
     shareNoHomepage: '文案包含 {homepage}，但未找到该平台主页链接——请先在「主页设置」添加对应平台的链接',
+    // F0217：兜底直开遇非法 hostname → 不开窗口、可见提示（文案已复制仍可手动前往平台）
+    shareInvalidHost: '该平台地址不合法，未能打开发布页；分享文案已复制，请手动前往平台发布',
     // 波3-2: 分享平台列表加载失败错误态 + 重试
     shareLoadFailed: '分享平台列表加载失败，请重试',
     // 818-D: 再来一单（基于历史订单一键复用信息开新单）
@@ -2134,6 +2136,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     totpReset: '重置绑定', totpResetConfirm: '确定重置「{name}」的动态口令绑定？旧密钥立即失效，画师须重新绑定才能登录',
     totpResetSuccess: '已重置绑定',
     totpRegenerate: '重新生成二维码', totpRegenerateHint: '重新生成会使旧二维码立即失效，画师需重新扫码',
+    // F0189（B6）: 打开弹窗不再自动换绑——生成改为显式确认触发，两键分别承载首产按钮与副作用警示文案
+    totpGenerate: '生成二维码',
+    totpGenConfirm: '生成新二维码会覆盖「{name}」现有的动态口令密钥：旧绑定立即失效，画师当前全部登录会话将被踢出，须重新扫码绑定后才能登录。确定生成？',
     orderColNo: '订单号', orderColQq: '客户QQ', orderColStatus: '状态',
     orderColType: '类型', orderColTime: '下单时间',
     greetingManage: '问候语管理', greetingPlaceholder: "输入问候语，用 {'{'}name{'}'} 代替画师名",

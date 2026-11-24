@@ -1493,6 +1493,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     shareOpened: 'Publish page opened in a new tab',
     shareCopied: 'Text copied — paste it on the publish page',
     shareNoHomepage: 'Text contains {homepage} but no homepage link for this platform was found — add one in Page Settings first',
+    // F0217: fallback open blocked by an invalid hostname — visible notice (copied text still usable manually)
+    shareInvalidHost: 'This platform address is invalid, so the publish page was not opened. The text is copied — please open the platform manually.',
     // Wave 3-2: share platform list load-failure error state + retry
     shareLoadFailed: 'Failed to load share platforms. Please retry.',
     // 818-D: reorder from a past order (reuse info for a new order)
@@ -2139,6 +2141,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     totpReset: 'Reset binding', totpResetConfirm: 'Reset the dynamic code binding for "{name}"? The old secret becomes invalid immediately; the artist must re-bind before logging in.',
     totpResetSuccess: 'Binding reset',
     totpRegenerate: 'Regenerate QR', totpRegenerateHint: 'Regenerating invalidates the old QR immediately; the artist must scan again',
+    // F0189（B6）: opening the dialog no longer auto-rebinds — generation now requires explicit confirmation
+    totpGenerate: 'Generate QR code',
+    totpGenConfirm: 'Generating a new QR code overwrites the current TOTP secret of "{name}": the old binding is invalidated immediately, all active sessions of the artist are signed out, and a re-scan is required before login. Generate now?',
     orderColNo: 'Order No.', orderColQq: 'Client QQ', orderColStatus: 'Status',
     orderColType: 'Type', orderColTime: 'Order time',
     greetingManage: 'Greeting Manager', greetingPlaceholder: "Enter greeting, use {'{'}name{'}'} for artist name",

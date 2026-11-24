@@ -8,6 +8,8 @@ export const E2E_TOTP_SECRET = 'JBSWY3DPEHPK3PXP'
 export function base32Decode(input: string): Buffer | null {
   const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
   const cleaned = String(input).toUpperCase().replace(/[\s-]/g, '')
+  // F0064: 空输入快速失败返回 null——与 server 实现的 !cleaned 守卫对齐（旧实现漏了，空密钥不会快败）
+  if (!cleaned) return null
   let bits = 0
   let value = 0
   const bytes: number[] = []
@@ -28,11 +30,13 @@ export function base32Decode(input: string): Buffer | null {
 /** 计算指定时间步的 6 位动态码（RFC 6238：30s 步长 / HMAC-SHA1 / 动态截断，与 totp.ts 一致） */
 export function totpForCounter(secretBase32: string, counter: number): string {
   const key = base32Decode(secretBase32)
+  // F0064: 密钥空/非法时给明确错误快速失败（server totp.ts 同款），
+  // 不再把 null 塞进 createHmac 抛晦涩的内部错（原 JS 即此行为，TS 曾以 as 断言保持）
+  if (!key) throw new Error('TOTP 密钥格式无效（空或非法 Base32）')
   const msg = Buffer.alloc(8)
   msg.writeUInt32BE(Math.floor(counter / 0x100000000), 0)
   msg.writeUInt32BE(counter >>> 0, 4)
-  // 原 JS 对 null 密钥即在 crypto.createHmac 处运行时抛错，此处 as 断言保持同一行为
-  const hash = crypto.createHmac('sha1', key as Buffer).update(msg).digest()
+  const hash = crypto.createHmac('sha1', key).update(msg).digest()
   const offset = hash[19] & 0x0f
   const binary =
     ((hash[offset] & 0x7f) << 24) |
@@ -79,5 +83,21 @@ export function nextLoginTotp(qqNumber: string): Array<{ counter: number; code: 
 export function noteTotpLogin(qqNumber: string, counter: number): void {
   const used = usedLoginCounters.get(qqNumber) ?? new Set<number>()
   used.add(counter)
-  usedLoginCounters.set(qqNumber, used)
+  // F0065: 候选窗口只有 now±1，比它更旧的时间步永不再被查询——顺手裁掉，
+  // 进程级状态不再只增不减（旧实现长进程跑 E2E 会无限累积）
+  const pruneBefore = Math.floor(Date.now() / 1000 / 30) - 1
+  for (const c of used) {
+    if (c < pruneBefore) used.delete(c)
+  }
+  if (used.size > 0) usedLoginCounters.set(qqNumber, used)
+  else usedLoginCounters.delete(qqNumber)
+}
+
+/**
+ * F0065: 重置入口——清空某 QQ（缺省全部）的已消费时间步记录。
+ * 旧实现只增不減且无任何重置手段；跨阶段重跑/重新播种需要清零时由此显式调用。
+ */
+export function resetLoginTotpUsage(qqNumber?: string): void {
+  if (qqNumber === undefined) usedLoginCounters.clear()
+  else usedLoginCounters.delete(qqNumber)
 }

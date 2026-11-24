@@ -61,14 +61,41 @@ export async function apiLogin(baseURL: string, qqNumber: string, code: string =
 }
 
 /**
+ * F0053: 判定 401 是否「TOTP 级拒绝」（可换下一候选码重试）。
+ * 服务端匿名登录已五态统一（GHSA-6pf3）：一律 401 + { code: 'TOTP_INVALID' }
+ * （值取自 server/src/shared/errors.ts 的 E.TOTP_INVALID，机器可读、跨文案改版稳定）；
+ * 旧实现按中文文案「已使用|动态口令错误」判定，文案一改即静默失去重试能力。
+ */
+function isTotpInvalid401(err: unknown): boolean {
+  const e = err as ApiLoginError | null | undefined
+  if (e?.status !== 401 || typeof e?.detail !== 'string') return false
+  try {
+    const body = JSON.parse(e.detail) as { code?: unknown }
+    return body.code === 'TOTP_INVALID'
+  } catch {
+    // 响应体不是 JSON（网关拦截页/代理 401 等）：无法确认为 TOTP 拒绝，按不可重试处理
+    return false
+  }
+}
+
+/**
  * E8 登出后解毒：用真实 TOTP 登录重签 artist token 并写回 .tokens.json。
  * 逐个尝试 ±1 窗口内未被本进程消费的时间步；若同一窗口内的候选全部命中重放防护
  * （如 E7 已消费 current+1、global-setup 已消费 current），则等到下一时间步再试，
  * 保证用例失败重试时共享缓存仍持有有效 token。
  */
+// F0052: 等下一时间步的重试必须有上限——匿名 401 五态统一后锁定/封禁不再可判别，
+// 无上限的旧实现会无限递归烧防爆破预算（每 30s 一轮直到人为中断）
+const TOKEN_REFRESH_MAX_ROUNDS = 3
+
 export async function refreshArtistTokenCache(baseURL: string, qqNumber: string = '10001'): Promise<string> {
-  const attempt = async (): Promise<string> => {
-    let lastError: unknown = null
+  let lastError: unknown = null
+  const attempt = async (round: number): Promise<string> => {
+    // F0052: 上限检查放在每轮尝试之前——最多 3 轮（≤9 次尝试）后抛出最后一次真实错误（不吞），
+    // 由调用方决定失败语义；旧实现无上限会无限递归烧防爆破预算
+    if (round >= TOKEN_REFRESH_MAX_ROUNDS) {
+      throw lastError ?? new Error(`TOTP 刷新登录重试 ${TOKEN_REFRESH_MAX_ROUNDS} 轮后仍未成功 (QQ: ${qqNumber})`)
+    }
     for (const { counter, code } of nextLoginTotp(qqNumber)) {
       try {
         const token = await apiLogin(baseURL, qqNumber, code)
@@ -77,19 +104,16 @@ export async function refreshArtistTokenCache(baseURL: string, qqNumber: string 
         return token
       } catch (err) {
         lastError = err
-        const e = err as ApiLoginError | null | undefined
-        // 可换下一候选的两类 401：「已使用」（重放防护）与「动态口令错误」（边界竞态：
-        // 候选码恰在 30s 换码边界算出，服务端校验时已翻过时间步，最早候选跌出 ±1 窗口，
-        // CI 实测 #32438159703）。锁定/网络等其余错误直接抛，不空耗防爆破计数。
-        const retriable = e?.status === 401 && /已使用|动态口令错误/.test(e?.detail || '')
-        if (!retriable) throw err
+        // F0053: 改按响应 code 字段判定可换下一候选（见 isTotpInvalid401）；
+        // 锁定/网络/网关等其余错误直接抛，不空耗防爆破计数
+        if (!isTotpInvalid401(err)) throw err
       }
     }
     const waitMs = 30_000 - (Date.now() % 30_000) + 100
     await new Promise(r => setTimeout(r, waitMs))
-    return attempt()
+    return attempt(round + 1)
   }
-  return attempt()
+  return attempt(0)
 }
 
 /** REQ-041：管理员二次验证（step-up），返回升级后的 token（httpOnly cookie 同域名可覆盖） */
@@ -147,6 +171,14 @@ export default async function globalSetup(): Promise<void> {
   seedTotpForE2e()
 
   // 4. 启动服务器
+  // F0054: spawn 前先探一次端口——此刻本套件尚无子进程，任何响应都只能是上次遗留的服务器，
+  // 直接报错拒绝（否则下面的健康检查会打到旧进程上假绿，预登录踩到陈旧数据/陈旧端口）
+  const baseURL = E2E_BASE_URL
+  const stalePort = await fetch(`${baseURL}/api/health`).then(() => true, () => false)
+  if (stalePort) {
+    throw new Error(`端口 ${E2E_PORT} 已有遗留进程在响应 ${baseURL}/api/health——请先停掉上一次的 E2E 服务器（或改用 E2E_PORT）`)
+  }
+
   console.log(`🚀 E2E: 启动服务器 (port ${E2E_PORT})...`)
   const server = spawn(process.execPath, [tsxCli, 'src/index.ts'], {
     cwd: resolve(ROOT, 'server'),
@@ -166,17 +198,48 @@ export default async function globalSetup(): Promise<void> {
     },
     stdio: 'pipe'
   })
+  // F0051: stdio 'pipe' 若无人读取，服务器启动报错日志会丢，且管道写满会反压阻塞子进程——转发到主进程输出
+  server.stdout?.on('data', (chunk: Buffer) => process.stdout.write(chunk))
+  server.stderr?.on('data', (chunk: Buffer) => process.stderr.write(chunk))
+  server.on('error', (err: Error) => {
+    // spawn 本身失败（如 node 可执行异常）——记录后由下方健康检查统一收口报错
+    console.error(`E2E 服务器 spawn 失败：${err.message}`)
+  })
+  if (!server.pid) {
+    // F0056 配套：spawn 未返回 PID（同步失败）时不写 PID 文件，杜绝把 "undefined" 落盘
+    throw new Error('E2E 服务器进程启动失败（spawn 未返回 PID），详见上方日志')
+  }
   writeFileSync(PID_FILE, String(server.pid))
 
   // 5. 等待健康检查
-  const baseURL = E2E_BASE_URL
+  // F0050: 窗口耗尽必须抛错——旧实现循环超时后静默继续，启动失败被拖到预登录才暴露
   const deadline = Date.now() + 30_000
+  let healthy = false
+  let earlyExit: string | null = null
   while (Date.now() < deadline) {
+    if (server.exitCode !== null || server.signalCode !== null) {
+      // 子进程在等待期内退出（端口被占/启动崩溃等）——立即收口，日志已由 F0051 转发
+      earlyExit = `exitCode=${server.exitCode ?? 'null'} signalCode=${server.signalCode ?? 'null'}`
+      break
+    }
     try {
       const res = await fetch(`${baseURL}/api/health`)
-      if (res.ok) break
+      if (res.ok) {
+        healthy = true
+        break
+      }
     } catch { /* 重试 */ }
     await new Promise(r => setTimeout(r, 500))
+  }
+  if (!healthy) {
+    // F0050: 失败必须当场抛错；子进程若还活着（只是慢），杀掉本次 spawn 的实例，不留孤儿占端口
+    server.kill('SIGKILL')
+    rmSync(PID_FILE)
+    throw new Error(
+      earlyExit
+        ? `E2E 服务器启动即退出（${earlyExit}），详见上方转发的服务器日志`
+        : `E2E 服务器 30s 内未通过健康检查（${baseURL}/api/health），详见上方转发的服务器日志`
+    )
   }
 
   // 6. 预登录画师 + 管理员，token 写入文件（fixture 只读文件，不网络请求）
