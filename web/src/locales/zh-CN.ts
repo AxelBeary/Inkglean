@@ -2229,6 +2229,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
       filterByReplied: '是否已回复', repliedYes: '已回复', repliedNo: '未回复',
       filterLabel: '筛选留言',
       filterDesc: '按画师、审核状态与回复状态过滤留言列表',
+      listLimit: '显示上限', limitN: '最近 {n} 条',
+      listTruncated: '仅显示最近 {n} 条留言；更早的留言请增大显示上限，或用上方筛选缩小范围。',
       delete: '强制删除', deleteConfirm: '确定删除这条留言？删除后客户主页将不再显示。', deleted: '留言已删除'
     },
     // HC: 系统自检

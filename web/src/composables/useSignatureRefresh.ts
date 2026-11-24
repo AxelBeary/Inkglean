@@ -54,11 +54,16 @@ export const SIGNATURE_REFRESH_BATCH_SIZE = 50
 // 实例，同一次网络故障两实例几乎同时各弹一条相同文案的 warning。模块级标志挡掉第二条；
 // 任一实例刷新成功即复位——单实例「失败连发只弹一次、恢复重置」语义不变
 //（单实例视角下，标志的置位/复位窗口与自身 refreshError 非空窗口逐点重合）。
+// WEB-01（debug-swarm 11-24）：标志原本只随「有实例成功」复位、随页面卸载不清，生命周期是
+// 整个 JS 模块而非「同屏实例组」——A 页离线失败置位后保持离线、路由到 B 页新实例首次失败
+// 被吞。补活跃实例计数：归零（旧页面全部卸载、同屏实例组解体）即清标志，B 页首败照常提示。
 let crossInstanceWarned = false
+let activeInstances = 0
 
-/** 仅供测试：复位跨实例去重标志（模块级状态会跨用例泄漏，warning 断言用例的 beforeEach 须复位） */
+/** 仅供测试：复位跨实例去重标志与活跃实例计数（模块级状态会跨用例泄漏，warning 断言用例的 beforeEach 须复位） */
 export function __resetCrossInstanceWarnForTest(): void {
   crossInstanceWarned = false
+  activeInstances = 0
 }
 
 /**
@@ -82,6 +87,7 @@ export function useSignatureRefresh({ collect, apply, onSkipped, intervalMs = DE
   /** 换签请求（默认画师端 refresh-signatures；客户查单页注入 track 版端点，响应同形 { urls, skipped? }） */
   request?: (paths: string[]) => Promise<{ urls: Record<string, string>; skipped?: string[] }>
 }) {
+  activeInstances++ // WEB-01：记录同屏活跃实例组规模；归零时清跨实例去重标志（见 onUnmounted）
   let refreshing = false
   let debounceTimer: number | null = null
   let lastRefreshAt = Date.now()
@@ -119,7 +125,8 @@ export function useSignatureRefresh({ collect, apply, onSkipped, intervalMs = DE
       }
       lastRefreshAt = Date.now() // 只按成功刷新计时（失败不推迟补刷）
       refreshError.value = null
-      // 可选第 6 件：跨实例去重标志随「有实例恢复成功」复位（单实例等价于原「恢复重置」语义）
+      // 可选第 6 件：跨实例去重标志随「有实例恢复成功」复位（单实例等价于原「恢复重置」语义）；
+      // 另一复位入口在 onUnmounted——活跃实例归零（离开页面）时清标志，见 WEB-01
       crossInstanceWarned = false
       for (const p of targets) errorRetries.delete(p) // 刷新成功 → 清除该图计数
     } catch (err) {
@@ -186,6 +193,10 @@ export function useSignatureRefresh({ collect, apply, onSkipped, intervalMs = DE
     clearInterval(timer)
     if (debounceTimer != null) clearTimeout(debounceTimer)
     document.removeEventListener('visibilitychange', onVisibilityChange)
+    // WEB-01：实例组解体（最后一个活跃实例卸载）→ 清跨页面去重标志。
+    // 这样 A 页离线失败置位后，路由到 B 页（A 已卸载）新实例的首次失败仍能弹出可见警告。
+    activeInstances = Math.max(0, activeInstances - 1)
+    if (activeInstances === 0) crossInstanceWarned = false
   })
 
   return { refreshNow, refreshError }
