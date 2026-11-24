@@ -77,14 +77,27 @@ export function listRecycleBin(): RecycleBinItem[] {
  * SVR-06：按顶层日期目录分片。回收站结构为 YYYY-MM-DD/<原始路径>/<文件>，
  * 顶层每个条目即一个「分片」（日期目录或少量顶层散文件）。分片名倒序 = relToBin 倒序的
  * 首段序，按此顺序处理即可早停，无需一次性铺开全库条目。
+ *
+ * TASK2-06：分片比较键必须与旧全局 relToBin 倒序同口径——目录的分隔符 '/'（47）要参与比较。
+ * 若只按 shard.name 排，散文件 `2026-08-07.bak`（'.'=46）会被误排在目录 `2026-08-07`
+ * 之前，而旧实现里 `2026-08-07/a.png` 因 '/'(47) > '.'(46) 反而在前。目录键补 '/' 后，
+ * 分片间顺序与全局 relToBin 顺序严格一致（分片内仍按 relToBin 倒序），总/早停不变。
  */
-interface RecycleShard { name: string; abs: string; isDir: boolean }
+interface RecycleShard { name: string; abs: string; isDir: boolean; sortKey: string }
 function listRecycleShards(binRoot: string): RecycleShard[] {
   // 显式标注条目形状：即便本机 fs 类型声明缺失（TS2591 环境 artifact），回调也不退化成隐式 any
   const dirents = readdirSync(binRoot, { withFileTypes: true }) as Array<{ name: string; isDirectory(): boolean }>
   const shards: RecycleShard[] = []
-  for (const e of dirents) shards.push({ name: e.name, abs: join(binRoot, e.name), isDir: e.isDirectory() })
-  shards.sort((a, b) => (a.name < b.name ? 1 : a.name > b.name ? -1 : 0)) // 日期目录字典序倒序 = 时间倒序
+  for (const e of dirents) {
+    const isDir = e.isDirectory()
+    shards.push({
+      name: e.name,
+      abs: join(binRoot, e.name),
+      isDir,
+      sortKey: isDir ? `${e.name}/` : e.name // 目录补路径分隔符，与 relToBin 首段同口径
+    })
+  }
+  shards.sort((a, b) => (a.sortKey < b.sortKey ? 1 : a.sortKey > b.sortKey ? -1 : 0)) // 与全局 relToBin 倒序一致
   return shards
 }
 

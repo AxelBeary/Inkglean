@@ -853,6 +853,30 @@ describe('管理员路由 (Admin Routes)', () => {
     expect(new Set(seen).size).toBe(37)
   })
 
+  it('TC-TASK2-06-01: 散文件名是日期目录名前缀扩展——分片序与旧全局 relToBin 倒序严格一致', async () => {
+    const admin = setAdmin('10001')
+    const auth = { Authorization: `Bearer ${adminToken(admin)}` }
+    // 两组边界：'.'(46) < '/'(47) < 'z'(122)
+    // A: 2026-08-07/a.png（目录） vs 2026-08-07.bak（散文件，'.'）→ 目录项在前
+    // B: 2026-08-06/b.png（目录） vs 2026-08-06z.bak（散文件，'z'）→ 散文件在前
+    for (const [dir, fileInDir, loose] of [
+      ['2026-08-07', 'a.png', '2026-08-07.bak'],
+      ['2026-08-06', 'b.png', '2026-08-06z.bak']
+    ] as const) {
+      mkdirSync(join(rbBinRoot, dir), { recursive: true })
+      writeFileSync(join(rbBinRoot, dir, fileInDir), fileInDir)
+      writeFileSync(join(rbBinRoot, loose), loose)
+    }
+    // 旧实现（全局 relToBin 倒序）的期望，逐字符比较首段后的分隔符/扩展字符
+    const expected = ['2026-08-07/a.png', '2026-08-07.bak', '2026-08-06z.bak', '2026-08-06/b.png']
+
+    const res = await app.inject({ method: 'GET', url: '/api/admin/recycle-bin?page=1&pageSize=4', headers: auth })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.total).toBe(4)
+    expect(body.items.map((i: { binPath: string }) => i.binPath)).toEqual(expected)
+  })
+
   it('TC-RB-05: pageSize/page 非法入参 400（F-3 schema 校验）', async () => {
     const admin = setAdmin('10001')
     seedRecycleFiles(3)
