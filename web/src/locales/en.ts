@@ -2718,6 +2718,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     validDaysHint: '1-30 days',
     maxUsesLabel: 'Uses per Code',
     maxUsesHint: '1-100 uses, default 1 (single-use)',
+    bindQqHint: '5-15 digits. Leave blank = universal code (any QQ can register); set it and the whole batch only works for that QQ (anti-impersonation)',
     generateBtn: 'Generate',
     generated: '{count} invite codes generated',
     colCode: 'Invite Code',
