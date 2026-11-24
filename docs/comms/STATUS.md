@@ -95,9 +95,9 @@
   - F0134 令牌幂等缓存＝押后 B4 支付批做架构级重设（TC-D2-02 重放一致契约与明文令牌缓存冲突，小改必返工，F0137 已回退至同口径）；
 - B4 支付批 F0134 架构级重设落地（2026-11-24，fork 分支 fix/b4-money-20261124）：
   - 方案＝幂等响应信封加密：response_json 写 AES-256-GCM `enc:v1:` 信封（SESSION_SECRET 域分离派生 + AAD 绑定 scope/key），零 migration；读侧解封后与首响逐字节一致，TC-D2-02/TC-CT-01 保绿。
-  - 纪律＝enc:v1 解密失败直接 409 换 key，不删行不重执行（下单 scope 删行重跑会重复落单）；无前缀存量明文行才沿用旧 JSON.parse 失败删行分支。
+  - 纪律＝enc:v1 解密失败返回独立码 IDEMPOTENCY_ENVELOPE_INVALID 409（该提交可能已受理，保留原幂等键、禁止自动重提；如未确认联系客服），不删行不重执行；无前缀存量明文行才沿用旧 JSON.parse 失败删行分支。
   - Accepted residual＝持 client UUID v4 幂等键 + 知 artist.id/QQ 者仍可 API 重放取回令牌（幂等契约本身要求，UUID 122bit 熵 + scope 绑定）；DB/备份静态明文已消除。
-  - 密钥运维＝不新增 env，SESSION_SECRET 轮换使 24h 内在途缓存不可解→409 换 key 自愈，无需迁移。
+  - 密钥运维＝不新增 env；SESSION_SECRET 轮换使 24h 内在途缓存不可解→同一独立 409（该提交可能已受理），保留原 key、禁止自动重提，联系客服核对订单/收款状态；无需迁移。
   - ab263dd1 空壳 QQ 归属＝方案 A（邀请码签发绑定目标 QQ，注册校验「码绑定==申领」）+ C（未完成首绑空壳行禁新码覆盖，走管理员找回）过渡；B 带外凭据不采；
   - 账号口径按实测：本机登录 Mistwhisker（AxelBeary 主仓 write / fork admin），旧「仅 AxelBeary 账号」表述作废；fork 残留分支已全清（2026-11-23）。
   - PR 合并口径订正：七 PR #99–105 由**本会话代理（登录 AxelBeary）**以 `gh pr merge --admin --rebase` 逐条合入，非网页人工点击；
