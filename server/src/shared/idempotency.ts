@@ -12,7 +12,7 @@ import { isWeakSessionSecret } from './secrets.js'
 // 响应含一次性 customerToken + trackUrl，24h 内 DB/备份留存明文、同 key 可重放。
 // 现写入前用 AES-256-GCM 封装成 `enc:v1:<base64(iv|tag|ct)>`，仍存原 TEXT 列
 // → 零 migration；读取时按前缀解封，首响与重放解出的 body 逐字节一致，
-// 保住 TC-D2-02 重放一致契约；解密失败显式 409 让客户端换 key，**绝不删行重执行**
+// 保住 TC-D2-02 重放一致契约；解密失败显式 409（独立错误码，前端保留 key），**绝不删行重执行**
 // （下单 scope 删行重跑会产生第二笔订单）。无前缀的存量明文行仍走旧兼容读路径。
 // ============================================
 
@@ -64,9 +64,16 @@ function envelopeAad(scope: string, key: string): Buffer {
   return Buffer.from(`${scope}\0${key}`, 'utf8')
 }
 
-/** 密文损坏/密钥轮换/跨行搬运 → 明确 409 让调用方换 key，绝不删行重执行 */
+/**
+ * 密文损坏/密钥轮换/跨行搬运 → 独立错误码 IDEMPOTENCY_ENVELOPE_INVALID 409。
+ *
+ * TASK2-01：绝不能复用 IDEMPOTENCY_CONFLICT——前端对该码一律清 key 重提，
+ * 在首响丢失 + 密钥轮换场景下会重复下单/重复扣款。新码通过 ERROR_MESSAGES
+ * 告知「该提交可能已受理，请勿重复提交；如未确认请联系客服」，前端保留原 key。
+ * 服务端纪律不变：解密失败不删行、不重执行（见 withIdempotency 调用点）。
+ */
 function corruptedEnvelope(): AppError {
-  return new AppError(E.IDEMPOTENCY_CONFLICT, 409, { message: '幂等缓存响应已损坏或密钥已轮换，请更换幂等键后重试' })
+  return new AppError(E.IDEMPOTENCY_ENVELOPE_INVALID, 409)
 }
 
 /** 写入侧：JSON 字符串 → enc:v1 信封（IV 12B + tag 16B + 密文，base64） */
@@ -158,7 +165,7 @@ export function withIdempotency(
     if (requestHash !== null && cached.request_hash !== null && cached.request_hash !== requestHash) {
       throw new AppError(E.IDEMPOTENCY_CONFLICT, 409, { scope, message: '同一幂等键已用于不同的请求内容' })
     }
-    // enc:v1 信封解密失败 → 明确 409 换 key；封包损坏不删行、不重执行（F0134 纪律）
+    // enc:v1 信封解密失败 → 独立 409（TASK2-01，前端不清 key）；不删行、不重执行（F0134 纪律）
     const responseJson = unsealIdempotencyResponse(cached.response_json, scope, key)
     // d3 P2: 存量明文缓存行损坏/被手工篡改 → 删掉坏行按未命中重执行，避免同 key 永久 500
     try {

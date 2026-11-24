@@ -72,6 +72,8 @@ export default {
     ORDER_CONFLICT: '订单已被其他操作更新，请刷新后重试',
     // 审计 #21 条目 3: 同一幂等键换了请求内容（不是重放）——前端会同时换新键，用户可直接重提
     IDEMPOTENCY_CONFLICT: '本次提交与此前已受理的提交内容不同，请确认金额等信息后重新提交',
+    // TASK2-01: 信封解密失败——该提交可能已受理，禁止引导换 key 重提（会重复下单/扣款）
+    IDEMPOTENCY_ENVELOPE_INVALID: '该提交可能已受理，请勿重复提交；如未确认请联系客服',
     // R-2: 已收款订单取消需二次确认（Batch A 契约 409 CANCEL_WITH_PAYMENT）
     CANCEL_WITH_PAYMENT: '该订单已收款，请先线下退还后再取消',
     MY_ORDERS_RETIRED: '「我的订单」查询已下线，请使用下单时保存的追踪链接，或联系画师补发',

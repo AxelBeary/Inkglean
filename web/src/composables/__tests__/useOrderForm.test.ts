@@ -988,6 +988,26 @@ describe('提交', () => {
     expect(key3).not.toBe(key1)
   })
 
+  it('TASK2-01: 信封解密失败 409 → 保留原 key、展示不可重试提示、不自动重提（防重复下单/扣款）', async () => {
+    const message = '该提交可能已受理，请勿重复提交；如未确认请联系客服'
+    orderCreateMock.mockRejectedValueOnce(Object.assign(new Error(message), { code: 'IDEMPOTENCY_ENVELOPE_INVALID' }))
+    orderCreateMock.mockResolvedValueOnce({ orderNo: 'ALICE-002' })
+    const { of } = await createForm()
+    of.selectStyle(11)
+    of.selectSize(111)
+    await settlePrice()
+    of.form.clientQq = '12345678'
+
+    await of.submit()
+    expect(ElMessage.error).toHaveBeenCalledWith(message)
+    expect(of.showSuccess.value).toBe(false)
+    // 用户再次点提交：必须沿用同一个 key（清 key 会以新意图再落一单）
+    await of.submit()
+    const key1 = orderCreateMock.mock.calls[0][1].headers['idempotency-key']
+    const key2 = orderCreateMock.mock.calls[1][1].headers['idempotency-key']
+    expect(key2).toBe(key1)
+  })
+
   it('issue #50-1：报价未就绪 → 拦下提交并提示；报价就位后放行', async () => {
     const { of } = await createForm()
     of.selectStyle(11)

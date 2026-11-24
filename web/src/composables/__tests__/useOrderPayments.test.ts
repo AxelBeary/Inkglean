@@ -237,6 +237,43 @@ describe('useOrderPayments 409 载荷冲突后换新幂等键（#21-3）', () =>
     const key2 = h.addPayment.mock.calls[1][2].headers['idempotency-key']
     expect(key1).toBe(key2)
   })
+
+  it('TASK2-01: 信封解密失败 409 → addPayment 保留原 key，不自动换新 key（防重复入账）', async () => {
+    const envelopeError = () => Object.assign(
+      new Error('该提交可能已受理，请勿重复提交；如未确认请联系客服'),
+      { code: 'IDEMPOTENCY_ENVELOPE_INVALID' }
+    )
+    h.addPayment.mockRejectedValueOnce(envelopeError())
+    h.addPayment.mockResolvedValueOnce({})
+    const payments = useOrderPayments()
+
+    await expect(
+      payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金' })
+    ).rejects.toThrow('请勿重复提交')
+    await payments.addPayment('806' as unknown as number, { amountCents: 1000, note: '定金' })
+
+    const key1 = h.addPayment.mock.calls[0][2].headers['idempotency-key']
+    const key2 = h.addPayment.mock.calls[1][2].headers['idempotency-key']
+    expect(key2).toBe(key1)
+  })
+
+  it('TASK2-01: 信封解密失败 409 → revokePayment 保留原 key（防重复冲抵）', async () => {
+    const envelopeError = () => Object.assign(
+      new Error('该提交可能已受理，请勿重复提交；如未确认请联系客服'),
+      { code: 'IDEMPOTENCY_ENVELOPE_INVALID' }
+    )
+    h.addPayment.mockRejectedValueOnce(envelopeError())
+    h.addPayment.mockResolvedValueOnce({})
+    const payments = useOrderPayments()
+    const row = { id: 7, amount_cents: 1000 } as unknown as PaymentRow
+
+    await expect(payments.revokePayment('806' as unknown as number, row)).rejects.toThrow('请勿重复提交')
+    await payments.revokePayment('806' as unknown as number, row)
+
+    const key1 = h.addPayment.mock.calls[0][2].headers['idempotency-key']
+    const key2 = h.addPayment.mock.calls[1][2].headers['idempotency-key']
+    expect(key2).toBe(key1)
+  })
 })
 
 // ─── 审计 #21 条目 4：撤销带被撤行 id，且只撤「该笔尚未被撤的余额」 ───

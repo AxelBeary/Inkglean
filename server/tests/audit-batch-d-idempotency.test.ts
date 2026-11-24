@@ -267,17 +267,18 @@ describe('审计批 D-2 幂等键', () => {
     expect(JSON.parse(unsealIdempotencyResponse(sealed, scope, 'bad'))).toEqual({ ok: true })
   })
 
-  it('TC-D2-15: F0134 密文损坏 → 409 换 key，不删行、不重执行（绝不重复落单）', async () => {
+  it('TC-D2-15: F0134 密文损坏 → 独立 409 IDEMPOTENCY_ENVELOPE_INVALID，不删行、不重执行', () => {
     const scope = 'enc-corrupt-test'
     const key = 'bad-envelope'
     db.prepare(
       "INSERT INTO idempotency_keys (scope, key, status_code, response_json) VALUES (?, ?, 200, 'enc:v1:!!!!')"
     ).run(scope, key)
     let calls = 0
+    // TASK2-01：不能再复用 IDEMPOTENCY_CONFLICT（前端会清 key 导致重复下单）
     expect(() => withIdempotency(scope, key, () => {
       calls++
       return { statusCode: 200, body: { ok: true } }
-    })).toThrow('IDEMPOTENCY_CONFLICT')
+    })).toThrow('IDEMPOTENCY_ENVELOPE_INVALID')
     expect(calls).toBe(0)
     expect((db.prepare('SELECT response_json FROM idempotency_keys WHERE scope = ? AND key = ?').get(scope, key) as { response_json: string }).response_json).toBe('enc:v1:!!!!')
   })
