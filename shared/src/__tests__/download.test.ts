@@ -78,4 +78,18 @@ describe('downloadBlob 的 blob URL 释放时机', () => {
     expect(result.ok).toBe(false)
     expect(result.error).toBe('blocked')
   })
+
+  // TASK2-04: click 抛错时 1s 延迟 revoke 那行不会执行 → 必须立即注销，否则 Blob URL 泄漏
+  it('TASK2-04: a.click 抛错后立即 revoke blob URL（恰好一次，不等 1s）', async () => {
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => { throw new Error('blocked') })
+
+    const result = await downloadBlob(new Blob(['x']), 'leak.png')
+
+    expect(result.ok).toBe(false)
+    expect(revokeObjectURL).toHaveBeenCalledTimes(1)
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock-download')
+    // 不再有延迟的第二次注销（catch 已同步注销，未挂定时器）
+    vi.advanceTimersByTime(REVOKE_DELAY_MS * 2)
+    expect(revokeObjectURL).toHaveBeenCalledTimes(1)
+  })
 })
