@@ -25,7 +25,7 @@
         v-for="item in visibleItems" :key="item.id"
         type="button"
         class="activity-item"
-        @click="item.orderId != null && $router.push(`/orders/${item.orderId}`)" 
+        @click="item.orderId != null && $router.push(`/orders/${item.orderId}`)"
       >
         <span class="activity-dot"></span>
         <div class="activity-body">

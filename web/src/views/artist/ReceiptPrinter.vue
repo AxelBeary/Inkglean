@@ -19,7 +19,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { ReceiptPrinter as ReceiptPrinterCore } from '@inkglean/shared'
+import { ReceiptPrinter as ReceiptPrinterCore, downloadBlob } from '@inkglean/shared'
 import type { ReceiptDraft } from '@inkglean/shared'
 import { safeGetItem, safeSetItem } from '../../utils/storage'
 import { copyText as copyToClipboard } from '../../utils/clipboard'
@@ -64,14 +64,9 @@ function onNotify({ kind, text }: { kind: 'success' | 'warning' | 'error' | 'inf
   ElMessage[kind](text)
 }
 
-// ─── 导出：原 anchor 下载逻辑（URL.createObjectURL + a.click + revoke） ───
+// ─── 导出：anchor 下载链路收口 @inkglean/shared（尾巴批 pr-review-20261123：三处同型收口，延迟 revoke 口径不变） ───
 function onExportPng({ blob, filename }: { blob: Blob; filename: string }) {
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  // F0302: 延迟 revoke，避免中断浏览器下载
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  // F0302 原修复语义（延迟 revoke 避免中断浏览器下载）由 downloadBlob 承接
+  downloadBlob(blob, filename)
 }
 </script>

@@ -83,7 +83,10 @@ const MOCK_PROFILE = {
   name: 'Alice',
   subdomain: 'alice',
   rules: '<p>约稿须知</p>',
-  notifyEnabled: true
+  notifyEnabled: true,
+  // #65：提交时二次校验接单状态——公开画像契约恒带 status（HiddenArtistProfile/VisibleArtistProfile 均有），
+  // mock 补齐后与真实响应形状一致，否则提交预检会把 undefined 误判为非 open
+  status: 'open' as const
 }
 
 const MOCK_PRICING = {
@@ -1033,6 +1036,84 @@ describe('提交', () => {
     expect(orderApi.create).toHaveBeenCalledTimes(1)
     expect(orderCreateMock.mock.calls[0][0].discountCode).toBe('SAVE10')
   })
+
+  it('#61-②：列表里有无 filePath 条目（在途/失败）→ 提交拦下并提示，不再静默丢图', async () => {
+    const { of } = await createForm()
+    of.selectStyle(11)
+    of.selectSize(111)
+    await settlePrice()
+    of.form.clientQq = '12345678'
+    of.form.agreed = true
+    // 模拟 EP 已落条目但上传未完成/失败（无 filePath）
+    landRefItem(of, 'inflight.png', 'u-inflight')
+    await of.submit()
+    expect(orderApi.create).not.toHaveBeenCalled()
+    expect(ElMessage.warning).toHaveBeenCalledWith('orderForm.refNotReady')
+    expect(of.submitting.value).toBe(false)
+    // 移除该条后放行（提交载荷与列表同源，不再静默少图）
+    of.refFileList.value.splice(0, 1)
+    await of.submit()
+    expect(orderApi.create).toHaveBeenCalledTimes(1)
+    expect(orderCreateMock.mock.calls[0][0].references).toEqual([])
+  })
+})
+
+// ─── #65 尾巴清收：提交时二次校验接单状态 ───
+// 入口门禁（OrderForm 的 artistNotOpen 空态）只看挂载时快照；客户填表期间画师切 full/break/hidden
+// 时，提交前现拉画像复核：非 open 回写 artist（空态横幅立即生效）并拦下，不发注定 400 的请求。
+describe('#65 提交时二次校验接单状态', () => {
+  it('挂载时 open、提交瞬间画师已切 full → 拦下：回写 artist、提示、不发 create', async () => {
+    const { of } = await createForm()
+    of.form.clientQq = '12345678'
+    of.form.agreed = true
+    // 提交时的现拉画像返回 full（mockResolvedValueOnce 优先于 setupMocks 的默认值）
+    getProfileMock.mockResolvedValueOnce({ ...MOCK_PROFILE, status: 'full' })
+
+    await of.submit()
+
+    expect(orderApi.create).not.toHaveBeenCalled()
+    expect(of.artist.value!.status).toBe('full')
+    expect(ElMessage.error).toHaveBeenCalledWith('errors.ARTIST_NOT_OPEN')
+    expect(of.submitting.value).toBe(false)
+  })
+
+  it('hidden 最小画像同样拦下（回写后 OrderForm 空态分支即接管）', async () => {
+    const { of } = await createForm()
+    of.form.clientQq = '12345678'
+    of.form.agreed = true
+    getProfileMock.mockResolvedValueOnce({ id: 1, name: 'Alice', subdomain: 'alice', status: 'hidden' })
+
+    await of.submit()
+
+    expect(orderApi.create).not.toHaveBeenCalled()
+    expect(of.artist.value!.status).toBe('hidden')
+    expect(ElMessage.error).toHaveBeenCalledWith('errors.ARTIST_NOT_OPEN')
+  })
+
+  it('现拉画像仍 open → 正常放行（幂等键照常携带）', async () => {
+    const { of } = await createForm()
+    of.form.clientQq = '12345678'
+    of.form.agreed = true
+
+    await of.submit()
+
+    expect(orderApi.create).toHaveBeenCalledTimes(1)
+    expect(orderCreateMock.mock.calls[0][1].headers['idempotency-key']).toMatch(/^[0-9a-f-]{36}$/)
+  })
+
+  it('预检请求失败 → 不拦提交（权威判定在服务端 POST /api/orders，网络抖动不误杀）', async () => {
+    const { of } = await createForm()
+    of.form.clientQq = '12345678'
+    of.form.agreed = true
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    getProfileMock.mockRejectedValueOnce(new Error('网络抖动'))
+
+    await of.submit()
+
+    expect(orderApi.create).toHaveBeenCalledTimes(1)
+    expect(of.showSuccess.value).toBe(true)
+    warnSpy.mockRestore()
+  })
 })
 
 // ─── 参考图上传 ───
@@ -1058,12 +1139,13 @@ function makeRefFile(name: string): File {
 }
 
 describe('参考图上传', () => {
-  it('文件超过 10MB → 警告且不上传', async () => {
+  it('文件超过 10MB → 警告 + throw（EP 标记失败，不误标成功）', async () => {
     const { of } = await createForm()
     const bigFile = new File([new ArrayBuffer(11 * 1024 * 1024)], 'big.png', { type: 'image/png' })
-    await of.handleRefUpload({ file: bigFile as File & { uid: string | number } })
+    // #61-①：照 ManualOrderLeft a1 先例改 throw——裸 return 会让 EP 把超限文件标成已上传
+    await expect(of.handleRefUpload({ file: bigFile as File & { uid: string | number } })).rejects.toThrow('orderForm.fileTooBig')
     expect(uploadApi.reference).not.toHaveBeenCalled()
-    expect(ElMessage.warning).toHaveBeenCalled()
+    expect(ElMessage.warning).toHaveBeenCalledWith('orderForm.fileTooBig')
   })
 
   it('非图片扩展名 → 提示仍可上传', async () => {
@@ -1126,5 +1208,18 @@ describe('参考图上传', () => {
     const payload = orderCreateMock.mock.calls[0][0]
     expect(payload.references).toEqual(['references/a.png', 'references/b.png'])
     expect(payload.references).toEqual(of.refFileList.value.map(f => f.filePath))
+  })
+
+  it('#61-③：回填覆写 blob: 预览 URL 前先 revokeObjectURL（不再泄漏 blob 句柄）', async () => {
+    const { of } = await createForm()
+    const revokeSpy = vi.spyOn(URL, 'revokeObjectURL')
+    // 模拟 EP onStart 落条目时写入的 blob: 本地预览（真实链路里 handleStart 会 createObjectURL）
+    landRefItem(of, 'a.png', 'u-a')
+    of.refFileList.value[0].url = 'blob:mock-preview-a'
+    await of.handleRefUpload({ file: { size: 1024, name: 'a.png', uid: 'u-a' } as unknown as File & { uid: string | number } })
+    expect(revokeSpy).toHaveBeenCalledWith('blob:mock-preview-a')
+    // 服务端 URL 已覆写进同一条目
+    expect(of.refFileList.value[0].url).toBe('/uploads/references/a.png')
+    revokeSpy.mockRestore()
   })
 })

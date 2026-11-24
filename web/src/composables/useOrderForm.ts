@@ -515,8 +515,10 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
   async function handleRefUpload({ file }: { file: File & { uid: string | number } }) {
     if (file.size > MAX_IMAGE_BYTES) {
       const sizeMB = (file.size / 1024 / 1024).toFixed(1)
+      // #61-①：超限不得裸 return——http-request 按 resolve 收尾会让 EP 把文件误标成已上传。
+      // 照 ManualOrderLeft.vue 的 a1 先例：先给可见提示，再 throw 让 EP 标记失败
       ElMessage.warning(t('orderForm.fileTooBig', { name: file.name, size: sizeMB }))
-      return
+      throw new Error(t('orderForm.fileTooBig', { name: file.name, size: sizeMB }))
     }
     const ext = file.name.split('.').pop()!.toLowerCase()
     if (!['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
@@ -532,6 +534,9 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
       // 回填而非追加，否则同一张图会出现两条，上限与提交都会多算
       const item = refFileList.value.find(f => String(f.uid) === String(file.uid))
       if (item) {
+        // #61-③：EP 选文件时已给条目写 blob: 本地预览 URL，被服务端 URL 覆写前先 revoke，
+        // 否则 blob 句柄随条目存活到下单页卸载，每次换图都泄漏一枚
+        if (typeof item.url === 'string' && item.url.startsWith('blob:')) URL.revokeObjectURL(item.url)
         item.filePath = uploaded.filePath
         item.url = uploaded.url
       }
@@ -603,6 +608,12 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
       ElMessage.warning(t('orderForm.discountNotValidated'))
       return
     }
+    // #61-②：refFilePaths 的过滤会静默丢掉无 filePath 条目（在途/失败），客户以为图已随单提交。
+    // 提交入口拦下并提示：等上传完成或移除该条后再提交（不再静默少图）
+    if (refFileList.value.some(item => !item.filePath)) {
+      ElMessage.warning(t('orderForm.refNotReady'))
+      return
+    }
     submitting.value = true
     submittedTotalCents.value = null
     // F0244: formRef 为空时不加非空断言——一旦为空 .validate() 抛错会跳过后续 submitting=false，锁永久卡死
@@ -614,6 +625,25 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
     if (!valid) {
       submitting.value = false
       return
+    }
+
+    // #65 尾巴清收：提交时二次校验接单状态——下单入口门禁（OrderForm 的 artistNotOpen 空态）
+    // 只看挂载时快照，客户填表期间画师可能已切 full/break/hidden。提交前现拉一次公开画像复核，
+    // 非 open 就回写 artist 让空态横幅立即生效，不再把注定 400 的请求发给服务端。
+    // 判据与入口门禁、服务端 POST /api/orders（ARTIST_NOT_OPEN）逐字同口径：只认回显 status，
+    // 不认 effectiveStatus（那是额度展示口径，服务端下单不据此拦单）。
+    try {
+      const fresh = await fetchArtistPublicProfile(subdomain)
+      if (fresh.status !== 'open') {
+        artist.value = fresh
+        ElMessage.error(t('errors.ARTIST_NOT_OPEN'))
+        submitting.value = false
+        return
+      }
+    } catch (err) {
+      // 预检失败不拦提交：接单状态的权威判定在服务端 POST /api/orders（非 open 必 400
+      // ARTIST_NOT_OPEN），网络抖动不能让本可成功的下单被前端误杀；失败留痕与 F-4/F-5 同款降级口径。
+      console.warn('[useOrderForm] 提交前接单状态预检失败，放行交服务端终判', err) // eslint-disable-line no-console -- #65：预检失败留痕，放行服务端终判
     }
 
     if (!submitIdemKey) submitIdemKey = generateId()

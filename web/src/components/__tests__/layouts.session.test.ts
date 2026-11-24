@@ -1,6 +1,6 @@
 // 后台布局会话强校验测试（G-1 / P2-8）
 // 覆盖：/api/auth/me 401/403 → 复用登出逻辑清标记跳登录；isAdmin 与本地标记不符 → 以服务端为准修正；
-//       成功 → 不跳转；ArtistLayout 留言角标按 { items } 消费（G-8 适配）
+//       成功 → 不跳转；ArtistLayout 留言角标带 status 过滤单请求取 total（尾巴批 F0182 返工）
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import type { Component } from 'vue'
@@ -227,45 +227,41 @@ describe('ArtistLayout 会话强校验（G-1）', () => {
     expect(h.push).not.toHaveBeenCalled()
   })
 
-  it('留言角标按分页响应 { items } 消费（G-8 适配）', async () => {
+  it('留言角标带 status 过滤单请求取 total（尾巴批 F0182 返工）', async () => {
     localStorage.setItem('artist_logged_in', '1')
     h.getMe.mockResolvedValue({ isAdmin: false })
     h.getMessages.mockResolvedValue({
-      items: [
-        { id: 1, status: 'pending' },
-        { id: 2, status: 'approved' },
-        { id: 3, status: 'pending' }
-      ],
-      total: 3,
+      items: [{ id: 1, status: 'pending' }],
+      total: 2,
       page: 1,
-      pageSize: 100
+      pageSize: 1
     })
 
     const wrapper = await mountLayout(ArtistLayout)
     await flushPromises()
 
-    // F0182/F0183: 角标分页累计——单页时只请求第 1 页，total=3<100 不再多发
-    expect(h.getMessages).toHaveBeenCalledWith({ page: 1, pageSize: 100 })
+    // F0182 返工：角标不再全量翻页，单请求带 status 过滤直接读 total
+    expect(h.getMessages).toHaveBeenCalledWith({ page: 1, pageSize: 1, status: 'pending' })
+    expect(h.getMessages).toHaveBeenCalledTimes(1)
     expect((wrapper.vm as unknown as LayoutVm).pendingMsgCount).toBe(2)
     expect(wrapper.exists()).toBe(true)
   })
 
-  it('F0183: 留言角标跨页累计待审数（超 100 条不低估）', async () => {
+  it('F0183 返工: 待审超 100 条仍单请求不低估（服务端 status 过滤取 total）', async () => {
     localStorage.setItem('artist_logged_in', '1')
     h.getMe.mockResolvedValue({ isAdmin: false })
-    h.getMessages.mockImplementation(({ page }: { page: number }) => Promise.resolve({
-      items: page === 1
-        ? [{ id: 1, status: 'pending' }]
-        : [{ id: 2, status: 'pending' }, { id: 3, status: 'approved' }],
-      total: 101,
-      page,
-      pageSize: 100
-    }))
+    h.getMessages.mockResolvedValue({
+      items: [{ id: 1, status: 'pending' }],
+      total: 150,
+      page: 1,
+      pageSize: 1
+    })
 
     const wrapper = await mountLayout(ArtistLayout)
     await flushPromises()
-    expect(h.getMessages).toHaveBeenCalledWith({ page: 2, pageSize: 100 })
-    expect((wrapper.vm as unknown as LayoutVm).pendingMsgCount).toBe(2)
+    // 关键回归点：旧口径超 100 必发第 2 页翻页累计；新口径单请求即准确
+    expect(h.getMessages).toHaveBeenCalledTimes(1)
+    expect((wrapper.vm as unknown as LayoutVm).pendingMsgCount).toBe(150)
   })
 
   it('820-L：留言关闭 → 菜单过滤 /guestbook 且角标不发请求', async () => {

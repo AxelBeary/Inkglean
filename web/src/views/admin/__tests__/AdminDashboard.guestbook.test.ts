@@ -106,6 +106,8 @@ describe('AdminDashboard 留言加载三态（P1-B）', () => {
     await flushPromises()
 
     expect(h.getMessages).toHaveBeenCalledTimes(1)
+    // B7-F0283：请求带服务端 limit（只拉最近一屏，不再全量拉回客户端分页）
+    expect(h.getMessages).toHaveBeenCalledWith(expect.objectContaining({ limit: 200 }))
     expect(wrapper.find('.load-error-banner').exists()).toBe(true)
     expect(wrapper.find('.load-error-banner').text()).toContain('common.networkError')
     expect(wrapper.find('.gb-table-wrap').exists()).toBe(false)

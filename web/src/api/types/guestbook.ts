@@ -67,4 +67,6 @@ export interface AdminMessageFilters {
   artistId?: number
   status?: 'pending' | 'approved' | 'rejected'
   replied?: '0' | '1' | 0 | 1
+  /** B7-F0283：服务端行数上限（只取最近 N 条，防全量拉回） */
+  limit?: number
 }

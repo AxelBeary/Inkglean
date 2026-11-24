@@ -893,6 +893,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     descSoftTitle: '需求描述为空', descSoftMsg: '你还没有填写需求描述，确定继续吗？（画师可能不太清楚你的想法）',
     descSoftContinue: '继续',
     refLabel: '参考图（可选，最多5张，每张≤10MB）', refExceed: '最多上传5张参考图',
+    // #61-②：提交入口拦「无 filePath 条目」（在途/失败）——不再静默从提交载荷里丢图
+    refNotReady: '仍有参考图在上传中或未上传成功，请等待完成或移除后再提交',
     tagTooLong: '描述已达上限，无法添加该标签', // F0316
     refTip: '下单后画师也可在订单图库中补充参考图，订单图库合计上限 20 张。',
     refUpload: '上传参考图',

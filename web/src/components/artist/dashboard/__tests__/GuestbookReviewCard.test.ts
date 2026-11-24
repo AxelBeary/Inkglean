@@ -104,7 +104,9 @@ describe('GuestbookReviewCard 三态', () => {
   it('重试按钮点击后重新加载', async () => {
     h.getMessages
       .mockRejectedValueOnce(new Error('Network error'))
+      // 尾巴批 pr-review-20261123 后 load 发两请求（显示列表 + status 过滤计数），成功路径各备一份
       .mockResolvedValueOnce({ items: [{ id: 1, nickname: 'Retry', content: 'After retry', status: 'approved', created_at: '2026-08-01T12:00:00' }] })
+      .mockResolvedValueOnce({ items: [], total: 0, page: 1, pageSize: 1 })
     const wrapper = mountCard()
     await flushPromises()
     await wrapper.vm.$nextTick()
@@ -121,6 +123,39 @@ describe('GuestbookReviewCard 三态', () => {
 })
 
 describe('GuestbookReviewCard 操作', () => {
+  it('F0205 返工: 待审计数走服务端 status 过滤单请求，本地审核即时递减', async () => {
+    // 尾巴批 pr-review-20261123：显示列表（无 status 参数）与计数请求（status=pending）分叉返回
+    h.getMessages.mockImplementation((params: { status?: string }) => Promise.resolve(
+      params.status === 'pending'
+        ? { items: [{ id: 9, nickname: '丙', content: '深页待审', status: 'pending', created_at: '2026-08-01T08:00:00' }], total: 3, page: 1, pageSize: 1 }
+        : {
+            items: [
+              { id: 1, nickname: '甲', content: '待审', status: 'pending', created_at: '2026-08-01T10:00:00' },
+              { id: 2, nickname: '乙', content: '已过', status: 'approved', created_at: '2026-08-01T09:00:00' }
+            ],
+            total: 5, page: 1, pageSize: 20
+          }
+    ))
+    const msg = { id: 1, nickname: '甲', content: '待审', status: 'pending', created_at: '2026-08-01T10:00:00' }
+    h.approveMessage.mockResolvedValue({ ...msg, status: 'approved' })
+
+    const wrapper = mountCard()
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    // 计数请求带 status 过滤参数，角标读 total 而非列表推导（旧全量翻页已废）
+    expect(h.getMessages).toHaveBeenCalledWith({ page: 1, pageSize: 20 })
+    expect(h.getMessages).toHaveBeenCalledWith({ page: 1, pageSize: 1, status: 'pending' })
+    expect((wrapper.vm as unknown as { pendingCount: number }).pendingCount).toBe(3)
+
+    const approveBtn = wrapper.findAll('.el-btn-stub').at(0)
+    await approveBtn!.trigger('click')
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+    // 本地过审即时递减，不依赖下一轮重拉
+    expect((wrapper.vm as unknown as { pendingCount: number }).pendingCount).toBe(2)
+  })
+
   it('approve 点击调 API 并更新条目状态', async () => {
     const msg = { id: 1, nickname: 'Alice', content: 'Hi', status: 'pending', created_at: '2026-08-01T10:00:00' }
     h.getMessages.mockResolvedValue({ items: [msg] })

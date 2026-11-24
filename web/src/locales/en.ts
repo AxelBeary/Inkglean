@@ -894,6 +894,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     descSoftTitle: 'Empty description', descSoftMsg: 'You have not described what you want. Continue anyway? (The artist may not fully understand your idea.)',
     descSoftContinue: 'Continue',
     refLabel: 'Reference images (optional, up to 5, ≤10MB each)', refExceed: 'Up to 5 reference images',
+    // #61-②: submit gate for entries without filePath (in-flight/failed) — no longer silently dropped
+    refNotReady: 'Some reference images are still uploading or failed. Wait for them to finish or remove them before submitting.',
     tagTooLong: 'Description is full, cannot add this tag', // F0316
     refTip: 'The artist can add more references to the order gallery after you submit. Gallery total limit: 20 images.',
     refUpload: 'Upload reference image',

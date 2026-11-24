@@ -65,16 +65,10 @@ export async function orderListRoutes(fastify: FastifyInstance) {
       const { zone } = (request.query || {}) as { zone?: string }
       if (zone === 'buffer') {
         // 缓冲区列表
-        // F0138: 显式列清单（不再 o.*，去掉队列 UI 不消费的 quote_snapshot 大字段），与正式区 getArtistQueue 同口径
+        // F0138: 显式列清单（不再 o.*，去掉队列 UI 不消费的 quote_snapshot 大字段）——
+        // 尾巴批 pr-review-upstream-20261123 #101：与 order-queue.service 两处逐字重复，收敛共享 ORDER_QUEUE_COLUMNS
         const bufferOrders = db.prepare(`
-          SELECT o.id, o.order_no, o.style_size_id, o.client_qq, o.client_name, o.description,
-                 o.priority, o.status, o.source, o.client_notify, o.queue_position,
-                 o.completed_at, o.price_snapshot, o.total_price_cents, o.final_price_cents,
-                 o.focus_image_path, o.focus_image_mode, o.current_stage_id, o.deadline,
-                 o.start_date, o.queue_zone, o.paid_total_cents, o.discount_code_id,
-                 o.discount_amount_cents, o.created_at, o.updated_at, o.version,
-                 st.name as current_stage_name,
-                 (ast.name || ' / ' || ss.name) as tier_name, ss.base_price as tier_price
+          SELECT ${orderQueueService.ORDER_QUEUE_COLUMNS}
           FROM orders o
           LEFT JOIN style_sizes ss ON o.style_size_id = ss.id
           LEFT JOIN art_styles ast ON ss.art_style_id = ast.id
