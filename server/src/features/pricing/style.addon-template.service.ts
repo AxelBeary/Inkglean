@@ -129,6 +129,19 @@ export function updateAddonTemplate(artistId: number, templateId: number, fields
     // 系统预置模板（artist_id NULL）画师不可改（管理员后台维护）
     if (tpl.artist_id !== artistId) throw new AppError(E.ADDON_TEMPLATE_NOT_FOUND, 404)
 
+    // MINOR-1 / F0103：画师侧与管理员侧同款引用行守卫。
+    // 绑定行的计价模式以模板为权威（style_addons 无 mode 覆盖列，price_override 冻结不了模式），
+    // 有引用行时 fixed ¥50 → percent +50% 会静默重定价所有绑定画风。管理员侧
+    // admin-addon-templates.service.ts 的冻结语义已在 sync!==true 时拒绝；画师侧没有 sync 入口，
+    // 故任何实际改变 price_mode 的请求一律拒绝，无引用的模板可自由改。
+    // 放在事务内首个写操作之前：抛错即整体回滚，无半态。
+    if (fields.price_mode !== undefined && fields.price_mode !== tpl.price_mode) {
+      const refs = db.prepare(
+        'SELECT COUNT(*) AS c FROM style_addons WHERE addon_template_id = ?'
+      ).get(templateId) as { c: number }
+      if (refs.c > 0) throw new AppError(E.ADDON_TEMPLATE_MODE_LOCKED, 400, { referenced: refs.c })
+    }
+
     if (fields.name !== undefined) {
       if (!fields.name.trim()) throw new AppError(E.ADDON_TEMPLATE_NAME_EMPTY)
       db.prepare('UPDATE addon_templates SET name = ? WHERE id = ?').run(sanitizeStoredText(fields.name).trim(), templateId)

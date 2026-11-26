@@ -413,3 +413,41 @@ describe('F0192 saveAddonSettings（路由层集成）', () => {
     expect(styleService.getAddonTemplate(artist.id, tpl.id).default_price).toBe(20)
   })
 })
+
+// MINOR-1 / B7-F0103：画师侧增项库也能改 price_mode，必须和管理员侧一样有引用行守卫。
+describe('F0103 画师侧 price_mode 引用行守卫', () => {
+  let artist: ArtistRow
+  let style: ReturnType<typeof styleService.createArtStyle>
+
+  beforeEach(() => {
+    cleanDb()
+    artist = seedArtist({ qq_number: '77301', subdomain: 'f0103-artist' })
+    style = styleService.createArtStyle(artist.id, { name: '画师侧守卫' })
+  })
+
+  it('TC-F0103-A: 有引用行时改 price_mode → ADDON_TEMPLATE_MODE_LOCKED（模板与引用行原样，无半态）', () => {
+    // fixed ¥50 → percent +50：绑定行会从固定价静默变成百分比
+    const tpl = styleService.createAddonTemplate(artist.id, { name: '加购', category: 'add', price_mode: 'fixed', default_price: 50 })
+    styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: tpl.id }])
+    const row = styleService.getStyleAddons(style.id).find(r => r.addon_template_id === tpl.id)!
+
+    expect(() => styleService.updateAddonTemplate(artist.id, tpl.id, { price_mode: 'percent' }))
+      .toThrow('ADDON_TEMPLATE_MODE_LOCKED')
+
+    expect(styleService.getAddonTemplate(artist.id, tpl.id).price_mode).toBe('fixed')
+    expect(styleService.getAddonTemplate(artist.id, tpl.id).default_price).toBe(50)
+    expect(styleService.getStyleAddons(style.id).find(r => r.id === row.id)!.price_override).toBeNull()
+  })
+
+  it('TC-F0103-B: 无引用行时允许改 price_mode（不误伤正常编辑）', () => {
+    const tpl = styleService.createAddonTemplate(artist.id, { name: '未引用', category: 'add', price_mode: 'fixed', default_price: 50 })
+    const updated = styleService.updateAddonTemplate(artist.id, tpl.id, { price_mode: 'percent' })
+    expect(updated.price_mode).toBe('percent')
+  })
+
+  it('TC-F0103-C: 传同值 price_mode 不触发守卫（幂等保存不误拦）', () => {
+    const tpl = styleService.createAddonTemplate(artist.id, { name: '同值', category: 'add', price_mode: 'fixed', default_price: 50 })
+    styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: tpl.id }])
+    expect(() => styleService.updateAddonTemplate(artist.id, tpl.id, { price_mode: 'fixed' })).not.toThrow()
+  })
+})
