@@ -4,7 +4,7 @@ import type { ArtistRow } from './setup.js'
 import { createSession } from '../src/features/auth/auth.service.js'
 import { buildApp } from '../src/app.js'
 import { pruneIdempotencyKeys } from '../src/shared/idempotency.js'
-import { withIdempotency } from '../src/shared/idempotency.js'
+import { withIdempotency, unsealIdempotencyResponse } from '../src/shared/idempotency.js'
 
 /**
  * 审计批 D-2（R-9）：下单/收款幂等键
@@ -252,8 +252,11 @@ describe('审计批 D-2 幂等键', () => {
     })
     expect(result).toEqual({ statusCode: 200, body: { ok: true } })
     expect(calls).toBe(1)
-    expect((db.prepare(
+    const sealed = (db.prepare(
       'SELECT response_json FROM idempotency_keys WHERE scope = ? AND key = ?'
-    ).get(scope, 'bad') as { response_json: string }).response_json).toBe('{"ok":true}')
+    ).get(scope, 'bad') as { response_json: string }).response_json
+    // F0134：重执行写入的是 enc:v1 信封（明文不再落库），解封后与首响一致
+    expect(sealed).toMatch(/^enc:v1:/)
+    expect(JSON.parse(unsealIdempotencyResponse(sealed, scope, 'bad'))).toEqual({ ok: true })
   })
 })

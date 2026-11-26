@@ -42,6 +42,7 @@ import { usePasteUpload } from './usePasteUpload'
 import { formatAddonPrice, formatYuanTrimmed, yuanToCents } from '../utils/money'
 import { getAnonToken } from '../utils/track'
 import { generateId } from '../utils/id'
+import { shouldRotateIdempotencyKey } from '../utils/idempotency'
 import { uploadReferenceWithAnonToken, AnonTokenUnavailableError } from '../utils/anonUpload'
 import { hydrateDraftRefUrls } from './draftRefThumbs'
 import { MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../constants/upload'
@@ -662,7 +663,8 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
     } catch (err) {
       // 审计 #21 条目 3: 同 key 换内容 → 后端 409（旧行为是回放上一单结果，客户以为改成功了）。
       // 这里必须换新 key，客户改完文案/尺寸再点一次即受理为新单意图。
-      if ((err as ApiError).code === 'IDEMPOTENCY_CONFLICT') submitIdemKey = null
+      // TASK2-01: 信封解密失败是独立错误码，必须保留原 key——清 key 会以新 key 重复下单
+      if (shouldRotateIdempotencyKey((err as ApiError).code)) submitIdemKey = null
       ElMessage.error((err as ApiError).message)
     } finally {
       submitting.value = false

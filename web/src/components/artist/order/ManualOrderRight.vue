@@ -221,7 +221,7 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import type { PropType } from 'vue'
 import { artistApi } from '../../../api/index'
 import type { ApiError } from '../../../api/index'
-import type { PublicArtStyle, OrderPriority } from '../../../api/types'
+import type { PublicArtStyle, OrderPriority, OrderDetail } from '../../../api/types'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { useStageStatus, type StageLike } from '../../../composables/useStageStatus'
@@ -230,6 +230,7 @@ import { useManualOrderPricing } from '../../../composables/useManualOrderPricin
 import { formatCents, formatYuanValue, yuanToCents } from '../../../utils/money'
 import { safeGetItem, safeSetItem } from '../../../utils/storage'
 import { generateId } from '../../../utils/id'
+import { shouldRotateIdempotencyKey } from '../../../utils/idempotency'
 // F-09 巨型文件拆分批·丁：价格明细 / 自定义增项 / 移动端价格条三块哑子组件（纯搬移零行为变化）
 import MoPricePreview from './detail/MoPricePreview.vue'
 import MoCustomAddonFields from './detail/MoCustomAddonFields.vue'
@@ -259,7 +260,7 @@ const props = defineProps({
   // 父 el-form 校验函数（() => Promise<boolean>；函数 prop 取最新引用，避免 ref 对象被模板解包成 null 快照）
   validateForm: { type: Function as unknown as PropType<(() => Promise<boolean>) | null>, default: null }
 })
-const emit = defineEmits(['submit-success', 'dirty'])
+const emit = defineEmits(['submit-success', 'submit-partial', 'dirty'])
 
 // 表单字段（字段级 v-model 双向绑定——vue/no-mutating-props 规范：不直接改 props）
 const clientQq = defineModel('clientQq', { type: String, default: '' })
@@ -327,33 +328,135 @@ watch(() => props.styles, (list) => {
     selectedStyleId.value = list[0].id
   }
 }, { immediate: true })
-// ─── 提交（成功副作用：showResult/清草稿/埋点 由父组件经 submit-success 处理） ───
+// ─── 提交：create 阶段（带幂等键）+ 后置写阶段（失败即部分完成，父页经 submit-partial 处理） ───
+/** 后置写步骤（create 之后：增项/改价/日期/节点/备注）；部分失败时按步骤重试 */
+type PostCreateStep = 'extraItem' | 'price' | 'deadline' | 'startDate' | 'initialStatus' | 'note'
+/** 部分完成态：订单已建、后置写失败时保留——重试只补失败步骤，绝不再建单（防重复下单） */
+let partialOrder: { order: OrderDetail; failed: PostCreateStep[] } | null = null
+
+/**
+ * 后置写：逐项容错执行，返回失败步骤与其可读消息（父页提示用）。
+ * only 指定时只重放这些步骤——备注是追加型，已成功的步骤重放会写重复。
+ */
+async function runPostCreate(order: OrderDetail, idemKey: string, only?: PostCreateStep[]) {
+  const failed: PostCreateStep[] = []
+  const messages: string[] = []
+  const mark = (step: PostCreateStep, msg: string) => { failed.push(step); messages.push(msg) }
+  const shouldRun = (step: PostCreateStep) => !only || only.includes(step)
+
+  // P0-2 修复（审计波1）：序列「createManualOrder → 先写完全部自定义增项 addExtraItem → 最后 updatePrice(手输价)」，
+  // 让手输价成为最终绝对覆盖值（原序列增项叠加在手输价之上，落库偏高）。
+  // R5 (REQ-029): 自定义增项补写——createOrder 无自定义条目字段，创建后逐条调 extra-items 接口。
+  // 带派生幂等键（该端点已消费同一 header）：请求成功但响应丢失时重试不会重复加项。
+  // 键取增项自身的 uid（不用下标：删掉前面一项会让下标复用，旧键回放导致新项没写入却判成功）。
+  if (shouldRun('extraItem') && customAddons.value.length > 0) {
+    for (const item of customAddons.value) {
+      try {
+        await artistApi.addExtraItem(
+          order.id,
+          { name: item.name, priceCents: Math.round((Number(item.priceYuan) || 0) * 100) },
+          { headers: { 'idempotency-key': `${idemKey}:extra:${item.uid}` } }
+        )
+      } catch (e) {
+        mark('extraItem', t('manualOrder.postCreateFailed.extraItem', { name: item.name, message: (e as Error).message }))
+      }
+    }
+  }
+
+  // G2: 仅当画师手动改过价格才调 R2 接口写入（后端录单已按计算价自动入账）。
+  // 无脏标记时绝不 updatePrice——修复 005 事故：字段停在旧计算价被误判为画师改价，updatePrice 连带抹掉增项。
+  // 绝对赋值，天然可重放。
+  if (shouldRun('price') && priceTouched.value && finalPriceYuan.value != null) {
+    const manualCents = yuanToCents(finalPriceYuan.value)
+    if (manualCents > 0) {
+      try {
+        await artistApi.updatePrice(order.id, {
+          finalPriceCents: manualCents,
+          quoteSnapshot: order.quote_snapshot || null
+        })
+      } catch (e) { mark('price', t('manualOrder.postCreateFailed.price', { message: (e as Error).message })) }
+    }
+  }
+
+  // R51: 截稿日（手动录单接口不支持 deadline 字段，创建后单独写入）
+  if (shouldRun('deadline') && deadline.value) {
+    try {
+      await artistApi.updateDeadline(order.id, deadline.value)
+    } catch (e) { mark('deadline', t('manualOrder.postCreateFailed.deadline', { message: (e as Error).message })) }
+  }
+
+  // F3: 开稿日（同截稿日，创建后单独写入）
+  if (shouldRun('startDate') && startDate.value) {
+    try {
+      await artistApi.updateStartDate(order.id, startDate.value)
+    } catch (e) { mark('startDate', t('manualOrder.postCreateFailed.startDate', { message: (e as Error).message })) }
+  }
+
+  // F4: 初始节点状态（非默认时推进到目标节点；R30d 有工作流的订单不能直接改 status）
+  if (shouldRun('initialStatus') && initialStatus.value !== 'pending') {
+    try {
+      if (workflowStagesRef.value.length > 0) {
+        const target = findTargetStage()
+        if (target) await artistApi.advanceStage(order.id, target.id as number)
+      } else {
+        await artistApi.updateStatus(order.id, initialStatus.value)
+      }
+    } catch (e) { mark('initialStatus', t('manualOrder.postCreateFailed.initialStatus', { message: (e as Error).message })) }
+  }
+
+  // 818-D: 备注（再来一单回填源单备注；创建后经既有 addNote 接口写入新单，单条上限 1000 字）
+  if (shouldRun('note') && note.value.trim()) {
+    try {
+      await artistApi.addNote(order.id, { content: note.value.trim() })
+    } catch (e) { mark('note', t('manualOrder.postCreateFailed.note', { message: (e as Error).message })) }
+  }
+
+  return { failed, messages }
+}
+
 async function submit() {
-  const valid = await props.validateForm?.().catch(() => false)
-  if (!valid) return
-
-  // B2: 日期冲突前端兜底——开稿日晚于截稿日直接拦截不发请求（后端 INVALID_START_DATE 规则的前端子集）。
-  // YYYY-MM-DD 定长字符串字典序 == 时间序，直接比较即可。
-  if (startDate.value && deadline.value && startDate.value > deadline.value) {
-    ElMessage.error(t('manualOrder.dateConflict'))
-    return
-  }
-
-  // v0.38 D路 + 补漏 R2 (REQ-029 §四验收3): 画风模式未选尺寸时——手输过价 = 自定义单放行；
-  // 未手输 = 半途状态拦截（避免误触 0 元单）
-  if (isStyleMode.value && !selectedSizeId.value && !priceTouched.value) {
-    ElMessage.warning(t('manualOrder.selectSizeOrPrice'))
-    return
-  }
-
+  // 上锁先于任何 await：校验等待窗口内不再进第二次提交
+  if (submitting.value) return
   submitting.value = true
-  // G-4（R-17）: 幂等键契约核对——批 D（D-2）给客户下单 /api/orders 与收款接幂等键，
-  // 手动录单端点（POST /api/artist/orders/manual，I6-d）已消费同一 header：
-  // scope = manual-order:{artistId}，同 key 重放原样返回首单结果、不重复建单（shared/idempotency.ts）。
-  // 此处按提交意图生成 generateId()（封装 crypto.randomUUID，非安全上下文自动降级）随 header 携带（提交成功后置空 = 新意图换新 key）；
-  // 双标签页重复提交的界面层防线 = 草稿清除广播（ManualOrder.vue storage 事件）+ 提交按钮 loading。
-  if (!submitIdemKey) submitIdemKey = generateId()
   try {
+    // G-4（R-17）: 幂等键契约核对——手动录单端点（POST /api/artist/orders/manual，I6-d）已消费
+    // idempotency-key header：scope = manual-order:{artistId}，同 key 重放原样返回首单结果、不重复建单。
+    // 同一提交意图跨失败/部分完成重试复用；仅全链成功后置空 = 新意图换新 key。
+    if (!submitIdemKey) submitIdemKey = generateId()
+    const idemKey = submitIdemKey
+
+    // 部分完成重试：订单已建，只补失败的后置写——绝不重复 create（避免建出第二张订单）
+    if (partialOrder) {
+      const { order, failed } = partialOrder
+      const res = await runPostCreate(order, idemKey, failed)
+      if (res.failed.length > 0) {
+        partialOrder = { order, failed: res.failed }
+        emit('submit-partial', { order, failedSteps: res.messages })
+        return
+      }
+      partialOrder = null
+      submitIdemKey = null
+      emit('submit-success', { order, postCreateFailed: null })
+      return
+    }
+
+    const valid = await props.validateForm?.().catch(() => false)
+    if (!valid) return
+
+    // B2: 日期冲突前端兜底——开稿日晚于截稿日直接拦截不发请求（后端 INVALID_START_DATE 规则的前端子集）。
+    // YYYY-MM-DD 定长字符串字典序 == 时间序，直接比较即可。
+    if (startDate.value && deadline.value && startDate.value > deadline.value) {
+      ElMessage.error(t('manualOrder.dateConflict'))
+      return
+    }
+
+    // v0.38 D路 + 补漏 R2 (REQ-029 §四验收3): 画风模式未选尺寸时——手输过价 = 自定义单放行；
+    // 未手输 = 半途状态拦截（避免误触 0 元单）
+    if (isStyleMode.value && !selectedSizeId.value && !priceTouched.value) {
+      ElMessage.warning(t('manualOrder.selectSizeOrPrice'))
+      return
+    }
+
     // SPEC-PRICE-2：传 styleSizeId + styleAddons（含用途/加急单选），后端唯一引擎自动算价；
     // 未选尺寸 = 自定义单（手输价路径）
     const isStyleSubmit = selectedSizeId.value != null
@@ -372,86 +475,24 @@ async function submit() {
           styleAddons: buildStyleAddons()
         } : {})
       },
-      { headers: { 'idempotency-key': submitIdemKey } }
+      { headers: { 'idempotency-key': idemKey } }
     )
 
-    // P0-2 修复（审计波1）：提交序列改为「createManualOrder → 先写完全部自定义增项 addExtraItem → 最后 updatePrice(手输价)」，
-    // 让手输价成为最终绝对覆盖值。原序列 updatePrice 在前、addExtraItem 在后，
-    // 增项被叠加在手输价之上导致落库偏高（¥100 尺寸 + ¥50 增项 + 手输 ¥200 → 落库 ¥250 而非 ¥200）。
-    let postCreateFailed: string | null = null
-
-    // R5 (REQ-029): 自定义增项补写——createOrder 无自定义条目字段，创建后逐条调
-    // extra-items 接口（对齐截稿日/开稿日的 postCreate 补写模式；价格允许负数=减项/让利、0=留痕）
-    // P0-2：必须在 updatePrice 之前执行，使手输价成为最终覆盖值
-    if (order.id && customAddons.value.length > 0) {
-      for (const item of customAddons.value) {
-        try {
-          await artistApi.addExtraItem(order.id, {
-            name: item.name,
-            priceCents: Math.round((Number(item.priceYuan) || 0) * 100)
-          })
-        } catch (e) {
-          postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.extraItem', { name: item.name, message: (e as Error).message })
-        }
-      }
+    // 后置写阶段：任一失败即「部分完成」——保留 key、不报成功，交父页提示并支持重试
+    const res = await runPostCreate(order, idemKey)
+    if (res.failed.length > 0) {
+      partialOrder = { order, failed: res.failed }
+      emit('submit-partial', { order, failedSteps: res.messages })
+      return
     }
 
-    // G2: 仅当画师手动改过价格才调 R2 接口写入（后端录单已按计算价自动入账）。
-    // 无脏标记时绝不 updatePrice——修复 005 事故：字段停在旧计算价被误判为画师改价，
-    // updatePrice 连带抹掉增项。
-    // P0-2：updatePrice 必须在 addExtraItem 之后执行（绝对覆盖），且不再比较 calcCents——
-    // 因为 addExtraItem 已改变 final_price，手输价必须无条件写入才能成为最终值。
-    if (order.id && priceTouched.value && finalPriceYuan.value != null) {
-      const manualCents = yuanToCents(finalPriceYuan.value)
-      if (manualCents > 0) {
-        try {
-          await artistApi.updatePrice(order.id, {
-            finalPriceCents: manualCents,
-            quoteSnapshot: order.quote_snapshot || null
-          })
-        } catch (e) { postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.price', { message: (e as Error).message }) }
-      }
-    }
-
-    // R51: 截稿日（手动录单接口不支持 deadline 字段，创建后单独写入）
-    if (order.id && deadline.value) {
-      try {
-        await artistApi.updateDeadline(order.id, deadline.value)
-      } catch (e) { postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.deadline', { message: (e as Error).message }) }
-    }
-
-    // F3: 开稿日（同截稿日，创建后单独写入）
-    if (order.id && startDate.value) {
-      try {
-        await artistApi.updateStartDate(order.id, startDate.value)
-      } catch (e) { postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.startDate', { message: (e as Error).message }) }
-    }
-
-    // F4: 初始节点状态（非默认时推进到目标节点；R30d 有工作流的订单不能直接改 status）
-    if (order.id && initialStatus.value !== 'pending') {
-      try {
-        if (workflowStagesRef.value.length > 0) {
-          const target = findTargetStage()
-          if (target) await artistApi.advanceStage(order.id, target.id as number)
-        } else {
-          await artistApi.updateStatus(order.id, initialStatus.value)
-        }
-      } catch (e) { postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.initialStatus', { message: (e as Error).message }) }
-    }
-
-    // 818-D: 备注（再来一单回填源单备注；创建后经既有 addNote 接口写入新单，单条上限 1000 字）
-    if (order.id && note.value.trim()) {
-      try {
-        await artistApi.addNote(order.id, { content: note.value.trim() })
-      } catch (e) { postCreateFailed = postCreateFailed || t('manualOrder.postCreateFailed.note', { message: (e as Error).message }) }
-    }
-
-    emit('submit-success', { order, postCreateFailed })
     submitIdemKey = null
+    emit('submit-success', { order, postCreateFailed: null })
   } catch (err) {
     // 审计 #21 条目 3（PR #27 补口）: 同 key 换载荷 → 后端 409（口径对齐 useOrderForm/useOrderPayments）。
     // 不换 key 的话用户改完文案再点会一直撞同一个 409，直到刷新页面。
-    if ((err as ApiError).code === 'IDEMPOTENCY_CONFLICT') submitIdemKey = null
+    // TASK2-01: 信封解密失败保留原 key——清 key 会以新 key 再落一单，重复扣款
+    if (shouldRotateIdempotencyKey((err as ApiError).code)) submitIdemKey = null
     ElMessage.error((err as Error).message)
   } finally {
     submitting.value = false
@@ -466,6 +507,8 @@ watch(styleAddonSelections, () => emit('dirty'), { deep: true })
 function reset() {
   // F0213: 重置表单必须清掉幂等键，否则重置后首次提交复用旧 key 撞 409
   submitIdemKey = null
+  // 重置即放弃「部分完成」的重试上下文（新表单 = 新意图）
+  partialOrder = null
   initialStatus.value = 'pending'
   // 画风状态重置（重新从画风/尺寸选起）
   selectedStyleId.value = null
@@ -553,7 +596,7 @@ function setDraftState(state: DraftStateLite | null | undefined) {
   }
 }
 
-defineExpose({ reset, getDraftState, setDraftState })
+defineExpose({ reset, getDraftState, setDraftState, submit })
 
 onUnmounted(() => {
   stopStyleCalc() // 计价防抖计时器清理（随 useManualOrderPricing 拆出）

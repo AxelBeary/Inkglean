@@ -72,6 +72,8 @@ export default {
     ORDER_CONFLICT: 'The order was updated by another action. Please refresh and retry',
     // Audit #21 item 3: same idempotency key with a different payload (not a replay) — the client rotates the key so the user can resubmit
     IDEMPOTENCY_CONFLICT: 'This submission differs from the one already accepted under the same attempt. Please review the amount/details and submit again',
+    // TASK2-01: envelope decrypt failure — the submission may already be accepted; never prompt to rotate the key
+    IDEMPOTENCY_ENVELOPE_INVALID: 'This submission may have already been accepted. Do not submit again; contact support if you are unsure.',
     // R-2: cancelling a paid order needs explicit confirmation (Batch A contract 409 CANCEL_WITH_PAYMENT)
     CANCEL_WITH_PAYMENT: 'This order has received payment. Please refund offline before cancelling',
     MY_ORDERS_RETIRED: '"My orders" lookup has been retired. Please use the tracking link saved when ordering, or ask the artist to resend one',
@@ -1453,6 +1455,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     // Payment amount frontend validation (mirrors backend addPayment rules; negative = refund/revocation)
     payAmountInvalid: 'Payment amount must be greater than 0',
     payAmountZero: 'Amount cannot be zero', payRefundNoteRequired: 'Please enter a reason when refunding or revoking a payment.', payRefundExceed: 'Refund cannot exceed the amount already paid ¥{amount}',
+    // MN-2: single-payment cap (server MAX_MONEY_CENTS = ¥1,000,000; split larger amounts)
+    payAmountTooLarge: 'A single payment is capped at ¥1,000,000 — split larger amounts into several payments',
     // v0.31 F4: node payments
     payNodePaid: 'Paid', payNodeDue: 'Due', payNodeRemain: 'Remaining',
     // issue #54-2: whole line + param, ASCII parens, leading space
