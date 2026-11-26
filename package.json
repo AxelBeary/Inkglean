@@ -9,6 +9,7 @@
   "scripts": {
     "test:e2e": "playwright test",
     "check:e2e": "tsx e2e/scripts/check-locators.ts",
+    "check:e2e:regressions": "node scripts/check-e2e-regressions.mjs",
     "typecheck:e2e": "tsc -p e2e/tsconfig.json --noEmit"
   },
   "devDependencies": {

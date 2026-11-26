@@ -146,6 +146,11 @@ $gates = @(
 if (-not $SkipE2E) {
   $gates += @{ id = 'e2e'; label = 'Playwright E2E'; dir = ''; npmArgs = @('run', 'test:e2e'); countKey = 'e2e' }
   $gates += @{ id = 'e2e-locators'; label = 'E2E check-locators'; dir = ''; npmArgs = @('run', 'check:e2e') }
+  # #98（2026-11-27）：E2E 基建定向回归接线。此前 e2e/scripts/*.regression.ts 这批脚本
+  # 由 F0050/F0051/TASK2-02/03/MINOR-6/7 引入，自带断言与退出码，却没有任何门禁或 CI 消费——
+  # 写了永远不跑等于没有防线。本道与 CI 的 e2e job 共用 scripts/check-e2e-regressions.mjs 单一入口，
+  # 不依赖 Playwright/浏览器（纯 tsx 断言），故排在 Playwright 之前，先做廉价失败。
+  $gates += @{ id = 'e2e-regressions'; label = 'E2E 定向回归（回归脚本总入口）'; dir = ''; npmArgs = @('run', 'check:e2e:regressions') }
 }
 
 # test-tamper 闸门：业务+测试同改须带裁决理由（防改测试凑绿；用例数基线防的是删测试，此处防改软断言）
