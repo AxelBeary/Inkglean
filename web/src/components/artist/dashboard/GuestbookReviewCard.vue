@@ -81,7 +81,13 @@ const replyDrafts = reactive<Record<string, string>>({})
 
 /** 密度截断：maxRows>0 时只显示前 N 条 */
 const visibleMessages = computed(() => props.maxRows > 0 ? guestbookMessages.value.slice(0, props.maxRows) : guestbookMessages.value)
-const hiddenCount = computed(() => props.maxRows > 0 ? Math.max(0, guestbookMessages.value.length - props.maxRows) : 0)
+// MINOR-4：服务端已下发 total；「全部」密度（maxRows=0）受 UI_PAGE_SIZE=20 单页限制，
+// 旧 hiddenCount 在 maxRows=0 时恒 0 → 「还有 N 条」提示永不显示。改用 total 与已显示条数比对。
+const listTotal = ref(0)
+const hiddenCount = computed(() => {
+  if (listTotal.value > 0) return Math.max(0, listTotal.value - visibleMessages.value.length)
+  return props.maxRows > 0 ? Math.max(0, guestbookMessages.value.length - props.maxRows) : 0
+})
 
 // F0205 返工（尾巴批 pr-review-20261123）：待审计数改走服务端新增 status 过滤单请求取 total，
 // 不再依赖「按 total 翻完所有页」的全量翻页（density 只有 0/3/5 行，全量只为止于计数已废）
@@ -108,6 +114,7 @@ async function load() {
       artistApi.getMessages({ page: 1, pageSize: 1, status: 'pending' })
     ])
     guestbookMessages.value = (first.items || []).filter((m: GuestbookMessage) => !m.deleted_by_admin)
+    listTotal.value = first.total ?? 0
     pendingCount.value = cnt.total ?? 0
     state.value = 'ok'
   } catch {
