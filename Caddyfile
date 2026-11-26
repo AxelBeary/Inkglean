@@ -15,12 +15,16 @@
 		max_size 55MB
 	}
 
-	# CF 代理场景：用 Cloudflare 提供的真实用户 IP 覆盖 X-Forwarded-For（限流按人计，防边缘节点共享配额误伤）；
-	# 无 CF-Connecting-IP（直连/本地）时占位符为空该头被删，后端回退用连接地址，行为仍真实。
+	# CF 代理场景：仅在 CF-Connecting-IP 存在时才用它覆盖 X-Forwarded-For（限流按人计，防边缘节点共享配额误伤）；
+	# 无此头（非 CF 直连）保留 Caddy 自动写入的 XFF=真实客户端 IP——若无条件覆盖，空值会删掉该头，
+	# 后端只能回退 socket peer（Caddy 容器 IP），限流合并成一份、登录 IP 全记成容器 IP。
 	# 配套：开启 CF Authenticated Origin Pulls 防源站 IP 泄露后被绕 CF 伪造此头（见 OPS §12）。
-	reverse_proxy web:3000 {
+	@cf header CF-Connecting-IP *
+	reverse_proxy @cf web:3000 {
 		header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
 	}
+	# 非 CF 直连：不设 header_up，保留 Caddy 默认 XFF（勿在此覆盖）
+	reverse_proxy web:3000
 
 	# 桌面端更新通道（825 施工批）：只读静态托管，只放流水线签名后经《更新通道执行手册》投递的成品；
 	# latest.json 禁缓存保证客户端每次拿到最新清单，更新包本身可缓存；目录由 compose 只读挂载。
