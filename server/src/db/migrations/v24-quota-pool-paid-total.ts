@@ -12,20 +12,7 @@ export const migration: Migration = {
       if (!cols.some(c => c.name === 'paid_total_cents')) {
         database.exec('ALTER TABLE orders ADD COLUMN paid_total_cents INTEGER DEFAULT 0')
       }
-      // 2. 存量换算：已付分期 SUM → paid_total_cents
-      // 守卫（批4B）：新形态库已退役 status 节点列（v52），空表无存量，换算自然不适用；
-      // 仅旧形态库（含 status 列）照常执行。探测风格与第 1 步一致：PRAGMA table_info
-      const instCols = database.prepare('PRAGMA table_info(order_payment_installments)').all() as ColumnInfo[]
-      if (instCols.some(c => c.name === 'status')) {
-        database.exec(`
-          UPDATE orders SET paid_total_cents = (
-            SELECT COALESCE(SUM(amount_cents), 0)
-            FROM order_payment_installments
-            WHERE order_id = orders.id AND status = 'paid'
-          )
-        `)
-      }
-      // 3. 收款流水表
+      // 2. 收款流水表——须先于存量换算建立：下面的 NOT EXISTS 哨兵要读它（GIT-2）
       database.exec(`
         CREATE TABLE IF NOT EXISTS order_payments (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,5 +25,29 @@ export const migration: Migration = {
         )
       `)
       database.exec('CREATE INDEX IF NOT EXISTS idx_order_payments_order ON order_payments(order_id)')
+      // 3. 存量换算：已付分期 SUM → paid_total_cents
+      // 守卫（批4B）：新形态库已退役 status 节点列（v52），空表无存量，换算自然不适用；
+      // 仅旧形态库（含 status 列）照常执行。探测风格与第 1 步一致：PRAGMA table_info
+      const instCols = database.prepare('PRAGMA table_info(order_payment_installments)').all() as ColumnInfo[]
+      if (instCols.some(c => c.name === 'status')) {
+        // GIT-2: 裸 UPDATE 在重放（版本表丢失）时会把流水维护的已收金额冲回旧分期和，
+        // 故限定三重条件：基线原值 0 + 确有已付分期 + 无收款流水（全额退款归零单不被复活）
+        database.exec(`
+          UPDATE orders SET paid_total_cents = (
+            SELECT COALESCE(SUM(amount_cents), 0)
+            FROM order_payment_installments
+            WHERE order_id = orders.id AND status = 'paid'
+          )
+          WHERE COALESCE(paid_total_cents, 0) = 0
+            AND EXISTS (
+              SELECT 1 FROM order_payment_installments
+              WHERE order_id = orders.id AND status = 'paid'
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM order_payments
+              WHERE order_id = orders.id
+            )
+        `)
+      }
     }
   }

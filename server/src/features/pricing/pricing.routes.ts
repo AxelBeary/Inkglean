@@ -83,11 +83,17 @@ export default async function pricingRoutes(fastify: FastifyInstance) {
         properties: {
           code: { type: 'string', minLength: 2, maxLength: 20 },
           discountType: { type: 'string', enum: ['percent', 'fixed'], default: 'percent' },
-          discountValue: { type: 'number', minimum: 0.01, maximum: 100 },
+          discountValue: { type: 'number', minimum: 0.01 },
           maxUses: { type: ['integer', 'null'], minimum: 1, maximum: 99999 },
           expiresAt: { type: ['string', 'null'], maxLength: 50, pattern: EXPIRES_AT_PATTERN }
         },
-        additionalProperties: false
+        additionalProperties: false,
+        // MN-1: 上限随折扣类型分档（percent ≤100、fixed ≤99999 元），if/then 只补 maximum，不复制整段 properties
+        allOf: [{
+          if: { properties: { discountType: { const: 'fixed' } }, required: ['discountType'] },
+          then: { properties: { discountValue: { type: 'number', maximum: 99999 } } },
+          else: { properties: { discountValue: { type: 'number', maximum: 100 } } }
+        }]
       }
     }
   }, async (request: FastifyRequest) => {
@@ -101,7 +107,9 @@ export default async function pricingRoutes(fastify: FastifyInstance) {
       body: {
         type: 'object',
         properties: {
-          discountValue: { type: 'number', minimum: 0.01, maximum: 100 },
+          // MN-1: PUT 体不含 discountType（类型创建后不可改），上限统一取 fixed 档 99999；
+          // percent >100 仍由 discount.service.updateDiscountCode 按行内类型拒绝
+          discountValue: { type: 'number', minimum: 0.01, maximum: 99999 },
           maxUses: { type: ['integer', 'null'], minimum: 1, maximum: 99999 },
           expiresAt: { type: ['string', 'null'], maxLength: 50, pattern: EXPIRES_AT_PATTERN },
           enabled: { type: 'boolean' }

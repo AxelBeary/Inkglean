@@ -193,8 +193,9 @@ export function computeDiscountCents(code: DiscountCode, totalPriceCents: number
     // 两者口径不同属有意——折扣码用于下单计价、小票是画师手动出具的对账单，属独立子系统，差 ≤1 分无资金损坏，勿顺手统一。
     return Math.floor(totalPriceCents * code.discount_value / 100)
   }
-  // fixed: 元 → 分
-  const fixedCents = Math.round(code.discount_value * 100)
+  // fixed: 元 → 分（GIT-4: 同一半分误差——先按分位收敛再取整，1.005 → 101、0.145 → 15；
+  // 不复用 shared 的 yuanToCents：server 不依赖 @inkglean/shared，镜像 server 层也不含 shared/）
+  const fixedCents = Math.round(Number((code.discount_value * 100).toFixed(2)))
   return Math.min(fixedCents, totalPriceCents)
 }
 

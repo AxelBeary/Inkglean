@@ -43,13 +43,21 @@ export function formatCents(cents: number | string | null | undefined): string {
 }
 
 /**
- * 元 → 分（b1: 各组件散落的 Math.round(x*100) 收口；非法输入按 0）
+ * 元 → 分（b1: 各组件散落的 Math.round(x*100) 收口；非法/非有限输入按 0）
+ * GIT-4: 直接乘 100 有 IEEE754 半分误差（1.005*100 = 100.49999999999999 → 100，应 101），
+ * 改按十进制字符串移位取分（+Number.EPSILON 对不同量级不可靠）；指数形态回退乘法取整。
  * @param {number|string|null|undefined} yuan 金额（元）
  * @returns {number} 分（整数）
  */
 export function yuanToCents(yuan: number | string | null | undefined): number {
-  const n = Number(yuan)
-  return Math.round((Number.isNaN(n) ? 0 : n) * 100)
+  const n = toFiniteNumber(yuan)
+  if (n === 0) return 0
+  const s = String(Math.abs(n))
+  if (s.includes('e')) return Math.round(n * 100)
+  const [intPart, fracPart = ''] = s.split('.')
+  // 前两位为分，第 3 位 ≥5 进 1
+  const cents = Number(intPart + (fracPart + '00').slice(0, 2)) + ((fracPart[2] ?? '0') >= '5' ? 1 : 0)
+  return n < 0 ? -cents : cents
 }
 
 /** 金额分 → 「¥元」字符串（¥ 前缀 + formatCents；负数输出 ¥-12.00，与旧各点 `¥{{ (x/100).toFixed(2) }}` 等价） */
