@@ -32,6 +32,15 @@ export interface ReceiptTotals {
 const yuanToCentsLocal = (yuan: number | null): number =>
   yuan == null || !Number.isFinite(yuan) ? 0 : Math.round(yuan * 100)
 
+/** 单行数量上限：输入框可键入更大值，超限会让「保存草稿→回灌」前后金额跳变（X1） */
+export const MAX_ITEM_QTY = 99
+
+/** 数量取整并钳到 [0, MAX_ITEM_QTY]，计算/展示/回灌三处共用同一口径 */
+export function clampQty(qty: unknown): number {
+  const n = typeof qty === 'number' && Number.isFinite(qty) ? qty : 0
+  return Math.min(MAX_ITEM_QTY, Math.floor(Math.max(0, n)))
+}
+
 /** 有效行：名称非空且（数量>0；赠品行不要求价格） */
 export function validItems(items: ReceiptItemLike[]): ReceiptItemLike[] {
   return items.filter(i =>
@@ -50,13 +59,14 @@ export function computeReceiptTotals(
 ): ReceiptTotals {
   // 数量按整数计：输入框 step=1 仍可键入 1.5，不取整会算出半分，且与 ReceiptPrinter 载入草稿时的 floor 不一致 → 同票金额跳变
   const subtotalCents = validItems(items).reduce(
-    (sum, i) => sum + (i.gift ? 0 : Math.floor(Math.max(0, i.qty)) * yuanToCentsLocal(i.priceYuan)),
+    (sum, i) => sum + (i.gift ? 0 : clampQty(i.qty) * yuanToCentsLocal(i.priceYuan)),
     0
   )
 
   let discountCents = 0
   if (discountType === 'percent') {
-    const pct = Math.min(100, Math.max(0, Number.isFinite(discountValue) ? discountValue : 0))
+    // 兜底取 100（原价）：清空输入框时 v-model.number 会得到 ''，若兜底成 0 会静默把整单打成全免（X2）
+    const pct = Math.min(100, Math.max(0, Number.isFinite(discountValue) ? discountValue : 100))
     // SRV-17：小票 percent 四舍五入。注意 server 折扣码 discount.service.ts 用 Math.floor，两者口径不同属有意
     //（小票是画师手动对账单、折扣码是下单计价，独立子系统），差 ≤1 分无资金损坏，勿顺手统一。
     discountCents = Math.round(subtotalCents * (1 - pct / 100))

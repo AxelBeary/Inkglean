@@ -31,7 +31,7 @@
               <div v-for="(item, i) in form.items" :key="item.id" class="rc-item" :class="{ 'rc-item--gift': item.gift }">
                 <input v-model="item.name" type="text" class="field rc-input rc-item-name" :placeholder="t('receipt.itemNamePlaceholder')" maxlength="20" />
                 <div class="rc-item-sub">
-                  <input v-model.number="item.qty" type="number" min="1" step="1" class="field rc-input rc-item-qty" :aria-label="t('receipt.qtyLabel')" />
+                  <input v-model.number="item.qty" type="number" min="1" max="99" step="1" class="field rc-input rc-item-qty" :aria-label="t('receipt.qtyLabel')" />
                   <input v-model.number="item.priceYuan" type="number" min="0" step="0.01" class="field rc-input rc-item-price" :placeholder="t('receipt.pricePlaceholder')" :disabled="item.gift" />
                   <label class="rc-gift">
                     <input v-model="item.gift" type="checkbox" />
@@ -57,7 +57,7 @@
             <!-- shared-824：自绘分段控件替代原单选按钮组（选中态走纸墨 token，button 原生焦点 + aria-pressed 可达） -->
             <div class="rc-seg" role="group" :aria-label="t('receipt.discountLabel')">
               <button type="button" class="rc-seg-btn" :class="{ 'rc-seg-btn--on': form.discountType === 'none' }" :aria-pressed="form.discountType === 'none'" @click="form.discountType = 'none'">{{ t('receipt.discountNone') }}</button>
-              <button type="button" class="rc-seg-btn" :class="{ 'rc-seg-btn--on': form.discountType === 'percent' }" :aria-pressed="form.discountType === 'percent'" @click="form.discountType = 'percent'">{{ t('receipt.discountPercent') }}</button>
+              <button type="button" class="rc-seg-btn" :class="{ 'rc-seg-btn--on': form.discountType === 'percent' }" :aria-pressed="form.discountType === 'percent'" @click="pickPercent">{{ t('receipt.discountPercent') }}</button>
               <button type="button" class="rc-seg-btn" :class="{ 'rc-seg-btn--on': form.discountType === 'amount' }" :aria-pressed="form.discountType === 'amount'" @click="form.discountType = 'amount'">{{ t('receipt.discountAmount') }}</button>
             </div>
             <input v-if="form.discountType === 'percent'" v-model.number="form.discountValue" type="number" min="0" max="100" step="1" class="field rc-input rc-money-input" :placeholder="t('receipt.discountPercentPlaceholder')" />
@@ -148,7 +148,7 @@ export interface ReceiptDraft {
 import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { formatYuan, yuanToCents } from '../utils/money'
 import { INK_PALETTE } from '../utils/ink-palette'
-import { computeReceiptTotals, discountLabel, validItems } from '../receipt/totals'
+import { clampQty, computeReceiptTotals, discountLabel, validItems } from '../receipt/totals'
 import type { ReceiptDiscountType, ReceiptItemLike } from '../receipt/totals'
 
 /** i18n 注入签名：宿主传自己的翻译函数 */
@@ -196,6 +196,12 @@ const previewCanvas = ref<HTMLCanvasElement | null>(null)
 
 const totals = computed(() => computeReceiptTotals(form.items, form.discountType, form.discountValue, form.depositYuan))
 
+/** 切到「打折」：未填过值（或残留 0/越界）时默认按原价，避免空值被算成 0 折（X2） */
+function pickPercent() {
+  form.discountType = 'percent'
+  if (!Number.isFinite(form.discountValue) || form.discountValue <= 0 || form.discountValue > 100) form.discountValue = 100
+}
+
 // ─── 草稿往返（宿主持久化：initialDraft 进 / draft-change 出） ───
 function loadDraft() {
   const d = props.initialDraft
@@ -210,7 +216,7 @@ function loadDraft() {
     form.items = (d.items as Array<Partial<ReceiptItem>>).slice(0, MAX_ITEMS).map((it): ReceiptItem => ({
       id: it.id || emptyItem().id,
       name: typeof it.name === 'string' ? it.name.slice(0, 20) : '',
-      qty: typeof it.qty === 'number' && it.qty > 0 ? Math.min(99, Math.floor(it.qty)) : 1,
+      qty: typeof it.qty === 'number' && it.qty > 0 ? clampQty(it.qty) : 1,
       priceYuan: typeof it.priceYuan === 'number' && Number.isFinite(it.priceYuan) ? it.priceYuan : null,
       gift: !!it.gift
     }))
@@ -261,7 +267,7 @@ function copyText() {
   for (const it of items) {
     // F0165: 数量显示与行金额均按整数（floor）计，与 computeReceiptTotals 口径一致——
     // 原显示用原始 qty（如 1.5）却按 floor 算合计，行项目金额与总额对不上。
-    const qty = Math.floor(Math.max(0, it.qty))
+    const qty = clampQty(it.qty)
     const price = it.gift ? props.t('receipt.giftMark') : formatYuan(yuanToCents(it.priceYuan) * qty)
     lines.push(`${it.name.trim()} ×${qty}  ${price}`)
   }
@@ -380,7 +386,7 @@ function drawReceipt(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
   ctx.textAlign = 'left'
   for (const it of items) {
     // F0165: 数量按整数 floor，与 computeReceiptTotals 及纯文字版同口径
-    const qty = Math.floor(Math.max(0, it.qty))
+    const qty = clampQty(it.qty)
     const name = ellipsisFit(ctx, it.name.trim(), 300, 20, fonts.body)
     ctx.fillStyle = INK
     ctx.font = `20px ${fonts.body}`
