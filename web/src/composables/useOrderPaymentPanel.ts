@@ -46,7 +46,7 @@ export function useOrderPaymentPanel({ order, routeId, onRefresh }: {
   const poolPercent = computed(() =>
     poolFinalCents.value > 0 ? Math.min(100, Math.round(poolPaidCents.value / poolFinalCents.value * 100)) : 0
   )
-  /** P2: 多收金额（客户多付部分；后端 addPayment 正数无上限，溢出记为"多收"） */
+  /** P2: 多收金额（客户多付部分；单笔上限内多收合法，溢出记为"多收"） */
   const poolOverpaidCents = computed(() => Math.max(0, poolPaidCents.value - poolFinalCents.value))
 
   /** v0.31 F4: 节点收款（后端直接返回 paidCents/amountCents/remainingCents/status） */
@@ -65,15 +65,26 @@ export function useOrderPaymentPanel({ order, routeId, onRefresh }: {
     document.querySelector('.pool-ref')?.scrollIntoView({ behavior: motionScrollBehavior(), block: 'start' })
   }
 
+  /** 单笔收款上限（分）：服务端 MAX_MONEY_CENTS = 100 万元/笔（815 拍板口径），超出需分多笔 */
+  const MAX_PAYMENT_CENTS = 100_000_000
+
+  /** 超过单笔上限 → 明示并拦截（否则撞服务端 400 的笼统校验报错） */
+  function withinPaymentCap(cents: number): boolean {
+    if (Math.abs(cents) <= MAX_PAYMENT_CENTS) return true
+    ElMessage.warning(t('orderDetail.payAmountTooLarge'))
+    return false
+  }
+
   /** 提交收款 */
   async function submitPayment() {
     const cents = Math.round((payForm.value.amountYuan || 0) * 100)
-    // 金额范围校验（后端 addPayment 规则的子集）：0 禁止；正数不设上限（后端支持多收，P2）；
-    // 负数（退款/撤销）必须填原因且不超已收金额。上限/下限提示由提交时给出，不在输入框硬钳制（P1）
+    // 金额范围校验（后端 addPayment 规则的子集）：0 禁止；单笔上限 100 万元（可拆多笔）；
+    // 负数（退款/撤销）必须填原因且不超已收金额。下限不在输入框硬钳制（P1），上限由 withinPaymentCap 明示。
     if (cents === 0) {
       ElMessage.warning(t('orderDetail.payAmountZero'))
       return
     }
+    if (!withinPaymentCap(cents)) return
     if (cents < 0 && !payForm.value.note?.trim()) {
       ElMessage.warning(t('orderDetail.payRefundNoteRequired'))
       return
@@ -110,11 +121,12 @@ export function useOrderPaymentPanel({ order, routeId, onRefresh }: {
   async function submitNodePayment() {
     const cents = Math.round((nodePayForm.value.amountYuan || 0) * 100)
     if (!nodePayTarget.value) return
-    // 金额范围校验（节点快捷收款只收正数；退款/撤销请用订单级「记录收款」填负数）
+    // 金额范围校验（节点快捷收款只收正数，且受单笔上限约束；退款/撤销请用订单级「记录收款」填负数）
     if (cents <= 0) {
       ElMessage.warning(t('orderDetail.payAmountInvalid'))
       return
     }
+    if (!withinPaymentCap(cents)) return
 
     try {
       // 0dd34d96 / SRV-02：不再传 installmentId——v52 后节点收款一律从 paid_total 推导，

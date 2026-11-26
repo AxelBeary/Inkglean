@@ -318,8 +318,9 @@
   <el-dialog v-model="payDialogVisible" :title="$t('orderDetail.payDialogTitle')" width="380px">
     <el-form label-position="top">
       <el-form-item :label="$t('orderDetail.payAmountLabel')" required>
-        <!-- P1: 去掉 :min/:max 硬钳制——EP 对超范围输入 blur 时静默清空（"卡死"根因）；
-               改由 submitPayment 提交时校验（后端 addPayment 规则的子集）。P2: 正数多收合法，无上限 -->
+        <!-- P1: 刻意不设 :min/:max——退款/撤销要填负数，且 EP 对越界输入 blur 时会静默清空（"卡死"根因）。
+               单笔上限（服务端 MAX_MONEY_CENTS = 100 万元）改由 submitPayment 的 withinPaymentCap 明示拦截，
+               不给它撞服务端 400 的笼统校验报错 -->
         <el-input-number
           v-model="payForm.amountYuan"
           :precision="2" :step="50"

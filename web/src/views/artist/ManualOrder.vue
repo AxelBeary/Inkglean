@@ -62,6 +62,7 @@
           :uploaded-refs="uploadedRefs"
           :validate-form="validateForm"
           @submit-success="onSubmitSuccess"
+          @submit-partial="onSubmitPartial"
           @dirty="scheduleDraftSave"
           ref="rightRef"
         />
@@ -360,6 +361,24 @@ function onSubmitSuccess({ order, postCreateFailed }: { order: { order_no: strin
   userModified = false
   if (postCreateFailed) {
     ElMessage.warning(t('manualOrder.postCreateFailed.summary', { orderNo: order.order_no, reason: postCreateFailed }))
+  }
+}
+
+// ─── 部分完成（CC-1）：订单已建但后置写失败——右栏保留幂等键，重试只补失败步骤，不会重复下单 ───
+async function onSubmitPartial({ order, failedSteps }: { order: { order_no: string }; failedSteps: string[] }) {
+  // 首单已落库：与提交成功同口径消费草稿、失效 QQ 历史缓存
+  clearDraft()
+  invalidateQqOrdersCache()
+  userModified = false
+  try {
+    await ElMessageBox.confirm(
+      t('manualOrder.postCreateFailed.summary', { orderNo: order.order_no, reason: failedSteps.join('；') }),
+      t('common.confirm'),
+      { confirmButtonText: t('dashboard.retry'), cancelButtonText: t('common.close'), type: 'warning' }
+    )
+    rightRef.value?.submit()
+  } catch {
+    // 选择稍后补：订单已在列表/详情页可继续修改
   }
 }
 
