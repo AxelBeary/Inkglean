@@ -154,6 +154,25 @@ describe('ManualOrderRight 幂等键 409 换 key 回归（PR #27 补口）', () 
     wrapper.unmount()
   })
 
+  it('TASK2-01: 信封解密失败 409 → 保留原 key，不自动换 key 重提（防重复落单）', async () => {
+    const wrapper = mountComp()
+    await flushPromises()
+    await selectSizeAndWaitCalc(wrapper)
+
+    h.createImpl = () => Promise.reject(Object.assign(
+      new Error('该提交可能已受理，请勿重复提交；如未确认请联系客服'),
+      { code: 'IDEMPOTENCY_ENVELOPE_INVALID' }
+    ))
+    await submitOnce(wrapper)
+    h.createImpl = () => Promise.resolve({ id: 1, order_no: 'TEST-001', quote_snapshot: null })
+    await submitOnce(wrapper)
+
+    expect(h.createKeys).toHaveLength(2)
+    expect(h.createKeys[1]).toBe(h.createKeys[0])
+
+    wrapper.unmount()
+  })
+
   it('提交成功后 key 置空，下一次提交是新 key（新意图）', async () => {
     const wrapper = mountComp()
     await flushPromises()

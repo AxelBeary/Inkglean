@@ -1,4 +1,22 @@
+import type Database from 'better-sqlite3'
 import type { ColumnInfo, Migration } from './types.js'
+
+/** B3-F0102：标识符白名单——仅允许裸 SQL 标识符字符集，拒绝一切注入载荷 */
+const SAFE_IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/
+
+/**
+ * 幂等加列 + 标识符校验（导出供防注入单测直接调用）。
+ * table/column 必须过白名单，否则抛错；合法时列不存在才 ALTER ADD COLUMN。
+ */
+export function addForensicIpColumn(database: Database.Database, table: string, column: string): void {
+  if (!SAFE_IDENT.test(table) || !SAFE_IDENT.test(column)) {
+    throw new Error(`迁移 v75: 非法标识符（table=${table} column=${column}），中止以防 SQL 注入`)
+  }
+  const cols = database.prepare(`PRAGMA table_info(${table})`).all() as ColumnInfo[]
+  if (!cols.some(c => c.name === column)) {
+    database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} TEXT`)
+  }
+}
 
 /**
  * v75: 取证类 IP（P4 后端批，2026-09-13 用户拍板）
@@ -13,14 +31,10 @@ export const migration: Migration = {
   version: 75,
   name: 'forensic_ip',
   up(database) {
-    const addIpIfMissing = (table: string, column: string): void => {
-      const cols = database.prepare(`PRAGMA table_info(${table})`).all() as ColumnInfo[]
-      if (!cols.some(c => c.name === column)) {
-        database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} TEXT`)
-      }
-    }
-    addIpIfMissing('admin_actions', 'admin_ip')
-    addIpIfMissing('reports', 'report_ip')
-    addIpIfMissing('guestbook_messages', 'ip')
+    // B3-F0102：helper 原样拼接 table/column 进 PRAGMA/ALTER。虽当前调用点全为硬编码常量，
+    // 仍加标识符白名单（见 addForensicIpColumn），防未来误传外部输入形成 SQL 注入面。
+    addForensicIpColumn(database, 'admin_actions', 'admin_ip')
+    addForensicIpColumn(database, 'reports', 'report_ip')
+    addForensicIpColumn(database, 'guestbook_messages', 'ip')
   }
 }

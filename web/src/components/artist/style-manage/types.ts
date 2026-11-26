@@ -4,7 +4,9 @@
 /** 增项胶囊行（StyleAddonWithTemplate 消费子集） */
 export interface ManagerSa {
   id: number
-  addon_template_id: number
+  // F0190/F0191：API 事实源 StyleAddonWithTemplate.addon_template_id 是 number | null
+  // （孤儿行：模板已删但快照独立增项仍在）。此处如实放宽，禁止把 null 当模板 id 回传。
+  addon_template_id: number | null
   is_enabled: number | boolean
   template_name: string
   template_control_type: string

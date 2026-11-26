@@ -491,7 +491,7 @@ async function submit() {
   } catch (err) {
     // 审计 #21 条目 3（PR #27 补口）: 同 key 换载荷 → 后端 409（口径对齐 useOrderForm/useOrderPayments）。
     // 不换 key 的话用户改完文案再点会一直撞同一个 409，直到刷新页面。
-    // TASK2-01: 信封解密失败保留原 key——清 key 会以新 key 再落一单，重复扣款
+    // TASK2-01: 信封解密失败保留原 key——清 key 会以新 key 再落一单，重复扣款。
     if (shouldRotateIdempotencyKey((err as ApiError).code)) submitIdemKey = null
     ElMessage.error((err as Error).message)
   } finally {

@@ -1,5 +1,5 @@
 import { verifySession } from '../../features/auth/auth.service.js'
-import { getDesktopDevice, touchDesktopDevice } from '../../features/auth/devices.service.js'
+import { getDesktopDevice, touchDesktopDevice, evictExpiredDesktopDeviceCache } from '../../features/auth/devices.service.js'
 import { getArtistById } from '../../features/artist/artist.service.js'
 import db from '../../db/connection.js'
 import { E, ERROR_MESSAGES } from '../errors.js'
@@ -59,6 +59,9 @@ function validateDesktopSession(
   }
   const expiresMs = new Date(device.expires_at).getTime()
   if (!Number.isFinite(expiresMs) || expiresMs <= Date.now()) {
+    // B7-F0126：拒绝过期账目前先清 touchCache 条目——撕账会清缓存、过期路径此前不清，
+    // 过期设备的缓存条目会进程内常驻泄漏；device 行不删（审计/重登 ON CONFLICT 改账）
+    evictExpiredDesktopDeviceCache(session.id, session.device_id)
     return { code: 'SESSION_EXPIRED', error: '登录已过期，请重新登录' }
   }
   touchDesktopDevice(session.id, session.device_id)

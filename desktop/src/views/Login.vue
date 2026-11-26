@@ -66,29 +66,32 @@ async function goLocal() {
         </div>
         <p class="sub">用验证器登录，90 天内免重复（每周活跃自动顺延）</p>
 
-        <div class="field">
-          <label for="qq">QQ 号</label>
-          <input
-            id="qq" v-model="qq" type="text" inputmode="numeric" autocomplete="username"
-            placeholder="入驻时的 QQ 号" maxlength="15"
-          />
-        </div>
-        <div class="field">
-          <label for="code">6 位验证码</label>
-          <input
-            id="code" v-model="code" type="text" inputmode="numeric" autocomplete="one-time-code"
-            placeholder="验证器当前显示的 6 位数字" maxlength="6"
-            @keyup.enter="submit"
-          />
-        </div>
+        <!-- DTK-07：包 <form @submit.prevent>，QQ/验证码两框按 Enter 都能提交；
+             错误段 role=alert + aria-live 让读屏器即时播报（原仅验证码框挂 @keyup.enter） -->
+        <form @submit.prevent="submit">
+          <div class="field">
+            <label for="qq">QQ 号</label>
+            <input
+              id="qq" v-model="qq" type="text" inputmode="numeric" autocomplete="username"
+              placeholder="入驻时的 QQ 号" maxlength="15"
+            />
+          </div>
+          <div class="field">
+            <label for="code">6 位验证码</label>
+            <input
+              id="code" v-model="code" type="text" inputmode="numeric" autocomplete="one-time-code"
+              placeholder="验证器当前显示的 6 位数字" maxlength="6"
+            />
+          </div>
 
-        <p v-if="errorText" class="error">{{ errorText }}</p>
-        <p v-if="!desktopShell" class="error">当前为纯浏览器环境，登录需桌面壳（npm run tauri dev）</p>
+          <p v-if="errorText" class="error" role="alert" aria-live="assertive">{{ errorText }}</p>
+          <p v-if="!desktopShell" class="error" role="alert">当前为纯浏览器环境，登录需桌面壳（npm run tauri dev）</p>
 
-        <button type="button" class="btn-primary" :disabled="loading || !desktopShell" @click="submit">
-          {{ loading ? "登录中…" : "登录" }}
-        </button>
-        <button type="button" class="btn-local" @click="goLocal">暂不登录 · 本地模式</button>
+          <button type="submit" class="btn-primary" :disabled="loading || !desktopShell">
+            {{ loading ? "登录中…" : "登录" }}
+          </button>
+          <button type="button" class="btn-local" @click="goLocal">暂不登录 · 本地模式</button>
+        </form>
         <p class="local-hint">本地模式：数据仅存本机，不联网同步</p>
       </div>
     </main>

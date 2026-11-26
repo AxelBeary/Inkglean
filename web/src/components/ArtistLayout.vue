@@ -415,16 +415,10 @@ async function refreshPendingMsgCount() {
     return
   }
   try {
-    // F0182: 后端无 status 过滤且 pageSize 上限 100，只取第一页会低估待审数——按 total 翻完所有页累计
-    const pageSize = 100
-    const first = await artistApi.getMessages({ page: 1, pageSize })
-    let pending = (first.items || []).filter(m => m.status === 'pending').length
-    const totalPages = Math.ceil((first.total ?? first.items?.length ?? 0) / pageSize)
-    for (let p = 2; p <= totalPages; p++) {
-      const page = await artistApi.getMessages({ page: p, pageSize })
-      pending += (page.items || []).filter(m => m.status === 'pending').length
-    }
-    pendingMsgCount.value = pending
+    // F0182 返工（尾巴批 pr-review-20261123）：全量翻页只为止于计数——服务端 /api/artist/messages
+    // 已加可选 status 过滤参数，角标单请求取 total（pageSize=1 只带回 1 行，最小响应面）
+    const res = await artistApi.getMessages({ page: 1, pageSize: 1, status: 'pending' })
+    pendingMsgCount.value = res.total ?? 0
   } catch { /* 轮询失败静默，下次再试 */ }
 }
 

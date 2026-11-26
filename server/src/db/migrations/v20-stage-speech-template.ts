@@ -11,7 +11,9 @@ export const migration: Migration = {
       if (!cols.some(c => c.name === 'speech_template')) {
         database.exec("ALTER TABLE artist_workflow_stages ADD COLUMN speech_template TEXT DEFAULT '{客户名}，你的订单已{节点名}。'")
       }
-      // 存量回填（ALTER TABLE ADD COLUMN DEFAULT 存量行读出为默认值，但实际存储 NULL；显式回填确保一致）
-      database.exec("UPDATE artist_workflow_stages SET speech_template = '{客户名}，你的订单已{节点名}。' WHERE speech_template IS NULL")
+      // B3-F0076：删除原「存量回填」UPDATE 与错误注释。SQLite 的 ALTER TABLE ADD COLUMN ... DEFAULT
+      // 对存量行读出即为默认值（NOT NULL 约束下也无 NULL 行），原 `WHERE speech_template IS NULL`
+      // 实际命中 0 行，是死代码；旧注释称「实际存储 NULL」与 SQLite 语义不符，一并删除。
+      // 保留列定义上的 DEFAULT，新行/存量行口径一致，无需 UPDATE 归一化。
     }
   }

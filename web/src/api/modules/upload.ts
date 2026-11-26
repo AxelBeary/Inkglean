@@ -54,5 +54,15 @@ export const uploadApi = {
     const fd = new FormData()
     fd.append('file', file)
     return postJson('/upload/preview', fd, { timeout: UPLOAD_TIMEOUT_MS })
+  },
+  // F0200: 清理「本弹窗已上传但未提交」的孤儿图（后端只删 images/{artistId}/ 前缀、幂等、maxItems 10）
+  // 响应类型定义在本模块：api/types/ 不在本批允许改动清单内（同批 F0192 的 SaveAddonSettingsPayload 口径）
+  cleanup: (filePaths: string[]): Promise<UploadCleanupResult> => {
+    return postJson('/upload/cleanup', { filePaths })
   }
+}
+
+/** F0200: cleanup 响应形状（已删路径对账清单；服务端幂等——不存在的路径也计入 deleted） */
+export interface UploadCleanupResult {
+  deleted: string[]
 }

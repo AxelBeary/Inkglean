@@ -40,14 +40,13 @@ export const migration: Migration = {
     database.exec('CREATE INDEX IF NOT EXISTS idx_greeting_special_days_date ON greeting_special_days(date_key)')
     database.exec('CREATE INDEX IF NOT EXISTS idx_greeting_special_days_artist ON greeting_special_days(artist_id)')
 
-    // 2) 幂等守卫：templates 已带 special_day_id 且 CHECK 已含 latenight → 跳过重建
+    // 2) 幂等守卫（B1-F0094）：改以列存在性为判据，去掉对 CREATE TABLE 文本里
+    // 'latenight'/'midnight' 档位字面量的匹配——DDL 文本匹配易因格式/注释变动误判，
+    // 导致本不需要的破坏性重建。special_day_id 是 v64 重建引入的新列，其存在即表示
+    // v64 已应用（无论后续 v67 是否已把档位改成 midnight），是稳定的幂等判据。
     //（同时清理上次失败残留的临时表）
     const cols = database.prepare('PRAGMA table_info(greeting_templates)').all() as ColumnInfo[]
-    const tableSql = database.prepare(
-      "SELECT sql FROM sqlite_master WHERE type='table' AND name='greeting_templates'"
-    ).get() as MasterSqlRow | undefined
-    if (cols.some(c => c.name === 'special_day_id') && tableSql && (tableSql.sql.includes("'latenight'") || tableSql.sql.includes("'midnight'"))) {
-      // 817 注：midnight 分支为 v67 重构后基线形态（新装库直接落终态），同样跳过
+    if (cols.some(c => c.name === 'special_day_id')) {
       database.exec('DROP TABLE IF EXISTS greeting_templates_new')
       return
     }
@@ -87,12 +86,15 @@ export const migration: Migration = {
         database.exec('ALTER TABLE greeting_templates_new RENAME TO greeting_templates')
         for (const idx of indexes) database.exec(idx.sql)
         database.exec('CREATE INDEX IF NOT EXISTS idx_greeting_templates_special_day ON greeting_templates(special_day_id)')
+        // B3-F0090：foreign_key_check 移入事务（COMMIT 前最后一步），失败即整体 ROLLBACK，
+        // 旧 schema 完整保留、下次干净重试；并定向校验被重建的 greeting_templates，
+        // 避免被库内无关表的历史悬空引用卡住升级（该表为叶子表，定向即覆盖影响面）。
+        // FK=OFF 下 foreign_key_check 仍报悬空引用（官方 12 步要求，PRAGMA 不搬进事务）。
+        const fkViolations = database.pragma("foreign_key_check('greeting_templates')") as FkViolation[]
+        if (fkViolations.length > 0) {
+          throw new Error('迁移 v64: foreign_key_check 发现 ' + fkViolations.length + ' 处悬空引用，中止: ' + JSON.stringify(fkViolations.slice(0, 3)))
+        }
       })()
-      // 官方 12 步流程要求：FK 关闭期间完成重建后，恢复前验证无悬空外键引用
-      const fkViolations = database.pragma('foreign_key_check') as FkViolation[]
-      if (fkViolations.length > 0) {
-        throw new Error('迁移 v64: foreign_key_check 发现 ' + fkViolations.length + ' 处悬空引用，中止: ' + JSON.stringify(fkViolations.slice(0, 3)))
-      }
     } finally {
       // 事务失败也必须恢复 FK，否则连接留在 OFF 状态（后续 CASCADE 全部失效）
       database.pragma('foreign_keys = ON')

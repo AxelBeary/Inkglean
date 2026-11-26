@@ -712,7 +712,8 @@ describe('管理员路由 (Admin Routes)', () => {
   const rbBinRoot = join(resolve(process.env.UPLOAD_DIR || './uploads'), '.recycle-bin')
   const rbUploadRoot = resolve(process.env.UPLOAD_DIR || './uploads')
 
-  /** 造 n 个回收站文件，mtime 从新到旧递减（file-0 最新），返回文件名数组（新→旧） */
+  /** 造 n 个回收站文件（同一日期目录；B7-F0110 后排序按回收站相对路径而非 mtime），
+   *  返回文件名数组（file-000 … file-(n-1)，路径字典序升序） */
   function seedRecycleFiles(n: number) {
     const dateDir = join(rbBinRoot, '2026-08-05')
     mkdirSync(dateDir, { recursive: true })
@@ -722,7 +723,7 @@ describe('管理员路由 (Admin Routes)', () => {
       const name = `file-${String(i).padStart(3, '0')}.png`
       const full = join(dateDir, name)
       writeFileSync(full, `data-${i}`)
-      const t = baseSec - i * 60 // file-0 最新
+      const t = baseSec - i * 60 // mtime 仅作展示值，不再驱动排序
       utimesSync(full, t, t)
       names.push(name)
     }
@@ -753,7 +754,7 @@ describe('管理员路由 (Admin Routes)', () => {
     expect(body.pageSize).toBe(20)
   })
 
-  it('TC-RB-02: 翻页切片正确（第 2 页取剩余 5 条，与第 1 页无重叠）', async () => {
+  it('TC-RB-02: 翻页切片正确（第 2 页取路径序末 5 条，与第 1 页无重叠）', async () => {
     const admin = setAdmin('10001')
     const names = seedRecycleFiles(25)
 
@@ -763,18 +764,27 @@ describe('管理员路由 (Admin Routes)', () => {
 
     expect(p1.statusCode).toBe(200)
     expect(p2.statusCode).toBe(200)
+    // B7-F0110：排序 = 回收站相对路径字典序倒序（file-024 → file-000）
     const p1Names = p1.json().items.map((i: { fileName: string }) => i.fileName)
     const p2Body = p2.json()
-    expect(p2Body.items.map((i: { fileName: string }) => i.fileName)).toEqual(names.slice(20))
+    expect(p1Names).toEqual(names.slice().reverse().slice(0, 20))
+    expect(p2Body.items.map((i: { fileName: string }) => i.fileName)).toEqual(names.slice().reverse().slice(20))
     expect(p2Body.total).toBe(25)
     expect(p2Body.page).toBe(2)
     // 两页无重叠
     expect(p1Names.filter((n: string) => p2Body.items.some((i: { fileName: string }) => i.fileName === n))).toHaveLength(0)
   })
 
-  it('TC-RB-03: movedAt 倒序（新删的在前）', async () => {
+  it('TC-RB-03: 日期目录倒序（新删日期在前；B7-F0110 路径序口径）', async () => {
     const admin = setAdmin('10001')
-    const names = seedRecycleFiles(3) // file-000 最新
+    // 两天各一个文件：2026-08-06 比 2026-08-05 新（日期目录字典序 = 时间序）
+    for (const [dir, name, data] of [
+      ['2026-08-05', 'old.png', 'old'],
+      ['2026-08-06', 'new.png', 'new']
+    ] as const) {
+      mkdirSync(join(rbBinRoot, dir), { recursive: true })
+      writeFileSync(join(rbBinRoot, dir, name), data)
+    }
 
     const res = await app.inject({
       method: 'GET',
@@ -783,7 +793,9 @@ describe('管理员路由 (Admin Routes)', () => {
     })
 
     expect(res.statusCode).toBe(200)
-    expect(res.json().items.map((i: { fileName: string }) => i.fileName)).toEqual(names)
+    expect(res.json().items.map((i: { fileName: string }) => i.fileName)).toEqual(['new.png', 'old.png'])
+    // B7-F0109：列表附带回收站内相对路径（binPath），供恢复接口精确定位
+    expect(res.json().items.map((i: { binPath: string }) => i.binPath)).toEqual(['2026-08-06/new.png', '2026-08-05/old.png'])
   })
 
   it('TC-RB-04: page 越界返回空 items 不报错（total 照常）', async () => {
@@ -801,6 +813,68 @@ describe('管理员路由 (Admin Routes)', () => {
     expect(body.items).toEqual([])
     expect(body.total).toBe(3)
     expect(body.page).toBe(999)
+  })
+
+  it('TC-SVR06-01: 多日期分片 + 大旧分片——分页顺序/边界/精确 total 不变（早停只铺开目标页所需分片）', async () => {
+    const admin = setAdmin('10001')
+    const auth = { Authorization: `Bearer ${adminToken(admin)}` }
+    // 三个日期分片：新 5 条、中 30 条、旧 2 条（旧分片放嵌套子目录，覆盖递归计数路径）
+    const specs: Array<[string, string, number]> = [
+      ['2026-08-07', 'new', 5],
+      ['2026-08-06', 'mid', 30],
+      ['2026-08-05', 'old', 2]
+    ]
+    const allNames: string[] = []
+    for (const [dir, prefix, n] of specs) {
+      const nested = dir === '2026-08-05'
+      const dirAbs = nested ? join(rbBinRoot, dir, 'nested') : join(rbBinRoot, dir)
+      mkdirSync(dirAbs, { recursive: true })
+      for (let i = 0; i < n; i++) {
+        const name = `${prefix}-${String(i).padStart(2, '0')}.png`
+        writeFileSync(join(dirAbs, name), name)
+        allNames.push(nested ? `${dir}/nested/${name}` : `${dir}/${name}`)
+      }
+    }
+    // 全局期望 = relToBin 字典序倒序（日期新→旧，同日文件名倒序）
+    const expectedDesc = allNames.slice().sort().reverse()
+
+    const p1 = (await app.inject({ method: 'GET', url: '/api/admin/recycle-bin?page=1&pageSize=10', headers: auth })).json()
+    expect(p1.total).toBe(37)
+    expect(p1.items.map((i: { binPath: string }) => i.binPath)).toEqual(expectedDesc.slice(0, 10))
+
+    const p4 = (await app.inject({ method: 'GET', url: '/api/admin/recycle-bin?page=4&pageSize=10', headers: auth })).json()
+    expect(p4.total).toBe(37)
+    expect(p4.items.map((i: { binPath: string }) => i.binPath)).toEqual(expectedDesc.slice(30))
+    // 页间无重叠、合计覆盖全部
+    const seen = [...p1.items, ...(await Promise.all([2, 3].map(p =>
+      app.inject({ method: 'GET', url: `/api/admin/recycle-bin?page=${p}&pageSize=10`, headers: auth })
+        .then(r => r.json().items as Array<{ binPath: string }>)))).flat(), ...p4.items]
+      .map((i: { binPath: string }) => i.binPath)
+    expect(new Set(seen).size).toBe(37)
+  })
+
+  it('TC-TASK2-06-01: 散文件名是日期目录名前缀扩展——分片序与旧全局 relToBin 倒序严格一致', async () => {
+    const admin = setAdmin('10001')
+    const auth = { Authorization: `Bearer ${adminToken(admin)}` }
+    // 两组边界：'.'(46) < '/'(47) < 'z'(122)
+    // A: 2026-08-07/a.png（目录） vs 2026-08-07.bak（散文件，'.'）→ 目录项在前
+    // B: 2026-08-06/b.png（目录） vs 2026-08-06z.bak（散文件，'z'）→ 散文件在前
+    for (const [dir, fileInDir, loose] of [
+      ['2026-08-07', 'a.png', '2026-08-07.bak'],
+      ['2026-08-06', 'b.png', '2026-08-06z.bak']
+    ] as const) {
+      mkdirSync(join(rbBinRoot, dir), { recursive: true })
+      writeFileSync(join(rbBinRoot, dir, fileInDir), fileInDir)
+      writeFileSync(join(rbBinRoot, loose), loose)
+    }
+    // 旧实现（全局 relToBin 倒序）的期望，逐字符比较首段后的分隔符/扩展字符
+    const expected = ['2026-08-07/a.png', '2026-08-07.bak', '2026-08-06z.bak', '2026-08-06/b.png']
+
+    const res = await app.inject({ method: 'GET', url: '/api/admin/recycle-bin?page=1&pageSize=4', headers: auth })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.total).toBe(4)
+    expect(body.items.map((i: { binPath: string }) => i.binPath)).toEqual(expected)
   })
 
   it('TC-RB-05: pageSize/page 非法入参 400（F-3 schema 校验）', async () => {
@@ -964,6 +1038,98 @@ describe('管理员路由 (Admin Routes)', () => {
     expect(readFileSync(join(rbUploadRoot, 'images', '2', 'dup.png'), 'utf8')).toBe('new-data')
     expect(existsSync(join(oldDir, 'dup.png'))).toBe(true)
     expect(existsSync(join(newDir, 'dup.png'))).toBe(false)
+  })
+
+  // B7-F0109：binPath 精确定位——同名多条时 fileName-only 恒取最新，旧条目凭 binPath 恢复
+  it('TC-RB-14: binPath 指定旧日期条目可精确恢复（fileName-only 只能取最新）', async () => {
+    const admin = setAdmin('10001')
+    const oldDir = join(rbBinRoot, '2026-08-04', 'images', '1')
+    const newDir = join(rbBinRoot, '2026-08-05', 'images', '2')
+    mkdirSync(oldDir, { recursive: true })
+    mkdirSync(newDir, { recursive: true })
+    writeFileSync(join(oldDir, 'dup.png'), 'old-data')
+    writeFileSync(join(newDir, 'dup.png'), 'new-data')
+    const auth = { Authorization: `Bearer ${adminToken(admin)}` }
+
+    // binPath 指到旧日期目录 → 恢复的是旧条目（恢复到它自己的原始路径）
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/admin/recycle-bin/restore',
+      headers: auth,
+      payload: { fileName: 'dup.png', binPath: '2026-08-04/images/1/dup.png' }
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().restoredPath).toBe('images/1/dup.png')
+    expect(readFileSync(join(rbUploadRoot, 'images', '1', 'dup.png'), 'utf8')).toBe('old-data')
+    // 新日期的同名条目仍在回收站
+    expect(existsSync(join(newDir, 'dup.png'))).toBe(true)
+  })
+
+  it('TC-RB-15: binPath 越界/与 fileName 不一致被拒（400/404）', async () => {
+    const admin = setAdmin('10001')
+    const dateDir = join(rbBinRoot, '2026-08-05', 'images', '1')
+    mkdirSync(dateDir, { recursive: true })
+    writeFileSync(join(dateDir, 'dup.png'), 'new-data')
+    const auth = { Authorization: `Bearer ${adminToken(admin)}` }
+
+    // 路径穿越（..）→ 400
+    const escape = await app.inject({
+      method: 'POST', url: '/api/admin/recycle-bin/restore', headers: auth,
+      payload: { fileName: 'dup.png', binPath: '../outside.png' }
+    })
+    expect(escape.statusCode).toBe(400)
+
+    // 反斜杠/绝对路径 → 400
+    for (const bad of ['2026\\08-05\\dup.png', '/2026-08-05/dup.png']) {
+      const r = await app.inject({
+        method: 'POST', url: '/api/admin/recycle-bin/restore', headers: auth,
+        payload: { fileName: 'dup.png', binPath: bad }
+      })
+      expect(r.statusCode).toBe(400)
+    }
+
+    // basename 与 fileName 不一致（张冠李戴）→ 404
+    const mismatch = await app.inject({
+      method: 'POST', url: '/api/admin/recycle-bin/restore', headers: auth,
+      payload: { fileName: 'dup.png', binPath: '2026-08-05/images/1/other.png' }
+    })
+    expect(mismatch.statusCode).toBe(404)
+
+    // 不存在的 binPath → 404
+    const missing = await app.inject({
+      method: 'POST', url: '/api/admin/recycle-bin/restore', headers: auth,
+      payload: { fileName: 'dup.png', binPath: '2026-08-05/images/9/dup.png' }
+    })
+    expect(missing.statusCode).toBe(404)
+    // 原条目未被动过
+    expect(existsSync(join(dateDir, 'dup.png'))).toBe(true)
+  })
+
+  // B7-F0111：更换管理员写审计留痕（admin_actions）
+  it('TC-AR-B7: transfer 成功后 admin_actions 落一条 admin_transfer 记录', async () => {
+    const admin = setAdmin('10001')
+    // 用独立 QQ：同文件前序 transfer 用例已耗尽 20002/20003 的目标桶与 IP 桶份额（模块内存态跨用例存续）
+    const newAdmin = seedArtist({ qq_number: '20004', subdomain: 'new-admin-audit' })
+    const secret1 = bindArtistTotp(admin)
+    const secret2 = bindArtistTotp(newAdmin)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/admin/transfer',
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { newQq: '20004', currentCode: computeTotp(secret1, Date.now()), newCode: computeTotp(secret2, Date.now()) }
+    })
+    expect(res.statusCode).toBe(200)
+
+    const rows = db.prepare(
+      "SELECT admin_id, action, target_type, target_id, reason, admin_ip FROM admin_actions WHERE action = 'admin_transfer'"
+    ).all() as Array<{ admin_id: number; action: string; target_type: string; target_id: number; reason: string; admin_ip: string | null }>
+    expect(rows).toHaveLength(1)
+    expect(rows[0].admin_id).toBe(admin.id)
+    expect(rows[0].target_type).toBe('artist')
+    expect(rows[0].target_id).toBe(newAdmin.id)
+    expect(rows[0].reason).toContain('10001')
+    expect(rows[0].reason).toContain('20004')
   })
 
   // L-11（审计 九#4）: 默认模板 basisPoints 上限与保存口径统一为 9500（宽松处收紧到严格处）

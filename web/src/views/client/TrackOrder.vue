@@ -266,6 +266,7 @@ import { formatDateTime } from '../../utils/datetime'
 import { formatCents } from '../../utils/money'
 import { ORDER_STATUS_TYPE } from '../../constants/order'
 import { useTrackDownloads } from '../../composables/useTrackDownloads'
+import { useNextDueCents } from '../../composables/useNextDueCents'
 import { useTrackSignatureRefresh } from '../../composables/useTrackSignatureRefresh'
 import { uploadedPathFromUrl } from '../../composables/useSignatureRefresh'
 import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
@@ -332,7 +333,10 @@ const localTz = (Intl.DateTimeFormat().resolvedOptions().timeZone) || ''
 /** 北京时间格式化（后端存 UTC，需显式指定 timeZone=Asia/Shanghai） */
 function formatBeijing(str: string) {
   if (!str) return ''
-  // F0312: 统一按 UTC 解析——含 T 无时区的串原本被当本地时间，与空格分支（补 Z 走 UTC）口径不一致
+  // F0312: 一律按 UTC 解析（后端契约全 UTC）——含 T 无时区的串原本被当本地时间，与空格分支口径不一致，故剥 Z/偏移后统一补 Z。
+  // 尾巴批 pr-review-20261123 如实注：带显式偏移串（+08:00）会先剥偏移再补 Z（墙钟被重读为 UTC），
+  // 与 F0277/F0287「含时区原样保留」口径确实不同；后端不出偏移串故无实害，不称「统一口径」。
+  // 真统一需连改 normalizeDeviceDate/parseDeadlineDate（有 zone 原样、无 zone 补 Z），不在本尾巴批最小改动面。
   const trimmed = str.replace(/[zZ]$/, '').replace(/([+-]\d{2}:?\d{2})$/, '')
   const normalized = trimmed.includes('T') ? trimmed + 'Z' : trimmed.replace(' ', 'T') + 'Z'
   const date = new Date(normalized)
@@ -393,26 +397,8 @@ const trackPayPercent = computed(() => {
   if (total <= 0) return 0
   return Math.min(100, Math.round((order.value?.paidTotalCents || 0) / total * 100))
 })
-/** 下期应付：下一个未覆盖分期节点的金额（partial 时显示剩余）
- * 2-1（审计二章1）：零/负价节点视为已结清不参与吞并，大幅降价后不再算出负数下期。
- * ⚠ PR #26 后服务端 getOrdersInstallments 改走 pricing-engine 的 forwardFill 顺序填充原语，
- * 本处仍是客户端自算的「Σ正节点封顶」。逐案复算（负尾款 / 带内 / 纯超付 / 负节点跳过）
- * 与服务端行为等价，但两者已不是同一份实现——改服务端填充规则时必须回来核对这里。 */
-const trackNextDueCents = computed(() => {
-  const insts = order.value?.installments
-  if (!insts?.length) return trackRemainingCents.value
-  const sumPositive = insts.reduce((s, i) => s + Math.max(0, i.amountCents || 0), 0)
-  let covered = Math.min(order.value?.paidTotalCents || 0, sumPositive)
-  for (const inst of insts) {
-    // K1-6：GET /orders/track 的 installments 来自 getOrderInstallments（order-pricing.ts），
-    // 后端只返回 camelCase amountCents，snake_case 分支为死代码
-    const amt = inst.amountCents || 0
-    if (amt <= 0) continue // 零/负价节点：已结清，跳过
-    if (covered >= amt) { covered -= amt; continue }
-    return amt - covered // partial：返回剩余
-  }
-  return 0 // 全部覆盖
-})
+// M-3 拆分：下期应付口径迁至 composables/useNextDueCents，模板与行为不变
+const { trackNextDueCents } = useNextDueCents(order, trackRemainingCents)
 
 const {
   downloadingId, pendingConfirmationTokens, pendingAdminDownloadIds, confirmedIds,

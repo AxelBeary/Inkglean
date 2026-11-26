@@ -41,7 +41,15 @@ function cacheImage(src: string, img: HTMLImageElement): void {
     imgCache.delete(oldest)
   }
 }
-function loadImage(src: string): Promise<HTMLImageElement | null> {
+/** SHR-04：单张例图加载超时。半开连接下 <img> 的 onload/onerror 都可能永不触发，
+ *  把 Promise 永久悬挂 → doExport 卡在 exporting=true、按钮永久禁用。超时按 onerror 同口径
+ *  resolve(null)（跳过该例图），不吞错误、不放大为整图导出失败。 */
+export const IMAGE_LOAD_TIMEOUT_MS = 10_000
+
+/** 在途加载的清理句柄集合：卸载时统一取消，避免回调进已卸载组件 / 半开连接续命 */
+const pendingImageLoads = new Set<() => void>()
+
+function loadImage(src: string, signal?: AbortSignal): Promise<HTMLImageElement | null> {
   const hit = imgCache.get(src)
   if (hit) {
     imgCache.delete(src); imgCache.set(src, hit) // F0167: 命中即刷新 LRU 顺序
@@ -49,15 +57,48 @@ function loadImage(src: string): Promise<HTMLImageElement | null> {
   }
   return new Promise((resolve) => {
     const img = new Image()
-    img.onload = () => { cacheImage(src, img); resolve(img) }
-    img.onerror = () => resolve(null)
+    let settled = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let cancel: () => void = () => {} // 占位，finish 定义后赋值；卸载时据此 settle Promise
+    const cleanup = () => {
+      if (timer !== undefined) clearTimeout(timer)
+      signal?.removeEventListener('abort', onAbort)
+      img.onload = null
+      img.onerror = null
+      pendingImageLoads.delete(cancel)
+    }
+    const finish = (result: HTMLImageElement | null) => {
+      if (settled) return
+      settled = true
+      cleanup()
+      resolve(result)
+    }
+    const onAbort = () => finish(null)
+    cancel = () => finish(null)
+    pendingImageLoads.add(cancel)
+    signal?.addEventListener('abort', onAbort, { once: true })
+    if (signal?.aborted) { onAbort(); return }
+    timer = setTimeout(() => finish(null), IMAGE_LOAD_TIMEOUT_MS)
+    img.onload = () => { cacheImage(src, img); finish(img) }
+    img.onerror = () => finish(null)
     img.src = src
   })
 }
-async function loadPickImages(picks: ExamplePick[]): Promise<HTMLImageElement[]> {
+
+/** 卸载/超时兜底时取消所有在途例图加载（画半成不落笔，Promise 全部 settle） */
+export function cancelPendingImageLoads(): void {
+  for (const cleanup of Array.from(pendingImageLoads)) cleanup()
+}
+
+/** TASK2-08：同画布绘制代次。新绘制发起即作废旧绘制的落笔权——
+ *  SHR-04 的 10s 超时会让旧悬挂预览在表单已更新后才 resolve，若无代次守卫会用旧输入重绘覆盖新预览。
+ *  按 canvas 分桶（WeakMap）：导出用独立临时画布、不同组件的预览互不干扰，只挡「同一画布上的过期回写」。 */
+const drawGeneration = new WeakMap<HTMLCanvasElement, number>()
+
+async function loadPickImages(picks: ExamplePick[], signal?: AbortSignal): Promise<HTMLImageElement[]> {
   const out: HTMLImageElement[] = []
   for (const pick of picks) {
-    const img = await loadImage(pick.src)
+    const img = await loadImage(pick.src, signal)
     if (img) out.push(img)
   }
   return out
@@ -337,9 +378,13 @@ function drawLayoutB(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, i
   drawFooter(ctx, y, input.contact, input.t)
 }
 
-/** 绘制编排：按布局分流（例图异步加载后才落笔） */
-export async function drawCard(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, input: DrawCardInput) {
-  const images = await loadPickImages(input.picks)
+/** 绘制编排：按布局分流（例图异步加载后才落笔）。signal 可选，供导出兜底超时/卸载取消在途例图。 */
+export async function drawCard(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, input: DrawCardInput, signal?: AbortSignal) {
+  const generation = (drawGeneration.get(canvas) ?? 0) + 1
+  drawGeneration.set(canvas, generation)
+  const images = await loadPickImages(input.picks, signal)
+  // TASK2-08：悬挂旧绘制超时 settle 后已非最新代次 → 直接返回，不碰画布（预览保持新值）
+  if (drawGeneration.get(canvas) !== generation) return
   if (input.layout === 'B') drawLayoutB(ctx, canvas, images, input)
   else drawLayoutA(ctx, canvas, images, input)
 }

@@ -6,6 +6,15 @@
 > - 滚动分册：活档体积门 `scripts/check-changelog-size.mjs`（≤40KB / ≤450 行，单段 ≤4KB，accept 第 19 道）；撞线即搬 oldest 段入 `docs/changelog-archive/` 新卷（整段零改动 + 逐行哈希校验，禁调高阈值续命）。
 > - v0.x 时代（v0.1~v0.46+）全量台账在 `docs/changelog-archive/changelog-v0-20260927.md`，只读历史。
 
+## PR #114 审计修复：Sentry 脱敏 / 画师侧增项守卫 / 弱密钥口径（2026-11-26）
+
+- **Sentry 令牌脱敏（M-5）**：`beforeSend` 改白名单只保留 `url`/`method`，清除 `request.headers`/`cookies`/`data`/`query_string` 与 breadcrumb 内 header 字段；F0179 后走 `x-order-token` header 的订单令牌不再随 5xx 上报第三方 DSN。核对 @sentry/node 10.78.0：`sendDefaultPii:false` 只过滤 span 属性，**不过滤** `event.request.headers`，必须自行清理。
+- **画师侧增项守卫（F0103）**：画师改增项 `price_mode` 且模板已有 `style_addons` 引用行时，与管理端冻结语义一致返回 `ADDON_TEMPLATE_MODE_LOCKED`，杜绝 ¥50 静默变 +50%。
+- **弱密钥判据统一（F0156）**：`secrets.ts` 低熵检测补「短前缀重复覆盖率 ≥80%」，`'A'.repeat(40)+'bcd'` 不再漏判强；admin 健康检查 `checkSecret` 改为复用同一谓词，四处口径一致。
+- **⚠️ 升级须知（站长必读）**：本次起 `SESSION_SECRET` / `COOKIE_SECRET` 若为 dev 前缀、已知默认值、长度 <32 或低熵重复值（如 `'a'.repeat(64)`、`'A'.repeat(40)+'bcd'`），**生产环境启动即拒绝（fail-fast）**。既有部署升级前必须先把密钥换成强随机值（如 `openssl rand -hex 32`），否则服务起不来；换密钥会使现有会话失效，用户需重新登录。升级后管理端「系统自检」的 JWT_SECRET 项同步报弱值告警。
+- **E2E 基建**：令牌刷新失败登录上限压到 4 次（低于服务端 5 次锁号阈值）并同步回归断言；`check-locators` 名称正则改引号感知（含逗号文案不再假红）；Windows teardown 改用 PowerShell `Get-CimInstance` 核身，不再仅凭 PID 存活就放行。
+- **验证**：server typecheck/lint/test 全绿；e2e typecheck + check:e2e 12 spec / ERROR 0 / WARN 2。本地分支 `fix/pr114-server`，未推 origin。
+
 ## 设置页两个标签页跟随页面宽度（2026-11-18）
 
 - **根因**：`主页展示`/`模板与风格` 两个 tab 根容器各带页级限宽（860/900px），盖住了 ArtistLayout 统一下发的 `--page-max-w`；`基本资料` 无此限宽，故只有它跟随偏好。

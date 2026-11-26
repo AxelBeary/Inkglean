@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { db, cleanDb, seedArtist } from './setup.js'
 import { createSession, verifySession } from '../src/features/auth/auth.service.js'
-import { registerDesktopDevice, DESKTOP_SESSION_DAYS } from '../src/features/auth/devices.service.js'
+import { registerDesktopDevice, touchDesktopDevice, DESKTOP_SESSION_DAYS } from '../src/features/auth/devices.service.js'
 import { bumpTokenVersion } from '../src/features/artist/artist.service.js'
 import { computeTotp } from '../src/features/auth/totp.js'
 import { buildApp } from '../src/app.js'
@@ -247,5 +247,57 @@ describe('桌面端记账式会话 (REQ-014 安全口径一, v73)', () => {
     })
     expect(res.statusCode).toBe(401)
     expect(res.json().code).toBe('STEP_UP_REQUIRED')
+  })
+})
+
+// ═══ B7 批次（F0126）：过期账目拒绝路径清 touchCache ═══
+
+describe('B7-F0126 过期设备缓存淘汰', () => {
+  let app: FastifyInstance
+
+  beforeEach(async () => {
+    cleanDb()
+    app = await buildApp({ logger: false })
+    await app.ready()
+  })
+
+  it('TC-DS-B7: 过期拒绝后 touchCache 条目被清——复活账目的 touch 基于新账而非旧缓存', async () => {
+    const artist = seedArtist()
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/auth/desktop/login',
+      payload: {
+        qqNumber: '12345',
+        code: computeTotp(SEED_SECRET, Date.now()),
+        deviceUuid: DEVICE_UUID,
+        deviceName: '缓存测试机'
+      }
+    })
+    expect(login.statusCode).toBe(200)
+    const token = login.json().token as string
+
+    // 过一次门禁 → touchDesktopDevice 建立缓存条目（expiresAt = 登记账目的远期值）
+    const me = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { Authorization: `Bearer ${token}` } })
+    expect(me.statusCode).toBe(200)
+
+    // 把账目改成过期 → 门禁拒绝（此路径须清缓存，否则条目进程内永驻泄漏）
+    db.prepare('UPDATE desktop_devices SET expires_at = ? WHERE artist_id = ? AND device_uuid = ?')
+      .run(new Date(Date.now() - 3600_000).toISOString(), artist.id, DEVICE_UUID)
+    const rejected = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { Authorization: `Bearer ${token}` } })
+    expect(rejected.statusCode).toBe(401)
+    expect(rejected.json().code).toBe('SESSION_EXPIRED')
+
+    // 账目复活（模拟运维改账/重登改账）：expires_at 只剩 2 天（在 7 天顺延阈值内）
+    db.prepare('UPDATE desktop_devices SET expires_at = ? WHERE artist_id = ? AND device_uuid = ?')
+      .run(new Date(Date.now() + 2 * DAY_MS).toISOString(), artist.id, DEVICE_UUID)
+
+    // 直接调 touch（门禁外的服务路径）：缓存已清 → 未命中查库，读到 2 天剩余 → 触发顺延改账。
+    // 若修复缺失（旧缓存残留远期 expiresAt）→ needRenew=false → 不改账，断言即失败
+    touchDesktopDevice(artist.id, (db.prepare('SELECT id FROM desktop_devices WHERE artist_id = ? AND device_uuid = ?')
+      .get(artist.id, DEVICE_UUID) as { id: number }).id)
+    const after = db.prepare('SELECT expires_at FROM desktop_devices WHERE artist_id = ? AND device_uuid = ?')
+      .get(artist.id, DEVICE_UUID) as { expires_at: string }
+    const daysLeft = (new Date(after.expires_at).getTime() - Date.now()) / DAY_MS
+    expect(daysLeft).toBeGreaterThan(DESKTOP_SESSION_DAYS - 1)
   })
 })

@@ -5,7 +5,8 @@
       <p class="totp-step">{{ $t('admin.totpStep1') }}</p>
       <div class="totp-qr-wrap">
         <img v-if="totpQr" :src="totpQr" alt="TOTP QR" class="totp-qr" />
-        <el-button v-else text type="primary" @click="genTotpQr">{{ $t('admin.totpRegenerate') }}</el-button>
+        <!-- F0189（B6）: 首产按钮——打开弹窗不再自动 bind-init，由管理员显式点击触发生成 -->
+        <el-button v-else text type="primary" @click="genTotpQr">{{ $t('admin.totpGenerate') }}</el-button>
       </div>
       <p class="totp-step">{{ $t('admin.totpStep2') }}</p>
       <el-input
@@ -29,7 +30,9 @@
 
 <script setup lang="ts">
 // F-09 巨型文件拆分：自 views/admin/ArtistManage.vue 整体搬入（REQ-027 R2/R5 TOTP 绑定弹窗），
-// 模板/文案键/样式取值一字未改；目标画师由父页以 artist 传入，绑定/重置成功后 emit('refresh') 让父页重拉列表。
+// 目标画师由父页以 artist 传入，绑定/重置成功后 emit('refresh') 让父页重拉列表。
+// F0189（B6）: 打开即自动 bind-init 的口径已废除（该副作用会作废画师旧密钥并踢全端会话）——
+// 生成改为显式确认触发，模板按钮/文案键与 watch 时序随之调整，其余样式与结构不变。
 import { computed, ref, watch } from 'vue'
 import type { PropType } from 'vue'
 import { adminApi } from '../../../api/index'
@@ -50,20 +53,26 @@ const totpQr = ref('')
 const totpCode = ref('')
 const totpLoading = ref(false)
 
-// 打开即清空输入并生成二维码（与原 openTotpBind 函数体同口径；父页先落 artist 再置显）
-watch(totpVisible, async (v) => {
+// F0189（B6）: 打开弹窗只清输入，不再自动调 bind-init——该调用会覆盖旧密钥并把画师全端会话
+// 瞬间踢光（token_version+1），取消无法撤销。换绑必须显式确认触发；点「取消」零副作用。
+watch(totpVisible, (v) => {
   if (!v) return
   totpCode.value = ''
   totpQr.value = ''
-  await genTotpQr()
 })
 
-/** 生成/重新生成绑定二维码（覆盖旧密钥，旧 App 绑定立即失效） */
+/** 生成/重新生成绑定二维码（覆盖旧密钥，旧 App 绑定立即失效且画师全端会话被踢）——F0189: 显式确认触发 */
 async function genTotpQr() {
-  if (!totpArtist.value) return
+  if (!totpArtist.value || totpLoading.value) return
+  try {
+    await ElMessageBox.confirm(
+      t('admin.totpGenConfirm', { name: totpArtist.value.name }),
+      t('admin.confirmRemoveTitle'), { type: 'warning', confirmButtonText: t('admin.totpGenerate') }
+    )
+  } catch { return } // 取消路径保留：不确认 = 不发生任何副作用
   totpLoading.value = true
   try {
-    const res = await adminApi.totpBindInit(totpArtist.value.id)
+    const res = await adminApi.totpBindInit(totpArtist.value!.id)
     totpQr.value = res.qrDataUrl
   } catch (err) {
     ElMessage.error((err as Error).message)

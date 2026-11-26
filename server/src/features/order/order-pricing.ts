@@ -8,6 +8,8 @@ import type { OrderDetail } from '../../types/entities.js'
 import { getOrder } from './order-read.js'
 import { updateOrderChecked } from './order-fields.js'
 import { MAX_MONEY_CENTS } from './order-limits.js'
+// M-3 拆分：getNextDueCents 实现迁至 next-due-cents.ts，re-export 保持现有 import 路径不变
+export { getNextDueCents } from './next-due-cents.js'
 
 // ============================================
 // 订单服务 - 计价/增项/收款子域（从 order.service.ts 拆出）

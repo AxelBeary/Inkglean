@@ -11,6 +11,18 @@
         <el-table-column :label="$t('admin.recycleBin.colMovedAt')" width="160">
           <template #default="{ row }">{{ formatDateTime(row.movedAt) }}</template>
         </el-table-column>
+        <!-- M-6：回收站恢复入口——带列表返回的 binPath 精确恢复同名条目之一 -->
+        <el-table-column :label="$t('common.actions')" width="90">
+          <template #default="{ row }">
+            <el-button
+              size="small" text type="primary"
+              :loading="restoringKey === restoreKey(row)" :disabled="restoringKey != null"
+              @click="handleRestore(row)"
+            >
+              {{ $t('admin.deletedArtists.restore') }}
+            </el-button>
+          </template>
+        </el-table-column>
       </el-table>
       <el-empty v-else :description="$t('admin.recycleBin.emptyHint')" />
       <!-- REQ-022 F4: 分页（每页 20 条） -->
@@ -46,10 +58,15 @@ import { formatDateTime } from '../../../utils/datetime'
 const { t } = useI18n()
 
 // ─── 回收站（从主页迁入：孤儿文件可恢复；REQ-022 F4 分页） ───
+// M-6 / B7-F0109：列表接口实际下发 binPath（回收站内相对路径，服务端恢复端点据此精确定位
+// 同名条目之一）。api/types 的 RecycleBinItem 尚未补该字段，本批次只在弹窗内做局部放宽，
+// 不改 api/types（跨端共享类型归口），避免把兼容字段散播到别的消费方。
+type RecycleBinRow = RecycleBinItem & { binPath?: string }
 const recycleVisible = defineModel({ type: Boolean, default: false })
-const recycleItems = ref<RecycleBinItem[]>([])
+const recycleItems = ref<RecycleBinRow[]>([])
 const recycleLoading = ref(false)
 const emptying = ref(false)
+const restoringKey = ref<string | null>(null)
 const recyclePage = ref(1)
 const recyclePageSize = 20
 const recycleTotal = ref(0)
@@ -65,7 +82,7 @@ async function loadRecycleBin() {
   recycleLoading.value = true
   try {
     const res = await adminApi.getRecycleBin({ page: recyclePage.value, pageSize: recyclePageSize })
-    recycleItems.value = res.items || []
+    recycleItems.value = (res.items || []) as RecycleBinRow[]
     recycleTotal.value = res.total || 0
   } catch (err) {
     ElMessage.error((err as Error).message)
@@ -80,6 +97,28 @@ function formatSize(bytes: number | null | undefined) {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
+/** M-6：同一文件名可能在不同日期目录各有一份，恢复键用 binPath 唯一定位（缺省回退 fileName） */
+function restoreKey(row: RecycleBinRow): string {
+  return row.binPath || row.fileName
+}
+
+/** M-6：精确恢复——把列表行的 fileName + binPath 交给后端 restore 端点，成功后重拉当前页 */
+async function handleRestore(row: RecycleBinRow) {
+  const key = restoreKey(row)
+  if (restoringKey.value != null) return
+  restoringKey.value = key
+  try {
+    await adminApi.restoreRecycleBinFile(row.fileName, row.binPath)
+    // 复用既有通用「已保存」文案，避免为本批次新增 locale 键（i18n 门禁零风险）
+    ElMessage.success(t('common.saved'))
+    await loadRecycleBin()
+  } catch (err) {
+    ElMessage.error((err as Error).message)
+  } finally {
+    restoringKey.value = null
+  }
 }
 
 async function handleEmptyRecycleBin() {

@@ -298,6 +298,28 @@ describe('作品档位标注 (F6)', () => {
     expect(gallery.artworks[0].size_tags.map(t => t.size_name)).toEqual(['全身'])
     expect(gallery.filterSizes.map(s => s.name)).toEqual(['全身'])
   })
+
+  it('TC-TAG-06: closed 档位不进公开画廊（B7-F0145）——筛选标签与标注均过滤', () => {
+    // v49 三态：closed 完全隐藏；getPublicStyles 已过滤，公开画廊此前漏同款过滤
+    const closedSize = styleService.createStyleSize(artist.id, style.id, {
+      name: '闭档尺寸', base_price: 666, display_status: 'closed'
+    })
+    artistService.setArtworkSizeTags(artist.id, artwork.id, [sizeA.id, closedSize.id])
+
+    const gallery = styleService.getPublicGallery(artist.id)
+    // 筛选标签不含 closed 档位（头像/全身是 beforeEach 种的可用档位）
+    expect(gallery.filterSizes.map(s => s.name)).toEqual(['头像', '全身'])
+    expect(gallery.filterSizes.some(s => s.id === closedSize.id)).toBe(false)
+    // 作品标注同步过滤（闭档尺寸不随作品泄漏到公开端）
+    expect(gallery.artworks[0].size_tags.map(t => t.size_name)).toEqual(['头像'])
+    // 对照：非 closed 三态不受影响
+    const showcaseSize = styleService.createStyleSize(artist.id, style.id, {
+      name: '橱窗尺寸', base_price: 200, display_status: 'showcase'
+    })
+    const gallery2 = styleService.getPublicGallery(artist.id)
+    expect(gallery2.filterSizes.map(s => s.name)).toEqual(['头像', '全身', '橱窗尺寸'])
+    expect(gallery2.filterSizes.some(s => s.id === showcaseSize.id)).toBe(true)
+  })
 })
 
 // ─── 路由层集成 ───

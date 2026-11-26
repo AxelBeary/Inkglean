@@ -79,6 +79,8 @@ cd web && npm run test:web     # 前端 Vitest
 cd .. && npm run test:e2e      # E2E（仓库根目录）
 ```
 
+> **E2E 浏览器前置**：`npm run test:e2e`（真 Playwright）需预装 chromium；首次运行先执行 `npx playwright install chromium --with-deps`（CI 由 e2e job 同款步骤安装）。未安装时 `globalSetup` 会零成本失败并给出此指引，不会伪造 PASS。无浏览器环境请改用浏览器无关门禁：`npm run typecheck:e2e && npm run check:e2e && npx tsx e2e/scripts/token-refresh.regression.ts`（另有 build-freshness / check-locators 两个 regression）。
+
 ### 改动后最小验证
 
 按改动类型的最小验证清单与「门禁全绿」定义见 `AGENTS.md`「改动后最小验证清单」一节（均为仓库既有脚本，不引入新工具）。一键全量验收：`pwsh scripts/accept.ps1`（可加 `-Worktree <路径>` 验收指定 worktree，产出结构化报告于 `AGENTS/workspace/temp/`）。

@@ -126,4 +126,41 @@ describe('REQ-022 F5: GET /api/admin/messages 筛选参数', () => {
     expect(list).toHaveLength(2)
     expect(list.some((m: { id: number }) => m.id === target.id)).toBe(false)
   })
+
+  // ─── B7-F0283：服务端行数上限（管理端仪表盘只取最近一屏） ───
+
+  it('TC-GBF-B7-01: ?limit=2 只返回最近 2 条（created_at 倒序口径不变）', async () => {
+    // 造数同秒写入会让 created_at 并列、倒序断言碰运气——先错开三条的时间戳（表存 SQLite CURRENT_TIMESTAMP 格式）
+    db.prepare("UPDATE guestbook_messages SET created_at = datetime('now', '-3 minute') WHERE nickname = '甲客'").run()
+    db.prepare("UPDATE guestbook_messages SET created_at = datetime('now', '-2 minute') WHERE nickname = '乙客'").run()
+    db.prepare("UPDATE guestbook_messages SET created_at = datetime('now', '-1 minute') WHERE nickname = '丙客'").run()
+
+    const res = await get('/api/admin/messages?limit=2')
+    expect(res.statusCode).toBe(200)
+    const list = res.json()
+    expect(list).toHaveLength(2)
+    // 倒序：最新在前（丙客最新、乙客次之；limit 截断掉最旧的甲客）
+    expect(list[0].nickname).toBe('丙客')
+    expect(list[1].nickname).toBe('乙客')
+  })
+
+  it('TC-GBF-B7-02: limit 与筛选叠加（artistId + limit）', async () => {
+    const res = await get(`/api/admin/messages?artistId=${artist.id}&limit=1`)
+    expect(res.statusCode).toBe(200)
+    const list = res.json()
+    expect(list).toHaveLength(1)
+    expect(list[0].artist_id).toBe(artist.id)
+  })
+
+  it('TC-GBF-B7-03: 非法 limit 忽略（abc/-1/0），超大值钳到 1000 不报错', async () => {
+    for (const q of ['limit=abc', 'limit=-1', 'limit=0']) {
+      const res = await get(`/api/admin/messages?${q}`)
+      expect(res.statusCode).toBe(200)
+      expect(res.json()).toHaveLength(3) // 忽略 = 全量（既有语义）
+    }
+    // 超上限不 500：钳制后照常返回
+    const big = await get('/api/admin/messages?limit=99999')
+    expect(big.statusCode).toBe(200)
+    expect(big.json()).toHaveLength(3)
+  })
 })

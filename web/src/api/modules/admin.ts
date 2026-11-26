@@ -98,6 +98,9 @@ export const adminApi = {
   getRecycleBin: ({ page, pageSize }: { page?: number; pageSize?: number } = {}): Promise<RecycleBinResult> =>
     getJson('/admin/recycle-bin', { params: { page, pageSize } }),
   emptyRecycleBin: (): Promise<EmptyRecycleBinResult> => deleteJson('/admin/recycle-bin'),
+  // M-6 / B7-F0109：精确恢复单个回收站文件；binPath 用列表返回的同名字段精确定位同名条目之一
+  restoreRecycleBinFile: (fileName: string, binPath?: string): Promise<{ success: boolean; restoredPath: string }> =>
+    postJson('/admin/recycle-bin/restore', binPath ? { fileName, binPath } : { fileName }),
   // F4: 留言管理（跨画师）；REQ-022 F5: 可选筛选 { artistId, status, replied }
   getMessages: (filters: AdminMessageFilters = {}): Promise<AdminGuestbookMessage[]> =>
     getJson('/admin/messages', { params: filters }),

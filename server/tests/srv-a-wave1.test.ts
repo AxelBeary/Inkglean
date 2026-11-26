@@ -66,9 +66,10 @@ describe('P0-1: 邀请注册空壳覆盖防护', () => {
     expect(original.subdomain).toBe('victim1')
   })
 
-  it('TC-P01-02: 邀请流程自产的真空壳（totp_secret=NULL + 有 invite_code_uses）仍可被覆盖', async () => {
-    // GHSA-6pf3 修复②：空壳覆盖收紧为「只允许覆盖邀请流程自产的行」。
-    // 建一个真空壳并补 invite_code_uses 记录坐实其邀请来源（模拟受邀入驻后被 reset 待重绑）。
+  it('TC-P01-02 (ab263dd1-C): 邀请流程自产的真空壳（totp_secret=NULL + 有 invite_code_uses）也禁止被新码覆盖 → QQ_TAKEN', async () => {
+    // ab263dd1 方案 C（用户拍板）：「只查重不校验归属」是三次返工的根因，空壳归属无法从现有字段
+    // 推导，故对任何既有 QQ 行一律禁覆盖（含被 reset 的邀请自产空壳），统一走管理员找回/重置。
+    // 建真空壳 + invite_code_uses 记录坐实邀请来源，验证其同样不可被新邀请码覆盖。
     const shell = seedArtist({ qq_number: '21002', subdomain: 'shell1', name: '空壳', totp_secret: null, totp_verified: 0 })
     const originCode = db.prepare('INSERT INTO invite_codes (code, status, expires_at) VALUES (?, ?, ?)').run('P0102ORIG', 'used', new Date(Date.now() + 86400000).toISOString())
     db.prepare('INSERT INTO invite_code_uses (invite_code_id, artist_id, used_at) VALUES (?, ?, ?)').run(originCode.lastInsertRowid, shell.id, new Date().toISOString())
@@ -79,10 +80,14 @@ describe('P0-1: 邀请注册空壳覆盖防护', () => {
       url: '/api/invite/register',
       payload: { code: invite.code, qqNumber: '21002', name: '重来', subdomain: 'shell1x' }
     })
-    expect(res.statusCode).toBe(201)
-    const updated = db.prepare("SELECT name, subdomain FROM artists WHERE qq_number = '21002'").get() as { name: string; subdomain: string }
-    expect(updated.name).toBe('重来')
-    expect(updated.subdomain).toBe('shell1x')
+    expect(res.statusCode).toBe(400)
+    expect(res.json().code).toBe('QQ_TAKEN')
+    // 攻击码未消费、原空壳未被篡改
+    const row = db.prepare('SELECT status FROM invite_codes WHERE id = ?').get(invite.id) as { status: string }
+    expect(row.status).toBe('unused')
+    const intact = db.prepare("SELECT name, subdomain FROM artists WHERE qq_number = '21002'").get() as { name: string; subdomain: string }
+    expect(intact.name).toBe('空壳')
+    expect(intact.subdomain).toBe('shell1')
   })
 
   // GHSA-6pf3 修复②反向用例：无 invite_code_uses 的预建真空壳（管理员建号未绑 TOTP）不可被覆盖

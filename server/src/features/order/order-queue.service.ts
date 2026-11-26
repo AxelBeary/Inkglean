@@ -10,26 +10,31 @@ import type { ArtistOrderRow, OrderDetail } from '../../types/entities.js'
 // ============================================
 
 /**
+ * 队列行显式列清单（尾巴批 pr-review-upstream-20261123 #101：原在本文件 getArtistQueue /
+ * getCompletedQueue 与 order-list.routes buffer 区三处逐字重复，收敛单源——改列只动这一份）。
+ * P0-6/F0138: 不再 o.*，去掉队列 UI 不消费的 quote_snapshot 大字段。
+ * D-1: 队列行携带 version，前端时间条拖拽两步 PUT 用旧值起步、响应新值接力。
+ * 依赖调用方 SQL 自带三张 JOIN（style_sizes ss / art_styles ast / artist_workflow_stages st）供别名列。
+ */
+export const ORDER_QUEUE_COLUMNS = `o.id, o.order_no, o.style_size_id, o.client_qq, o.client_name, o.description,
+           o.priority, o.status, o.source, o.client_notify, o.queue_position,
+           o.completed_at, o.price_snapshot, o.total_price_cents, o.final_price_cents,
+           o.focus_image_path, o.focus_image_mode, o.current_stage_id, o.deadline,
+           o.start_date, o.queue_zone, o.paid_total_cents, o.discount_code_id,
+           o.discount_amount_cents, o.created_at, o.updated_at, o.version,
+           st.name as current_stage_name,
+           (ast.name || ' / ' || ss.name) as tier_name, ss.base_price as tier_price`
+
+/**
  * 获取画师的活跃队列（按 queue_position 排序）
  * N1-1: 拖拽即绝对顺序，priority 退化为纯展示标签
- * P0-6: 显式列清单（不再 o.*，去掉 quote_snapshot 大字段——队列 UI 不消费）；
- *       可选 limit/offset 分页，默认全量（QueueBoard 拖拽需全量，调用方按需传参）
+ * 可选 limit/offset 分页，默认全量（QueueBoard 拖拽需全量，调用方按需传参）
  */
 export function getArtistQueue(artistId: number, options: { limit?: number; offset?: number } = {}): ArtistOrderRow[] {
   const { limit, offset } = options
   const params: Array<string | number> = [artistId]
   let sql = `
-    SELECT o.id, o.order_no, o.style_size_id, o.client_qq, o.client_name, o.description,
-           o.priority, o.status, o.source, o.client_notify, o.queue_position,
-           o.completed_at, o.price_snapshot, o.total_price_cents,
-           o.final_price_cents,
-           o.focus_image_path, o.focus_image_mode, o.current_stage_id, o.deadline,
-           o.start_date, o.queue_zone, o.paid_total_cents, o.discount_code_id,
-           o.discount_amount_cents, o.created_at, o.updated_at,
-           -- D-1: 队列行携带 version，前端时间条拖拽两步 PUT 用旧值起步、响应新值接力
-           o.version,
-           st.name as current_stage_name,
-           (ast.name || ' / ' || ss.name) as tier_name, ss.base_price as tier_price
+    SELECT ${ORDER_QUEUE_COLUMNS}
     FROM orders o
     LEFT JOIN style_sizes ss ON o.style_size_id = ss.id
     LEFT JOIN art_styles ast ON ss.art_style_id = ast.id
@@ -96,16 +101,9 @@ export function getCompletedQueue(artistId: number, days: number = 7): ArtistOrd
     .toISOString().replace('T', ' ').slice(0, 19)
   // L-13（审计 九#7）: 沉底窗口以 completed_at 判定（任意写操作不再刷新 updated_at 复活展示），
   // 无 completed_at 的存量订单回落 updated_at
-  // F0139: 显式列清单（不再 o.*，去掉队列 UI 不消费的 quote_snapshot 大字段），与 getArtistQueue 同口径
+  // F0139: 显式列清单与 getArtistQueue 同口径 → 尾巴批 pr-review-20261123 #101 收敛进 ORDER_QUEUE_COLUMNS
   return db.prepare(`
-    SELECT o.id, o.order_no, o.style_size_id, o.client_qq, o.client_name, o.description,
-           o.priority, o.status, o.source, o.client_notify, o.queue_position,
-           o.completed_at, o.price_snapshot, o.total_price_cents, o.final_price_cents,
-           o.focus_image_path, o.focus_image_mode, o.current_stage_id, o.deadline,
-           o.start_date, o.queue_zone, o.paid_total_cents, o.discount_code_id,
-           o.discount_amount_cents, o.created_at, o.updated_at, o.version,
-           st.name as current_stage_name,
-           (ast.name || ' / ' || ss.name) as tier_name, ss.base_price as tier_price
+    SELECT ${ORDER_QUEUE_COLUMNS}
     FROM orders o
     LEFT JOIN style_sizes ss ON o.style_size_id = ss.id
     LEFT JOIN art_styles ast ON ss.art_style_id = ast.id

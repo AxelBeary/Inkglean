@@ -12,7 +12,8 @@ export const migration: Migration = {
       if (!cols.some(c => c.name === 'paid_total_cents')) {
         database.exec('ALTER TABLE orders ADD COLUMN paid_total_cents INTEGER DEFAULT 0')
       }
-      // 2. 收款流水表——须先于存量换算建立：下面的 NOT EXISTS 哨兵要读它（GIT-2）
+      // 2. 收款流水表——必须先于存量换算建立：下面的 NOT EXISTS 哨兵要读它区分
+      // 「从未回填的基线订单」与「v24 之后已被流水接管的订单」（含全额退款冲正归零者）。
       database.exec(`
         CREATE TABLE IF NOT EXISTS order_payments (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,15 +31,27 @@ export const migration: Migration = {
       // 仅旧形态库（含 status 列）照常执行。探测风格与第 1 步一致：PRAGMA table_info
       const instCols = database.prepare('PRAGMA table_info(order_payment_installments)').all() as ColumnInfo[]
       if (instCols.some(c => c.name === 'status')) {
-        // GIT-2: 裸 UPDATE 在重放（版本表丢失）时会把流水维护的已收金额冲回旧分期和，
-        // 故限定三重条件：基线原值 0 + 确有已付分期 + 无收款流水（全额退款归零单不被复活）
+        // F0077（B2 high）+ SVR-01：旧实现裸 UPDATE 无条件覆盖全部订单已收金额——修复重放
+        // （版本表丢失）会把 v24 之后由 addPayment 流水维护的 paid_total_cents（order-pricing.ts
+        // 原子自增）冲回旧分期和。WHERE 三重条件：
+        // ① PR114 MINOR-10：从「=0」放宽为「< 已付分期和」——原来「非零但欠回填」的存量行
+        //    （首跑后又有分期转 paid、修复重放）被一律排除导致少算；改为只补偏小的值。
+        //    仍不覆盖「已收金额 > 分期和」的行（流水维护过的超额金额受保护），F0077 防护不回退。
+        // ② EXISTS 只锁定确有已付分期的目标行（不再扫全体订单）；
+        // ③ NOT EXISTS(order_payments) 哨兵排除已被流水接管过的订单——这是归零订单的关键：
+        //    全额退款冲正后 paid_total_cents 归零（命中 ①），但 order_payments 已有收/退款行，
+        //    靠 ③ 拦下重放，避免旧分期金额凭空「复活」。首跑时流水表空，③ 恒真，回填照常。
         database.exec(`
           UPDATE orders SET paid_total_cents = (
             SELECT COALESCE(SUM(amount_cents), 0)
             FROM order_payment_installments
             WHERE order_id = orders.id AND status = 'paid'
           )
-          WHERE COALESCE(paid_total_cents, 0) = 0
+          WHERE COALESCE(paid_total_cents, 0) < (
+            SELECT COALESCE(SUM(amount_cents), 0)
+            FROM order_payment_installments
+            WHERE order_id = orders.id AND status = 'paid'
+          )
             AND EXISTS (
               SELECT 1 FROM order_payment_installments
               WHERE order_id = orders.id AND status = 'paid'

@@ -235,6 +235,8 @@ export default {
     ADDON_TEMPLATE_INVALID_PRICE: 'Invalid addon template price',
     ADDON_TEMPLATE_INVALID_CONTROL: 'Invalid control type',
     ADDON_TEMPLATE_INVALID_PRICING: 'Invalid pricing mode',
+    // B7-F0103: pricing-mode change rejected under freeze semantics ({referenced} interpolated from detail)
+    ADDON_TEMPLATE_MODE_LOCKED: 'This template is referenced by {referenced} style(s); changing its pricing mode under freeze would silently reprice them. Enable "Sync" to let references follow',
     STYLE_ADDON_NOT_FOUND: 'Style addon not found',
     STYLE_ADDON_DUPLICATE: 'This addon is already imported into this style',
     SIZE_OVERRIDE_NOT_FOUND: 'Size override not found',
@@ -896,6 +898,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     descSoftTitle: 'Empty description', descSoftMsg: 'You have not described what you want. Continue anyway? (The artist may not fully understand your idea.)',
     descSoftContinue: 'Continue',
     refLabel: 'Reference images (optional, up to 5, ≤10MB each)', refExceed: 'Up to 5 reference images',
+    // #61-②: submit gate for entries without filePath (in-flight/failed) — no longer silently dropped
+    refNotReady: 'Some reference images are still uploading or failed. Wait for them to finish or remove them before submitting.',
     tagTooLong: 'Description is full, cannot add this tag', // F0316
     refTip: 'The artist can add more references to the order gallery after you submit. Gallery total limit: 20 images.',
     refUpload: 'Upload reference image',
@@ -1497,6 +1501,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     shareOpened: 'Publish page opened in a new tab',
     shareCopied: 'Text copied — paste it on the publish page',
     shareNoHomepage: 'Text contains {homepage} but no homepage link for this platform was found — add one in Page Settings first',
+    // F0217: fallback open blocked by an invalid hostname — visible notice (copied text still usable manually)
+    shareInvalidHost: 'This platform address is invalid, so the publish page was not opened. The text is copied — please open the platform manually.',
     // Wave 3-2: share platform list load-failure error state + retry
     shareLoadFailed: 'Failed to load share platforms. Please retry.',
     // 818-D: reorder from a past order (reuse info for a new order)
@@ -2097,6 +2103,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
       linkLabel: 'Single-use pickup link',
       ttlMinutes: 'One download only. Valid for {n} min after issue.',
       ttlSeconds: 'One download only. Valid for {n} sec after issue.',
+      // B7-F0285: degraded copy when the link is usable but the receipt TTL is malformed
+      ttlUnknown: 'Link issued (expiry metadata malformed — copy and use it soon).',
       expired: 'Link expired',
       copy: 'Copy link',
       copied: 'Link copied'
@@ -2143,6 +2151,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     totpReset: 'Reset binding', totpResetConfirm: 'Reset the dynamic code binding for "{name}"? The old secret becomes invalid immediately; the artist must re-bind before logging in.',
     totpResetSuccess: 'Binding reset',
     totpRegenerate: 'Regenerate QR', totpRegenerateHint: 'Regenerating invalidates the old QR immediately; the artist must scan again',
+    // F0189（B6）: opening the dialog no longer auto-rebinds — generation now requires explicit confirmation
+    totpGenerate: 'Generate QR code',
+    totpGenConfirm: 'Generating a new QR code overwrites the current TOTP secret of "{name}": the old binding is invalidated immediately, all active sessions of the artist are signed out, and a re-scan is required before login. Generate now?',
     orderColNo: 'Order No.', orderColQq: 'Client QQ', orderColStatus: 'Status',
     orderColType: 'Type', orderColTime: 'Order time',
     greetingManage: 'Greeting Manager', greetingPlaceholder: "Enter greeting, use {'{'}name{'}'} for artist name",
@@ -2227,6 +2238,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
       filterByReplied: 'By reply', repliedYes: 'Replied', repliedNo: 'Not replied',
       filterLabel: 'Filter messages',
       filterDesc: 'Filter by artist, review status, and reply status',
+      listLimit: 'Show limit', limitN: 'Latest {n}',
+      listTruncated: 'Only the latest {n} messages are shown; raise the show limit or narrow the filters above to find older ones.',
       delete: 'Force delete', deleteConfirm: 'Delete this message? It will no longer appear on the client page.', deleted: 'Message deleted'
     },
     // HC: system health check
@@ -2592,7 +2605,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
         home_restore: 'Restore home',
         artist_status_set: 'Set artist status',
         artist_remove: 'Remove artist',
-        delivery_link_reissue: 'Reissue delivery link'
+        delivery_link_reissue: 'Reissue delivery link',
+        // B7-F0111: admin transfer audit action label
+        admin_transfer: 'Transfer admin'
       },
       targetType: {
         report: 'Report',
@@ -2707,6 +2722,7 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     validDaysHint: '1-30 days',
     maxUsesLabel: 'Uses per Code',
     maxUsesHint: '1-100 uses, default 1 (single-use)',
+    bindQqHint: '5-15 digits. Leave blank = universal code (any QQ can register); set it and the whole batch only works for that QQ (anti-impersonation)',
     generateBtn: 'Generate',
     generated: '{count} invite codes generated',
     colCode: 'Invite Code',

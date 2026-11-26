@@ -17,6 +17,8 @@ export * from './utils/money'
 export * from './utils/ink-palette'
 // 小票计算口径（oimimo 吸纳批五）：赠品恒 0 → 小计 → 折扣 → 应收 → 定金/尾款
 export * from './receipt/totals'
+// 浏览器端 Blob 下载（尾巴批 pr-review-upstream-20261123：web PriceCard/ReceiptPrinter 与 desktop host.ts 三处同型收口）
+export * from './utils/download'
 
 // ─── F3 约稿条 / F4 小票哑组件（shared-824 整件搬家批） ───
 // 哑组件纪律：不发请求、不读存储、不碰剪贴板；数据进 props、事件出 emit

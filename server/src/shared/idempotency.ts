@@ -7,9 +7,13 @@ import { isWeakSessionSecret } from './secrets.js'
 // D-2（R-9）: 下单/收款幂等键
 // 背景：绕过 DOM disabled（双标签页/脚本/慢渲染双击）可产生两笔收款/两个订单，
 // UNIQUE order_no 只兜单号不兜业务重复。scope+key 复合主键兜业务幂等。
-// F0134：response_json 存 AES-256-GCM `enc:v1` 信封（SESSION_SECRET 域分离 + AAD 绑 scope/key），
-// 明文 customerToken/trackUrl 不落库；仍用原 TEXT 列（零 migration），解封后与首响逐字节一致；
-// 解密失败 409，绝不删行重执行（重跑下单会多一单）。
+//
+// F0134：幂等响应信封加密（at rest）。此前 response_json 明文落库，客户下单
+// 响应含一次性 customerToken + trackUrl，24h 内 DB/备份留存明文、同 key 可重放。
+// 现写入前用 AES-256-GCM 封装成 `enc:v1:<base64(iv|tag|ct)>`，仍存原 TEXT 列
+// → 零 migration；读取时按前缀解封，首响与重放解出的 body 逐字节一致，
+// 保住 TC-D2-02 重放一致契约；解密失败显式 409（独立错误码，前端保留 key），**绝不删行重执行**
+// （下单 scope 删行重跑会产生第二笔订单）。无前缀的存量明文行仍走旧兼容读路径。
 // ============================================
 
 const IDEMPOTENCY_KEY_MAX_LENGTH = 64
@@ -39,28 +43,41 @@ export interface IdempotencyExecResult {
   body: unknown
 }
 
-/** 信封密钥：SESSION_SECRET 域分离派生；生产缺密钥/弱密钥直接抛错——绝不静默降级成明文缓存 */
+/** 信封密钥：SESSION_SECRET 域分离派生（不新增 env，零配置口径不变） */
 function envelopeKey(): Buffer {
   const secret = process.env.SESSION_SECRET
-  if (!secret || (process.env.NODE_ENV === 'production' && isWeakSessionSecret(secret))) {
-    if (process.env.NODE_ENV === 'production') throw new Error('SESSION_SECRET 不可用 — 幂等响应信封加密拒绝明文降级')
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('SESSION_SECRET 未设置 — 幂等响应信封加密需要会话密钥')
+    }
     if (!devEnvelopeKey) devEnvelopeKey = randomBytes(32)
     return devEnvelopeKey
+  }
+  if (process.env.NODE_ENV === 'production' && isWeakSessionSecret(secret)) {
+    throw new Error('SESSION_SECRET 为弱值 — 生产环境拒绝启动（幂等信封加密）')
   }
   return createHash('sha256').update('idempotency-envelope:v1\0').update(secret, 'utf8').digest()
 }
 
-/** AAD 绑定 scope+key：密文被搬到别的缓存行解不开 */
+/** AAD 绑定 scope+key，防止密文被跨缓存行搬运复用 */
 function envelopeAad(scope: string, key: string): Buffer {
   return Buffer.from(`${scope}\0${key}`, 'utf8')
 }
 
+/**
+ * 密文损坏/密钥轮换/跨行搬运 → 独立错误码 IDEMPOTENCY_ENVELOPE_INVALID 409。
+ *
+ * TASK2-01：绝不能复用 IDEMPOTENCY_CONFLICT——前端对该码一律清 key 重提，
+ * 在首响丢失 + 密钥轮换场景下会重复下单/重复扣款。新码通过 ERROR_MESSAGES
+ * 告知「该提交可能已受理，请勿重复提交；如未确认请联系客服」，前端保留原 key。
+ * 服务端纪律不变：解密失败不删行、不重执行（见 withIdempotency 调用点）。
+ */
 function corruptedEnvelope(): AppError {
-  // 独立错误码：前端据此保留原 key（复用载荷冲突码会被前端判为「换意图」而换 key → 重复下单）
-  return new AppError(E.IDEMPOTENCY_ENVELOPE_INVALID, 409, { message: '该提交可能已受理，请勿重复提交' })
+  return new AppError(E.IDEMPOTENCY_ENVELOPE_INVALID, 409)
 }
 
-function sealIdempotencyResponse(json: string, scope: string, key: string): string {
+/** 写入侧：JSON 字符串 → enc:v1 信封（IV 12B + tag 16B + 密文，base64） */
+export function sealIdempotencyResponse(json: string, scope: string, key: string): string {
   const iv = randomBytes(12)
   const cipher = createCipheriv('aes-256-gcm', envelopeKey(), iv)
   cipher.setAAD(envelopeAad(scope, key))
@@ -68,15 +85,19 @@ function sealIdempotencyResponse(json: string, scope: string, key: string): stri
   return ENVELOPE_PREFIX + Buffer.concat([iv, cipher.getAuthTag(), ct]).toString('base64')
 }
 
-/** 读取侧：信封 → 明文 JSON；无前缀的存量明文行原样返回（24h 自然过期） */
+/** 读取侧：enc:v1 信封 → 明文 JSON；无前缀存量行原样返回（24h 自然过期） */
 export function unsealIdempotencyResponse(payload: string, scope: string, key: string): string {
   if (!payload.startsWith(ENVELOPE_PREFIX)) return payload
   const raw = Buffer.from(payload.slice(ENVELOPE_PREFIX.length), 'base64')
+  if (raw.length < 28) throw corruptedEnvelope()
   try {
-    const decipher = createDecipheriv('aes-256-gcm', envelopeKey(), raw.subarray(0, 12))
+    const iv = raw.subarray(0, 12)
+    const tag = raw.subarray(12, 28)
+    const ct = raw.subarray(28)
+    const decipher = createDecipheriv('aes-256-gcm', envelopeKey(), iv)
     decipher.setAAD(envelopeAad(scope, key))
-    decipher.setAuthTag(raw.subarray(12, 28))
-    return Buffer.concat([decipher.update(raw.subarray(28)), decipher.final()]).toString('utf8')
+    decipher.setAuthTag(tag)
+    return Buffer.concat([decipher.update(ct), decipher.final()]).toString('utf8')
   } catch {
     throw corruptedEnvelope()
   }
@@ -116,7 +137,9 @@ export function hashIdempotencyPayload(payload: unknown): string {
  * 此前只按 scope+key 命中，同 key 换载荷会被静默回放旧响应——客户端失败时保留 key，
  * 用户改完金额/改编排再点一次，新内容根本没执行。现在同 key 不同载荷 → 409，
  * 调用方换 key 重试；不带 payload 或存量行无指纹时维持旧的重放语义。
- * F0134：写前封 enc:v1 密文、读后解封；解密失败直接 409，不走下方「坏行删行重执行」分支。
+ *
+ * F0134：响应写缓存前封加密文，读缓存后解封；enc:v1 行解密失败直接抛 409，
+ * **不走**下方「JSON.parse 失败删行重执行」分支（该分支只对无前缀存量明文行生效）。
  */
 export function withIdempotency(
   scope: string,
@@ -142,7 +165,7 @@ export function withIdempotency(
     if (requestHash !== null && cached.request_hash !== null && cached.request_hash !== requestHash) {
       throw new AppError(E.IDEMPOTENCY_CONFLICT, 409, { scope, message: '同一幂等键已用于不同的请求内容' })
     }
-    // enc:v1 信封解密失败 → 409；不落到下方「删行重执行」分支（F0134：下单 scope 重跑会多一单）
+    // enc:v1 信封解密失败 → 独立 409（TASK2-01，前端不清 key）；不删行、不重执行（F0134 纪律）
     const responseJson = unsealIdempotencyResponse(cached.response_json, scope, key)
     // d3 P2: 存量明文缓存行损坏/被手工篡改 → 删掉坏行按未命中重执行，避免同 key 永久 500
     try {

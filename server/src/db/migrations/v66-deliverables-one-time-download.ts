@@ -8,29 +8,25 @@
  * - cooldown_until：防护锁定冷却截止（unix ms，5 分钟）
  * 画师"再许可"= 清零 locked/attempts/cooldown（留痕走 order_notes 系统备注）。
  */
-import type { Migration } from './types.js'
+import type { ColumnInfo, Migration } from './types.js'
 
 export const migration: Migration = {
   version: 66,
   name: 'deliverables_one_time_download',
   up(database) {
-    database.exec(`
-      ALTER TABLE deliverables ADD COLUMN download_locked INTEGER NOT NULL DEFAULT 0
-    `)
-    database.exec(`
-      ALTER TABLE deliverables ADD COLUMN downloaded_at DATETIME
-    `)
-    database.exec(`
-      ALTER TABLE deliverables ADD COLUMN download_ip TEXT
-    `)
-    database.exec(`
-      ALTER TABLE deliverables ADD COLUMN download_attempts INTEGER NOT NULL DEFAULT 0
-    `)
-    database.exec(`
-      ALTER TABLE deliverables ADD COLUMN last_started_at INTEGER
-    `)
-    database.exec(`
-      ALTER TABLE deliverables ADD COLUMN cooldown_until INTEGER
-    `)
+    // B3-F0095：原 6 条裸 ALTER 无幂等守卫，破坏全仓惯例——崩溃发生在中途列只加了一半时，
+    // 重跑会撞「duplicate column name」失败。改为逐列 PRAGMA table_info 守卫（同 v59~v63/v75/v77 先例）。
+    const cols = database.prepare('PRAGMA table_info(deliverables)').all() as ColumnInfo[]
+    const addIfMissing = (column: string, ddl: string): void => {
+      if (!cols.some(c => c.name === column)) {
+        database.exec(`ALTER TABLE deliverables ADD COLUMN ${ddl}`)
+      }
+    }
+    addIfMissing('download_locked', 'download_locked INTEGER NOT NULL DEFAULT 0')
+    addIfMissing('downloaded_at', 'downloaded_at DATETIME')
+    addIfMissing('download_ip', 'download_ip TEXT')
+    addIfMissing('download_attempts', 'download_attempts INTEGER NOT NULL DEFAULT 0')
+    addIfMissing('last_started_at', 'last_started_at INTEGER')
+    addIfMissing('cooldown_until', 'cooldown_until INTEGER')
   }
 }

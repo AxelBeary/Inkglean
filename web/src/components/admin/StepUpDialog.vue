@@ -143,6 +143,9 @@ function cancel() {
 
 /** TOTP 分支：验证当前登录管理员的动态口令 */
 async function submitTotp() {
+  // B7-F0186：在途守卫——回车同时触发 el-form submit 与 keyup.enter（按钮 :loading 拦不住键盘），
+  // 无守卫时同码并发提交两次：第一份已消费、第二份报错，看起来像「验证失败」
+  if (loading.value) return
   const cd = code.value.trim()
   if (!/^\d{6}$/.test(cd)) {
     error.value = t('stepup.codeFormat')

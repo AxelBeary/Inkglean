@@ -28,13 +28,15 @@
  *   回退全量刷新——向后兼容，未改造的消费者行为不变
  *
  * 硬规则：
- * - 失败只暴露不中断（issue #52-5：refreshError 可见，不再静默吞掉整批失败）
+ * - 失败只暴露不中断（issue #52-5：refreshError 可见，不再静默吞掉整批失败）；
+ *   #62 尾巴清收：失败连发开始时另弹一次用户可见提示（连续失败不刷屏，恢复后重置）
  * - 防重入（多张图同时 error 合并为一次批量刷新）
  * - @error 触发的刷新加 300ms 防抖 + 每图最大重试 2 次
  * - 定时刷新不受重试上限限制（定期兜底不应被阻断）
  * - onUnmounted 自动清理定时器和防抖计时器
  */
 import { ref, onUnmounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import { artistApi } from '../api/index'
 
 // G1：后端签名 TTL 已缩至 5 分钟（file-sign.ts FILE_TTL_MS），间隔/阈值同步压缩并 export 做口径哨兵。
@@ -47,6 +49,22 @@ export const VISIBLE_REFRESH_THRESHOLD_MS = 2 * 60 * 1000
 // #52-5：服务端 refresh-signatures 的 paths 上限是 maxItems:50（server/src/features/order/order-list.routes.ts），
 // 整批超限会被 400 拒掉——长列表一次收集上百张图时全量刷新会整体失效，故按上限分片。
 export const SIGNATURE_REFRESH_BATCH_SIZE = 50
+
+// 可选第 6 件（#62 尾巴清收·跨实例补丁）：OrderDetail 主页与其内嵌 PreviewPanel 同屏各持一个
+// 实例，同一次网络故障两实例几乎同时各弹一条相同文案的 warning。模块级标志挡掉第二条；
+// 任一实例刷新成功即复位——单实例「失败连发只弹一次、恢复重置」语义不变
+//（单实例视角下，标志的置位/复位窗口与自身 refreshError 非空窗口逐点重合）。
+// WEB-01（debug-swarm 11-24）：标志原本只随「有实例成功」复位、随页面卸载不清，生命周期是
+// 整个 JS 模块而非「同屏实例组」——A 页离线失败置位后保持离线、路由到 B 页新实例首次失败
+// 被吞。补活跃实例计数：归零（旧页面全部卸载、同屏实例组解体）即清标志，B 页首败照常提示。
+let crossInstanceWarned = false
+let activeInstances = 0
+
+/** 仅供测试：复位跨实例去重标志与活跃实例计数（模块级状态会跨用例泄漏，warning 断言用例的 beforeEach 须复位） */
+export function __resetCrossInstanceWarnForTest(): void {
+  crossInstanceWarned = false
+  activeInstances = 0
+}
 
 /**
  * 从签名 URL 取出存储路径（/uploads/<path>?sig=... → <path>）；非上传 URL 返回 null。
@@ -69,6 +87,10 @@ export function useSignatureRefresh({ collect, apply, onSkipped, intervalMs = DE
   /** 换签请求（默认画师端 refresh-signatures；客户查单页注入 track 版端点，响应同形 { urls, skipped? }） */
   request?: (paths: string[]) => Promise<{ urls: Record<string, string>; skipped?: string[] }>
 }) {
+  activeInstances++ // WEB-01：记录同屏活跃实例组规模；归零时清跨实例去重标志（见 onUnmounted）
+  // TASK2-05：实例级卸载闸门。在途 doRefresh 的 await 恢复后必须止步，否则卸载页的过期失败
+  // 会重新置位 crossInstanceWarned 并弹 toast，吞掉新页面实例的首次失败警告（反噬 WEB-01）。
+  let unmounted = false
   let refreshing = false
   let debounceTimer: number | null = null
   let lastRefreshAt = Date.now()
@@ -99,17 +121,51 @@ export function useSignatureRefresh({ collect, apply, onSkipped, intervalMs = DE
       for (let i = 0; i < targets.length; i += SIGNATURE_REFRESH_BATCH_SIZE) {
         const chunk = targets.slice(i, i + SIGNATURE_REFRESH_BATCH_SIZE)
         const res = await request(chunk)
+        // TASK2-05：await 恢复后先确认本实例仍挂载——卸载后不写响应式数据、不回调页面
+        if (unmounted) return
         apply(res.urls)
         // 失效路径（画师关开关/删图）：交给页面摘掉对应图，避免留一张 403 裂图
         if (res.skipped && res.skipped.length > 0) onSkipped?.(res.skipped)
         done = i + chunk.length
       }
+      if (unmounted) return // 卸载后的成功回执不得复位跨实例标志（新页可能已置位）
       lastRefreshAt = Date.now() // 只按成功刷新计时（失败不推迟补刷）
       refreshError.value = null
+      // 可选第 6 件：跨实例去重标志随「有实例恢复成功」复位（单实例等价于原「恢复重置」语义）；
+      // 另一复位入口在 onUnmounted——活跃实例归零（离开页面）时清标志，见 WEB-01
+      crossInstanceWarned = false
       for (const p of targets) errorRetries.delete(p) // 刷新成功 → 清除该图计数
     } catch (err) {
+      // TASK2-05：卸载后的在途失败一律止步——不置模块标志、不弹过期 toast、不动重试计数；
+      // 由 finally 收回 refreshing 即可，跨页首败警告的槽位留给新实例。
+      if (unmounted) return
       // #52-5: 失败即停止后续分片，但把失败暴露出去（原实现整段静默）
+      // #62 尾巴清收：refreshError 只是「暴露」，全仓无页面消费它仍不可见——分片失败整批停后，
+      // 用户只看到裂图毫无解释。失败连发开始时弹一次可见提示：3 分钟定时仍在重试，
+      // 连续失败不重复刷屏；恢复成功（refreshError 清空）后下轮失败才会再提示。
+      // i18n 动态引用不 await：首次加载 locale 模块是真实 IO，await 会让 refreshing 守卫
+      // 卡在模块加载上、阻塞后续 @error 补刷；挂到 .then 链上失败回落原始文案（同 http.ts 口径）。
+      const becameFailure = refreshError.value === null
       refreshError.value = err
+      // 可选第 6 件（跨实例去重）：本实例是「失败连发开始」，但同屏另一实例已弹过相同文案 → 不再弹；
+      // 标志照常置位（顺带吞掉第三实例的同步首败），直到任一实例恢复成功才复位
+      const shouldWarn = becameFailure && !crossInstanceWarned
+      if (becameFailure) crossInstanceWarned = true
+      if (shouldWarn) {
+        void import('../i18n/index')
+          .then(({ i18n }) => {
+            // TASK2-05：i18n 动态 import 是真实 IO，若加载期间页面已卸载，不再弹过期 toast
+            if (unmounted) return
+            ElMessage.warning(i18n.global.t('common.networkError'))
+          })
+          .catch(() => {
+            if (unmounted) return // TASK2-05：兜底文案同样不给已卸载页面弹
+            // i18n 加载失败时的兜底（http.ts:154 同款回落）——i18n 不可用便无法 t()，
+            // 只能给原始文案；走变量赋值而非 ElMessage 直参字面量，同 http.ts 不入 check-i18n 的 message-en 规则
+            const fallback = 'Network error, please try again later'
+            ElMessage.warning(fallback)
+          })
+      }
       if (fromError) {
         // BUG-5：按图累加，超限后仅该图不再重试，其他图不受影响
         for (const p of targets.slice(done)) errorRetries.set(p, (errorRetries.get(p) || 0) + 1)
@@ -148,9 +204,14 @@ export function useSignatureRefresh({ collect, apply, onSkipped, intervalMs = DE
   const timer = setInterval(() => doRefresh(), intervalMs)
   document.addEventListener('visibilitychange', onVisibilityChange)
   onUnmounted(() => {
+    unmounted = true // TASK2-05：先关闸门，再清定时器/计数；在途 doRefresh 恢复后据此止步
     clearInterval(timer)
     if (debounceTimer != null) clearTimeout(debounceTimer)
     document.removeEventListener('visibilitychange', onVisibilityChange)
+    // WEB-01：实例组解体（最后一个活跃实例卸载）→ 清跨页面去重标志。
+    // 这样 A 页离线失败置位后，路由到 B 页（A 已卸载）新实例的首次失败仍能弹出可见警告。
+    activeInstances = Math.max(0, activeInstances - 1)
+    if (activeInstances === 0) crossInstanceWarned = false
   })
 
   return { refreshNow, refreshError }

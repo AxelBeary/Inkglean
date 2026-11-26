@@ -191,7 +191,7 @@ describe('SRV-13: 幂等缓存过期行残留主键——upsert 修复', () => {
       'SELECT status_code, response_json FROM idempotency_keys WHERE scope = ? AND key = ?'
     ).get(scope, key) as { status_code: number; response_json: string }
     expect(row.status_code).toBe(200)
-    // F0134：缓存列已加密，解封后比对（明文不再落库）
+    // F0134：新写入的缓存行为 enc:v1 信封（旧明文行仅兼容读）
     expect(row.response_json).toMatch(/^enc:v1:/)
     expect(JSON.parse(unsealIdempotencyResponse(row.response_json, scope, key))).toEqual({ fresh: true })
   })

@@ -26,7 +26,8 @@ vi.mock('element-plus', () => ({
 
 vi.mock('../../api/index.js', () => ({
   artistPublicApi: {
-    getProfile: () => Promise.resolve({ subdomain: 'alice', rules: '' }),
+    // #65：提交时二次校验接单状态会现拉一次画像——mock 必须带契约恒有的 status 字段
+    getProfile: () => Promise.resolve({ subdomain: 'alice', rules: '', status: 'open' }),
     getWorkflow: () => Promise.resolve({ stages: [] }),
     getPricing: () => Promise.resolve({ styles: [], installments: [], discountEnabled: false }),
     getPublicStyles: () => Promise.resolve([]),

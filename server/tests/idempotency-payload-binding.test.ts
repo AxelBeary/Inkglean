@@ -54,9 +54,9 @@ describe('幂等键绑定请求载荷（#21-3）', () => {
 
     expect(c.calls).toBe(1)
     const row = readRow('payment:2', 'k-mix')
-    // F0134：同一行仍是首次响应的内容（信封化后需解封比对）
+    // F0134：落库为 enc:v1 信封，解封后才是原响应体
     expect(row?.response_json).toMatch(/^enc:v1:/)
-    expect(JSON.parse(unsealIdempotencyResponse(row!.response_json, 'payment:2', 'k-mix'))).toEqual({ seq: 1 })
+    expect(unsealIdempotencyResponse(row!.response_json, 'payment:2', 'k-mix')).toBe(JSON.stringify({ seq: 1 }))
     expect(row?.request_hash).toBe(hashIdempotencyPayload({ amountCents: 1000 }))
   })
 

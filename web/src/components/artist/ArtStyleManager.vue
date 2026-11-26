@@ -366,12 +366,16 @@ async function setSizeStatus(style: ManagerStyleRow, size: ManagerSizeRow, value
 
 /** 02H 单选约束（用户原话「用途、加急分别只能选一个」）：启用目标 usage/rush 时，同画风其他同类项 is_enabled=false
  * 返回 setStyleAddons items（含目标项 is_enabled=true + 其他同类 false）；增项类(add)不互斥 */
-function mutexAddonItems(style: ManagerStyleRow, targetSa: { id: number; addon_template_id: number; template_category?: string | null; is_enabled?: number | boolean }) {
+function mutexAddonItems(style: ManagerStyleRow, targetSa: { id: number; addon_template_id: number | null; template_category?: string | null; is_enabled?: number | boolean }) {
   const cat = addonCategory(targetSa)
   if (cat === 'add') return null
-  const items = style.addons.filter(sa => sa.id !== targetSa.id && addonCategory(sa) === cat && !!sa.is_enabled)
-    .map(sa => ({ addon_template_id: sa.addon_template_id, is_enabled: false }))
+  // F0190/F0191：孤儿行（模板已删、addon_template_id=null）不能把 null 当模板 id 回传。
+  // 只停用同类里有真实模板 id 的行；孤儿目标行由尺寸级 setSizeOverrides（行 id sa.id）启用。
+  const items = style.addons
+    .filter(sa => sa.id !== targetSa.id && sa.addon_template_id != null && addonCategory(sa) === cat && !!sa.is_enabled)
+    .map(sa => ({ addon_template_id: sa.addon_template_id as number, is_enabled: false }))
   if (!items.length) return null
+  if (targetSa.addon_template_id == null) return items
   return [{ addon_template_id: targetSa.addon_template_id, is_enabled: true }, ...items]
 }
 
@@ -516,15 +520,18 @@ async function onDropToSize(style: ManagerStyleRow, size: ManagerSizeRow, _e: Dr
         .filter(m => m.addon_template_id !== sa.addon_template_id)
         .map(m => ({ addon_template_id: m.addon_template_id, is_enabled: true }))
       // F0196: 只恢复同类项而不处理原本停用的目标项，会让它与恢复的同类项同时启用，破坏用途/加急单选约束
-      if (!targetWasEnabled && mutex.some(m => m.addon_template_id === sa.addon_template_id && m.is_enabled)) {
+      // F0190/F0191：孤儿目标行 addon_template_id=null 不进回滚载荷（本就未改其画风级状态）
+      if (!targetWasEnabled && sa.addon_template_id != null && mutex.some(m => m.addon_template_id === sa.addon_template_id && m.is_enabled)) {
         mutexRestore.push({ addon_template_id: sa.addon_template_id, is_enabled: false })
       }
       for (const m of mutex) {
         const other = style.addons.find(x => x.addon_template_id === m.addon_template_id)
         if (other) other.is_enabled = !!m.is_enabled
       }
-    } else if (!sa.is_enabled) {
+    } else if (!sa.is_enabled && sa.addon_template_id != null) {
       // WEB-06 ③：add 类画风级已停用 → 先启用自身（画风级），再走下方尺寸级覆盖
+      // F0190/F0191：孤儿行 addon_template_id=null 不能走 setStyleAddons（其载荷只认模板 id），
+      // 跳过画风级写入，直接由下方 setSizeOverrides（行 id sa.id）完成该尺寸的启用。
       const items = [{ addon_template_id: sa.addon_template_id, is_enabled: true }]
       await artistApi.setStyleAddons(style.id, items)
       selfEnableRestore = { addon_template_id: sa.addon_template_id }

@@ -41,6 +41,8 @@ export interface InviteCodeRow {
   created_at: string
   max_uses: number
   use_count: number
+  /** ab263dd1 方案 A：签发时绑定的目标 QQ（v83）；NULL=存量码/通用码，任意 QQ 可注册 */
+  qq_number: string | null
 }
 
 /** 管理端列表行（LEFT JOIN 最近使用人） */
@@ -99,8 +101,9 @@ function generateOneCode(): string {
  * @param validDays 1-30，默认 3
  * @param maxUses 每码可用次数 1-100，默认 1（一次性，旧语义不变）
  * @param createdBy 管理员画师 id
+ * @param boundQq ab263dd1 方案 A：签发绑定的目标 QQ（5-15 位数字）；null/省略=通用码（旧语义不变）
  */
-export function generateInviteCodes(count: number, validDays: number = INVITE_DEFAULT_VALID_DAYS, maxUses: number = 1, createdBy: number | null = null): InviteCodeRow[] {
+export function generateInviteCodes(count: number, validDays: number = INVITE_DEFAULT_VALID_DAYS, maxUses: number = 1, createdBy: number | null = null, boundQq: string | null = null): InviteCodeRow[] {
   if (!Number.isInteger(count) || count < 1 || count > INVITE_BATCH_MAX) {
     throw new AppError(E.VALIDATION, 400, { field: 'count', hint: `count 须为 1-${INVITE_BATCH_MAX} 的整数` })
   }
@@ -110,13 +113,18 @@ export function generateInviteCodes(count: number, validDays: number = INVITE_DE
   if (!Number.isInteger(maxUses) || maxUses < 1 || maxUses > INVITE_MAX_USES_MAX) {
     throw new AppError(E.VALIDATION, 400, { field: 'maxUses', hint: `maxUses 须为 1-${INVITE_MAX_USES_MAX} 的整数` })
   }
+  // ab263dd1 方案 A：绑定 QQ 须为 5-15 位数字（与注册入口 qqNumber schema 同口径）；null=通用码
+  const boundQqNorm = boundQq == null || boundQq === '' ? null : boundQq.trim()
+  if (boundQqNorm !== null && !/^\d{5,15}$/.test(boundQqNorm)) {
+    throw new AppError(E.VALIDATION, 400, { field: 'qqNumber', hint: 'qqNumber 须为 5-15 位数字' })
+  }
 
   // 过期时间统一 ISO 8601（UTC），service 层用 JS Date 比较
   const expiresAt = new Date(Date.now() + validDays * 24 * 60 * 60 * 1000).toISOString()
 
   return db.transaction((): InviteCodeRow[] => {
     const insert = db.prepare(
-      'INSERT INTO invite_codes (code, status, expires_at, created_by, max_uses) VALUES (?, ?, ?, ?, ?)'
+      'INSERT INTO invite_codes (code, status, expires_at, created_by, max_uses, qq_number) VALUES (?, ?, ?, ?, ?, ?)'
     )
     const rows: InviteCodeRow[] = []
     // 去重集合：一次请求内不允许出现重复码（crypto 冲突概率极低，仍防御）
@@ -129,7 +137,7 @@ export function generateInviteCodes(count: number, validDays: number = INVITE_DE
         if (++guard > 20) throw new AppError('INTERNAL', 500)
       }
       seen.add(code)
-      const result = insert.run(code, 'unused', expiresAt, createdBy, maxUses)
+      const result = insert.run(code, 'unused', expiresAt, createdBy, maxUses, boundQqNorm)
       rows.push({
         id: Number(result.lastInsertRowid),
         code,
@@ -140,7 +148,8 @@ export function generateInviteCodes(count: number, validDays: number = INVITE_DE
         used_at: null,
         created_at: '',
         max_uses: maxUses,
-        use_count: 0
+        use_count: 0,
+        qq_number: boundQqNorm
       })
     }
     return rows
@@ -278,6 +287,13 @@ export function registerWithInvite(params: InviteRegisterParams): InviteRegister
     // 1. 校验邀请码（失败与码不存在同响应 INVITE_INVALID，防枚举）
     const codeRow = validateInviteCode(code)
 
+    // ab263dd1 方案 A（归属校验）：签发绑定的 QQ 必须与申领 QQ 完全一致。
+    //   复用 INVITE_INVALID（同码同文案）防枚举——绑定码持码者即受众，不匹配只会是填错或冒用，
+    //   不泄露「码是否存在/绑定谁」。未绑定码（qq_number NULL，含全部存量码）保持旧语义不拦。
+    if (codeRow.qq_number && codeRow.qq_number !== qqNumber) {
+      throw new AppError(E.INVITE_INVALID, 400)
+    }
+
     // 2. 子域名格式 + 身份码（= 子域名大写，与 artistService.createArtist 同口径；823 规则对齐批：去连字符）
     if (!/^[a-z0-9]{2,20}$/.test(subdomain)) {
       throw new AppError(E.SUBDOMAIN_FORMAT)
@@ -287,71 +303,47 @@ export function registerWithInvite(params: InviteRegisterParams): InviteRegister
       throw new AppError(E.CODE_FORMAT)
     }
 
-    // 3. QQ 唯一性 + 空壳账号判定：该 QQ 名下若为「从未完成 TOTP 绑定」的空壳账号
-    //    （totp_verified=0 且 totp_secret IS NULL 且未删除未封禁），允许用新邀请码推倒重来；
-    //    P0-1 修复（2026-09-17）：加 totp_secret IS NULL 条件——已生成过密钥的号不再是空壳，
-    //    防止攻击者持他人 QQ + 新邀请码覆盖已注册但未确认的账号。
-    //    其余情况（已验证/已删除/已封禁）维持 QQ_TAKEN。
-    const existingQq = db.prepare('SELECT * FROM artists WHERE qq_number = ?').get(qqNumber) as Artist | undefined
+    // 3. QQ 唯一性（ab263dd1 方案 C：空壳禁覆盖）
+    //   历史三次同类返工的根因是「只查重不校验归属」——持新邀请码 + 他人 QQ 即可覆盖邀请流程
+    //   自产的空壳行、重生成自己控制的 TOTP。归属证明无法从现有字段推导，故按拍板方案 C：
+    //   **任何已存在的 QQ 行一律 QQ_TAKEN，不再有「空壳覆盖/推倒重来」路径**（含被 reset 的空壳）。
+    //   合法「reset 后重推倒重来」改走管理员找回/重置通道（admin-artist-security.routes.ts 的
+    //   totp/reset + bind-init/bind-confirm，复用既有 resetTotp，零新增端点）；运营成本需运营 SOP 承接。
+    //   对外统一 QQ_TAKEN（同码同文案），与「QQ 已被注册」不可区分，不新增枚举 oracle。
+    const existingQq = db.prepare('SELECT id FROM artists WHERE qq_number = ?').get(qqNumber) as { id: number } | undefined
 
     // GHSA-6pf3 修复①（最高优先·管理员全面接管窗口）：管理员 QQ 一律禁止走邀请注册。
-    //   风险：管理员若曾自助 reset（resetTotp → totp_secret=NULL/verified=0），其行会落入上面的
-    //   「空壳」判定被邀请码原地覆盖（保 artist_id）；覆盖后攻击者完成首绑即持有 qq_number==admin_qq
-    //   的账号，经 requireAdmin 动态判定（shared/middleware/auth.ts）拿下全平台管理接口。
-    //   即便 admin_qq 已配置但库中暂无对应行，也应拒绝（否则会 INSERT 出一个 admin QQ 的新画师，同样接管）。
-    //   对外响应复用 QQ_TAKEN（同码同文案同 detail），与「QQ 已被注册」不可区分，不新增枚举 oracle。
+    //   即便 admin_qq 已配置但库中暂无对应行，也应拒绝（否则会 INSERT 出一个 admin QQ 的新画师，经
+    //   requireAdmin 动态判定拿下全平台）。复用 QQ_TAKEN 与「QQ 已被注册」不可区分，不新增 oracle。
     //   位置在 validateInviteCode 之后：无效码无论配何 QQ 都先命中 INVITE_INVALID，不泄露管理员 QQ。
     if (qqNumber === getAdminQq()) {
       throw new AppError(E.QQ_TAKEN, 400, { qqNumber })
     }
-
-    // GHSA-6pf3 修复②（高·预建画师号接管）：收紧空壳覆盖语义——只允许覆盖「邀请流程自产」的行。
-    //   artistService.createArtist 不写 totp_secret（artist-account.service.ts），管理员预建号天然满足
-    //   「空壳」三条件，旧逻辑下攻击者持该号 QQ + 任一新邀请码即可原地覆盖（保 artist_id）接管预建画师号。
-    //   判据：invite_code_uses 有该 artist 记录 = 确由 registerWithInvite 事务入库（含「受邀入驻后被 reset
-    //   需重推倒重来」的合法场景，该记录永不删）；无记录 → 属管理员预建/他源，拒绝覆盖，按 QQ_TAKEN
-    //   回（与「QQ 已被注册」不可区分）。合法首次邀请入驻走 INSERT 分支，不受本约束影响。
-    const shellCandidate = existingQq && !existingQq.totp_verified && !existingQq.totp_secret && !existingQq.deleted_at && !existingQq.is_banned
-      ? existingQq
-      : undefined
-    const shell = shellCandidate && db.prepare('SELECT id FROM invite_code_uses WHERE artist_id = ?').get(shellCandidate.id)
-      ? shellCandidate
-      : undefined
-    if (existingQq && !shell) {
+    if (existingQq) {
       throw new AppError(E.QQ_TAKEN, 400, { qqNumber })
     }
 
-    // 身份码/子域名碰撞：与空壳自身相同合法（覆盖复用），与其他账号冲突照旧报错（避免 UNIQUE 约束 500）
+    // 身份码/子域名碰撞：方案 C 已无覆盖分支，任何同名冲突都直接报错（避免 UNIQUE 约束 500）
     const existingCode = db.prepare('SELECT id FROM artists WHERE artist_code = ?').get(artistCode) as { id: number } | undefined
-    if (existingCode && existingCode.id !== shell?.id) {
+    if (existingCode) {
       throw new AppError(E.CODE_TAKEN, 400, { code: artistCode })
     }
     const existingSub = db.prepare('SELECT id FROM artists WHERE subdomain = ?').get(subdomain) as { id: number } | undefined
-    if (existingSub && existingSub.id !== shell?.id) {
+    if (existingSub) {
       throw new AppError(E.SUBDOMAIN_TAKEN, 400, { subdomain })
     }
 
-    // 4. 建号 / 覆盖空壳（status='hidden'：CHECK 约束无 'closed' 值，与 REQ-038 管理员建号同口径，
-    //    hidden = 不上客户端目录；画师登录后自己开启）
-    let artistId: number
-    if (shell) {
-      // 空壳覆盖：不删行重建（保留 id），bio 置空、状态回 hidden；
-      // commission_rules/默认工作流在空壳建号时已写入，不重复初始化。
-      db.prepare(`
-        UPDATE artists SET name = ?, subdomain = ?, artist_code = ?, bio = NULL, status = 'hidden' WHERE id = ?
-      `).run(name, subdomain, artistCode, shell.id)
-      artistId = shell.id
-    } else {
-      const result = db.prepare(`
-        INSERT INTO artists (qq_number, name, subdomain, artist_code, bio, status)
-        VALUES (?, ?, ?, ?, ?, 'hidden')
-      `).run(qqNumber, name, subdomain, artistCode, null)
-      artistId = Number(result.lastInsertRowid)
+    // 4. 建号（status='hidden'：CHECK 约束无 'closed' 值，与 REQ-038 管理员建号同口径，
+    //    hidden = 不上客户端目录；画师登录后自己开启）。方案 C 下恒为 INSERT，无覆盖分支。
+    const result = db.prepare(`
+      INSERT INTO artists (qq_number, name, subdomain, artist_code, bio, status)
+      VALUES (?, ?, ?, ?, ?, 'hidden')
+    `).run(qqNumber, name, subdomain, artistCode, null)
+    const artistId = Number(result.lastInsertRowid)
 
-      // 初始化空的约稿须知 + 默认工作流（与 artistService.createArtist 三步写入对齐）
-      db.prepare('INSERT INTO commission_rules (artist_id, content) VALUES (?, ?)').run(artistId, '')
-      seedArtistStages(artistId)
-    }
+    // 初始化空的约稿须知 + 默认工作流（与 artistService.createArtist 三步写入对齐）
+    db.prepare('INSERT INTO commission_rules (artist_id, content) VALUES (?, ?)').run(artistId, '')
+    seedArtistStages(artistId)
 
     // 5. 生成 TOTP 密钥并写入（未验证；totp-confirm 后置 verified=1 并签发会话）
     const totpSecret = generateSecret()

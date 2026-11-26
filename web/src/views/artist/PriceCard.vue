@@ -27,7 +27,7 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { PriceCard as PriceCardCore } from '@inkglean/shared'
+import { PriceCard as PriceCardCore, downloadBlob } from '@inkglean/shared'
 import type { PriceCardDraft, PriceCardArtwork, ImportedTier } from '@inkglean/shared'
 import { safeGetItem, safeSetItem } from '../../utils/storage'
 import { copyText as copyToClipboard } from '../../utils/clipboard'
@@ -75,15 +75,12 @@ function onNotify({ kind, text }: { kind: 'success' | 'warning' | 'error' | 'inf
   ElMessage[kind](text)
 }
 
-// ─── 导出：原 anchor 下载逻辑（URL.createObjectURL + a.click + revoke） ───
-function onExportPng({ blob, filename }: { blob: Blob; filename: string }) {
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  // F0299: 延迟 revoke——同步撤销可能在浏览器真正读取 blob 前释放 URL，取消下载
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+// ─── 导出：anchor 下载链路收口 @inkglean/shared（尾巴批 pr-review-20261123：三处同型收口，延迟 revoke 口径不变） ───
+async function onExportPng({ blob, filename }: { blob: Blob; filename: string }) {
+  // F0299 原修复语义（延迟 revoke 防同步注销取消下载）由 downloadBlob 承接；
+  // SHR-02：按回执反馈，下载链路异常不再静默无提示
+  const res = await downloadBlob(blob, filename)
+  if (!res.ok) ElMessage.error(t('priceCard.exportFailed'))
 }
 
 // ─── 作品库例图：组件已自开弹窗，宿主只管取数并组好 src 直载地址回灌 ───

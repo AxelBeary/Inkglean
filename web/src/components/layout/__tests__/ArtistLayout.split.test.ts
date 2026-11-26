@@ -196,11 +196,12 @@ describe('F-09 拆分后 ArtistLayout 菜单可达性', () => {
   })
 
   it('角标注入仍走父页 menuGroups（留言/订单 pending 数穿过注册表生效）', async () => {
+    // F0182 返工连带适配（尾巴批）：角标不再全量翻页、改为单请求 {status:'pending', pageSize:1} 取 total
     h.getMessages.mockResolvedValue({
-      items: [{ id: 1, status: 'pending' }, { id: 2, status: 'approved' }, { id: 3, status: 'pending' }],
-      total: 3,
+      items: [{ id: 1, status: 'pending' }],
+      total: 2,
       page: 1,
-      pageSize: 100
+      pageSize: 1
     })
     h.getStats.mockResolvedValue({ pendingCount: 4 })
     const wrapper = mountLayout()
@@ -210,6 +211,7 @@ describe('F-09 拆分后 ArtistLayout 菜单可达性', () => {
     expect(flat.find(i => i.index === '/guestbook')?.badge).toBe(2)
     expect(flat.find(i => i.index === '/orders')?.badge).toBe(4)
     expect(vm.pendingMsgCount).toBe(2)
+    expect(h.getMessages).toHaveBeenCalledWith({ page: 1, pageSize: 1, status: 'pending' })
   })
 })
 

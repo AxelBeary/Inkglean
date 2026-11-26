@@ -45,7 +45,7 @@
         />
       </div>
       <div class="form-actions">
-        <el-button type="primary" :loading="saving" @click="publish">{{ $t('announcement.admin.publish') }}</el-button>
+        <el-button type="primary" :loading="saving" :disabled="!loaded" @click="publish">{{ $t('announcement.admin.publish') }}</el-button>
         <span v-if="publishedAt" class="published-at">{{ $t('announcement.updatedAt', { time: publishedAt }) }}</span>
       </div>
     </div>
@@ -64,6 +64,9 @@ const form = reactive<{ title: string; content: string }>({ title: '', content: 
 const saving = ref(false)
 const publishedAt = ref<string | null>(null)
 const loadFailed = ref(false)
+// B7-F0282：首次回显完成标记——回显未落地前表单是空的，发布会把现有公告清成 null
+// （既有 loadFailed 横幅只拦失败态，拦不住「加载中」这段窗口）
+const loaded = ref(false)
 
 /** 回显当前公告（管理员也是画师登录态，复用画师侧 GET）；失败明示+重试，不静默 */
 async function load() {
@@ -73,16 +76,21 @@ async function load() {
     form.content = current?.content ?? ''
     publishedAt.value = current?.updatedAt ?? null
     loadFailed.value = false
+    loaded.value = true
   } catch {
     loadFailed.value = true
+    loaded.value = false
   }
 }
 
 async function publish() {
   // 未加载成功禁止发布：否则可能用空表单覆盖现有公告
-  if (loadFailed.value) {
-    ElMessage.error(t('common.networkError'))
-    await load()
+  // B7-F0282：回显未完成（含在途）同样禁止——按钮已 :disabled，此处是键盘/程序调用的纵深防御
+  if (!loaded.value) {
+    if (loadFailed.value) {
+      ElMessage.error(t('common.networkError'))
+      await load()
+    }
     return
   }
   saving.value = true

@@ -296,6 +296,10 @@ export interface OrderTrackResult {
   finalPriceCents: number | null
   paidTotalCents: number
   installments: OrderInstallment[]
+  /** F0314：下期应付（分）——服务端 deriveInstallmentProgress 权威口径（首个 remainingCents>0 节点，
+   *  partial 时为其剩余；全付清为 0）。M-3：无节点（buffer 订单正常长期态）下发 null，
+   *  前端回退订单级待收；字段缺失（旧后端）亦回退 legacy 自算。 */
+  nextDueCents?: number | null
   payments: ClientPayment[]
   deadline: string | null
   queueZone: string

@@ -1,29 +1,109 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 看板（2026-11-23 存量 PR 批量合入 + 拍板落地 + 归档批；十九道全绿）
+## 2026-11-27 会话交接（发版与安全公告未完成，**接手先读这条**）
 
-- **HEAD**：`3ce3ad9a` = GitHub 存量 7 条 PR 批量合入（#100/#103/#104/#105/#101/#99/#102，逐条审计后按冲突面排序；open PR 7→0）
-  - 门禁：`scripts/accept.ps1` 十九道全绿 @ `7118b53c`（356s；server 2105 / web 1308 / desktop 678 / shared 47 / E2E 15）；报告 `AGENTS/workspace/temp/accept-master-20261123-185506.md`
-  - 根因顺手修：`web/vitest.config.ts` 的 poolOptions 在 Vitest 4 静默失效（28 核 Windows 门禁假红）→ 顶层 `maxWorkers: 8`
-  - 总交接 `AGENTS/debug-swarm-20261122/HANDOFF.md`（116 子代理两轮风暴）；拍板材料 `AGENTS/拍板材料-20261123/DECISIONS.md`（7 项已用户确认「全部按建议执行」）
-- **基线**：`accept-baseline.json` 已同步（server 2105 / web 1308 / desktop 678 / shared 47 / e2e 15）；迁移 v82；cargo 39 另计
+- **当前基线（实测）**：master `1e45bc11`；迁移 v84；open issue 0 / open PR 0；版本 root 1.1.0 / desktop 0.1.0
+- 🔴 **发版卡在凭据**：`gh secret list` 与 `gh variable list` **均为空**，`desktop-release.yml` 硬性要求 4 项
+  - secret `TAURI_SIGNING_PRIVATE_KEY` / `_PASSWORD`；var `DESKTOP_UPDATE_PUBKEY` / `DESKTOP_UPDATE_BASE`
+  - 照做清单 `AGENTS/拍板材料-20261123/B8-照做清单.md`；**U33 流水线从未跑过，首跑需现场调**
+  - 用户已定版本：root **1.2.0** / desktop & tauri **0.2.0**（尚未落到文件）
+- 🔴 **安全公告未转公开，三个未决问题**（用户 11-27 指示可转开放，但核对后不能直接发）
+  - ① **公网版本存疑**：release 最新仍是 `v1.1.0`(10-28，落后 master 165 提交)，缺 v83/v84/sentry-privacy；需用户确认实际部署版本
+  - ② 现有 advisory `summary` 写「未修复」且 `patched_versions` 为空——直接发布会是错误公告
+  - ③ credits 挂 `Mistwhisker`，按 10-26 拍板「署名需报告者本人同意」，需本人确认
+  - **GHSA-6pf3 的 8 节已全部在 master 落地**（证据表见交接档 §四），修是修好了，只差公告口径
+- **建议顺序**：配凭据 → 改版本号+changelog+门禁 → 打 tag 首跑 U33 → 真机终验 → 1.2.0 发出后再改 advisory（summary/patched_versions=1.2.0/credits）→ 转公开
+- ⚠️ **工作区有他人未提交改动**（10 改 + 1 新增，全在 `web/` Passkey 域，02:39–02:52）：不得提交/不得 stash/不得回滚
+- **完整交接**：`AGENTS/pr-audit-20261126/HANDOFF.md`（自包含；本机 gitignore，清理后可能不存在）
+
+## 2026-11-27 #97/#98 收口批（v49 测试补齐 + E2E 回归接门禁）
+
+- **#97 迁移测试覆盖**：补 `server/tests/migration-v49.test.ts`（5 例）——v49 是 84 条迁移里唯一「noTransaction + 备份 + 种子」却零测试的重型重建
+  - 钉住四道真实防线：FK 未真关必须中止（v38 事故根因）/ 崩溃残留续 RENAME / 陈旧 `_new` 丢弃 / 幂等重跑
+  - 差分断言（全新库 ≡ v1 逐级升级库）**已由 `audit-batch-f-ddl-consistency` 覆盖**（表/列/外键/关键索引/CHECK 五层），无需新写
+- **#98 E2E 健壮性**：issue 点名的两处缺陷**早已修好**（F0050 健康检查超时抛错 / F0051 日志转发；端口预检 SCR-01、进程存活判断亦在位）
+  - 本次补的是真缺口：`e2e/scripts/*.regression.ts` 四个定向回归**此前无任何门禁或 CI 消费**——写了永远不跑等于没有防线
+  - 新增 `scripts/check-e2e-regressions.mjs` 单一入口（显式清单 + 未登记告警 + 失败输出原样带出），接两处：CI e2e job、`accept.ps1` 第二十道
+- **门禁口径变化**：`accept.ps1` 十九道 → **二十道**（新增 `e2e-regressions`，排在 Playwright 前做廉价失败），带 `-SkipE2E` 时十八道
+- **基线同步**：`accept-baseline.json` 2105→**2264**（顺带补上 #114/#115 合并后漏更新的 web 1390 / desktop 695 / shared 66）
+- **实跑**：server 199 文件 / **2264 例**、web 197 / 1390、eslint 0、oxlint 0、四道防阀全过
+- **未做（待发版批）**：#97 第 2 步「按版本号补 v51~v60 等批」属长尾覆盖，不影响该 issue 的验收标准（关键迁移有回归用例）
+
+## 2026-11-26 上游 PR #114/#115 合入收口（master = `354d2143`）
+
+- **合入链**：`9868e467`（#114 → master，解 STATUS 冲突）→ `354d2143`（#115 → master，审计补丁）
+- **HEAD**：`354d2143`；迁移 **v84**（#115 新增 `v84-drop-invite-codes-code-index`）；open PR 0
+- **CI**：两次合并后 master 均全绿（server / desktop / web / e2e / docker / file-size + 4 项 CodeQL）
+- **本机实跑（合并结果上）**：server 195/2236、web 197/1387、shared 9/60；四道防阀全过
+- **#114 的 STATUS 冲突**：我此前两次审计台账提交与 #114 看板重写撞同一文件
+  - 解法：两侧全部保留；两个审计段与 master 原文逐字一致、看板全文与 `002c7396` 逐字一致（221 行），仅删被取代的旧看板标题行
+- **#115 修复确认（合入后逐个复核）**：M-1 v36 判据 ✅ / M-2 查重 ✅ / M-3 useNextDueCents ✅ / M-5 sentry-privacy ✅ / B-1 前端分流 ✅ / v84 迁移 ✅
+- **#115 CI 触发处置**：fork 分支改 base 不重跑 CI → 用「merge master 进分支」（快进不改历史）触发，44 业务文件逐字未变
+  - 曾尝试 rebase，因会改写他人历史而弃用；合并方式为 no-ff merge，保 SUB 作者归属
+- **#107–#113**：早已是 MERGED 状态，无需关闭；当前 open PR 0
+- **遗留**：CodeQL `Analyze (rust)` 在最后一次推送时仍在跑（其余 9 项已 success）
+- 🔴 **发布前必读**：F0156 弱密钥判定会让低熵密钥的既有部署**升级即拒启**，发布说明必须写明
+
+## 2026-11-26 上游 PR #114 审计批（打回作者，未合入）
+
+- **对象**：上游 PR #114「2026-11-24 全量收口」，基线 `0b3c5db2` → head `002c7396`；173 文件 / +9835 −1107
+- **结论**：不宜按现状合并；已以 PR 评论打回作者（`#issuecomment-7187077610`），评论正文即逐条意见
+- **做法**：六路子代理分域审计（资金/迁移/鉴权/前端/桌面E2E/管理后台）+ 一号独立实测复现；全程只读，主工作区零改动
+- **门禁自报属实**：四端用例数逐项实跑对上（server 195/2236、web 197/1387、desktop 52/695、shared 9/60）
+  - 另核：file-size 631 文件豁免 0 / status-line 39 行过 / server+web typecheck 0 / e2e ERROR=0 WARN=2
+  - 口径：本次只判「自报是否属实」，不称门禁全绿（accept.ps1 十九道未跑，PR 未合入）
+- **BLOCKER 1 条**：F0108 反向归属校验 + 前端未接线 → 后台「画师专属特别日」文案新增/启停/删除三个动作全失效
+  - 实测：UI 路径 400；画师专属端点 200（能力在，接线错）；列表接口不区分归属，故「看得到、点不动」
+- **MAJOR 6 条**（前三条为本 PR 新引入）：
+  - **F0081 声称已根治、实测未根治**：v36 守卫拿 `art_styles` 当代理判据，F5 只建画风不建增项模板
+  - 后果：被 F5 补过画风的画师旧增项仍永久丢失且零告警（Control 搬 2 条 / Probe 搬 0 条）
+  - v36 重放不幂等：删画风后重放同名模板翻倍（资金侧重复计增项）
+  - F0314 nextDueCents 回归：缓冲订单「下期应付」¥0.00，与同屏「剩余 ¥200」矛盾（master 原本正确）
+  - 小票行金额与合计口径分裂 1 分差；F0179 令牌进 header 但 Sentry 不清 header；回收站 binPath 后端做了 UI 无入口
+- **已核实无问题**（返工时须保留）：`yuanToCents` 跨端 parity 2 万+ 组 0 不一致 / F0192 事务与归属 / F0200 路径穿越防护 / F0104 事务 / 迁移链与 schema 零差异 / test-tamper 抽查无改软断言
+- **留痕**：`docs/comms/evidence/证据-PR114上游审计批-20261126.md`（结论摘要）；详单与探针在 `AGENTS/pr-audit-20261126/`（仅本机）
+- **后续**：等作者按意见返工；合并前重审 B-1、「M-1 守卫判据」、M-3 三处（含测试同步）
+
+## 2026-11-26 上游 PR #115 复审批（通过，建议合并）
+
+- **对象**：PR #115「#114 审计意见补丁」，base `002c7396`（= #114 head）→ HEAD `c9df51d3`；44 文件 / +1162 −177
+- **结论**：**通过**；原 BLOCKER 1 + MAJOR 6 **全部实质解决**，已回执 PR 评论 `#issuecomment-7195825394`
+- **复跑口径**：用首轮审计那套**原始探针原样复跑**（不改探针不改断言），不采信自报
+  - M-1 v36 守卫 Probe 从搬 0 条 → 2 条（Control/Probe 一致）；M-2 重放从翻倍 → 仍 1 条
+  - M-3 nextDueCents 从误导 `0` → `null`（前端回退）；M-5 Sentry 7 种凭证清零、method/url 保留
+  - B-1 另做**组件级真挂载**验证（对方仅服务端模拟形态）：新增/启停/删除逐行按 `row.artist_id` 分流正确
+- **门禁实跑**：server 198/2259、web 197/1390、desktop 52/695、shared 9/66；typecheck 三端 0
+  - 另核：check:e2e ERROR=0 WARN=2 与基线一致 / file-size 635 文件豁免 0 / 用例只增不减
+- **两处正面确认**：修 v36 未改坏 F5（`migrate.ts` 不在 diff，两守卫各判各表取并集）；M-3 语义分档清楚
+- **遗留不阻断**：M-6 无组件级 payload 断言（已如实声明）/ order-client 注释滞后 / MINOR-8 F0156 需发布说明
+- 🔴 **合并顺序（硬）**：#115 base 是 #114 分支而非 master，须**先合 #114 再合 #115**，之后关 #107–#113
+- **留痕**：`docs/comms/evidence/证据-PR115复审批-20261126.md`；详单 `AGENTS/pr-audit-20261126/`（仅本机）
+
+
+## 看板（2026-11-24 最终收口态：origin/master=0b3c5db2；fork 集成 0ff41a5d 含 7 PR + 全部修复批；fork 内全绿、待统一推上游）
+
+- **HEAD**：`origin/master` = `0b3c5db2`（上游未前移）；fork 集成 `0ff41a5d` 含 7 PR + 8 施工/修复批 + 8 条 TASK2 闭合，待用户确认后统一推上游
+  - 本机无 pwsh/chromium/cargo/playwright：只报「CI + 本机等价门禁」，不得称十九道全绿；CI 四 job 为权威，十九道由 Windows 环境实跑
+- **本机等价门禁（t22 重签）**：server 194/2223 / web 197/1387 / desktop 52/693 / shared 9/60；18 道全过，台账 `AGENTS/gate-20261124-followup/GATE.md`
+- **PR 状态**：#107–#113 上游仍 OPEN；fork 内已集成、两红闭合，推上游顺序 #109 先于 #112（理由见下一步第 1 条）
+  - 两红已闭合：web 拆分 useOrderForm.ts 827→674 行；#112 为集成顺序 artifact，按 #109→#112 后 12/12；TASK2-01 资金高危另闭合
+- **基线**：`accept-baseline.json` server 2105 / web 1308 / desktop 678 / shared 47 / e2e 15；迁移 v82；cargo 39 另计
 - **发版**：v1.1.0（2026-10-28 稳交付·好管理版）；安装包 5.79MB/920 文件；说明见 `docs/changelog.md` 顶部
-- **拍板落地（2026-11-23）**：F0192 孤儿行跳过+告警 / F0200 边界照方案 / F0134 押后 B4 / ab263dd1 取 A+C / B8 手册已修（PUBKEY 构建期注入）/ 账号口径按实测 / 本归档批——全文见「已拍板规则」末条
-- **警报/issue**：open PR 0（#99–105 全合，fork 残留分支同日全清）；B 批 issue #96(B1)/#97(B3)/#98(B5) 公开待施工，B2/B4/B6/B7 走私密 GHSA；Code scanning 0 / Dependabot 0
-- **合并权口径**：`master-merge-gate` 的 bypass 名单只有 AxelBeary（`always`），该账号可自合/直推；Mistwhisker 仅 write、实测不可自合
-- **拟物收敛射程不变**（只限排期块 ScheduleScroll）；**GHSA-6pf3 已闭合**：披露处置＝维持私密不公开
-- 公网冻结现状不变；管理员判定只认库值
+- **拍板落地（2026-11-23）**：F0192 孤儿行跳过+告警 / F0200 边界照方案 / F0134 押后 B4 / ab263dd1 A+C / B8 手册已修 / 账号口径按实测——全文见「已拍板规则」末条
+- **警报/issue**：B1/B3/B4/B8 已落地 fork 集成；#96/#97/#98 仍公开待推，B2/B4/B6/B7 私密 GHSA；Code scanning 0 / Dependabot 0
+- **合并权口径**：`master-merge-gate` bypass 只有 AxelBeary（always），可自合/直推；Mistwhisker 仅 write、实测不可自合
+- **范围不变项**：拟物收敛只限排期块 ScheduleScroll；GHSA-6pf3 维持私密不公开；公网冻结现状不变；管理员判定只认库值
 - 🔴 **上线前置硬警告仍有效**：公网部署前必须先确认 `platform_config.admin_qq` 非空
 
 **下一步（按优先级）**
 
-1. **跨端 5 项落地批**（拍板已确认）：方案全文 `AGENTS/debug-swarm-20261122-followup/crossend/CROSSEND-PLAN.md`，按端拆批施工
-   - F0179 令牌走 header / F0192 增项事务端点（孤儿行＝跳过+告警）/ F0200 清理端点（既定边界）
-   - F0304 Watermark 签名刷新 / F0314 nextDueCents 下发
-2. **B8 用户配置（你的操作）**：密钥对 + Secrets/Variables + 真机终验——照做清单 `AGENTS/拍板材料-20261123/B8-照做清单.md`；ab263dd1 空壳 QQ 方案（A+C）随 B8 批实施
-3. **B 批逐批推进**：B4 支付批启动时并入 F0134 架构级重设；B1–B7 按披露推进（公开 issue #96/#97/#98，B2/B4/B6/B7 私密 GHSA）
-4. **登记未施工（沿旧）**：#61 10MB 静默 return / #62 分片失败整批停 / #65 提交时二次校验；待用户终验项沿旧（发布包真机、悬浮窗真机、桌面 768 分屏终验）
-5. **B8 代码侧遗留**：U33 发版流水线从未跑过（vars/secrets 配好前首版必红）；U26 tsx 生产依赖待拍板
+1. **推上游（待用户确认）**：fork 集成 `0ff41a5d` 已含 7 PR + 8 施工/修复批 + 8 条 TASK2 闭合；顺序 #109 先于 #112，全部准备好后统一推上游
+   - 口径：代理只 push fork、不 push origin、不提上游 PR；自包含交接档 `AGENTS/handoff-20261124/FOLLOWUP-DELIVERY.md`
+   - F0283 顺序订正：server 实现与 web 消费均在 #109；#112 仅新增 ?limit 回归测试，故须 #109 先合，反序必红 3 例
+2. **施工批覆盖**：B1 6 条 + B3 11 条 + B4 12 条（含 F0134 信封）+ B8 方案 A+C 与 U33；施工图 `AGENTS/handoff-20261124/PLAN-REMAINING.md`
+3. **两轮审计与扫描（摘要）**：第一轮 51 条（真缺陷 23）+ 第二轮 8 条（high 1 资金）全闭合；性能/体验 low 20+ 条带 F 注释落地；详情见 `AGENTS/debug-swarm-20261124-followup/`
+4. **B8 用户配置（你的操作）**：密钥对 + Secrets/Variables + 真机终验——照做清单 `AGENTS/拍板材料-20261123/B8-照做清单.md`
+5. **待用户终验/拍板**：发布包真机、悬浮窗、桌面 768 分屏、U33 流水线；F0180 剔除与否、方案 C 运营 SOP、TASK2-05 低危不可达观察
 
 **常驻纪律（事故换来的，不得退色）**
 
@@ -93,6 +173,11 @@
   - F0192 孤儿行口径＝服务端跳过模板级写入并告警，不 422 整批拒（孤儿行是存量脏数据，拒绝会卡死画师保存）；
   - F0200 清理端点边界＝requireAuth + 仅 `images/{artistId}/` 前缀 + 拒 `..` + maxItems 10 + 限流 30/10min + 幂等 + 不递归，前端只传本弹窗 staged 未提交路径；
   - F0134 令牌幂等缓存＝押后 B4 支付批做架构级重设（TC-D2-02 重放一致契约与明文令牌缓存冲突，小改必返工，F0137 已回退至同口径）；
+- B4 支付批 F0134 架构级重设落地（2026-11-24，fork 分支 fix/b4-money-20261124）：
+  - 方案＝幂等响应信封加密：response_json 写 AES-256-GCM `enc:v1:` 信封（SESSION_SECRET 域分离派生 + AAD 绑定 scope/key），零 migration；读侧解封后与首响逐字节一致，TC-D2-02/TC-CT-01 保绿。
+  - 纪律＝enc:v1 解密失败返回独立码 IDEMPOTENCY_ENVELOPE_INVALID 409（该提交可能已受理，保留原幂等键、禁止自动重提；如未确认联系客服），不删行不重执行；无前缀存量明文行才沿用旧 JSON.parse 失败删行分支。
+  - Accepted residual＝持 client UUID v4 幂等键 + 知 artist.id/QQ 者仍可 API 重放取回令牌（幂等契约本身要求，UUID 122bit 熵 + scope 绑定）；DB/备份静态明文已消除。
+  - 密钥运维＝不新增 env；SESSION_SECRET 轮换使 24h 内在途缓存不可解→同一独立 409（该提交可能已受理），保留原 key、禁止自动重提，联系客服核对订单/收款状态；无需迁移。
   - ab263dd1 空壳 QQ 归属＝方案 A（邀请码签发绑定目标 QQ，注册校验「码绑定==申领」）+ C（未完成首绑空壳行禁新码覆盖，走管理员找回）过渡；B 带外凭据不采；
   - 账号口径按实测：本机登录 Mistwhisker（AxelBeary 主仓 write / fork admin），旧「仅 AxelBeary 账号」表述作废；fork 残留分支已全清（2026-11-23）。
   - PR 合并口径订正：七 PR #99–105 由**本会话代理（登录 AxelBeary）**以 `gh pr merge --admin --rebase` 逐条合入，非网页人工点击；
@@ -101,6 +186,18 @@
   - 同源订正：`7118b53c`（vitest maxWorkers）与 `5c1c0aab`（看板/基线收口）亦由同一账号直推
     - 十九道 356s 为同一 Windows 主机实跑；合并后 CI 四 job + E2E + CodeQL 全绿 @ `3ce3ad9a`
     - 报告 `AGENTS/workspace/temp/accept-master-20261123-185506.md`
+- 施工批契约与待办登记（2026-11-24，六批 PR #107–#112 落地时拍板）：
+  - F0192 新端点契约形状＝PUT /api/artist/art-styles/:id/addon-settings，**身份键 styleAddonId**（style_addons 行 id）非模板 id——孤儿行 addon_template_id:null 无法靠模板 id 定位、模板 id 由服务端从行内读不信前端回传（F0190/F0191 根治口径）；
+  - F0179 二阶段待办：线上 track/delivery 404 曲线稳定后移除 query.token 回退，**须同步把 e10 e2e 裸 API 调用改走 header**（否则该用例全 404）；
+  - F0314 二阶段待办：服务端 nextDueCents 字段稳定后删除前端 legacyNextDueCents 回退；
+  - F0081/F0077 存量结论：旧增项表已随 v43/v50 拍板 DROP，已过该版本存量库不可恢复（修复仅防重蹈）；v24 首跑无真实资金丢失（派生值可从流水重算）；
+  - 行为变更知悉项：F0103 冻结模式改计价模式 400 拒绝（sync 放行）；F0110 回收站排序改路径字典序；F0283 留言仪表盘 limit=200；F0189 后 B6 弹窗打开需显式点生成（旧截图文案过时）。
+- R3-① v32 CHECK 收敛裁定（2026-11-24，③DB 席 review 修复批）：三条新增 CHECK 仅新装库/首次建表升级库具备，存量库不重建、不新增迁移号。
+  - 约束内容：discount_value>0 / max_uses>=0 / used_count>=0，属本轮新增 DDL 防御层；保留 REAL 双语义（percent/fixed 元，禁用 cents）。
+  - 存量口径：version=32 已被 migrate.ts 跳过、CREATE TABLE IF NOT EXISTS 不重建 → 存量库保持无 CHECK（预期，非缺陷）。
+  - 理由：discount.service.ts 已校验兜底；重建表（关 FK + 12 步搬运）对存量库风险高于收益。
+  - 口径固化：`audit-batch-f-ddl-consistency.test.ts` 加 CHECK 断言——新装/迁移链两路径均带三 CHECK、存量旧形无 CHECK 属预期；不新增迁移版本号。
+- R3-②/③ v83 索引守卫与留言排序（2026-11-24，③DB 席 review 修复批）：v83 幂等守卫改列+索引双判据（半态崩溃补建索引，保持 noTransaction 与备份顺序）；getAdminMessages 的 LIMIT 查询排序补 id DESC 作 tiebreaker（created_at 秒精度同秒并列稳定）。
 
 
 **起手必读**：开工第一件事＝读顶部看板 → 正文最新一块（📌）→ 拍板查「已拍板规则」→ `AGENTS.md`（事实源链与门禁口径）；碰桌面端再读 `desktop/docs/STATUS.md` 顶部，改桌面 UI 必跑 `huiyue-layout-audit` 自检循环（宿主级技能，VL 不可用时 measure.mjs + 人工清单）。

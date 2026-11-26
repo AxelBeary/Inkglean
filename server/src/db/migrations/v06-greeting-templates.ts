@@ -1,4 +1,4 @@
-import type { CountRow, MasterSqlRow, Migration } from './types.js'
+import type { ColumnInfo, CountRow, Migration } from './types.js'
 
 export const migration: Migration = {
   version: 6,
@@ -18,15 +18,15 @@ export const migration: Migration = {
     `)
     database.exec('CREATE INDEX IF NOT EXISTS idx_greeting_artist ON greeting_templates(artist_id, time_slot)')
     // 种子：通用库（artist_id = NULL）
-    // 817 问候重构：深夜档种子按现存表 CHECK 形态动态选档——
-    //   新装库：基线 schema 已是 v67 形态（含 midnight），直接种 midnight；
-    //   v1 基线升级路径：本迁移先建旧形表（只认 night），种 night，由 v67 搬家到 midnight。
-    const count = (database.prepare('SELECT COUNT(*) AS c FROM greeting_templates').get() as CountRow).c
-    if (count === 0) {
-      const tableSql = database.prepare(
-        "SELECT sql FROM sqlite_master WHERE type='table' AND name='greeting_templates'"
-      ).get() as MasterSqlRow | undefined
-      const nightSlot = tableSql && tableSql.sql.includes("'midnight'") ? 'midnight' : 'night'
+    // B3-F0073：原守卫用全局 COUNT——任一画师专属模板存在即跳过全部通用种子；
+    // 且用 sqlite_master.sql 文本匹配 'midnight' 选时段（DDL 字面量脆弱）。改为：
+    //   - 幂等判据按 artist_id IS NULL 的通用模板计数，不受画师专属模板干扰；
+    //   - 时段按「列存在性」判定新装/升级路径（新装基线含 special_day_id → midnight，
+    //     v1 基线升级路径本迁移刚建旧形表无该列 → night，由 v67 搬家），不碰 DDL 文本。
+    const globalCount = (database.prepare('SELECT COUNT(*) AS c FROM greeting_templates WHERE artist_id IS NULL').get() as CountRow).c
+    if (globalCount === 0) {
+      const cols = database.prepare('PRAGMA table_info(greeting_templates)').all() as ColumnInfo[]
+      const nightSlot = cols.some(c => c.name === 'special_day_id') ? 'midnight' : 'night'
       const insert = database.prepare(
         'INSERT INTO greeting_templates (artist_id, text, time_slot) VALUES (NULL, ?, ?)'
       )

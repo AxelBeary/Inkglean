@@ -62,16 +62,19 @@ export const migration: Migration = {
     }
     // 存量画师补种子（幂等）
     // 注意：v5 在 v7(deleted_at) 之前执行，不能引用 deleted_at 列
+    // B3-F0074：模板查询原先在逐画师循环内重复执行（N+1），现循环外预取一次复用。
+    // 模板表在本迁移种子段已写入且整个迁移不在循环内变动，提前取出与逐次取出结果一致。
+    const tpl = database.prepare('SELECT * FROM default_workflow_template ORDER BY sort_order ASC').all() as DefaultWorkflowTemplateRow[]
+    const ins = database.prepare(
+      'INSERT INTO artist_workflow_stages (artist_id, name, description, sort_order, takes_payment, basis_points) VALUES (?, ?, ?, ?, ?, ?)'
+    )
+    const countStmt = database.prepare(
+      'SELECT COUNT(*) AS c FROM artist_workflow_stages WHERE artist_id = ?'
+    )
     const artists = database.prepare('SELECT id FROM artists').all() as IdRow[]
     for (const a of artists) {
-      const count = (database.prepare(
-        'SELECT COUNT(*) AS c FROM artist_workflow_stages WHERE artist_id = ?'
-      ).get(a.id) as CountRow).c
+      const count = (countStmt.get(a.id) as CountRow).c
       if (count === 0) {
-        const tpl = database.prepare('SELECT * FROM default_workflow_template ORDER BY sort_order ASC').all() as DefaultWorkflowTemplateRow[]
-        const ins = database.prepare(
-          'INSERT INTO artist_workflow_stages (artist_id, name, description, sort_order, takes_payment, basis_points) VALUES (?, ?, ?, ?, ?, ?)'
-        )
         for (const t of tpl) ins.run(a.id, t.name, t.description, t.sort_order, t.takes_payment, t.basis_points)
       }
     }

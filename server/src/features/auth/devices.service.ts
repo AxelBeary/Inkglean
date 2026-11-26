@@ -105,6 +105,15 @@ export function revokeDesktopDevice(artistId: number, deviceId: number): boolean
 }
 
 /**
+ * B7-F0126：过期账目同步清缓存条目。此前 touchCache 只在撕账时清理，
+ * 过期设备的条目在其被门禁拒绝后永不再触碰——进程生命周期内常驻泄漏；
+ * 由 validateDesktopSession 在「账目存在但已过期」拒绝路径调用。
+ */
+export function evictExpiredDesktopDeviceCache(artistId: number, deviceId: number): void {
+  touchCache.delete(touchCacheKey(artistId, deviceId))
+}
+
+/**
  * 撕光该画师全部桌面账目（bumpTokenVersion 全端踢人联动）
  * L-7：按前缀清该画师全部缓存条目（同撕账防脏读）
  */

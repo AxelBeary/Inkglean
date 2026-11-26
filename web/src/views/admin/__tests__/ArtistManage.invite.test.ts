@@ -100,6 +100,8 @@ interface InviteVM {
   inviteStatusFilter: string
   inviteQuery: string
   inviteMaxUses: number
+  /** ab263dd1 方案 A：签发绑定 QQ（空=通用码） */
+  inviteBindQq: string
   inviteUses: Array<Record<string, unknown>>
   inviteUsesVisible: boolean
   openInviteCodes: () => Promise<void>
@@ -230,5 +232,54 @@ describe('ArtistManage 邀请码弹窗（REQ-039 升级）', () => {
     await vm.generateInviteCodes()
     expect(h.generateInviteCodes).not.toHaveBeenCalled()
     expect(h.msgWarning).toHaveBeenCalled()
+  })
+
+  // ab263dd1 方案 A：签发绑定 QQ 传入 + 非法格式拦截 + 与 F0194 回第1页逻辑共存
+  it('ab263dd1-A: 填绑定 QQ → 生成载荷带 qqNumber；非法 QQ 拦截且不发请求', async () => {
+    h.generateInviteCodes.mockResolvedValue({ codes: [{ id: 1, code: 'X', expiresAt: '', qqNumber: '32001' }] })
+    const { vm } = await mountPage()
+    await vm.openInviteCodes()
+
+    vm.inviteBindQq = '32001'
+    await vm.generateInviteCodes()
+    await flushPromises()
+    expect(h.generateInviteCodes).toHaveBeenCalledWith({
+      count: 5, validDays: 3, maxUses: 1, qqNumber: '32001'
+    })
+
+    // 非法格式（非数字）→ 告警，不发请求
+    h.generateInviteCodes.mockClear()
+    vm.inviteBindQq = 'abc'
+    await vm.generateInviteCodes()
+    expect(h.generateInviteCodes).not.toHaveBeenCalled()
+    expect(h.msgWarning).toHaveBeenCalled()
+  })
+})
+
+// B7-F0194：生成成功后回第 1 页并清筛选/搜索——新码（unused、排最前）必须可见
+describe('B7-F0194 生成后回第 1 页清筛选', () => {
+  it('生成成功 → 页码回 1、筛选/搜索清空，重拉不带 status/q', async () => {
+    h.generateInviteCodes.mockResolvedValue({ codes: [code({ id: 9, code: 'NEWCODE' })] })
+    h.getInviteCodes.mockResolvedValue({ codes: [code({ id: 9, code: 'NEWCODE' })], total: 1, page: 1, pageSize: 20 })
+    const { vm } = await mountPage()
+    await vm.openInviteCodes()
+
+    // 模拟用户停在深层视图：第 3 页 + used 筛选 + 搜索词残留（此组合下新码不可见）
+    vm.invitePage = 3
+    vm.inviteStatusFilter = 'used'
+    vm.inviteQuery = 'OLDCODE'
+    await vm.generateInviteCodes()
+    await flushPromises()
+
+    expect(vm.invitePage).toBe(1)
+    expect(vm.inviteStatusFilter).toBe('all')
+    expect(vm.inviteQuery).toBe('')
+    // 重拉参数：第 1 页、无 status、无 q（修复前保留 used/第 3 页，新码不在视图却提示生成成功）
+    const lastCall = h.getInviteCodes.mock.calls[h.getInviteCodes.mock.calls.length - 1][0] as {
+      page: number; status?: string; q?: string
+    }
+    expect(lastCall.page).toBe(1)
+    expect(lastCall.status).toBeUndefined()
+    expect(lastCall.q).toBeUndefined()
   })
 })

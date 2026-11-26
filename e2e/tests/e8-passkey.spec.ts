@@ -3,8 +3,11 @@ import { refreshArtistTokenCache } from '../global-setup.js'
 import { writeArtistToken } from '../token-store.js'
 import { E2E_BASE_URL } from '../../playwright.config.js'
 
-// 补登可能遇到“同窗口 TOTP 全被消费→等下一时间步”的重试路径（最多 ~30s），放宽单用例超时
-test.setTimeout(60_000)
+// F-02/SCR-03：与 refreshArtistTokenCache 的重试预算对账——
+// 旧预算 3 轮 × 死等 30s 边界 ≈ 90s > 60s，真实错误（lastError）总在裸超时后才抛出；
+// 新实现改为短退避重试（最坏 3×(3 次登录+1s)），此 120s 上界留出充足余量，
+// 保证任何失败路径都能在用例超时前抛出带真实错误码的失败而非 Playwright 裸超时。
+test.setTimeout(120_000)
 
 // e8: Passkey 虚拟验证器（CDP WebAuthn，仅 chromium；internal=平台验证器画像，对齐 Windows Hello）
 // TC-PK-01 注册 + TC-PK-02 登出后免密登录合为一个用例：

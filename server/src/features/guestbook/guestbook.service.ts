@@ -94,15 +94,27 @@ export function getPublicMessages(artistId: number, page: number = 1, pageSize: 
  * 0817 报障修复：管理员强制删除（deleted_by_admin=1）的留言同步从画师列表消失——
  * 「强制删」语义 = 两端都不可见；物理行保留作审计留痕，COUNT 与列表同口径过滤防分页错位
  * v75：画师端同样走 SAFE_MESSAGE_COLS —— 画师看得到自己主页上的留言与回复，但看不到来源 IP
+ * 尾巴批 pr-review-upstream-20261123（F0182/F0205 根治）：可选 status 过滤——前端角标
+ * 单请求取 total 替代全量翻页计数；COUNT 与列表同口径拼接。
+ * RV-TAIL-01（复核 low 建议）：status 在 service 入口独立做枚举校验（非法按不过滤处理）——
+ * WHERE 拼接虽走参数绑定本无注入面，但此前安全性完全依赖路由层白名单单层；此处补防御纵深，
+ * 未来新调用方绕过路由直调本函数也不会把任意字符串带进查询口径。
  */
-export function getArtistMessages(artistId: number, page: number = 1, pageSize: number = 20): { items: GuestbookMessage[]; total: number; page: number; pageSize: number } {
+/** RV-TAIL-01：画师端 status 过滤合法枚举（与 guestbook.routes.ts 路由白名单逐字同值） */
+const ARTIST_MESSAGE_STATUS_VALUES: readonly string[] = ['pending', 'approved', 'rejected']
+
+export function getArtistMessages(artistId: number, page: number = 1, pageSize: number = 20, status?: string): { items: GuestbookMessage[]; total: number; page: number; pageSize: number } {
   const offset = (page - 1) * pageSize
+  // RV-TAIL-01：入口枚举校验——非法值按 undefined 处理（与路由「非法值忽略回全量」语义一致）
+  const statusFilter = status && ARTIST_MESSAGE_STATUS_VALUES.includes(status) ? status : undefined
+  const where = 'WHERE artist_id = ? AND deleted_by_admin = 0' + (statusFilter ? ' AND status = ?' : '')
+  const filterParams: Array<string | number> = statusFilter ? [artistId, statusFilter] : [artistId]
   const total = (db.prepare(
-    'SELECT COUNT(*) AS c FROM guestbook_messages WHERE artist_id = ? AND deleted_by_admin = 0'
-  ).get(artistId) as { c: number }).c
+    `SELECT COUNT(*) AS c FROM guestbook_messages ${where}`
+  ).get(...filterParams) as { c: number }).c
   const items = db.prepare(
-    `SELECT ${SAFE_MESSAGE_COLS} FROM guestbook_messages WHERE artist_id = ? AND deleted_by_admin = 0 ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`
-  ).all(artistId, pageSize, offset) as GuestbookMessage[]
+    `SELECT ${SAFE_MESSAGE_COLS} FROM guestbook_messages ${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`
+  ).all(...filterParams, pageSize, offset) as GuestbookMessage[]
   return { items, total, page, pageSize }
 }
 
@@ -161,6 +173,8 @@ export interface AdminMessageFilters {
   artistId?: number
   status?: string
   replied?: number
+  /** B7-F0283：可选行数上限（管理端仪表盘只看最近一屏，此前全量拉回客户端分页） */
+  limit?: number
 }
 
 /** 管理员查询：跨画师全部留言（含 artist_name），按 created_at DESC；可选 artistId/status/replied 筛选 */
@@ -183,12 +197,19 @@ export function getAdminMessages(filters: AdminMessageFilters = {}): Array<Guest
     clauses.push('m.artist_reply IS NULL')
   }
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
+  // B7-F0283：可选 LIMIT（正整数，路由层已钳制）——无 limit 时保持全量语义（既有调用方不受影响）
+  const limit = filters.limit != null && filters.limit > 0 ? filters.limit : null
+  const limitSql = limit != null ? 'LIMIT ?' : ''
+  if (limit != null) params.push(limit)
   // 管理端刻意保持 m.*（要看到 v75 的 ip 才能做纠纷取证）；返回类型收窄到 GuestbookMessageWithIp
+  // R3-③: LIMIT 需确定性排序——created_at 秒精度，同秒并列时补 id DESC 作 tiebreaker，
+  // 与画师端 getArtistMessages / 邀请码列表同口径，刷新不会在并列行中换条目。
   return db.prepare(`
     SELECT m.*, a.name AS artist_name
     FROM guestbook_messages m
     LEFT JOIN artists a ON m.artist_id = a.id
     ${where}
-    ORDER BY m.created_at DESC
+    ORDER BY m.created_at DESC, m.id DESC
+    ${limitSql}
   `).all(...params) as Array<GuestbookMessageWithIp & { artist_name: string | null }>
 }

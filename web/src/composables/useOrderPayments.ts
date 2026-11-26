@@ -95,8 +95,8 @@ export function useOrderPayments() {
       revokeIdemKey = null
       return res
     } catch (err) {
-      // 同上：撤销换目标行/换原因 = 新意图，409 后必须换新 key
-      // TASK2-01: 同上——信封解密失败保留原 key，禁止自动重提
+      // 同上：撤销换目标行/换原因 = 新意图，载荷冲突 409 后必须换新 key；
+      // TASK2-01: 信封解密失败保留原 key，禁止自动重提
       if (shouldRotateIdempotencyKey((err as ApiError)?.code)) revokeIdemKey = null
       throw err
     } finally {

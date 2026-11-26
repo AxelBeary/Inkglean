@@ -22,7 +22,7 @@ const EP_COMPONENTS = [
   'el-radio', 'el-checkbox', 'el-checkbox-group', 'el-date-picker', 'el-badge',
   'el-popconfirm', 'el-message-box', 'el-empty', 'el-skeleton', 'el-drawer',
   'el-dropdown', 'el-menu', 'el-menu-item', 'el-pagination', 'el-progress',
-  'el-slider', 'el-tag', 'el-tooltip', 'el-scrollbar', 'el-config-provider',
+  'el-slider', 'el-tag', 'el-scrollbar', 'el-config-provider',
   'el-collapse', 'el-collapse-item', 'el-divider', 'el-alert', 'el-loading',
   'el-cascader', 'el-autocomplete', 'el-tree', 'el-steps', 'el-step'
 ]

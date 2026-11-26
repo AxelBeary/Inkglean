@@ -199,3 +199,157 @@ describe('系统增项模板管理 (Admin Addon Templates)', () => {
     expect(denied.json().code).toBe('ADMIN_REQUIRED')
   })
 })
+
+// ═══ B7 批次（F0103/F0104/F0105）：冻结补计价模式守卫 / 删除三步事务 / 写入口消毒 ═══
+
+describe('B7 系统增项模板三缺口', () => {
+  let app: FastifyInstance
+
+  beforeEach(async () => {
+    cleanDb()
+    app = await buildApp({ logger: false })
+    await app.ready()
+  })
+
+  function setupScene() {
+    const admin = setAdmin('10001')
+    const artist = seedArtist({ qq_number: '20002', subdomain: 'artist-a' })
+    const style = styleService.createArtStyle(artist.id, { name: '日系', importAddons: false })
+    return { admin, artist, style }
+  }
+
+  async function createSystemTpl(payload: Record<string, unknown>, admin: ArtistRow) {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/admin/addon-templates',
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload
+    })
+    expect(res.statusCode).toBe(200)
+    return res.json()
+  }
+
+  it('TC-B7-AT-01: F0103 冻结模式下改 price_mode 被拒（有引用行）', async () => {
+    const { admin, artist, style } = setupScene()
+    // fixed ¥50 → 想单独改成 percent +50：所有绑定行会从 50 元变成 +50%
+    const tpl = await createSystemTpl({
+      name: '加购(系统)', control_type: 'switch', price_mode: 'fixed', default_price: 50, category: 'add'
+    }, admin)
+    styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: tpl.id }])
+    const beforeRow = styleService.getStyleAddons(style.id).find(r => r.addon_template_id === tpl.id)!
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/admin/addon-templates/${tpl.id}`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { price_mode: 'percent' }
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().code).toBe('ADDON_TEMPLATE_MODE_LOCKED')
+    expect(res.json().detail.referenced).toBe(1)
+
+    // 模板与引用行原样未动（无半态）
+    const tplAfter = db.prepare('SELECT price_mode FROM addon_templates WHERE id = ?').get(tpl.id) as { price_mode: string }
+    expect(tplAfter.price_mode).toBe('fixed')
+    const rowAfter = styleService.getStyleAddons(style.id).find(r => r.id === beforeRow.id)!
+    expect(rowAfter.price_override).toBeNull() // 冻结快照未写（模式本来冻结不了，直接拒绝）
+  })
+
+  it('TC-B7-AT-02: F0103 sync=true 显式同步下改 price_mode 放行（引用行跟随）', async () => {
+    const { admin, artist, style } = setupScene()
+    const tpl = await createSystemTpl({
+      name: '加购(系统)', control_type: 'switch', price_mode: 'fixed', default_price: 50, category: 'add'
+    }, admin)
+    styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: tpl.id }])
+    const beforeRow = styleService.getStyleAddons(style.id).find(r => r.addon_template_id === tpl.id)!
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/admin/addon-templates/${tpl.id}`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { price_mode: 'percent', sync: true }
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().price_mode).toBe('percent')
+    // 同步语义：NULL 行不写 override，跟随模板
+    const rowAfter = styleService.getStyleAddons(style.id).find(r => r.id === beforeRow.id)!
+    expect(rowAfter.price_override).toBeNull()
+  })
+
+  it('TC-B7-AT-03: F0103 无引用行的模板自由改 price_mode', async () => {
+    const { admin } = setupScene()
+    const tpl = await createSystemTpl({
+      name: '孤板(系统)', control_type: 'switch', price_mode: 'fixed', default_price: 20, category: 'add'
+    }, admin)
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/admin/addon-templates/${tpl.id}`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { price_mode: 'percent', default_price: 15 }
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().price_mode).toBe('percent')
+  })
+
+  it('TC-B7-AT-04: F0104 删除三步同事务——DELETE 中途抛错整体回滚，无半态', async () => {
+    const { admin, artist, style } = setupScene()
+    const tpl = await createSystemTpl({
+      name: '背景(系统)', control_type: 'switch', price_mode: 'fixed', default_price: 150, category: 'add'
+    }, admin)
+    styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: tpl.id }])
+    const beforeRow = styleService.getStyleAddons(style.id).find(r => r.addon_template_id === tpl.id)!
+
+    // 注入失败：让最后一步 DELETE 抛错（快照/解绑已先行执行）
+    db.exec(`
+      CREATE TRIGGER b7_fake_delete_fail BEFORE DELETE ON addon_templates
+      BEGIN SELECT RAISE(ABORT, 'B7_SIMULATED_DELETE_FAILURE'); END
+    `)
+    const failed = await app.inject({
+      method: 'DELETE',
+      url: `/api/admin/addon-templates/${tpl.id}`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` }
+    })
+    expect(failed.statusCode).toBe(500) // ABORT 经全局错误处理回落 500
+    db.exec('DROP TRIGGER b7_fake_delete_fail')
+
+    // 事务回滚：模板仍在、引用行仍绑定、快照列未写入（不是「已解绑但模板还在」的半态）
+    expect(db.prepare('SELECT id FROM addon_templates WHERE id = ?').get(tpl.id)).toBeTruthy()
+    const rowAfter = styleService.getStyleAddons(style.id).find(r => r.id === beforeRow.id)!
+    expect(rowAfter.addon_template_id).toBe(tpl.id)
+    // tpl_name 是原始快照列（template_name 是 join 展示列，绑定行恒有值，不能作判据）
+    const rawSnap = db.prepare('SELECT tpl_name FROM style_addons WHERE id = ?').get(beforeRow.id) as { tpl_name: string | null }
+    expect(rawSnap.tpl_name).toBeNull()
+
+    // 撤除障碍后同一请求路径正常删除
+    const del = await app.inject({
+      method: 'DELETE',
+      url: `/api/admin/addon-templates/${tpl.id}`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` }
+    })
+    expect(del.statusCode).toBe(200)
+    expect(del.json()).toMatchObject({ deleted: true, referenced: 1 })
+  })
+
+  it('TC-B7-AT-05: F0105 系统模板 name/unit_label 写入消毒（对齐画师侧）', async () => {
+    const { admin } = setupScene()
+    const tpl = await createSystemTpl({
+      name: '<b>加粗</b>模板<img src=x>', control_type: 'quantity', price_mode: 'fixed',
+      default_price: 10, category: 'add', unit_label: '<i>张</i>'
+    }, admin)
+    // create 路径：name/unit_label 均消毒入库
+    expect(tpl.name).toBe('加粗模板')
+    expect(tpl.unit_label).toBe('张')
+
+    // update 路径：换上带标记的值同样消毒
+    const upd = await app.inject({
+      method: 'PUT',
+      url: `/api/admin/addon-templates/${tpl.id}`,
+      headers: { Authorization: `Bearer ${adminToken(admin)}` },
+      payload: { name: '<script>x</script>新名', unit_label: '<u>件</u>' }
+    })
+    expect(upd.statusCode).toBe(200)
+    expect(upd.json().name).toBe('新名')
+    expect(upd.json().unit_label).toBe('件')
+  })
+})

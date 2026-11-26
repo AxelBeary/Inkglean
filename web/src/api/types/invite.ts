@@ -40,6 +40,8 @@ export interface GenerateInviteCodesRequest {
   count: number
   validDays?: number
   maxUses?: number
+  /** ab263dd1 方案 A：可选，把整批码绑定到目标 QQ（注册时须码绑定==申领）；省略=通用码 */
+  qqNumber?: string
 }
 
 /** 生成的码行 */
@@ -47,6 +49,8 @@ export interface GeneratedInviteCode {
   id: number
   code: string
   expiresAt: string
+  /** ab263dd1 方案 A：签发绑定 QQ（null=通用码） */
+  qqNumber: string | null
 }
 
 /** POST /api/admin/invite-codes 响应 */
@@ -73,6 +77,8 @@ export interface AdminInviteCode {
   maxUses: number
   /** 已使用次数 */
   useCount: number
+  /** ab263dd1 方案 A：签发绑定 QQ（null=通用码），注册时须码绑定==申领 */
+  qqNumber: string | null
   /** status 仍为 unused 但已到期 */
   expired: boolean
 }

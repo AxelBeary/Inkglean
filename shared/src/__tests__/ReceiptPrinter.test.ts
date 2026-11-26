@@ -143,3 +143,47 @@ describe('issue 51-4: 不进导出行的行内提示', () => {
     expect(text).not.toContain('免费行') // validItems 排除口径未动
   })
 })
+
+// ─── M-4（PR114 审计回归）：小票文本行金额与合计不得出现 1 分差 ───
+describe('M-4 小票文本行额/合计 parity', () => {
+  it('三行同价 0.145：行额 ¥0.15 ×3，合计 ¥0.45（旧口径合计 ¥0.42）', async () => {
+    const draft: ReceiptDraft = {
+      title: 'parity',
+      items: [
+        { name: 'A', qty: 1, priceYuan: 0.145, gift: false },
+        { name: 'B', qty: 1, priceYuan: 0.145, gift: false },
+        { name: 'C', qty: 1, priceYuan: 0.145, gift: false }
+      ],
+      discountType: 'none',
+      discountValue: 0,
+      depositYuan: null,
+      bottomNote: '',
+      style: 'retro'
+    }
+    const wrapper = mountReceipt({ initialDraft: draft })
+    await wrapper.vm.$nextTick()
+    await wrapper.findAll('.rc-actions button')[1].trigger('click') // 复制纯文字版
+    const { text } = wrapper.emitted('copy-text')![0][0] as { text: string }
+    expect(text.match(/¥0\.15/g)).toHaveLength(3) // 三行行额
+    expect(text).toContain('¥0.45') // 合计 = Σ行额
+    expect(text).not.toContain('¥0.42') // 旧 Math.round(*100) 口径不得回潮
+  })
+
+  it('单价 1.005：行额与合计同为 ¥1.01（旧口径合计 ¥1.00）', async () => {
+    const draft: ReceiptDraft = {
+      title: 'parity',
+      items: [{ name: '立绘', qty: 1, priceYuan: 1.005, gift: false }],
+      discountType: 'none',
+      discountValue: 0,
+      depositYuan: null,
+      bottomNote: '',
+      style: 'retro'
+    }
+    const wrapper = mountReceipt({ initialDraft: draft })
+    await wrapper.vm.$nextTick()
+    await wrapper.findAll('.rc-actions button')[1].trigger('click')
+    const { text } = wrapper.emitted('copy-text')![0][0] as { text: string }
+    expect(text.match(/¥1\.01/g)).toHaveLength(2) // 行额 + 合计
+    expect(text).not.toContain('¥1.00')
+  })
+})
