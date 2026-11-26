@@ -165,6 +165,15 @@ export function registerTotpFailure(artistId: number): void {
 }
 
 /**
+ * 验码成功后清零账号级防爆破态（失败计数 + 锁定截止）。
+ * 登录路径曾内联这条 UPDATE；verify-current 成功分支漏调，计数只增不减——
+ * 错 4 次后正确码通过仍会在下一次错码时直接锁号（15 分钟内连正确码都进不来）。
+ */
+export function clearTotpFailureState(artistId: number): void {
+  db.prepare('UPDATE artists SET totp_failed_attempts = 0, totp_locked_until = NULL WHERE id = ?').run(artistId)
+}
+
+/**
  * 登录防爆破（IP+账号联合键）状态条目
  */
 interface LoginAttemptEntry {
@@ -290,7 +299,7 @@ export function verifyTotpLogin(qqNumber: string, code: string, ip?: string): To
     db.prepare("DELETE FROM totp_used_codes WHERE used_at < datetime('now', '-7 days')").run()
     // 成功：清本组合防爆破状态；账号级 DB 计数/锁定照旧清零
     loginAttemptStore.delete(key)
-    db.prepare('UPDATE artists SET totp_failed_attempts = 0, totp_locked_until = NULL WHERE id = ?').run(artist.id)
+    clearTotpFailureState(artist.id)
     return { valid: true, artist }
   }
 

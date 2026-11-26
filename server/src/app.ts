@@ -256,7 +256,7 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
   const RECYCLE_BIN = '.recycle-bin'
   // F0066: 改为 async——原实现虽经 setImmediate 延后启动，但整轮逐文件 stat/rename 全同步，
   // 海量文件时仍会长时间阻塞事件循环。下方文件循环每批处理让出一次事件循环（见 F0066 注释）。
-  const gcUploads = async () => {
+  const gcUploadsPass = async () => {
     try {
       const UPLOAD_ROOT = resolve(process.env.UPLOAD_DIR || './uploads')
       if (!existsSync(UPLOAD_ROOT)) return
@@ -311,7 +311,7 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
         }
         return refs
       })
-      const refs = collectDbRefs()
+      let refs = collectDbRefs()
 
       // R-6（审计批E）：孤儿回收窗口 24h → 72h。
       // 复合炸弹：手工恢复旧 DB 备份后，备份时点之后新上传且已关联订单的文件在新 DB 里「无引用」，
@@ -361,10 +361,14 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
       let processed = 0
       for (const absPath of walk(UPLOAD_ROOT)) {
         const rel = relative(UPLOAD_ROOT, absPath).replace(/\\/g, '/')
+        // F0066: 每 200 个文件让出一次事件循环，避免长尾同步 rename/stats 独占主线程。
+        // 让出期间业务写入可能落库新引用，旧快照随之失效——重取 refs 后再判当前文件，
+        // 否则「仍无引用」的结论可能是让出前（甚至整轮开始前）的旧账。
+        if (++processed % 200 === 0) {
+          await new Promise<void>(resolve => setImmediate(resolve))
+          refs = collectDbRefs()
+        }
         if (refs.has(rel)) continue
-        // F0066: 每 200 个孤儿文件让出一次事件循环，避免长尾同步 rename/stats 独占主线程；
-        // refs 快照已在循环前一次性取好，分片不改变判定语义。
-        if (++processed % 200 === 0) await new Promise<void>(resolve => setImmediate(resolve))
         try {
           // d3 P2: 单文件瞬时错误（walk 期间被外部删除/权限）跳过并计数，不中止整轮回收
           const st = statSync(absPath)
@@ -398,6 +402,18 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
       if (recycled > 0) app.log.info(`孤儿文件回收: 移入回收站 ${recycled} 个，释放 ${(freed / 1024 / 1024).toFixed(1)} MB`)
     } catch (err) {
       app.log.warn(`孤儿文件回收失败: ${(err as Error).message}`)
+    }
+  }
+  // 启动触发与 24h 定时器可能重叠（上一轮尚未走完）：in-flight 期间直接跳过本轮，
+  // 否则两轮并发各按自己的快照判孤儿，可能对同一文件重复 rename/误判。
+  let gcUploadsRunning = false
+  const gcUploads = async () => {
+    if (gcUploadsRunning) return
+    gcUploadsRunning = true
+    try {
+      await gcUploadsPass()
+    } finally {
+      gcUploadsRunning = false
     }
   }
   gcDatabaseTtl() // 启动时立即执行一次（不依赖上传目录存在，先于文件回收跑）
@@ -642,10 +658,21 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
       sendDefaultPii: false, // S-AC6: 不上传用户 IP
       tracesSampleRate: 0, // 不做性能追踪，只捕获错误
       beforeSend(event) {
+        // S-AC6：白名单化——SDK 的 RequestData 集成默认把 headers（含 Authorization/Cookie）
+        // 与请求体原值带进 event；只留 url/method，逐字段删会漏掉 SDK 后续新增字段。
         const request = event.request
-        if (request?.url && hasPrivateQuery(request.url)) {
-          request.url = requestLogUrl(request.url)
-          delete request.query_string
+        if (request) {
+          if (request.url && hasPrivateQuery(request.url)) request.url = requestLogUrl(request.url)
+          for (const key of Object.keys(request)) {
+            if (key !== 'url' && key !== 'method') Reflect.deleteProperty(request, key)
+          }
+        }
+        // breadcrumb 里的 http.*header* 类字段同样出网，一并清掉
+        for (const crumb of event.breadcrumbs ?? []) {
+          if (!crumb.data) continue
+          for (const key of Object.keys(crumb.data)) {
+            if (/header/i.test(key)) Reflect.deleteProperty(crumb.data, key)
+          }
         }
         return event
       }
