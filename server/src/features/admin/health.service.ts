@@ -4,6 +4,7 @@ import type { StatsFs } from 'fs'
 import { access, statfs } from 'fs/promises'
 import { resolve, join } from 'path'
 import { isDbBackupFile, resolveBackupDir } from '../../shared/backup-paths.js'
+import { isWeakSessionSecret } from '../../shared/secrets.js'
 
 // ============================================
 // 系统自检服务（HC）
@@ -283,15 +284,20 @@ function scanLatestBackup(backupDir: string, dataDir: string): {
   return { latest, backupDirExists }
 }
 
-/** 7. JWT_SECRET：检查是否为默认值/空值 */
+/** 7. JWT_SECRET：与生产 fail-fast 三处共用 shared/secrets.ts 同一判据（PR114 MINOR-8） */
 function checkSecret(): HealthCheckResult {
   const secret = process.env.SESSION_SECRET
-  const DEFAULTS = ['dev-cookie-secret-change-in-production', 'dev-secret', '']
   if (!secret) {
     return { id: 'secret', name: 'JWT_SECRET', status: 'fail', summary: 'SESSION_SECRET 未设置', detail: { set: false } }
   }
-  if (DEFAULTS.includes(secret) || secret.length < 32) {
-    return { id: 'secret', name: 'JWT_SECRET', status: 'warn', summary: 'SESSION_SECRET 为默认值或过短', detail: { set: true, length: secret.length } }
+  // 旧口径（DEFAULTS.includes || length<32）会把 'a'.repeat(64)、'A'.repeat(40)+'bcd'
+  // 报 ok，而生产启动会拒——管理端自检必须和生产同一判据，避免「体检说 ok 但起不来」。
+  if (isWeakSessionSecret(secret)) {
+    return {
+      id: 'secret', name: 'JWT_SECRET', status: 'warn',
+      summary: 'SESSION_SECRET 为弱值（dev 前缀/默认值/过短/低熵重复）——生产环境将拒绝启动',
+      detail: { set: true, length: secret.length, weak: true }
+    }
   }
   return { id: 'secret', name: 'JWT_SECRET', status: 'ok', summary: '已配置（长度 ' + secret.length + '）', detail: { set: true, length: secret.length } }
 }

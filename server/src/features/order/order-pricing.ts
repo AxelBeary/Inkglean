@@ -8,6 +8,8 @@ import type { OrderDetail } from '../../types/entities.js'
 import { getOrder } from './order-read.js'
 import { updateOrderChecked } from './order-fields.js'
 import { MAX_MONEY_CENTS } from './order-limits.js'
+// M-3 拆分：getNextDueCents 实现迁至 next-due-cents.ts，re-export 保持现有 import 路径不变
+export { getNextDueCents } from './next-due-cents.js'
 
 // ============================================
 // 订单服务 - 计价/增项/收款子域（从 order.service.ts 拆出）
@@ -168,28 +170,6 @@ export function getOrdersInstallments(orderIds: number[]): Map<number, OrderInst
   }
 
   return result
-}
-
-/**
- * F0314：客户查单页「下期应付」（分）——与展示侧同源的权威口径。
- * 内部走引擎 deriveInstallmentProgress（与 computeLockedState「付清即锁」共用同一 forwardFill），
- * 取首个 remainingCents > 0 的节点（partial 时即该节点剩余）；全部覆盖/无节点返回 0。
- * 尾款负待收（纯超付应退）不满足 > 0，恒不下发负数。
- * ⚠ 不是 finalPriceCents - paidTotalCents——那是订单级待收（前端 trackRemainingCents），语义不同勿混。
- * 入参吃展示行（amountCents 已钳 0 口径）而非再查库：track 组装处复用已查出的同一批
- * installments 行（order-client.routes.ts），纯内存推导、无新 SQL。
- */
-export function getNextDueCents(
-  installments: ReadonlyArray<Pick<OrderInstallment, 'amountCents'>>,
-  paidTotalCents: number
-): number {
-  if (installments.length === 0) return 0
-  const progress = deriveInstallmentProgress(
-    installments.map((inst, i) => ({ sortOrder: i, amountCents: inst.amountCents })),
-    paidTotalCents
-  )
-  const nextDue = progress.find(row => row.remainingCents > 0)
-  return nextDue ? nextDue.remainingCents : 0
 }
 
 /**

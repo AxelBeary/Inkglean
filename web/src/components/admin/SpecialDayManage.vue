@@ -285,7 +285,12 @@ async function addGreeting() {
   saving.value = true
   try {
     // 当日文案按时段无差别投放，固定 any；关联当前特别日
-    await adminApi.createGreeting({ text: newText.value.trim(), timeSlot: 'any', specialDayId: selected.value.id })
+    const day = selected.value
+    const data = { text: newText.value.trim(), timeSlot: 'any' as const, specialDayId: day.id }
+    // B-1 / F0108：全局端点拒绝挂画师专属日（400），新增无 row 时按所选特别日归属分流。
+    // 用 day.artist_id 判定而非按特别日 id 缓存结果：同一特别日下历史可能混存全局/画师行。
+    if (day.artist_id == null) await adminApi.createGreeting(data)
+    else await adminApi.createArtistGreeting(day.artist_id, data)
     newText.value = ''
     await Promise.all([loadGreetings(), load()])
   } catch (err) { ElMessage.error((err as Error).message) }
@@ -295,7 +300,12 @@ async function addGreeting() {
 async function toggleGreetingEnabled(row: GreetingTemplate, val: unknown) {
   if (greetingTogglingId.value === row.id) return
   greetingTogglingId.value = row.id
-  try { await adminApi.updateGreeting(row.id, { isEnabled: !!val }) }
+  try {
+    // B-1 / F0108：列表 GET 不区分归属，必须按「行」的 artist_id 分流——
+    // 同一特别日下历史可能同时有全局行(artist_id=null)与画师行，按 selected.artist_id 一刀切会对不上。
+    if (row.artist_id == null) await adminApi.updateGreeting(row.id, { isEnabled: !!val })
+    else await adminApi.updateArtistGreeting(row.artist_id, row.id, { isEnabled: !!val })
+  }
   catch (err) {
     ElMessage.error((err as Error).message)
     await loadGreetings()
@@ -315,7 +325,9 @@ async function removeGreeting(row: GreetingTemplate) {
   if (greetingRemovingId.value === row.id) return
   greetingRemovingId.value = row.id
   try {
-    await adminApi.deleteGreeting(row.id)
+    // B-1 / F0108：删除同启停——按行 artist_id 分流，混存行不可按特别日整体归属处理
+    if (row.artist_id == null) await adminApi.deleteGreeting(row.id)
+    else await adminApi.deleteArtistGreeting(row.artist_id, row.id)
     await Promise.all([loadGreetings(), load()])
   } catch (err) { ElMessage.error((err as Error).message) }
   finally { greetingRemovingId.value = null }

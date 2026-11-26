@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest'
 import { db } from './setup.js'
 import Database from 'better-sqlite3'
 import { migration } from '../src/db/migrations/v36-multi-style-model.js'
+import { migrateF5OldModelArtists } from '../src/db/migrate.js'
 
 // F0081（B2 high）回归：v36 旧全局守卫（任一画师已有画风即跳过全体）改画师粒度。
 // 旧形态库（addon_templates 含 pricing_mode + v09 旧表 price_tiers/price_addons）
@@ -212,6 +213,73 @@ describe('迁移 v36: multi_style_model（F0081 画师粒度幂等）', () => {
 
     expect(() => migration.up(mem)).not.toThrow()
     expect((mem.prepare('SELECT COUNT(*) AS c FROM art_styles').get() as { c: number }).c).toBe(0)
+    mem.close()
+  })
+
+  it('TC-F81-06 (PR114 M-1): F5 补过画风的画师仍能搬运旧增项（Control/Probe 对照）', () => {
+    const mem = buildOldShapeDb()
+    // F5 守卫读 artists.deleted_at；F5 尺寸搬运读 price_tiers.visibility
+    mem.exec('ALTER TABLE artists ADD COLUMN deleted_at DATETIME DEFAULT NULL')
+    mem.exec("ALTER TABLE price_tiers ADD COLUMN visibility TEXT DEFAULT 'visible'")
+    // 生产链路上 v36/v37 已建好这两表，F5 直接往里写（本用例显式补齐前置形态）
+    mem.exec(`
+      CREATE TABLE art_styles (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        artist_id INTEGER NOT NULL,
+        name TEXT,
+        sort_order INTEGER DEFAULT 0,
+        is_active INTEGER DEFAULT 1
+      )
+    `)
+    mem.exec(`
+      CREATE TABLE style_sizes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        art_style_id INTEGER NOT NULL,
+        name TEXT,
+        base_price REAL,
+        sort_order INTEGER DEFAULT 0
+      )
+    `)
+    // Control：从未被 F5 处理的画师（无画风）
+    seedLegacy(mem, 1, [['头像', 100]], [['对照增项', 50, 'toggle']])
+    // Probe：F5 补过画风+尺寸、但无 addon_templates 的画师（旧代理键会整块跳过）
+    seedLegacy(mem, 2, [['半身', 200]], [['探针遗留增项', 80, 'quantity']])
+
+    migrateF5OldModelArtists(mem)
+    // F5 后两画师都有画风+尺寸，但都没有增项模板——正是 M-1 的触发形态
+    expect((mem.prepare('SELECT COUNT(*) AS c FROM art_styles').get() as { c: number }).c).toBe(2)
+    expect((mem.prepare('SELECT COUNT(*) AS c FROM style_sizes').get() as { c: number }).c).toBe(2)
+    expect((mem.prepare('SELECT COUNT(*) AS c FROM addon_templates').get() as { c: number }).c).toBe(0)
+
+    expect(() => migration.up(mem)).not.toThrow()
+
+    // Control 与 Probe 的旧增项都必须进目标表（探针不再被静默丢弃）
+    const names = (mem.prepare('SELECT name FROM addon_templates ORDER BY artist_id, sort_order').all() as Array<{ name: string }>).map(r => r.name)
+    expect(names).toEqual(['对照增项', '探针遗留增项'])
+    // Probe 沿用 F5 建的画风，不重建；模板已挂到该画风
+    expect((mem.prepare('SELECT COUNT(*) AS c FROM art_styles WHERE artist_id = 2').get() as { c: number }).c).toBe(1)
+    const probeLinks = mem.prepare(`
+      SELECT COUNT(*) AS c FROM style_addons sa
+      JOIN art_styles st ON sa.art_style_id = st.id WHERE st.artist_id = 2
+    `).get() as { c: number }
+    expect(probeLinks.c).toBe(1)
+    mem.close()
+  })
+
+  it('TC-F81-07 (PR114 M-2): 删画风模拟重放——同名模板不翻倍', () => {
+    const mem = buildOldShapeDb()
+    seedLegacy(mem, 1, [['头像', 100]], [['加背景', 80, 'toggle']])
+    migration.up(mem)
+    expect((mem.prepare('SELECT COUNT(*) AS c FROM addon_templates').get() as { c: number }).c).toBe(1)
+
+    // 模拟版本表丢失后的重放：删除画风及其关联/尺寸，旧增项模板仍在
+    mem.exec('DELETE FROM style_addons')
+    mem.exec('DELETE FROM style_sizes')
+    mem.exec('DELETE FROM art_styles')
+    expect(() => migration.up(mem)).not.toThrow()
+
+    const tpls = mem.prepare('SELECT name FROM addon_templates ORDER BY sort_order').all() as Array<{ name: string }>
+    expect(tpls.map(t => t.name)).toEqual(['加背景'])
     mem.close()
   })
 })

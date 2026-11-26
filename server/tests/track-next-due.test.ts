@@ -1,7 +1,8 @@
 // F0314 后端回归：track 响应下发权威 nextDueCents（下期应付）
 // 口径：getNextDueCents 内部走 deriveInstallmentProgress（与 computeLockedState 同一 forwardFill），
-// 取首个 remainingCents > 0 的节点（partial 时为其剩余）；全付清/无节点为 0；尾款负待收（纯超付
-// 应退）不满足 > 0，恒 ≥ 0。用例镜像 installment-negative-tail-display.test.ts 的
+// 取首个 remainingCents > 0 的节点（partial 时为其剩余）；全付清为 0；无节点为 null（M-3：
+// 缓冲订单正常长期态，前端回退订单级待收）；尾款负待收（纯超付应退）不满足 > 0，恒 ≥ 0。
+// 用例镜像 installment-negative-tail-display.test.ts 的
 // 负尾款 / 带内 / 纯超付 / 负节点跳过 四形态，并做端到端（GET /orders/track）断言。
 import { describe, it, expect, beforeEach } from 'vitest'
 import type { FastifyInstance } from 'fastify'
@@ -42,8 +43,12 @@ describe('getNextDueCents 单元口径（F0314，镜像负尾款四形态）', (
     expect(getNextDueCents(displayRows([['占位', 0], ['冲正', -3000], ['尾款', 5000]]), 0)).toBe(5000)
   })
 
-  it('无节点：返回 0（不回退订单级待收——那是 trackRemainingCents 的语义）', () => {
-    expect(getNextDueCents([], 30000)).toBe(0)
+  it('无节点：返回 null（M-3——不把 0 当权威值，前端回退 trackRemainingCents）', () => {
+    expect(getNextDueCents([], 30000)).toBeNull()
+  })
+
+  it('有节点但全付清：仍返回 0（本期不欠，与无节点的 null 语义区分）', () => {
+    expect(getNextDueCents(displayRows([['定金', 30000]]), 30000)).toBe(0)
   })
 })
 
@@ -123,20 +128,22 @@ describe('GET /orders/track 下发 nextDueCents（F0314 端到端）', () => {
     expect(body.nextDueCents).toBe(body.installments.find(i => i.remainingCents > 0)?.remainingCents)
   })
 
-  it('无节点订单：nextDueCents=0（不回退订单级待收，语义区别于 trackRemainingCents）', async () => {
+  it('无节点订单（buffer 正常长期态）：nextDueCents=null，订单级待收仍可见', async () => {
     const order = seedOrder(artist.id, { customerToken: 'nd-tok-empty' })
-    db.prepare('UPDATE orders SET total_price_cents = 30000, final_price_cents = 30000, paid_total_cents = 0 WHERE id = ?')
-      .run(order.id)
+    db.prepare('UPDATE orders SET total_price_cents = 30000, final_price_cents = 30000, paid_total_cents = 0, queue_zone = ? WHERE id = ?')
+      .run('buffer', order.id)
 
     const res = await app.inject({
       method: 'GET',
       url: `/api/orders/track/${order.order_no}`,
       headers: { 'x-order-token': 'nd-tok-empty' }
     })
-    const body = res.json<{ nextDueCents: number; finalPriceCents: number; paidTotalCents: number }>()
+    const body = res.json<{ nextDueCents: number | null; finalPriceCents: number; paidTotalCents: number; installments: unknown[] }>()
 
-    expect(body.nextDueCents).toBe(0)
-    // 订单级待收仍在（30000），证明两者语义分工而非同字段复用
+    // M-3：有价无分期是缓冲订单正常态，不能下发 0 让前端显示「下期应付 ¥0.00」
+    expect(body.installments).toHaveLength(0)
+    expect(body.nextDueCents).toBeNull()
+    // 订单级待收仍在（30000），前端据此回退显示 ¥300
     expect(body.finalPriceCents - body.paidTotalCents).toBe(30000)
   })
 })

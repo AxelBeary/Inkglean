@@ -60,11 +60,22 @@ export const migration: Migration = {
     // 回填：存量已用码（一次性）→ use_count=1 + 明细表补一行（used_at 沿用原值）。
     // 幂等加固：UPDATE 限定 use_count=0（绝不重置已被多次消费的码 use_count>1）；
     // INSERT 改 INSERT OR IGNORE（明细表 UNIQUE 冲突时跳过，半态重跑不报错）。
+    // PR114 MINOR-11：INSERT OR IGNORE 只忽略 UNIQUE/NOT NULL，不忽略 FK 违例；v58 的
+    // used_by_artist_id 无 REFERENCES，可能悬空，而目标列 artist_id REFERENCES artists。
+    // 本迁移 noTransaction，一条悬空行就会让整个迁移中断。回填前用 EXISTS 过滤悬空引用。
+    // 隔离单测可能只造 invite_codes/明细表而无 artists 表，此时该 EXISTS 会撞「no such table」；
+    // 按表存在性拼条件，真实库（artists 必在）始终带守卫，裸表 fixture 退回原行为。
+    const artistsTableExists = !!database.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='artists'"
+    ).get()
+    const danglingGuard = artistsTableExists
+      ? ' AND EXISTS (SELECT 1 FROM artists WHERE artists.id = used_by_artist_id)'
+      : ''
     database.exec(`
       UPDATE invite_codes SET use_count = 1 WHERE status = 'used' AND use_count = 0;
       INSERT OR IGNORE INTO invite_code_uses (invite_code_id, artist_id, used_at)
       SELECT id, used_by_artist_id, used_at FROM invite_codes
-      WHERE status = 'used' AND used_by_artist_id IS NOT NULL AND used_at IS NOT NULL;
+      WHERE status = 'used' AND used_by_artist_id IS NOT NULL AND used_at IS NOT NULL${danglingGuard};
     `)
 
     console.log('📦 迁移 v71: invite_codes 多次使用（max_uses/use_count + invite_code_uses 明细）已就绪' + (partial ? '（崩溃半态已修复）' : ''))

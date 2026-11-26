@@ -94,6 +94,14 @@ function isTotpInvalid401(err: unknown): boolean {
 //   - 已等过一次仍全 401 → 立即抛 lastError（锁定/封禁/持久拒绝，等再久也不会变绿）。
 //   最坏 ≈ 1 次边界等待(≤30s) + ≤4 轮 × 3 次登录，远小于 120s；首次成功路径零等待。
 const TOKEN_REFRESH_MAX_ROUNDS = 4 // 安全上限（含一次跨步等待）；正常路径 2~3 轮内收敛
+/**
+ * PR114 MINOR-5：服务端 auth.service.ts `TOTP_MAX_ATTEMPTS=5`——同一 (IP,账号) 键第 5 次失败
+ * 即锁 15min。旧实现每轮 3 候选、最多 2 轮共 6 次失败登录，第 5 次就自锁号，第 6 次拿到
+ * `locked`（五态统一仍返 401 TOTP_INVALID）后脚本自锁 15min。
+ * 本刷新链路失败预算严格小于服务端阈值：累计失败达 4 立即停止并抛最后一次真实错误，
+ * 绝不发起第 5 次失败登录。成功登录会清零服务端计数，故只统计本函数内的连续失败。
+ */
+export const TOTP_LOGIN_FAILURE_BUDGET = 4 // 必须 < 服务端 TOTP_MAX_ATTEMPTS(5)
 const TOTP_STEP_MS = 30_000
 const TOTP_BOUNDARY_SKEW_MS = 100 // 跨过边界后的微小余量，避免恰好卡在整 30s
 
@@ -114,6 +122,7 @@ export async function refreshArtistTokenCache(
 ): Promise<string> {
   let lastError: unknown = null
   let crossStepWaited = false
+  let failedLogins = 0 // PR114 MINOR-5：本链路累计失败次数，硬上限 TOTP_LOGIN_FAILURE_BUDGET
   let baseStep = Math.floor(timing.now() / TOTP_STEP_MS)
 
   const attempt = async (round: number): Promise<string> => {
@@ -132,6 +141,10 @@ export async function refreshArtistTokenCache(
         // F0053: 改按响应 code 字段判定可换下一候选（见 isTotpInvalid401）；
         // 锁定/网络/网关等其余错误直接抛，不空耗防爆破计数
         if (!isTotpInvalid401(err)) throw err
+        // PR114 MINOR-5: 预算耗尽即停，绝不凑第 5 次失败触发服务端 15min 锁号。
+        // 抛最后一次真实错误（TOTP_INVALID），由调用方决定失败语义；不等待、不换候选。
+        failedLogins++
+        if (failedLogins >= TOTP_LOGIN_FAILURE_BUDGET) throw err
       }
     }
     // 本轮候选中 TOTP 级拒绝（五态统一，无法区分「窗口被消费」与「持久拒绝」）

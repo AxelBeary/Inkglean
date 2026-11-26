@@ -22,6 +22,9 @@ import type { AppError } from './shared/errors.js'
 import { isSetupMode } from './features/setup/setup.service.js'  // REQ-038: 开箱设置守卫
 import { getAdminQq } from './shared/middleware/auth.js'  // P1 修复批：启动自检——管理员判定真值告警
 import { buildOgMeta, injectOgMeta } from './features/og/og-meta.service.js'  // REQ-043 I1: OG 分享卡片
+import { requestLogUrl, sentryBeforeSend } from './shared/sentry-privacy.js'
+// M-5 拆分后保持既有测试/调用方 import 路径不变（sentry-privacy.test.ts 从 app.js 导入）
+export { sentryBeforeSend } from './shared/sentry-privacy.js'
 
 // ============================================
 // 应用工厂 - 构建 Fastify 实例
@@ -54,21 +57,6 @@ function readIndexHtmlCached(file: string): string {
   const html = readFileSync(file, 'utf8')
   indexHtmlCache = { file, mtimeMs, html }
   return html
-}
-
-/** 凭证既可能在路径白名单里，也可能藏在任意查询参数中（日历订阅、安装向导、签名文件等）。 */
-const CREDENTIAL_PARAM_RE = /[?&](?:token|sig|code|key|password|secret)=/i
-
-function hasPrivateQuery(url: string): boolean {
-  if (CREDENTIAL_PARAM_RE.test(url ?? '')) return true
-  const path = url?.split(/[?#]/, 1)[0].replace(/^https?:\/\/[^/]+/i, '') ?? ''
-  return path.startsWith('/uploads/') || path.startsWith('/setup') ||
-    /^\/artist\/[^/]+\/(?:track|delivery\/[^/]+)\/?$/i.test(path)
-}
-
-/** 文件签名和客户访问令牌都在查询参数中，访问日志只记录这些入口的路径。 */
-function requestLogUrl(url: string): string {
-  return hasPrivateQuery(url) ? url.split('?', 1)[0] : url
 }
 
 function waitForDownloadOpen(stream: ReadStream, response: ServerResponse): Promise<boolean> {
@@ -641,14 +629,7 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
       environment: process.env.NODE_ENV || 'production',
       sendDefaultPii: false, // S-AC6: 不上传用户 IP
       tracesSampleRate: 0, // 不做性能追踪，只捕获错误
-      beforeSend(event) {
-        const request = event.request
-        if (request?.url && hasPrivateQuery(request.url)) {
-          request.url = requestLogUrl(request.url)
-          delete request.query_string
-        }
-        return event
-      }
+      beforeSend: sentryBeforeSend
     })
     app.log.info(`Sentry 已启用（release=${release}）`)
   }

@@ -258,7 +258,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import { orderApi } from '../../api/index'
-import type { ArtistPublicProfile, VisibleArtistProfile, OrderTrackResult, OrderInstallment } from '../../api/types'
+import type { ArtistPublicProfile, VisibleArtistProfile, OrderTrackResult } from '../../api/types'
 import { fetchArtistPublicProfile } from '../../composables/useArtistPublicProfile'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -266,6 +266,7 @@ import { formatDateTime } from '../../utils/datetime'
 import { formatCents } from '../../utils/money'
 import { ORDER_STATUS_TYPE } from '../../constants/order'
 import { useTrackDownloads } from '../../composables/useTrackDownloads'
+import { useNextDueCents } from '../../composables/useNextDueCents'
 import { useTrackSignatureRefresh } from '../../composables/useTrackSignatureRefresh'
 import { uploadedPathFromUrl } from '../../composables/useSignatureRefresh'
 import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
@@ -396,34 +397,8 @@ const trackPayPercent = computed(() => {
   if (total <= 0) return 0
   return Math.min(100, Math.round((order.value?.paidTotalCents || 0) / total * 100))
 })
-/**
- * F0314 之前的客户端自算「Σ正节点封顶」——降级为旧后端（未下发 nextDueCents 字段）的回退，
- * 兼容窗口保留一个发版周期，观测稳定后下批删除（勿再扩散使用）。
- * 2-1（审计二章1）：零/负价节点视为已结清不参与吞并，大幅降价后不再算出负数下期。
- */
-function legacyNextDueCents(insts: OrderInstallment[], paidTotalCents: number, fallbackCents: number): number {
-  if (!insts.length) return fallbackCents
-  const sumPositive = insts.reduce((s, i) => s + Math.max(0, i.amountCents || 0), 0)
-  let covered = Math.min(paidTotalCents, sumPositive)
-  for (const inst of insts) {
-    // K1-6：GET /orders/track 的 installments 来自 getOrderInstallments（order-pricing.ts），
-    // 后端只返回 camelCase amountCents，snake_case 分支为死代码
-    const amt = inst.amountCents || 0
-    if (amt <= 0) continue // 零/负价节点：已结清，跳过
-    if (covered >= amt) { covered -= amt; continue }
-    return amt - covered // partial：返回剩余
-  }
-  return 0 // 全部覆盖
-}
-
-/** 下期应付：下一个未覆盖分期节点的金额（partial 时显示剩余）
- * F0314：后端 track 响应已下发权威 nextDueCents（服务端 deriveInstallmentProgress 口径，
- * 与本页 installments 同源推导），字段存在直接采用；缺失（旧后端）回退 legacyNextDueCents。 */
-const trackNextDueCents = computed(() => {
-  const data = order.value
-  if (typeof data?.nextDueCents === 'number') return data.nextDueCents
-  return legacyNextDueCents(data?.installments ?? [], data?.paidTotalCents || 0, trackRemainingCents.value)
-})
+// M-3 拆分：下期应付口径迁至 composables/useNextDueCents，模板与行为不变
+const { trackNextDueCents } = useNextDueCents(order, trackRemainingCents)
 
 const {
   downloadingId, pendingConfirmationTokens, pendingAdminDownloadIds, confirmedIds,

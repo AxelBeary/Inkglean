@@ -424,8 +424,9 @@ describe('审计批 F-6: DDL 双事实源一致性（完整 schema vs v1 起步 
     for (const check of DISCOUNT_CHECKS) {
       expect(sql, `存量旧形库不应被补上 ${check}`).not.toContain(check)
     }
-    // 关键：裁定生效——未新增迁移号来重建存量表（迁移总数仍 83）
-    expect(MIGRATIONS.length).toBe(83)
+    // 关键：裁定生效——未新增迁移号来重建存量 discount_codes 表。
+    // 迁移总数随 PR114 MINOR-2 的 v84（DROP 冗余 idx_invite_codes_code）从 83 增至 84。
+    expect(MIGRATIONS.length).toBe(84)
     database.close()
   })
 })

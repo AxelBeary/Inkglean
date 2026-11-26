@@ -7,7 +7,7 @@
 import { writeFileSync, existsSync, unlinkSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import { refreshArtistTokenCache, type RefreshTiming } from '../global-setup.js'
+import { refreshArtistTokenCache, TOTP_LOGIN_FAILURE_BUDGET, type RefreshTiming } from '../global-setup.js'
 
 // XEND-10: 回归专用隔离缓存——经 E2E_TOKENS_FILE 让 token-store 的读写落到本脚本专属临时文件，
 // 绝不再无条件覆写 e2e/.tokens.json（那是 global-setup/fixture 共享的有效 token 缓存，
@@ -53,6 +53,10 @@ if (existsSync(TOKENS_FILE)) unlinkSync(TOKENS_FILE)
 writeFileSync(TOKENS_FILE, JSON.stringify({ artist: 'placeholder', admin: 'placeholder' }))
 
 async function main(): Promise<void> {
+  // PR114 MINOR-5 守护：本链路失败预算必须严格小于服务端 TOTP_MAX_ATTEMPTS=5，
+  // 否则 E8 会自锁号 15min。旧断言 calls===6 正是踩线，现改为钉住预算上限。
+  check('失败登录预算 < 服务端锁号阈值 5', TOTP_LOGIN_FAILURE_BUDGET < 5, `budget=${TOTP_LOGIN_FAILURE_BUDGET}`)
+
   // ── 场景 A：持久 401 TOTP_INVALID → 一次边界等待后抛真实错误 ──
   {
     const { timing, waits } = makeTiming(1_700_000_000_000 + 10_000) // 落在某步内偏移 10s
@@ -64,7 +68,9 @@ async function main(): Promise<void> {
     check('A 持久拒绝：抛出最后一次真实错误（含 TOTP_INVALID）', thrown !== null && msg.includes('TOTP_INVALID'), msg)
     check('A 持久拒绝：只等一次边界（不无限轮×30s）', waits.length === 1, `waits=${JSON.stringify(waits)}`)
     check('A 持久拒绝：单次等待有界（≤30s+余量）', waits[0] > 0 && waits[0] <= 30_100, `waitMs=${waits[0]}`)
-    check('A 持久拒绝：鉴权请求有限（2 轮 ×3 候选 = 6）', calls === 6, `calls=${calls}`)
+    // PR114 MINOR-5：旧断言 calls===6 会让服务端第 5 次失败即锁 15min；现在累计失败达预算即停
+    check('A 持久拒绝：失败登录不超过锁号阈值（≤4，绝不第 5 次）', calls <= TOTP_LOGIN_FAILURE_BUDGET, `calls=${calls}`)
+    check('A 持久拒绝：预算恰好用尽即停', calls === TOTP_LOGIN_FAILURE_BUDGET, `calls=${calls}`)
   }
 
   // ── 场景 B：窗口被消费 → 等一次边界拿新步的码，成功恢复 ──

@@ -44,6 +44,15 @@ const staticIssues = analyzeLine(staticLine, 2)
 check('转义引号静态文本不被判 ERROR', staticIssues.filter(x => x.level === 'error').length, 0)
 check('转义引号静态文本仍报 WARN', staticIssues.filter(x => x.level === 'warn').length, 1)
 
+// ── PR114 MINOR-6：name 字面量含逗号不得被截成未闭合引号而假红 ──
+check('含逗号静态 name 字面量判为静态', isDynamicArg("'保存, 继续'"), false)
+const commaNameLine = `await expect(page.getByRole('button', { name: '保存, 继续' })).toBeVisible()`
+const commaIssues = analyzeLine(commaNameLine, 3)
+check('逗号名静态 getByRole 不报 ERROR（原实现假红）', commaIssues.filter(x => x.level === 'error').length, 0)
+const dynamicNameLine = "await expect(page.getByRole('button', { name: label, exact: true })).toBeVisible()"
+const dynamicIssues = analyzeLine(dynamicNameLine, 4)
+check('动态 name 仍能报 ERROR（修复不漏报）', dynamicIssues.filter(x => x.level === 'error').length, 1)
+
 // ── 真注释豁免在规则层生效 ──
 check('真注释行被 isExempt 语义跳过（规则层无 issue 由调用方保证）',
   hasLocatorOkComment("await expect(page.getByText('提交')).toBeVisible() // locator-ok"), true)
