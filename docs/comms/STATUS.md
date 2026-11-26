@@ -1,5 +1,21 @@
 # 全局状态（一号维护，其他角色只读）
 
+## 2026-11-27 会话交接（发版与安全公告未完成，**接手先读这条**）
+
+- **当前基线（实测）**：master `1e45bc11`；迁移 v84；open issue 0 / open PR 0；版本 root 1.1.0 / desktop 0.1.0
+- 🔴 **发版卡在凭据**：`gh secret list` 与 `gh variable list` **均为空**，`desktop-release.yml` 硬性要求 4 项
+  - secret `TAURI_SIGNING_PRIVATE_KEY` / `_PASSWORD`；var `DESKTOP_UPDATE_PUBKEY` / `DESKTOP_UPDATE_BASE`
+  - 照做清单 `AGENTS/拍板材料-20261123/B8-照做清单.md`；**U33 流水线从未跑过，首跑需现场调**
+  - 用户已定版本：root **1.2.0** / desktop & tauri **0.2.0**（尚未落到文件）
+- 🔴 **安全公告未转公开，三个未决问题**（用户 11-27 指示可转开放，但核对后不能直接发）
+  - ① **公网版本存疑**：release 最新仍是 `v1.1.0`(10-28，落后 master 165 提交)，缺 v83/v84/sentry-privacy；需用户确认实际部署版本
+  - ② 现有 advisory `summary` 写「未修复」且 `patched_versions` 为空——直接发布会是错误公告
+  - ③ credits 挂 `Mistwhisker`，按 10-26 拍板「署名需报告者本人同意」，需本人确认
+  - **GHSA-6pf3 的 8 节已全部在 master 落地**（证据表见交接档 §四），修是修好了，只差公告口径
+- **建议顺序**：配凭据 → 改版本号+changelog+门禁 → 打 tag 首跑 U33 → 真机终验 → 1.2.0 发出后再改 advisory（summary/patched_versions=1.2.0/credits）→ 转公开
+- ⚠️ **工作区有他人未提交改动**（10 改 + 1 新增，全在 `web/` Passkey 域，02:39–02:52）：不得提交/不得 stash/不得回滚
+- **完整交接**：`AGENTS/pr-audit-20261126/HANDOFF.md`（自包含；本机 gitignore，清理后可能不存在）
+
 ## 2026-11-27 #97/#98 收口批（v49 测试补齐 + E2E 回归接门禁）
 
 - **#97 迁移测试覆盖**：补 `server/tests/migration-v49.test.ts`（5 例）——v49 是 84 条迁移里唯一「noTransaction + 备份 + 种子」却零测试的重型重建
