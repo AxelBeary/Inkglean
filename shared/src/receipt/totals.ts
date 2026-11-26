@@ -3,7 +3,12 @@
  * 对标 oimimo 小票计算链的简化版：赠品恒 0 → 小计 → 整单折扣 → 应收 → 减定金 = 尾款
  *
  * shared-824 搬家批：自 web/src/utils/receipt.ts 整件迁入，作为小票计算唯一事实源
+ *
+ * M-4（PR114 审计）：元→分统一走 ../utils/money 的 yuanToCents（十进制指数移位），
+ * 与 ReceiptPrinter 行金额同源；不再用本地 Math.round(yuan*100)（0.145→14 / 1.005→100
+ * 与行额 15 / 101 差 1 分）。相对导入，无循环依赖。
  */
+import { yuanToCents } from '../utils/money'
 
 /** 小票制品行（priceYuan 单位元；gift=赠品划线计 0） */
 export interface ReceiptItemLike {
@@ -29,9 +34,6 @@ export interface ReceiptTotals {
   balanceCents: number
 }
 
-const yuanToCentsLocal = (yuan: number | null): number =>
-  yuan == null || !Number.isFinite(yuan) ? 0 : Math.round(yuan * 100)
-
 /** 有效行：名称非空且（数量>0；赠品行不要求价格） */
 export function validItems(items: ReceiptItemLike[]): ReceiptItemLike[] {
   return items.filter(i =>
@@ -50,7 +52,7 @@ export function computeReceiptTotals(
 ): ReceiptTotals {
   // 数量按整数计：输入框 step=1 仍可键入 1.5，不取整会算出半分，且与 ReceiptPrinter 载入草稿时的 floor 不一致 → 同票金额跳变
   const subtotalCents = validItems(items).reduce(
-    (sum, i) => sum + (i.gift ? 0 : Math.floor(Math.max(0, i.qty)) * yuanToCentsLocal(i.priceYuan)),
+    (sum, i) => sum + (i.gift ? 0 : Math.floor(Math.max(0, i.qty)) * yuanToCents(i.priceYuan)),
     0
   )
 
@@ -61,11 +63,11 @@ export function computeReceiptTotals(
     //（小票是画师手动对账单、折扣码是下单计价，独立子系统），差 ≤1 分无资金损坏，勿顺手统一。
     discountCents = Math.round(subtotalCents * (1 - pct / 100))
   } else if (discountType === 'amount') {
-    discountCents = Math.min(subtotalCents, Math.max(0, yuanToCentsLocal(discountValue)))
+    discountCents = Math.min(subtotalCents, Math.max(0, yuanToCents(discountValue)))
   }
 
   const totalCents = Math.max(0, subtotalCents - discountCents)
-  const depositCents = Math.max(0, yuanToCentsLocal(depositYuan))
+  const depositCents = Math.max(0, yuanToCents(depositYuan))
   const balanceCents = Math.max(0, totalCents - depositCents)
   return { subtotalCents, discountCents, totalCents, depositCents, balanceCents }
 }
@@ -80,7 +82,7 @@ export function discountLabel(type: ReceiptDiscountType, value: number, locale: 
   }
   if (type === 'amount') {
     // 文案数字与实扣同源：直减 999 / 小计 100 时按原值会渲染成「-999.00 -¥100.00」两行对不上
-    const cents = Number.isFinite(clampedCents as number) ? Math.max(0, clampedCents as number) : yuanToCentsLocal(value)
+    const cents = Number.isFinite(clampedCents as number) ? Math.max(0, clampedCents as number) : yuanToCents(value)
     return `-${(cents / 100).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   }
   return ''

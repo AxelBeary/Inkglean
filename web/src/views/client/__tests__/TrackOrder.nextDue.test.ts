@@ -189,6 +189,45 @@ describe('TrackOrder 下期应付（F0314：nextDueCents 字段优先 + legacy �
     expect(nextDueText(wrapper)).toBe(`¥${formatCents(5000)}`)
   })
 
+  // M-3（PR114 审计回归）：buffer 订单有价但无分期是正常长期态。旧后端下发的 0
+  // 不能被当权威值采信，否则同屏出现「下期应付 ¥0.00 / 剩余 ¥200」自相矛盾。
+  it('字段=0 + 无分期节点（buffer 订单）：忽略 0，回退订单级待收', async () => {
+    h.track.mockResolvedValue(buildTrack({
+      finalPriceCents: 20000,
+      paidTotalCents: 0,
+      installments: [],
+      nextDueCents: 0,
+      queueZone: 'buffer'
+    }))
+    const wrapper = mountPage()
+    await settle()
+    expect(nextDueText(wrapper)).toBe(`¥${formatCents(20000)}`)
+  })
+
+  it('字段=null + 无分期节点（新后端 M-3 口径）：回退订单级待收', async () => {
+    h.track.mockResolvedValue(buildTrack({
+      finalPriceCents: 20000,
+      paidTotalCents: 5000,
+      installments: [],
+      nextDueCents: null
+    }))
+    const wrapper = mountPage()
+    await settle()
+    expect(nextDueText(wrapper)).toBe(`¥${formatCents(15000)}`)
+  })
+
+  it('字段=0 + 有分期节点且全付清：仍采信 0（本期不欠，与无节点 null 语义区分）', async () => {
+    h.track.mockResolvedValue(buildTrack({
+      finalPriceCents: 30000,
+      paidTotalCents: 30000,
+      installments: [inst(1, '定金', 30000, 30000)],
+      nextDueCents: 0
+    }))
+    const wrapper = mountPage()
+    await settle()
+    expect(nextDueText(wrapper)).toBe(`¥${formatCents(0)}`)
+  })
+
   it('deliveryOnly 最小响应（无金额字段）：付款块整体不渲染，不抛错', async () => {
     h.track.mockResolvedValue({ orderNo: 'ALICE-001', deliveryOnly: true })
     const wrapper = mountPage()
