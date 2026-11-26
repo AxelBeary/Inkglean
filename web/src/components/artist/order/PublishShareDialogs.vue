@@ -195,6 +195,17 @@ function shareIntentUrl(platform: SharePlatform | null) {
   return hit ? hit.intent : null
 }
 
+/**
+ * F0217（越界项复核批）：兜底直开（无预填、无主页链接时 `https://${hostname}`）的 hostname 形态校验。
+ * homepage 走 validateLink 全量校验（F2 防投毒）；这里只兜服务端返回的裸 hostname——
+ * RFC 1123 子集（点分标签、TLD ≥2 字母、总长 ≤253），拒绝 javascript:/data:、内嵌路径或查询、
+ * 连字符起止、纯 IP 等一切非裸域名形态；不合法则不开窗口、给用户可见提示。
+ */
+const HOSTNAME_SHAPE_RE = /^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*\.[a-z]{2,63}$/i
+function isValidShareHostname(hostname: unknown): boolean {
+  return typeof hostname === 'string' && HOSTNAME_SHAPE_RE.test(hostname.trim())
+}
+
 function defaultShareText() {
   return t('orderDetail.shareTemplate')
 }
@@ -244,9 +255,11 @@ async function doShare() {
     shareNoHomepage.value = true
     return
   }
+  // F0216（越界项复核批）：模板可含多个同名占位符（如两处 {homepage}），字符串模式 replace 只替换
+  // 首个、第二个会以字面量残留在发出的文案里 → replaceAll 全局替换
   const text = shareText.value
-    .replace('{orderNo}', props.order?.order_no || '')
-    .replace('{homepage}', homepage || '')
+    .replaceAll('{orderNo}', props.order?.order_no || '')
+    .replaceAll('{homepage}', homepage || '')
   // 模板持久化（下次打开沿用）
   safeSetItem(SHARE_TEMPLATE_KEY, shareText.value)
   shareOpening.value = true
@@ -264,8 +277,15 @@ async function doShare() {
       } catch {
         ElMessage.warning(text)
       }
-      if (homepage) window.open(homepage, '_blank', 'noopener')
-      else if (p?.hostname) window.open(`https://${p.hostname}`, '_blank', 'noopener')
+      if (homepage) {
+        window.open(homepage, '_blank', 'noopener')
+      } else if (p?.hostname && isValidShareHostname(p.hostname)) {
+        // F0217：兜底直开仅放行合法 hostname 形态——服务端返回值未经校验不得直接拼进 window.open
+        window.open(`https://${p.hostname}`, '_blank', 'noopener')
+      } else if (p?.hostname) {
+        // F0217：形态不合法 → 拒开窗口（文案已复制仍可手动前往），给用户可见提示
+        ElMessage.warning(t('orderDetail.shareInvalidHost'))
+      }
     }
     shareDialogVisible.value = false
   } finally {

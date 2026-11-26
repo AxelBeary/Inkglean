@@ -4,7 +4,7 @@ import type { ArtistRow } from './setup.js'
 import { createSession } from '../src/features/auth/auth.service.js'
 import { buildApp } from '../src/app.js'
 import { pruneIdempotencyKeys } from '../src/shared/idempotency.js'
-import { withIdempotency } from '../src/shared/idempotency.js'
+import { withIdempotency, unsealIdempotencyResponse } from '../src/shared/idempotency.js'
 
 /**
  * 审计批 D-2（R-9）：下单/收款幂等键
@@ -40,6 +40,13 @@ describe('审计批 D-2 幂等键', () => {
       expect(second.json()).toEqual(first.json())
       const orders = db.prepare('SELECT * FROM orders').all()
       expect(orders).toHaveLength(1)
+      // F0134：首响后缓存只存 enc:v1 信封，明文客户令牌/trackUrl 不落 response_json
+      const cached = db.prepare(
+        'SELECT response_json FROM idempotency_keys WHERE scope = ? AND key = ?'
+      ).get(`orders:${artist.id}:123456`, 'order-key-0001') as { response_json: string }
+      expect(cached.response_json).toMatch(/^enc:v1:/)
+      expect(cached.response_json).not.toContain(first.json().customerToken)
+      expect(cached.response_json).not.toContain('token=')
     } finally {
       await app.close()
     }
@@ -252,8 +259,27 @@ describe('审计批 D-2 幂等键', () => {
     })
     expect(result).toEqual({ statusCode: 200, body: { ok: true } })
     expect(calls).toBe(1)
-    expect((db.prepare(
+    const sealed = (db.prepare(
       'SELECT response_json FROM idempotency_keys WHERE scope = ? AND key = ?'
-    ).get(scope, 'bad') as { response_json: string }).response_json).toBe('{"ok":true}')
+    ).get(scope, 'bad') as { response_json: string }).response_json
+    // F0134：重执行后写回的是 enc:v1 信封，解封后才是明文
+    expect(sealed).toMatch(/^enc:v1:/)
+    expect(JSON.parse(unsealIdempotencyResponse(sealed, scope, 'bad'))).toEqual({ ok: true })
+  })
+
+  it('TC-D2-15: F0134 密文损坏 → 独立 409 IDEMPOTENCY_ENVELOPE_INVALID，不删行、不重执行', () => {
+    const scope = 'enc-corrupt-test'
+    const key = 'bad-envelope'
+    db.prepare(
+      "INSERT INTO idempotency_keys (scope, key, status_code, response_json) VALUES (?, ?, 200, 'enc:v1:!!!!')"
+    ).run(scope, key)
+    let calls = 0
+    // TASK2-01：不能再复用 IDEMPOTENCY_CONFLICT（前端会清 key 导致重复下单）
+    expect(() => withIdempotency(scope, key, () => {
+      calls++
+      return { statusCode: 200, body: { ok: true } }
+    })).toThrow('IDEMPOTENCY_ENVELOPE_INVALID')
+    expect(calls).toBe(0)
+    expect((db.prepare('SELECT response_json FROM idempotency_keys WHERE scope = ? AND key = ?').get(scope, key) as { response_json: string }).response_json).toBe('enc:v1:!!!!')
   })
 })

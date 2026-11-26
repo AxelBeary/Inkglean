@@ -21,7 +21,9 @@
  * - R57 表单防丢失（sessionStorage 草稿 + beforeunload 拦截 + 恢复询问）
  *
  * 巨型文件防阀（800 行硬上限）拆分口径：R57 草稿单元（落盘节流/恢复过滤/离开拦截）
- * 本体在 ./orderFormHelpers.ts，本文件把自有状态的引用交过去，读写仍指向同一份数据，行为不变。
+ * 本体在 ./orderFormHelpers.ts；折扣码单元在 ./orderFormDiscount.ts；
+ * 参考图单元（凭证锁定/文件选择/粘贴上传）在 ./orderFormRefs.ts。
+ * 本文件把自有状态的引用交过去，读写仍指向同一份数据，行为不变。
  *
  * 用法：
  *   const formRef = ref(null)          // 模板中 el-form 的 ref
@@ -38,20 +40,20 @@ import { fetchArtistPublicProfile } from './useArtistPublicProfile'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { sanitizeHtml } from '../utils/sanitize'
-import { usePasteUpload } from './usePasteUpload'
-import { formatAddonPrice, formatYuanTrimmed, yuanToCents } from '../utils/money'
+import { formatAddonPrice, formatYuanTrimmed } from '../utils/money'
 import { getAnonToken } from '../utils/track'
 import { generateId } from '../utils/id'
-import { uploadReferenceWithAnonToken, AnonTokenUnavailableError } from '../utils/anonUpload'
+import { shouldRotateIdempotencyKey } from '../utils/idempotency'
 import { hydrateDraftRefUrls } from './draftRefThumbs'
-import { MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, MAX_IMAGE_MB } from '../constants/upload'
 import { useOrderFormDraft } from './orderFormHelpers'
+import { useOrderFormDiscount } from './orderFormDiscount'
+import { useOrderFormRefUpload, useOrderFormRefPaste } from './orderFormRefs'
 import type { AddonSelRecord } from './orderFormHelpers'
 import type {
   ArtistPublicProfile, PublicArtStyle, PublicStyleAddon, PublicPricingResult,
   StylePriceResult, StyleAddonSelection, WorkflowStageDTO
 } from '../api/types'
-import type { DiscountResult, RefFileItem, InstallmentItem } from '../views/client/order-form/types'
+import type { InstallmentItem } from '../views/client/order-form/types'
 
 /** el-form ref 最小结构（提交时只做 validate） */
 interface OrderFormRefLike {
@@ -192,36 +194,10 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
   let submitIdemKey: string | null = null
 
   // ─── 参考图上传 ───
-  /**
-   * 参考图条目唯一来源（el-upload 走 v-model:file-list）：展示、上限、token 判定、提交都读这一个数组。
-   * issue #50-3：旧实现另存一份 uploadedRefs，而 EP 选文件时整组换数组、点选链路从不写 refFileList，
-   * 两个数各算各的 → 上限双向失效（粘贴只看 refFileList、点选只写 uploadedRefs）。
-   */
-  const refFileList = ref<RefFileItem[]>([])
-  /** 上传成功的存储路径（顺序即展示顺序；在途/失败条目无 filePath，不进提交） */
-  const refFilePaths = computed(() => refFileList.value
-    .map(item => item.filePath)
-    .filter((p): p is string => typeof p === 'string' && p.length > 0))
-  /** 本次会话成功上传参考图时实际使用的匿名凭证——下单提交必须与上传同源（F-10 归属校验） */
-  let refUploadToken: string | null = null
-
-  /**
-   * issue #50-8：整表参考图必须同一凭证。服务端按 anon_id 逐条校验，混用会在提交时整体回滚且
-   * 不给指向性提示。故凭证首次上传成功即锁定；后续上传若被 anonUpload 换新（旧凭证失效重试），
-   * 旧批参考图已归属旧 anon_id，只能就地清空并明确要求重传，⛔ 不静默混提。
-   */
-  function lockRefUploadToken(token: string) {
-    if (refUploadToken === token) return
-    const rotated = refUploadToken !== null
-    refUploadToken = token
-    // 无已提交条目（用户已删除/从未传成）时无需打扰：没有旧批可混
-    if (!rotated || !refFileList.value.some(item => item.filePath)) return
-    // 原地 splice 而非换数组：el-upload 的 v-model:file-list 绑定同一个数组实例
-    for (let i = refFileList.value.length - 1; i >= 0; i--) {
-      if (refFileList.value[i].filePath) refFileList.value.splice(i, 1)
-    }
-    ElMessage.warning(t('orderForm.refTokenRotated'))
-  }
+  // 凭证锁定 + 文件选择上传本体在 ./orderFormRefs（逐字搬迁）；refFileList 引用交回本 composable
+  const {
+    refFileList, refFilePaths, getRefUploadToken, lockRefUploadToken, handleRefUpload
+  } = useOrderFormRefUpload()
 
   // ─── 计算属性 ───
   const sanitizedRules = computed(() => sanitizeHtml(rulesContent.value))
@@ -232,65 +208,13 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
     return formatAddonPrice(a.price, a.price_mode, { controlType: a.control_type, unitLabel: a.unit_label || t('styleManage.unitFallback') })
   }
 
-  // ─── 折扣码（验证 → 预估折扣展示 → 提交时传码，后端真正扣减） ───
-  /** 画师是否开启折扣功能（getPricing 返回 discountEnabled） */
-  const discountEnabled = computed(() => !!pricingData.value?.discountEnabled)
-  /** 验证结果 { discountType: 'percent'|'fixed', discountValue: number } | null */
-  const discountResult = ref<DiscountResult | null>(null)
-  const discountError = ref('')
-  const discountValidating = ref(false)
-  // a3: 验证序号——A 码在途时改输入为 B 码，A 的晚到响应不得回写旧折扣结果
-  let discountValidationSeq = 0
-
-  /** 验证折扣码（公开 API，需 subdomain） */
-  async function validateDiscountCode() {
-    const code = form.discountCode.trim()
-    if (!code) return
-    const mySeq = ++discountValidationSeq
-    discountValidating.value = true
-    discountError.value = ''
-    try {
-      const res = await artistPublicApi.validateDiscount({ subdomain, code })
-      if (mySeq !== discountValidationSeq) return
-      discountResult.value = { discountType: res.discountType, discountValue: res.discountValue }
-      // 验证通过后立即重算价格（calculate-style-price 含折扣）
-      if (selectedSizeId.value) scheduleStyleCalc()
-    } catch (err) {
-      if (mySeq !== discountValidationSeq) return
-      discountResult.value = null
-      discountError.value = (err as ApiError).message
-    } finally {
-      if (mySeq === discountValidationSeq) discountValidating.value = false
-    }
-  }
-
-  /** 清除折扣码（修改码时调用） */
-  function clearDiscount() {
-    discountResult.value = null
-    discountError.value = ''
-    if (selectedSizeId.value) scheduleStyleCalc()
-  }
-
-  // 输入框内容变化 → 清除旧验证结果（防止码改了但折扣还挂着）
-  watch(() => form.discountCode, clearDiscount)
-
-  /**
-   * 预估折扣金额（分）。与后端 computeDiscountCents 同口径：
-   * percent = floor(倍率后总价 × value/100)；fixed = min(value元, 总价)。
-   */
-  const discountPreviewCents = computed(() => {
-    const baseCents = stylePricePreview.value?.afterMultipliersCents
-    if (!discountResult.value || baseCents == null || baseCents <= 0) return 0
-    const { discountType, discountValue } = discountResult.value
-    if (discountType === 'percent') return Math.floor(baseCents * discountValue / 100)
-    if (discountType === 'fixed') return Math.min(yuanToCents(discountValue), baseCents)
-    return 0
-  })
-
-  /** 折扣后预估总价（元；展示用，整数分换算） */
-  const discountedTotalYuan = computed(() => {
-    const baseCents = stylePricePreview.value?.afterMultipliersCents ?? 0
-    return Math.max(0, baseCents - discountPreviewCents.value) / 100
+  // ─── 折扣码 ───
+  // 验证/竞态序号/预估金额本体在 ./orderFormDiscount（逐字搬迁）；状态以原引用交回，对外 API 不变
+  const {
+    discountEnabled, discountResult, discountError, discountValidating,
+    validateDiscountCode, discountPreviewCents, discountedTotalYuan, invalidatePendingValidation
+  } = useOrderFormDiscount({
+    subdomain, form, selectedSizeId, stylePricePreview, pricingData, scheduleStyleCalc
   })
 
   // ─── 画风选择 + 计价 + 提交 ───
@@ -511,80 +435,9 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
     initStyleAddonDefaults, scheduleStyleCalc
   })
 
-  // ─── 参考图上传（文件选择） ───
-  async function handleRefUpload({ file }: { file: File & { uid: string | number } }) {
-    if (file.size > MAX_IMAGE_BYTES) {
-      const sizeMB = (file.size / 1024 / 1024).toFixed(1)
-      ElMessage.warning(t('orderForm.fileTooBig', { name: file.name, size: sizeMB }))
-      return
-    }
-    const ext = file.name.split('.').pop()!.toLowerCase()
-    if (!['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
-      ElMessage.info(t('orderForm.typeWarning'))
-    }
-    try {
-      // G-7（P2-13 前端侧）: 上传前 await 凭证；缓存凭证失效（INVALID_ANON_TOKEN）时
-      // anonUpload 内部换新重试一次，避免公网用户被旧凭证卡死
-      const { uploaded, token } = await uploadReferenceWithAnonToken(file)
-      // issue #50-8：凭证换新会清空旧批已传条目（按 filePath 判），本条在途条目无路径，回填不受影响
-      lockRefUploadToken(token)
-      // 按 uid 回填 EP 已落进同一数组的条目（EP 的 onStart 先于 http-request）：
-      // 回填而非追加，否则同一张图会出现两条，上限与提交都会多算
-      const item = refFileList.value.find(f => String(f.uid) === String(file.uid))
-      if (item) {
-        item.filePath = uploaded.filePath
-        item.url = uploaded.url
-      }
-    } catch (err) {
-      if (err instanceof AnonTokenUnavailableError) {
-        ElMessage.error(t('orderForm.anonTokenRequired'))
-        throw new Error(t('orderForm.anonTokenRequired'), { cause: err })
-      }
-      ElMessage.error((err as ApiError).message || t('common.uploadFailed'))
-      throw err
-    }
-  }
-
   // ─── 粘贴上传（参考图） ───
-  async function handlePasteRefFiles(files: File[]) {
-    for (const file of files) {
-      // 上限只在合并后的同一数组判一次：点选与粘贴共用 refFileList
-      if (refFileList.value.length >= MAX_IMAGE_COUNT) {
-        ElMessage.warning(t('orderForm.refExceed'))
-        break // 已达上限提示后跳过剩余，不再中断已上传列表
-      }
-      const ext = (file.name || '').split('.').pop()!.toLowerCase()
-      if (ext && !['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
-        ElMessage.info(t('orderForm.typeWarning'))
-      }
-      try {
-        const { uploaded, token } = await uploadReferenceWithAnonToken(file)
-        // issue #50-8：先结算凭证（换新时清掉旧批已传条目），再把本条推进同一数组
-        lockRefUploadToken(token)
-        // 与点选条目同形（含 filePath）：粘贴条目落进即带路径，无需回填
-        refFileList.value.push({
-          name: file.name || 'pasted-image.png',
-          url: uploaded.url,
-          uid: `paste-${generateId()}`,
-          status: 'success',
-          filePath: uploaded.filePath
-        })
-      } catch (err) {
-        if (err instanceof AnonTokenUnavailableError) {
-          ElMessage.error(t('orderForm.anonTokenRequired'))
-        } else {
-          ElMessage.error((err as ApiError).message || t('common.uploadFailed'))
-        }
-      }
-    }
-  }
-
-  const { pasteError } = usePasteUpload({
-    onFiles: handlePasteRefFiles,
-    maxCount: MAX_IMAGE_COUNT,
-    maxSizeMB: MAX_IMAGE_MB
-  })
-  watch(pasteError, (msg) => { if (msg) ElMessage.warning(msg) })
+  // 粘贴链路 + 错误提示 watch 本体在 ./orderFormRefs（逐字搬迁，调用点保持原位以维持 watch 注册顺序）
+  useOrderFormRefPaste({ refFileList, lockRefUploadToken })
 
   // ─── 提交 ───
   async function submit() {
@@ -603,6 +456,12 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
       ElMessage.warning(t('orderForm.discountNotValidated'))
       return
     }
+    // #61-②：refFilePaths 的过滤会静默丢掉无 filePath 条目（在途/失败），客户以为图已随单提交。
+    // 提交入口拦下并提示：等上传完成或移除该条后再提交（不再静默少图）
+    if (refFileList.value.some(item => !item.filePath)) {
+      ElMessage.warning(t('orderForm.refNotReady'))
+      return
+    }
     submitting.value = true
     submittedTotalCents.value = null
     // F0244: formRef 为空时不加非空断言——一旦为空 .validate() 抛错会跳过后续 submitting=false，锁永久卡死
@@ -616,13 +475,32 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
       return
     }
 
+    // #65 尾巴清收：提交时二次校验接单状态——下单入口门禁（OrderForm 的 artistNotOpen 空态）
+    // 只看挂载时快照，客户填表期间画师可能已切 full/break/hidden。提交前现拉一次公开画像复核，
+    // 非 open 就回写 artist 让空态横幅立即生效，不再把注定 400 的请求发给服务端。
+    // 判据与入口门禁、服务端 POST /api/orders（ARTIST_NOT_OPEN）逐字同口径：只认回显 status，
+    // 不认 effectiveStatus（那是额度展示口径，服务端下单不据此拦单）。
+    try {
+      const fresh = await fetchArtistPublicProfile(subdomain)
+      if (fresh.status !== 'open') {
+        artist.value = fresh
+        ElMessage.error(t('errors.ARTIST_NOT_OPEN'))
+        submitting.value = false
+        return
+      }
+    } catch (err) {
+      // 预检失败不拦提交：接单状态的权威判定在服务端 POST /api/orders（非 open 必 400
+      // ARTIST_NOT_OPEN），网络抖动不能让本可成功的下单被前端误杀；失败留痕与 F-4/F-5 同款降级口径。
+      console.warn('[useOrderForm] 提交前接单状态预检失败，放行交服务端终判', err) // eslint-disable-line no-console -- #65：预检失败留痕，放行服务端终判
+    }
+
     if (!submitIdemKey) submitIdemKey = generateId()
     // G-7: 有参考图时必须携带与上传同源的 x-anon-token（无参考图下单不带 token 照常）
     let anonToken: string | null = null
     if (refFilePaths.value.length > 0) {
       // 优先用上传成功时记录的凭证（即使期间埋点链路换过 token，下单仍与参考图同源）；
       // 兜底再取一次当前缓存
-      anonToken = refUploadToken || await getAnonToken()
+      anonToken = getRefUploadToken() || await getAnonToken()
       if (!anonToken) {
         ElMessage.error(t('orderForm.anonTokenRequired'))
         submitting.value = false
@@ -662,7 +540,9 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
     } catch (err) {
       // 审计 #21 条目 3: 同 key 换内容 → 后端 409（旧行为是回放上一单结果，客户以为改成功了）。
       // 这里必须换新 key，客户改完文案/尺寸再点一次即受理为新单意图。
-      if ((err as ApiError).code === 'IDEMPOTENCY_CONFLICT') submitIdemKey = null
+      // TASK2-01: 信封解密失败是独立错误码，必须保留原 key——清 key 会以新 key 重复下单/扣款；
+      // 服务端文案已给出「请勿重复提交/联系客服」的不可重试提示。
+      if (shouldRotateIdempotencyKey((err as ApiError).code)) submitIdemKey = null
       ElMessage.error((err as ApiError).message)
     } finally {
       submitting.value = false
@@ -760,7 +640,7 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
     window.removeEventListener('beforeunload', onBeforeUnload)
     flushDraft() // issue #53-2: 清定时器前先落盘，防抖 500ms 内的最后一笔不再丢在内存里
     if (styleCalcTimer) clearTimeout(styleCalcTimer)
-    discountValidationSeq++ // a3: 卸载后在途验证响应作废
+    invalidatePendingValidation() // a3: 卸载后在途验证响应作废（序号归折扣单元持有）
   })
 
   return {

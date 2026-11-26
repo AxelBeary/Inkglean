@@ -108,6 +108,10 @@
                 <el-option :label="$t('admin.guestbook.repliedYes')" :value="1" />
                 <el-option :label="$t('admin.guestbook.repliedNo')" :value="0" />
               </el-select>
+              <!-- WEB-04：可调整服务端拉取上限（完整列表入口，最大到服务端钳制 1000），超限给可见提示 -->
+              <el-select v-model="adminMessagesLimit" size="small" style="width: 118px" :placeholder="$t('admin.guestbook.listLimit')" @change="loadAdminMessages">
+                <el-option v-for="n in ADMIN_MESSAGE_LIMIT_OPTIONS" :key="n" :label="$t('admin.guestbook.limitN', { n })" :value="n" />
+              </el-select>
             </div>
           </div>
           <!-- P1-B：留言加载失败不再静默——错误横幅 + 重试；失败不显示「暂无留言」空态 -->
@@ -118,6 +122,11 @@
           <!-- T 波：el-table 行由 EP 内部渲染、无法挂 Vue 过渡，改等价 CSS 网格列表 +
                TransitionGroup 行级淡出 var(--dur-mid)——删除留言不再瞬变 -->
           <div v-else-if="msgLoading || adminMessages.length" class="gb-table-wrap">
+            <!-- WEB-04：命中拉取上限时明示「仅显示最近 N 条」——不再让超限留言静默不可见。
+                 完整列表入口＝上方上限下拉（最大 1000），或用筛选缩小范围定位更早留言。 -->
+            <p v-if="!msgLoadFailed && !msgLoading && messageListTruncated" class="load-truncated-hint" role="status">
+              {{ t('admin.guestbook.listTruncated', { n: adminMessagesLimit }) }}
+            </p>
             <div class="gb-list-head">
               <span class="gb-col gb-col--artist">{{ $t('admin.guestbook.colArtist') }}</span>
               <span class="gb-col gb-col--nick">{{ $t('admin.guestbook.colNickname') }}</span>
@@ -185,6 +194,12 @@ const msgLoadFailed = ref(false)
 const messagesPage = ref(1)
 /** b3 清扫：留言列表分页大小（客户端截断，防全量渲染） */
 const GB_PAGE_SIZE = 10
+/** B7-F0283：服务端拉取上限（默认只取最近 200 条，配合 ?limit= 传输有界） */
+// WEB-04：上限可选（完整列表入口，最大 = 服务端钳制 1000）；命中上限时给可见提示，不再静默截断
+const ADMIN_MESSAGE_LIMIT_OPTIONS = [200, 500, 1000] as const
+const adminMessagesLimit = ref<number>(ADMIN_MESSAGE_LIMIT_OPTIONS[0])
+/** 拉取条数已达当前上限：可能有更早的留言未加载 → 显示截断提示 */
+const messageListTruncated = computed(() => adminMessages.value.length >= adminMessagesLimit.value)
 const pagedAdminMessages = computed(() =>
   adminMessages.value.slice((messagesPage.value - 1) * GB_PAGE_SIZE, messagesPage.value * GB_PAGE_SIZE)
 )
@@ -197,10 +212,13 @@ async function loadAdminMessages() {
   msgLoading.value = true
   msgLoadFailed.value = false
   try {
+    // B7-F0283：服务端 limit 只拉最近一屏（仪表盘概览口径，对齐 AdminActions 留痕页 200 上限档）；
+    // 此前全量拉回再客户端分页，大表时传输/内存无界
     adminMessages.value = (await adminApi.getMessages({
       artistId: filterArtistId.value ?? undefined,
       status: filterStatus.value ?? undefined,
-      replied: filterReplied.value ?? undefined
+      replied: filterReplied.value ?? undefined,
+      limit: adminMessagesLimit.value
     })) || []
   } catch {
     // P1-B：筛选/加载失败清旧数据（防张冠李戴），明示错误 + 重试
@@ -300,6 +318,12 @@ onMounted(async () => {
   padding: 12px 16px;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   background: var(--zs-t); color: var(--zs); border-radius: var(--r-m); font-size: 13px;
+}
+/* WEB-04：命中拉取上限的截断提示（墨色克制，区别于错误横幅） */
+.load-truncated-hint {
+  margin: 0 0 10px; padding: 8px 12px;
+  background: var(--hq-t); color: var(--ink2);
+  border-radius: var(--r-m); font-size: 12px; line-height: 1.5;
 }
 
 /* ─── 表格单元格细节 ─── */

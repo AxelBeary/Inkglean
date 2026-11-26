@@ -114,16 +114,18 @@ describe('audit-a R-10 createOrder 总价封顶', () => {
     return db.prepare('SELECT id FROM style_addons WHERE art_style_id = ?').get(styleId) as { id: number }
   }
 
-  it('TC-R10-01: 溢出组合被拒（INVALID_PRICE 且不落库）', () => {
+  it('TC-R10-01: 溢出组合被拒且不落库（F0146 前置 0-1000 百分比范围守卫）', () => {
     const size = seedStyleAndSize(999999)
     const addon = seedOverflowAddon(size.art_style_id, 999)
 
+    // F0146：999999% 超出百分比增项 0-1000 整数范围，在解析阶段即以 VALIDATION 拒绝，
+    // 早于旧的金额封顶 INVALID_PRICE；拒绝而不落库的语义不变，错误码更精确。
     expect(() => orderService.createOrder({
       artistId: artist.id,
       clientQq: '111',
       styleSizeId: size.id,
       styleAddons: [{ styleAddonId: addon.id, quantity: 999 }]
-    })).toThrow('INVALID_PRICE')
+    })).toThrow('VALIDATION')
 
     expect((db.prepare('SELECT COUNT(*) AS c FROM orders WHERE artist_id = ?').get(artist.id) as { c: number }).c).toBe(0)
   })

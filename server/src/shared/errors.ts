@@ -98,6 +98,9 @@ export const E = {
   ORDER_CONFLICT: 'ORDER_CONFLICT',
   // 审计 #21 条目 3: 同一幂等键携带不同请求载荷（不是重放，是两次不同意图）
   IDEMPOTENCY_CONFLICT: 'IDEMPOTENCY_CONFLICT',
+  // TASK2-01: 幂等响应信封解密失败/密钥轮换——与「载荷冲突」不同码，
+  // 前端不得清 key（清 key 会引导重复下单/重复扣款）
+  IDEMPOTENCY_ENVELOPE_INVALID: 'IDEMPOTENCY_ENVELOPE_INVALID',
   DELIVER_WRONG_STATUS: 'DELIVER_WRONG_STATUS',
   TIER_NOT_FOUND: 'TIER_NOT_FOUND',
   ILLEGAL_PATH: 'ILLEGAL_PATH',
@@ -282,6 +285,8 @@ export const E = {
   ADDON_TEMPLATE_INVALID_PRICE: 'ADDON_TEMPLATE_INVALID_PRICE',
   ADDON_TEMPLATE_INVALID_CONTROL: 'ADDON_TEMPLATE_INVALID_CONTROL',
   ADDON_TEMPLATE_INVALID_PRICING: 'ADDON_TEMPLATE_INVALID_PRICING',
+  // B7-F0103：冻结模式下改计价模式被拒（模板有绑定引用行）
+  ADDON_TEMPLATE_MODE_LOCKED: 'ADDON_TEMPLATE_MODE_LOCKED',
   STYLE_ADDON_NOT_FOUND: 'STYLE_ADDON_NOT_FOUND',
   STYLE_ADDON_DUPLICATE: 'STYLE_ADDON_DUPLICATE',
   SIZE_OVERRIDE_NOT_FOUND: 'SIZE_OVERRIDE_NOT_FOUND',
@@ -367,6 +372,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
   PAYMENT_REVOKE_LIMIT: '该笔收款已撤销到上限，不能重复撤销',
   ORDER_CONFLICT: '订单已被其他操作更新，请刷新后重试',
   IDEMPOTENCY_CONFLICT: '本次提交与此前已受理的提交内容不同，请确认金额等信息后重新提交',
+  // TASK2-01: 解密失败不得引导换 key——该提交可能已经受理，换 key 重提会重复下单/扣款
+  IDEMPOTENCY_ENVELOPE_INVALID: '该提交可能已受理，请勿重复提交；如未确认请联系客服',
   DELIVER_WRONG_STATUS: '当前状态不允许交付',
   TIER_NOT_FOUND: '价格档位不存在',
   ORDER_INVALID_STATUS: '无效的订单状态',
@@ -539,6 +546,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
   ADDON_TEMPLATE_INVALID_PRICE: '增项模板价格无效',
   ADDON_TEMPLATE_INVALID_CONTROL: '无效的控件类型',
   ADDON_TEMPLATE_INVALID_PRICING: '无效的计价模式',
+  // B7-F0103：{referenced} 由 detail 插值（app.ts 全局处理器）
+  ADDON_TEMPLATE_MODE_LOCKED: '该模板正被 {referenced} 个画风引用，冻结模式下修改计价模式会静默重定价它们；如需修改请开启「同步」让引用行跟随',
   STYLE_ADDON_NOT_FOUND: '画风增项不存在',
   STYLE_ADDON_DUPLICATE: '该增项已导入此画风',
   SIZE_OVERRIDE_NOT_FOUND: '尺寸覆盖不存在',

@@ -116,13 +116,15 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
 
   // ─── 画师后台接口（需登录） ───
 
-  /** GET /api/artist/messages — 画师获取自己所有留言（含 pending），分页（默认 20，pageSize clamp 1-100） */
+  /** GET /api/artist/messages — 画师获取自己所有留言（含 pending），分页（默认 20，pageSize clamp 1-100）；尾巴批 pr-review-20261123：可选 ?status= 枚举过滤（角标单请求取 total） */
   fastify.get('/api/artist/messages', { preHandler: requireAuth }, async (request) => {
-    const query = request.query as { page?: string; pageSize?: string }
+    const query = request.query as { page?: string; pageSize?: string; status?: string }
     // F-2（P3-21）: 对齐公开端分页实现风格（同文件 GET /api/public/artist/:subdomain/messages）
     const page = Math.max(parseInt(query.page as string, 10) || 1, 1)
     const pageSize = Math.min(Math.max(parseInt(query.pageSize as string, 10) || 20, 1), 100)
-    return guestbookService.getArtistMessages(request.artist.id, page, pageSize)
+    // 尾巴批 pr-review-20261123（F0182/F0205）：status 枚举白名单，非法值忽略（与 /api/admin/messages 同款惯例）
+    const status = query.status && ['pending', 'approved', 'rejected'].includes(query.status) ? query.status : undefined
+    return guestbookService.getArtistMessages(request.artist.id, page, pageSize, status)
   })
 
   /** PUT /api/artist/messages/:id/approve — 通过 */
@@ -183,7 +185,7 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
 
   /** GET /api/admin/messages — 管理员查看全部留言（跨画师，含 artist_name 与 v75 取证 ip）；REQ-022 F5：可选 ?artistId=&status=&replied= 筛选 */
   fastify.get('/api/admin/messages', { preHandler: requireAdmin }, async (request) => {
-    const query = request.query as { artistId?: string; status?: string; replied?: string }
+    const query = request.query as { artistId?: string; status?: string; replied?: string; limit?: string }
     const filters: guestbookService.AdminMessageFilters = {}
     // 严格数字串校验（'12abc'→NaN 而非 12；'1.9'→NaN 而非 1）
     const artistId = /^\d+$/.test(query.artistId ?? '') ? Number(query.artistId) : NaN
@@ -192,6 +194,9 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
     if (query.status && ['pending', 'approved', 'rejected'].includes(query.status)) filters.status = query.status
     if (query.replied === '1') filters.replied = 1
     else if (query.replied === '0') filters.replied = 0
+    // B7-F0283：可选服务端行数上限（管理端仪表盘只取最近一屏；钳制 1-1000 防滥用）
+    const limit = /^\d+$/.test(query.limit ?? '') ? Number(query.limit) : NaN
+    if (!Number.isNaN(limit) && limit >= 1) filters.limit = Math.min(limit, 1000)
     return guestbookService.getAdminMessages(filters)
   })
 

@@ -20,8 +20,25 @@ describe('弱会话密钥判定 (拍板 #12)', () => {
     expect(isWeakSessionSecret('a'.repeat(31))).toBe(true)
   })
 
-  it('强随机值（install.mjs 生成的 64 位 hex 形态）判强', () => {
-    expect(isWeakSessionSecret('a'.repeat(64))).toBe(false)
+  // F0156（B6）: 32 位以上的低熵可预测密钥必须判弱——只看长度会放行
+  it('低熵长串判弱：单一字符重复（原判强，F0156 修正）', () => {
+    expect(isWeakSessionSecret('a'.repeat(64))).toBe(true)
+  })
+
+  it('低熵长串判弱：去重字符不足 4（ab/abc 循环）', () => {
+    expect(isWeakSessionSecret('ab'.repeat(32))).toBe(true)
+    expect(isWeakSessionSecret('abc'.repeat(22) + 'a')).toBe(true)
+  })
+
+  it('低熵长串判弱：≤16 字符短周期整串重复', () => {
+    expect(isWeakSessionSecret('abcd'.repeat(16))).toBe(true)
+    expect(isWeakSessionSecret('12345678'.repeat(8))).toBe(true)
+  })
+
+  it('强随机值（install.mjs 生成的 64 位 hex 形态）判强（低熵检测不得误伤）', () => {
+    // 去重字符 ≥4 且无短周期的混合 hex——真实随机形态
+    expect(isWeakSessionSecret('6949ef3a1c7d5b0f8e2a4c6d9b1f3e5a7c0d8b2f4e6a1c9d3b5f7e2a4c0d8b6f')).toBe(false)
+    // '6949ef' 前缀 + 尾零的合成 hex 形态：6 种字符、无整串短周期，维持原判强口径不回归
     expect(isWeakSessionSecret('6949ef' + '0'.repeat(58))).toBe(false)
   })
 })

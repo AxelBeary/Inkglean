@@ -15,7 +15,7 @@
   <!-- 空状态 -->
   <InkEmpty v-else-if="!guestbookMessages.length" :title="$t('dashboard.guestbookEmpty')" />
 
-  <!-- 留言列表（自定义首页批一：maxRows 组件内截断，拉取逻辑不变；pendingCount 仍统计全量） -->
+  <!-- 留言列表（自定义首页批一：maxRows 组件内截断；尾巴批 pr-review-20261123 后 pendingCount 走服务端过滤计数，不随列表推导） -->
   <div v-else class="gb-mod-list">
     <div
       v-for="m in visibleMessages" :key="m.id"
@@ -83,7 +83,9 @@ const replyDrafts = reactive<Record<string, string>>({})
 const visibleMessages = computed(() => props.maxRows > 0 ? guestbookMessages.value.slice(0, props.maxRows) : guestbookMessages.value)
 const hiddenCount = computed(() => props.maxRows > 0 ? Math.max(0, guestbookMessages.value.length - props.maxRows) : 0)
 
-const pendingCount = computed(() => guestbookMessages.value.filter((m: GuestbookMessage) => m.status === 'pending').length)
+// F0205 返工（尾巴批 pr-review-20261123）：待审计数改走服务端新增 status 过滤单请求取 total，
+// 不再依赖「按 total 翻完所有页」的全量翻页（density 只有 0/3/5 行，全量只为止于计数已废）
+const pendingCount = ref(0)
 
 function chipType(status: string): string {
   const map: Record<string, string> = { pending: 'pend', approved: 'done', rejected: 'cancel' }
@@ -97,16 +99,16 @@ function statusLabel(status: string): string {
 async function load() {
   state.value = 'loading'
   try {
-    // F0205: 后端无 status 过滤，只取第一页会低估待审数——按 total 翻完所有页（接口 pageSize 上限 100）
-    const size = Math.max(UI_PAGE_SIZE, 100)
-    const first = await artistApi.getMessages({ page: 1, pageSize: size })
-    const all = [...(first.items || [])]
-    const totalPages = Math.ceil((first.total ?? all.length) / size)
-    for (let p = 2; p <= totalPages; p++) {
-      const page = await artistApi.getMessages({ page: p, pageSize: size })
-      all.push(...(page.items || []))
-    }
-    guestbookMessages.value = all.filter((m: GuestbookMessage) => !m.deleted_by_admin)
+    // F0205 返工（尾巴批 pr-review-20261123）：显示列表单页拉取（回 v144 有界口径，同 ActivityFeed 只拉 10 条的范式）；
+    // 待审计数单请求取 total（服务端 status 过滤），替代全量翻页累计。
+    // WEB-03（debug-swarm 11-24）：两请求无依赖，改 Promise.all 并发，角标不再多等一个 RTT。
+    // 数组顺序即调用顺序（列表在前、计数在后），顺序 mock 的既有用例不受影响。
+    const [first, cnt] = await Promise.all([
+      artistApi.getMessages({ page: 1, pageSize: UI_PAGE_SIZE }),
+      artistApi.getMessages({ page: 1, pageSize: 1, status: 'pending' })
+    ])
+    guestbookMessages.value = (first.items || []).filter((m: GuestbookMessage) => !m.deleted_by_admin)
+    pendingCount.value = cnt.total ?? 0
     state.value = 'ok'
   } catch {
     state.value = 'error'
@@ -116,7 +118,10 @@ async function load() {
 async function approveMsg(m: GuestbookMessage) {
   try {
     const updated = await artistApi.approveMessage(m.id)
+    const wasPending = m.status === 'pending'
     Object.assign(m, updated)
+    // F0205 返工：角标改独立计数后本地审核即时递减（对齐旧 computed 随列表自更的效果）
+    if (wasPending) pendingCount.value = Math.max(0, pendingCount.value - 1)
     ElMessage.success(t('dashboard.guestbookApprovedMsg'))
   } catch (err: unknown) { ElMessage.error(err instanceof Error ? err.message : '') }
 }
@@ -124,7 +129,9 @@ async function approveMsg(m: GuestbookMessage) {
 async function rejectMsg(m: GuestbookMessage) {
   try {
     await artistApi.rejectMessage(m.id)
+    const wasPending = m.status === 'pending'
     m.status = 'rejected'
+    if (wasPending) pendingCount.value = Math.max(0, pendingCount.value - 1)
     ElMessage.success(t('dashboard.guestbookRejectedMsg'))
   } catch (err: unknown) { ElMessage.error(err instanceof Error ? err.message : '') }
 }

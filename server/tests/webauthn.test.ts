@@ -463,8 +463,10 @@ describe('GHSA-6pf3 P1-2: WEBAUTHN_RP_ID/WEBAUTHN_ORIGIN 生产 fail-fast', () =
 
   it('TC-WFF-06: 生产缺时 buildApp 在 auth 路由注册期拒起（启动 fail-fast，同 SESSION_SECRET 口径）', async () => {
     process.env.NODE_ENV = 'production'
-    process.env.SESSION_SECRET = 'f'.repeat(64)
-    process.env.COOKIE_SECRET = 'f'.repeat(64)
+    // F0156（B6 批熵检测）连带适配：'f'.repeat(64) 低熵会被 isWeakSessionSecret 先拦，
+    // 盖掉本用例的 WEBAUTHN fail-fast 断言；改用高熵 hex 只为通过密钥前置检查。
+    process.env.SESSION_SECRET = '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08'
+    process.env.COOKIE_SECRET = '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08'
     delete process.env.WEBAUTHN_RP_ID
     delete process.env.WEBAUTHN_ORIGIN
     await expect(buildApp({ logger: false })).rejects.toThrow(/WEBAUTHN_RP_ID\/WEBAUTHN_ORIGIN 未设置——生产环境拒绝启动/)

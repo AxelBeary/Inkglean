@@ -17,6 +17,15 @@
             <el-input-number v-model="inviteMaxUses" :min="1" :max="100" controls-position="right" />
             <span class="invite-form-hint">{{ $t('invite.maxUsesHint') }}</span>
           </el-form-item>
+          <!-- ab263dd1 方案 A：可选绑定 QQ——填了则整批码仅该 QQ 可注册（注册校验码绑定==申领）；留空=通用码。
+               复用既有 invite.qq* 文案键，零 locale 改动（避开 #111/#112 的 locales 冲突面） -->
+          <el-form-item :label="$t('invite.qqLabel')">
+            <el-input
+              v-model="inviteBindQq" type="text" inputmode="numeric" maxlength="15"
+              :placeholder="$t('invite.qqPlaceholder')" clearable
+            />
+            <span class="invite-form-hint">{{ $t('invite.bindQqHint') }}</span>
+          </el-form-item>
           <el-form-item class="invite-form-action">
             <el-button type="primary" :loading="inviteGenerating" @click="generateInviteCodes">
               {{ $t('invite.generateBtn') }}
@@ -66,6 +75,13 @@
         </el-table-column>
         <el-table-column :label="$t('invite.colExpires')" width="180">
           <template #default="{ row }">{{ formatDateTime(row.expiresAt) }}</template>
+        </el-table-column>
+        <!-- ab263dd1 方案 A：展示签发绑定 QQ（null=通用码显「—」，复用既有 invite.unused 文案） -->
+        <el-table-column :label="$t('invite.qqLabel')" width="130">
+          <template #default="{ row }">
+            <span v-if="row.qqNumber" class="invite-code">{{ row.qqNumber }}</span>
+            <span v-else class="invite-unused">—</span>
+          </template>
         </el-table-column>
         <el-table-column :label="$t('invite.colUsage')" min-width="140">
           <template #default="{ row }">
@@ -148,6 +164,8 @@ const inviteCount = ref(5)
 const inviteValidDays = ref(3)
 /** 每码可用次数（1=一次性，1-100） */
 const inviteMaxUses = ref(1)
+/** ab263dd1 方案 A：可选绑定 QQ（空=通用码）。5-15 位数字，前端轻量校验，后端 schema 二次校验 */
+const inviteBindQq = ref('')
 // 服务端筛选/分页状态（'all' 哨兵值：el-select 空串值不渲染选项文案会退化成「请选择」占位）
 const inviteStatusFilter = ref<'all' | 'unused' | 'used' | 'expired' | 'revoked'>('all')
 const inviteQuery = ref('')
@@ -217,14 +235,26 @@ async function generateInviteCodes() {
   if (!inviteMaxUses.value || inviteMaxUses.value < 1 || inviteMaxUses.value > 100) {
     return ElMessage.warning(t('invite.maxUsesHint'))
   }
+  // ab263dd1 方案 A：绑定 QQ 可选；填了须 5-15 位数字（与后端 schema 同口径）
+  const bindQq = inviteBindQq.value.trim()
+  if (bindQq && !/^\d{5,15}$/.test(bindQq)) {
+    return ElMessage.warning(t('invite.qqInvalid'))
+  }
   inviteGenerating.value = true
   try {
     const res = await adminApi.generateInviteCodes({
       count: inviteCount.value,
       validDays: inviteValidDays.value,
-      maxUses: inviteMaxUses.value
+      maxUses: inviteMaxUses.value,
+      // 仅非空时携带，保持通用码调用形状不变（既有测试断言精确 payload）
+      ...(bindQq ? { qqNumber: bindQq } : {})
     })
     ElMessage.success(t('invite.generated', { count: res.codes.length }))
+    // B7-F0194：生成成功后回第 1 页并清筛选/搜索——新码是 unused 状态且排最前，
+    // 此前保持当前页/筛选（如 used/第 5 页）时新码不在视图里，提示「生成成功」却看不到新码
+    invitePage.value = 1
+    inviteStatusFilter.value = 'all'
+    inviteQuery.value = ''
     await loadInviteCodes()
   } catch (err) {
     ElMessage.error((err as Error).message)

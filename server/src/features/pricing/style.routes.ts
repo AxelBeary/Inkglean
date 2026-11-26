@@ -65,7 +65,11 @@ export default async function styleRoutes(fastify: FastifyInstance) {
     return styleService.createAddonTemplate(request.artist.id, request.body as Parameters<typeof styleService.createAddonTemplate>[1])
   })
 
-  /** PUT /api/artist/addon-templates/:id — 更新增项模板 */
+  /**
+   * PUT /api/artist/addon-templates/:id — 更新增项模板
+   * F0192 deprecated（仅注释，契约原样保留）：增项设置弹窗的模板价改动已并入下方 saveAddonSettings
+   * 单事务端点；本端点保留——AddonTemplateManager 模板管理编辑仍依赖。
+   */
   fastify.put('/api/artist/addon-templates/:id', {
     preHandler: [requireAuth, requireOwnTemplate],
     schema: {
@@ -226,7 +230,12 @@ export default async function styleRoutes(fastify: FastifyInstance) {
 
   // ─── 画风增项批量设置 ───
 
-  /** PUT /api/artist/art-styles/:id/addons — 批量设置画风增项（启用/禁用/改价） */
+  /**
+   * PUT /api/artist/art-styles/:id/addons — 批量设置画风增项（启用/禁用/改价）
+   * F0192 deprecated（仅注释，契约原样保留）：增项设置弹窗的「一次保存」请改用 PUT .../addon-settings
+   * （单事务全成全败 + 服务端同类互斥推导）；本端点保留——ArtStyleManager 拖拽/新建挂载、
+   * AddonImportDialog 整体导入仍依赖其 upsert 契约。
+   */
   fastify.put('/api/artist/art-styles/:id/addons', {
     preHandler: [requireAuth, requireOwnStyle],
     schema: {
@@ -290,7 +299,11 @@ export default async function styleRoutes(fastify: FastifyInstance) {
     )
   })
 
-  /** PUT /api/artist/art-styles/:id/sizes/:sizeId/overrides — 设置尺寸覆盖 */
+  /**
+   * PUT /api/artist/art-styles/:id/sizes/:sizeId/overrides — 设置尺寸覆盖
+   * F0192 deprecated（仅注释，契约原样保留）：增项设置弹窗的尺寸级改动已并入 saveAddonSettings；
+   * 本端点保留——ArtStyleManager 拖拽到池/拖入尺寸行的单行停用-启用仍依赖。
+   */
   fastify.put('/api/artist/art-styles/:id/sizes/:sizeId/overrides', {
     preHandler: [requireAuth, requireOwnStyle],
     schema: {
@@ -323,6 +336,55 @@ export default async function styleRoutes(fastify: FastifyInstance) {
       parseInt((request.params as { id: string }).id, 10),
       parseInt((request.params as { sizeId: string }).sizeId, 10),
       (request.body as { items: Array<{ style_addon_id: number; price_override?: number | null; is_hidden?: boolean }> }).items
+    )
+  })
+
+  // ─── F0192: 增项「一次保存」事务端点 ───
+
+  /**
+   * PUT /api/artist/art-styles/:id/addon-settings — 增项设置一次保存（单事务）
+   * 模板价 → 画风价覆盖/激活（含同类互斥服务端推导）→ 尺寸覆盖合并写入，全成全败；
+   * 返回聚合最新状态 { addons, sizeOverrides }。孤儿行（addon_template_id:null）带模板价时
+   * 服务端跳过模板级写入并告警、不 422（拍板口径）。老前端多写路径与三老端点可长期共存。
+   */
+  fastify.put('/api/artist/art-styles/:id/addon-settings', {
+    preHandler: [requireAuth, requireOwnStyle],
+    schema: {
+      body: {
+        type: 'object',
+        required: ['styleAddonId', 'sizeOverrides'],
+        properties: {
+          // F0192: 身份键 = style_addons 行 id（孤儿行 addon_template_id=null 无模板 id 可传）
+          styleAddonId: { type: 'integer' },
+          // P3-29: 两位小数=分精度，防 REAL 存储浮点边界（percent 整数约束由 updateAddonTemplate 兜底）
+          templateDefaultPrice: { type: 'number', minimum: 0, maximum: 999999, moneyPrecision: true },
+          stylePriceOverride: { type: ['number', 'null'], minimum: 0, maximum: 999999, moneyPrecision: true },
+          styleEnabled: { type: 'boolean' },
+          sizeOverrides: {
+            type: 'array',
+            // 施工图 §2：单画风尺寸数上界，防超大 payload
+            maxItems: 50,
+            items: {
+              type: 'object',
+              required: ['sizeId', 'priceOverride', 'isHidden'],
+              properties: {
+                sizeId: { type: 'integer' },
+                // P3-29: 两位小数=分精度，防 REAL 存储浮点边界
+                priceOverride: { type: ['number', 'null'], minimum: 0, maximum: 999999, moneyPrecision: true },
+                isHidden: { type: 'boolean' }
+              },
+              additionalProperties: false
+            }
+          }
+        },
+        additionalProperties: false
+      }
+    }
+  }, async (request: FastifyRequest) => {
+    return styleService.saveAddonSettings(
+      request.artist.id,
+      parseInt((request.params as { id: string }).id, 10),
+      request.body as Parameters<typeof styleService.saveAddonSettings>[2]
     )
   })
 

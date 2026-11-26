@@ -85,7 +85,9 @@ const lookup = shallowRef<Lookup>({ status: 'idle' })
 const order = computed(() => lookup.value.status === 'found' ? lookup.value.order : null)
 
 type IssueTarget = { context: number; orderNo: string; fileId: number }
-type Receipt = { kind: 'active'; fileId: number; url: string; expiresInSeconds: number; expiresAt: number }
+// B7-F0285：expiresInSeconds/expiresAt 允许 null——链接可用但回执 TTL 畸形时降级展示，
+// 不再为整份收据一刀切抛错（此前会把服务端已生成的链接一并丢弃）
+type Receipt = { kind: 'active'; fileId: number; url: string; expiresInSeconds: number | null; expiresAt: number | null }
   | { kind: 'expired'; fileId: number }
 const pendingIssue = shallowRef<IssueTarget | null>(null)
 const receipt = shallowRef<Receipt | null>(null)
@@ -174,17 +176,26 @@ async function issue(target: IssueTarget, allowStepUp = true) {
     const result = await adminApi.reissueDeliveryFile(target.orderNo, target.fileId)
     if (target.context !== contextVersion.value) return
     const { url, expiresInSeconds } = result
-    const absoluteUrl = new URL(url, window.location.origin)
-    if (!url || absoluteUrl.origin !== window.location.origin || !Number.isInteger(expiresInSeconds) || expiresInSeconds <= 0) {
-      throw new Error('Invalid delivery link receipt')
-    }
-    // A successful reissue unlocks this file without rewriting its download history.
+    // B7-F0285：重签 HTTP 成功即意味着服务端已解锁该文件并生成了新链接——先同步本地解锁态，
+    // 后续回执校验失败也不再把已发生的重签谎报成「未生效」
     const currentOrder = order.value
     if (currentOrder) {
       const deliverables = currentOrder.deliverables.map(file => file.id === target.fileId ? { ...file, downloadLocked: false } : file)
       lookup.value = { status: 'found', order: { ...currentOrder, deliverables } }
     }
-    const ttlMs = expiresInSeconds * 1000
+    // 回执校验：链接本体必须可用（语法 + 同源，防恶意响应——语法异常直接抛给外层
+    // catch 走既有失败分支）；TTL 畸形单独降级（B7-F0285）
+    const absoluteUrl = new URL(url, window.location.origin)
+    if (!url || absoluteUrl.origin !== window.location.origin) {
+      throw new Error('Invalid delivery link receipt')
+    }
+    if (!Number.isInteger(expiresInSeconds) || (expiresInSeconds as number) <= 0) {
+      // B7-F0285：链接可用但 TTL 畸形——降级收据：展示链接、不启倒计时（有效期未知，不虚构数字），
+      // 此前这种响应整份丢弃，已生成的下载链接凭空消失
+      receipt.value = { kind: 'active', fileId: target.fileId, url: absoluteUrl.href, expiresInSeconds: null, expiresAt: null }
+      return
+    }
+    const ttlMs = (expiresInSeconds as number) * 1000
     receipt.value = {
       kind: 'active', fileId: target.fileId, url: absoluteUrl.href,
       expiresInSeconds, expiresAt: Date.now() + ttlMs
@@ -206,7 +217,9 @@ async function issue(target: IssueTarget, allowStepUp = true) {
   }
 }
 
-function ttlLabel(seconds: number) {
+function ttlLabel(seconds: number | null) {
+  // B7-F0285：TTL 畸形的降级收据——不虚构有效期数字，明示「有效期未知」
+  if (seconds == null) return t('admin.delivery.ttlUnknown')
   return seconds % 60 === 0
     ? t('admin.delivery.ttlMinutes', { n: seconds / 60 })
     : t('admin.delivery.ttlSeconds', { n: seconds })
@@ -220,7 +233,8 @@ function expireReceipt(fileId: number) {
 async function copyReceipt() {
   const current = receipt.value
   if (current?.kind !== 'active') return
-  if (Date.now() >= current.expiresAt) {
+  // B7-F0285：降级收据 expiresAt 为 null——没有可校验的过期时刻，跳过本地过期判定
+  if (current.expiresAt != null && Date.now() >= current.expiresAt) {
     expireReceipt(current.fileId)
     return
   }

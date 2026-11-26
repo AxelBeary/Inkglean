@@ -6,6 +6,8 @@ import { verifyTotpLogin } from '../auth/auth.service.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import db from '../../db/connection.js'
 import { savePlatformAnnouncement } from '../announcement/announcement.service.js'
+// B7-F0111：更换管理员属高危管理动作，与移除画师/补发链接同款写 admin_actions 留痕
+import { writeAdminAction } from '../compliance/compliance.service.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 
 // ============================================
@@ -78,6 +80,8 @@ export async function adminSystemRoutes(fastify: FastifyInstance) {
    * POST /api/admin/recycle-bin/restore — 恢复单个回收站文件到原始路径（R-21，审计批E）
    * 误清空不可逆之外的第二缺口：回收站只读/清空，无恢复接口（注释曾宣称「可恢复」）。
    * fileName 按回收站内文件名精确匹配；目标已存在 → 409（不覆盖），找不到 → 404。
+   * B7-F0109：可选 binPath（回收站内相对路径，列表接口返回的 binPath 字段）精确定位
+   * 同名条目之一——同名多条时 fileName-only 恒取最新，旧条目此前无恢复入口。
    */
   fastify.post('/api/admin/recycle-bin/restore', {
     preHandler: requireAdmin,
@@ -88,16 +92,23 @@ export async function adminSystemRoutes(fastify: FastifyInstance) {
         additionalProperties: false,
         properties: {
           // maxLength 255 + 路径分隔符拒绝：fileName 只允许是文件名，防路径穿越/目录猜测
-          fileName: { type: 'string', minLength: 1, maxLength: 255 }
+          fileName: { type: 'string', minLength: 1, maxLength: 255 },
+          // B7-F0109：回收站内相对路径（YYYY-MM-DD/...），服务端再做越界与 basename 一致性校验
+          binPath: { type: 'string', minLength: 1, maxLength: 512 }
         }
       }
     }
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { fileName } = request.body as { fileName: string }
+    const { fileName, binPath } = request.body as { fileName: string; binPath?: string }
     if (fileName.includes('/') || fileName.includes('\\')) {
       return reply.code(400).send({ code: 'INVALID_PARAM', error: 'fileName 不能包含路径分隔符' })
     }
-    const result = adminService.restoreRecycleBinFile(fileName)
+    // B7-F0109：binPath 只接受回收站内正斜杠相对路径（拒绝反斜杠/绝对路径/空段/.. 穿越）
+    if (binPath !== undefined && (binPath.includes('\\') || binPath.startsWith('/') ||
+        binPath.split('/').some(seg => seg === '' || seg === '.' || seg === '..'))) {
+      return reply.code(400).send({ code: 'INVALID_PARAM', error: 'binPath 必须是回收站内的相对路径' })
+    }
+    const result = adminService.restoreRecycleBinFile(fileName, binPath)
     if (result.status === 'not_found') {
       return reply.code(404).send({ error: '回收站中未找到该文件' })
     }
@@ -164,6 +175,13 @@ export async function adminSystemRoutes(fastify: FastifyInstance) {
     // 两次验码均通过，原子更新配置
     db.transaction(() => {
       db.prepare("UPDATE platform_config SET value = ? WHERE key = 'admin_qq'").run(String(newQq))
+      // B7-F0111：更换管理员写审计留痕（同事务原子生效）——高危动作必须查得到账；
+      // target 记新管理员（画师行），reason 记前后 QQ 便于追溯，admin_ip 为 v75 取证口径
+      writeAdminAction(
+        request.artist.id, 'admin_transfer', 'artist', newArtist.id,
+        `更换管理员：${currentAdminQq} → ${String(newQq)}（${newArtist.name}）`,
+        request.ip
+      )
     })()
 
     return { success: true, newAdminName: newArtist.name, newAdminQq: String(newQq) }

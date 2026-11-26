@@ -72,6 +72,8 @@ export default {
     ORDER_CONFLICT: '订单已被其他操作更新，请刷新后重试',
     // 审计 #21 条目 3: 同一幂等键换了请求内容（不是重放）——前端会同时换新键，用户可直接重提
     IDEMPOTENCY_CONFLICT: '本次提交与此前已受理的提交内容不同，请确认金额等信息后重新提交',
+    // TASK2-01: 信封解密失败——该提交可能已受理，禁止引导换 key 重提（会重复下单/扣款）
+    IDEMPOTENCY_ENVELOPE_INVALID: '该提交可能已受理，请勿重复提交；如未确认请联系客服',
     // R-2: 已收款订单取消需二次确认（Batch A 契约 409 CANCEL_WITH_PAYMENT）
     CANCEL_WITH_PAYMENT: '该订单已收款，请先线下退还后再取消',
     MY_ORDERS_RETIRED: '「我的订单」查询已下线，请使用下单时保存的追踪链接，或联系画师补发',
@@ -233,6 +235,8 @@ export default {
     ADDON_TEMPLATE_INVALID_PRICE: '增项模板价格无效',
     ADDON_TEMPLATE_INVALID_CONTROL: '无效的控件类型',
     ADDON_TEMPLATE_INVALID_PRICING: '无效的计价模式',
+    // B7-F0103：冻结模式下改计价模式被拒（{referenced} 由 detail 插值）
+    ADDON_TEMPLATE_MODE_LOCKED: '该模板正被 {referenced} 个画风引用，冻结模式下修改计价模式会静默重定价它们；如需修改请开启「同步」让引用行跟随',
     STYLE_ADDON_NOT_FOUND: '画风增项不存在',
     STYLE_ADDON_DUPLICATE: '该增项已导入此画风',
     SIZE_OVERRIDE_NOT_FOUND: '尺寸覆盖不存在',
@@ -893,6 +897,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     descSoftTitle: '需求描述为空', descSoftMsg: '你还没有填写需求描述，确定继续吗？（画师可能不太清楚你的想法）',
     descSoftContinue: '继续',
     refLabel: '参考图（可选，最多5张，每张≤10MB）', refExceed: '最多上传5张参考图',
+    // #61-②：提交入口拦「无 filePath 条目」（在途/失败）——不再静默从提交载荷里丢图
+    refNotReady: '仍有参考图在上传中或未上传成功，请等待完成或移除后再提交',
     tagTooLong: '描述已达上限，无法添加该标签', // F0316
     refTip: '下单后画师也可在订单图库中补充参考图，订单图库合计上限 20 张。',
     refUpload: '上传参考图',
@@ -1491,6 +1497,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     shareOpened: '已在新窗口打开发布页',
     shareCopied: '文案已复制，请在发布页粘贴',
     shareNoHomepage: '文案包含 {homepage}，但未找到该平台主页链接——请先在「主页设置」添加对应平台的链接',
+    // F0217：兜底直开遇非法 hostname → 不开窗口、可见提示（文案已复制仍可手动前往平台）
+    shareInvalidHost: '该平台地址不合法，未能打开发布页；分享文案已复制，请手动前往平台发布',
     // 波3-2: 分享平台列表加载失败错误态 + 重试
     shareLoadFailed: '分享平台列表加载失败，请重试',
     // 818-D: 再来一单（基于历史订单一键复用信息开新单）
@@ -2088,6 +2096,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
       linkLabel: '一次性取件链接',
       ttlMinutes: '仅可下载一次，签发后 {n} 分钟内有效。',
       ttlSeconds: '仅可下载一次，签发后 {n} 秒内有效。',
+      // B7-F0285：链接可用但回执 TTL 畸形的降级文案（不再丢弃已生成的链接）
+      ttlUnknown: '链接已生成（有效期信息异常，请尽快复制使用）。',
       expired: '链接已过期',
       copy: '复制链接',
       copied: '链接已复制'
@@ -2134,6 +2144,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     totpReset: '重置绑定', totpResetConfirm: '确定重置「{name}」的动态口令绑定？旧密钥立即失效，画师须重新绑定才能登录',
     totpResetSuccess: '已重置绑定',
     totpRegenerate: '重新生成二维码', totpRegenerateHint: '重新生成会使旧二维码立即失效，画师需重新扫码',
+    // F0189（B6）: 打开弹窗不再自动换绑——生成改为显式确认触发，两键分别承载首产按钮与副作用警示文案
+    totpGenerate: '生成二维码',
+    totpGenConfirm: '生成新二维码会覆盖「{name}」现有的动态口令密钥：旧绑定立即失效，画师当前全部登录会话将被踢出，须重新扫码绑定后才能登录。确定生成？',
     orderColNo: '订单号', orderColQq: '客户QQ', orderColStatus: '状态',
     orderColType: '类型', orderColTime: '下单时间',
     greetingManage: '问候语管理', greetingPlaceholder: "输入问候语，用 {'{'}name{'}'} 代替画师名",
@@ -2218,6 +2231,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
       filterByReplied: '是否已回复', repliedYes: '已回复', repliedNo: '未回复',
       filterLabel: '筛选留言',
       filterDesc: '按画师、审核状态与回复状态过滤留言列表',
+      listLimit: '显示上限', limitN: '最近 {n} 条',
+      listTruncated: '仅显示最近 {n} 条留言；更早的留言请增大显示上限，或用上方筛选缩小范围。',
       delete: '强制删除', deleteConfirm: '确定删除这条留言？删除后客户主页将不再显示。', deleted: '留言已删除'
     },
     // HC: 系统自检
@@ -2582,7 +2597,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
         home_restore: '恢复主页',
         artist_status_set: '设置画师状态',
         artist_remove: '移除画师',
-        delivery_link_reissue: '补发交付链接'
+        delivery_link_reissue: '补发交付链接',
+        // B7-F0111：更换管理员留痕动作词条（artist_profile_update 依赖未知动作回退原始值，维持原状不补）
+        admin_transfer: '更换管理员'
       },
       targetType: {
         report: '举报',
@@ -2696,6 +2713,7 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     validDaysHint: '1-30 天',
     maxUsesLabel: '每码可用次数',
     maxUsesHint: '1-100 次，默认 1（一次性）',
+    bindQqHint: '5-15 位数字。留空=通用码（任意 QQ 可注册）；填了则整批码仅该 QQ 可用（防冒领）',
     generateBtn: '生成',
     generated: '已生成 {count} 个邀请码',
     colCode: '邀请码',

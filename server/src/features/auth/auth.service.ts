@@ -165,6 +165,14 @@ export function registerTotpFailure(artistId: number): void {
 }
 
 /**
+ * B7-F0125：验证成功即清账号级失败计数/锁定期（登录路径既有语义，抽出共用）——
+ * verify-current 这类「轻量校验」成功后不清零，一次后续误输就可能触发锁定。
+ */
+export function clearTotpFailures(artistId: number): void {
+  db.prepare('UPDATE artists SET totp_failed_attempts = 0, totp_locked_until = NULL WHERE id = ?').run(artistId)
+}
+
+/**
  * 登录防爆破（IP+账号联合键）状态条目
  */
 interface LoginAttemptEntry {
@@ -288,9 +296,9 @@ export function verifyTotpLogin(qqNumber: string, code: string, ip?: string): To
     }
     // 顺带清理 7 天前已用记录（低频写，登录路径可接受）
     db.prepare("DELETE FROM totp_used_codes WHERE used_at < datetime('now', '-7 days')").run()
-    // 成功：清本组合防爆破状态；账号级 DB 计数/锁定照旧清零
+    // 成功：清本组合防爆破状态；账号级 DB 计数/锁定照旧清零（B7-F0125：抽 clearTotpFailures 共用）
     loginAttemptStore.delete(key)
-    db.prepare('UPDATE artists SET totp_failed_attempts = 0, totp_locked_until = NULL WHERE id = ?').run(artist.id)
+    clearTotpFailures(artist.id)
     return { valid: true, artist }
   }
 

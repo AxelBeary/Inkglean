@@ -37,7 +37,7 @@ vi.mock('fs/promises', async (importOriginal) => {
   return { ...actual, statfs: vi.fn(actual.statfs) }
 })
 
-/** 造一份 statfs 返回值（type 为内核文件系统编号，守卫只看 bfree×bsize，其余字段取无害值） */
+/** 造一份 statfs 返回值（type 为内核文件系统编号，守卫只看 bavail×bsize（B7-F0113 口径），其余字段取无害值） */
 function statfsWith(freeBytes: number): StatsFs {
   const blocks = Math.floor(freeBytes / 4096)
   return {
@@ -433,6 +433,22 @@ describe('GHSA-6pf3 闸①：statfs 水位接成上传前守卫', () => {
     const res = await uploadReference(app, token, '203.0.113.31')
 
     expect(res.statusCode).toBe(200)
+  })
+
+  it('TC-W1-B7: bfree 高于阈值但 bavail 低于阈值 → 仍拒（B7-F0113：守卫按 bavail 判，root 保留块不算可用）', async () => {
+    const { token } = await issueAnon(app, '203.0.113.33')
+    // 阈值 1GB；bfree=2GB（含 root 保留块）而 bavail=500MB（非特权进程实际可用）
+    process.env.UPLOAD_DISK_MIN_FREE_MB = '1024'
+    vi.mocked(statfs).mockResolvedValue({
+      ...statfsWith(500 * MB),
+      bfree: Math.floor((2 * 1024 * MB) / 4096)
+    } as StatsFs)
+
+    const res = await uploadReference(app, token, '203.0.113.33')
+
+    // 修复前守卫看 bfree → 误判 2GB 可用而放行；修复后看 bavail → 507 拒绝
+    expect(res.statusCode).toBe(507)
+    expect(res.json().code).toBe('DISK_WATERMARK_BLOCKED')
   })
 
   it('TC-W1-17: 阈值未配置时取默认 512MB——低于默认阈值同样拒', async () => {

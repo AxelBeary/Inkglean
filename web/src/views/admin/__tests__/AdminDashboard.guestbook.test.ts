@@ -106,6 +106,8 @@ describe('AdminDashboard 留言加载三态（P1-B）', () => {
     await flushPromises()
 
     expect(h.getMessages).toHaveBeenCalledTimes(1)
+    // B7-F0283：请求带服务端 limit（只拉最近一屏，不再全量拉回客户端分页）
+    expect(h.getMessages).toHaveBeenCalledWith(expect.objectContaining({ limit: 200 }))
     expect(wrapper.find('.load-error-banner').exists()).toBe(true)
     expect(wrapper.find('.load-error-banner').text()).toContain('common.networkError')
     expect(wrapper.find('.gb-table-wrap').exists()).toBe(false)
@@ -138,6 +140,32 @@ describe('AdminDashboard 留言加载三态（P1-B）', () => {
 
     expect(wrapper.find('.load-error-banner').exists()).toBe(false)
     expect(wrapper.findComponent({ name: 'ElEmpty' }).exists()).toBe(true)
+  })
+
+  // WEB-04（debug-swarm 11-24）：硬编码 limit=200 超限静默不可见 → 可见截断提示 + 可调上限入口
+  it('WEB-04: 命中 200 上限显示截断提示，切换上限后按新 limit 重新请求', async () => {
+    h.getMessages.mockResolvedValue(
+      Array.from({ length: 200 }, (_, i) => messageRow({ id: i + 1 }))
+    )
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(h.getMessages).toHaveBeenCalledWith(expect.objectContaining({ limit: 200 }))
+    expect(wrapper.find('.load-truncated-hint').exists()).toBe(true)
+    expect(wrapper.find('.load-truncated-hint').text()).toContain('admin.guestbook.listTruncated')
+
+    // 完整列表入口：上限下拉切到 1000（服务端钳制上限）→ 按新 limit 重新拉
+    h.getMessages.mockResolvedValue([messageRow()])
+    const limitSelect = wrapper.findAllComponents({ name: 'ElSelect' })
+      .find(s => s.attributes('placeholder') === 'admin.guestbook.listLimit')
+    expect(limitSelect).toBeDefined()
+    await limitSelect!.vm.$emit('update:modelValue', 1000)
+    await limitSelect!.vm.$emit('change')
+    await flushPromises()
+
+    expect(h.getMessages).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 1000 }))
+    // 未达新上限 → 截断提示消失
+    expect(wrapper.find('.load-truncated-hint').exists()).toBe(false)
   })
 
   it('筛选失败 → 清旧数据（不保留上一筛选结果）', async () => {

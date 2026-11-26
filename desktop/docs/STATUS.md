@@ -94,6 +94,10 @@
 > - 🔴 **新发现 U33：桌面发版流水线从未真跑过**：`desktop-release.yml` 运行记录为零、仓库 variables/secrets 各 0 条、无 `desktop-v*` tag；
 >   且 `tauri.conf.json` 无 `bundle.createUpdaterArtifacts`，而流水线 `:98` 硬找 `*.nsis.zip`（官方文档：只有取 `"v1Compatible"` 才出该命名）。
 >   首版发布前须先配更新基址 + 签名私钥 + 定该命名口径，否则第一次发版必红——需用户账号权限，代理代不了。
+> - ✅ **2026-11-24 订正（TB-B8DOC）**：上条「代码侧未接配置」口径已过期。
+>   - U33 代码侧已落地（PR #100 已合 2026-11-22）：`tauri.conf.json:37` 现设 `"v1Compatible"`，产物命名口径已定。
+>   - 流水线已加构建期注入 PUBKEY/BASE + 四道失败闸；防回退哨兵见 `desktop/src/__tests__/b8-updater-channel-guard.test.ts`。
+>   上条中「运行记录为零 / secrets 各 0 条 / 无 tag」用户侧现状仍属实——剩余纯用户操作：生成密钥对 + 配 secrets/variables + 打 `desktop-v*` tag 真机验签（代理不可做）。
 > - **待用户终验（代理证不到那一层）**：自绘标题栏拖拽/最小/最大/还原/关闭、托盘左键与菜单回调、通知弹窗次数、原生文件选择器 open/save、
 >   本地 SQLite 建表→写→读→跨窗广播、撕悬浮三窗与 window-state denylist、`asset:` 图在新 wry 下可加载。
 > - **遗留**：U31 桌面工具链与 web/shared 收敛（typescript 5.6 + vue-tsc 2.x → 5.9 + 3.3，属 major 级、单独一批）；tauri 2.12.3 补丁与 cli 2.12.2 未取（成对口径取与 npm 同号的 2.12.2）。

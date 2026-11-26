@@ -535,3 +535,60 @@ describe('ArtistDetailDrawer 设备 tab 踢出（P3 补测）', () => {
     expect(h.revokeArtistDevice).toHaveBeenCalledTimes(2) // 锁已释放，可重试
   })
 })
+
+// ═══ B7-F0286：抽屉切换画师时旧画师的异步响应不得覆盖当前画师 ═══
+describe('B7-F0286 画师身份门闩（loadProfile）', () => {
+  it('旧画师的慢响应迟到 → 不得覆盖当前画师的资料表单', async () => {
+    let resolveA!: (v: unknown) => void
+    h.getArtistProfile.mockImplementation((artistId: number) =>
+      artistId === 1
+        ? new Promise(r => { resolveA = r })
+        : Promise.resolve({ name: 'Bob', bio: 'bob-bio', status: 'open', artist_code: 'BOB', contact_qq: '20002' })
+    )
+    const wrapper = mountDrawer({ id: 1, name: 'Alice' })
+    await flushPromises() // A 的资料请求在途
+
+    // 抽屉切到画师 B（父组件换 artist 引用）→ B 的快响应落地
+    await wrapper.setProps({ artist: { id: 2, name: 'Bob' } } as never)
+    await flushPromises()
+    const nameInput = () => (wrapper.findAll('.field-input')[0].element as HTMLInputElement)
+    expect(nameInput().value).toBe('Bob')
+
+    // A 的慢响应迟到 → 门闩拦下：表单仍是 B 的资料（修复前 A 的响应会串显进来）
+    resolveA({ name: 'Alice', bio: 'alice-bio', status: 'open', artist_code: 'ALICE', contact_qq: '10001' })
+    await flushPromises()
+    expect(nameInput().value).toBe('Bob')
+  })
+
+  it('旧画师的慢响应落地 → 不得提前熄灭当前画师在途请求的 loading（对齐 seq 范式的 finally 守卫）', async () => {
+    // A、B 两位画师的资料请求都在途（各自手动放行，验证 loading 归属）
+    let resolveA!: (v: unknown) => void
+    let resolveB!: (v: unknown) => void
+    h.getArtistProfile.mockImplementation((artistId: number) =>
+      artistId === 1
+        ? new Promise(r => { resolveA = r })
+        : new Promise(r => { resolveB = r })
+    )
+    interface LoadingVm { profileLoading: boolean }
+    const loading = (wrapper: ReturnType<typeof mount>) => (wrapper.vm as unknown as LoadingVm).profileLoading
+
+    const wrapper = mountDrawer({ id: 1, name: 'Alice' })
+    await flushPromises() // A 的请求在途
+    expect(loading(wrapper)).toBe(true)
+
+    // 切到画师 B：B 的请求也在途 → loading 属于 B 这次请求
+    await wrapper.setProps({ artist: { id: 2, name: 'Bob' } } as never)
+    await flushPromises()
+    expect(loading(wrapper)).toBe(true)
+
+    // A 的慢响应迟到：数据丢弃即可，不得把 B 在途请求的 loading 提前熄灭（修复前 finally 无守卫会熄灭）
+    resolveA({ name: 'Alice', bio: 'alice-bio', status: 'open', artist_code: 'ALICE', contact_qq: '10001' })
+    await flushPromises()
+    expect(loading(wrapper)).toBe(true)
+
+    // B 的响应落地 → loading 如实熄灭
+    resolveB({ name: 'Bob', bio: 'bob-bio', status: 'open', artist_code: 'BOB', contact_qq: '20002' })
+    await flushPromises()
+    expect(loading(wrapper)).toBe(false)
+  })
+})
