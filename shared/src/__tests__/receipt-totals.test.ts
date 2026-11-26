@@ -3,6 +3,7 @@
 import { describe, it, expect } from 'vitest'
 import { computeReceiptTotals, discountLabel, validItems } from '../receipt/totals'
 import type { ReceiptItemLike } from '../receipt/totals'
+import { yuanToCents } from '../utils/money'
 
 function item(name: string, qty: number, priceYuan: number | null, gift = false): ReceiptItemLike {
   return { name, qty, priceYuan, gift }
@@ -67,5 +68,54 @@ describe('receipt 计算口径（shared 事实源）', () => {
     expect(t.discountCents).toBe(10000)
     expect(discountLabel('amount', 999, 'zh-CN', t.discountCents)).toBe('-100.00')
     expect(discountLabel('amount', 50, 'zh-CN', 5000)).toBe('-50.00')
+  })
+})
+
+// ─── M-4（PR114 审计回归）：行金额与合计必须同走 yuanToCents，不再差 1 分 ───
+// 行额公式逐字复刻 ReceiptPrinter.vue:265/:408：formatYuan(yuanToCents(priceYuan) * floor(qty))。
+function rowCents(i: ReceiptItemLike): number {
+  return i.gift ? 0 : yuanToCents(i.priceYuan) * Math.floor(Math.max(0, i.qty))
+}
+
+describe('receipt 行额/合计 parity（M-4：统一 yuanToCents，旧 Math.round 差 1 分）', () => {
+  it('单价 0.145：行额 15 分，小计/合计同为 15 分（旧口径小计 14 分）', () => {
+    expect(yuanToCents(0.145)).toBe(15)
+    const items = [item('头像', 1, 0.145)]
+    const t = computeReceiptTotals(items, 'none', 0, null)
+    expect(items.map(rowCents)).toEqual([15])
+    expect(items.reduce((s, i) => s + rowCents(i), 0)).toBe(t.subtotalCents)
+    expect(t.subtotalCents).toBe(15)
+    expect(t.totalCents).toBe(15)
+  })
+
+  it('单价 1.005：行额 101 分，小计/合计同为 101 分（旧口径小计 100 分）', () => {
+    expect(yuanToCents(1.005)).toBe(101)
+    const items = [item('立绘', 1, 1.005)]
+    const t = computeReceiptTotals(items, 'none', 0, null)
+    expect(items.map(rowCents)).toEqual([101])
+    expect(items.reduce((s, i) => s + rowCents(i), 0)).toBe(t.subtotalCents)
+    expect(t.subtotalCents).toBe(101)
+    expect(t.totalCents).toBe(101)
+  })
+
+  it('三行同价 0.145：Σ行额 = 小计 = 合计 = 45 分（旧口径 0.42 vs 行额 0.45）', () => {
+    const items = [item('A', 1, 0.145), item('B', 1, 0.145), item('C', 1, 0.145)]
+    const t = computeReceiptTotals(items, 'none', 0, null)
+    expect(items.map(rowCents)).toEqual([15, 15, 15])
+    expect(items.reduce((s, i) => s + rowCents(i), 0)).toBe(45)
+    expect(t.subtotalCents).toBe(45)
+    expect(t.totalCents).toBe(45)
+  })
+
+  it('折扣/定金同样收口：0.145 直减与定金均按 15 分，尾款 = 合计 - 定金', () => {
+    const items = [item('A', 1, 1.005), item('B', 1, 1.005)]
+    const discounted = computeReceiptTotals(items, 'amount', 0.145, null)
+    expect(discounted.subtotalCents).toBe(202)
+    expect(discounted.discountCents).toBe(15)
+    expect(discounted.totalCents).toBe(187)
+    const deposited = computeReceiptTotals(items, 'none', 0, 0.145)
+    expect(deposited.depositCents).toBe(15)
+    expect(deposited.balanceCents).toBe(187)
+    expect(discountLabel('amount', 0.145, 'zh-CN', discounted.discountCents)).toBe('-0.15')
   })
 })

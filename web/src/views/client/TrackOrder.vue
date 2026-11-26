@@ -418,9 +418,15 @@ function legacyNextDueCents(insts: OrderInstallment[], paidTotalCents: number, f
 
 /** 下期应付：下一个未覆盖分期节点的金额（partial 时显示剩余）
  * F0314：后端 track 响应已下发权威 nextDueCents（服务端 deriveInstallmentProgress 口径，
- * 与本页 installments 同源推导），字段存在直接采用；缺失（旧后端）回退 legacyNextDueCents。 */
+ * 与本页 installments 同源推导），字段存在直接采用；缺失（旧后端）回退 legacyNextDueCents。
+ * M-3：无分期节点是 buffer 订单的正常长期态（下单不建节点、递补才补），此时字段无权威值：
+ * 新后端下发 null，旧后端可能仍下发 0——两种情况都必须回退订单级待收，避免同屏
+ * 「下期应付 ¥0.00 / 剩余 ¥200」自相矛盾。 */
 const trackNextDueCents = computed(() => {
   const data = order.value
+  if (Array.isArray(data?.installments) && data?.installments.length === 0) {
+    return legacyNextDueCents([], data?.paidTotalCents || 0, trackRemainingCents.value)
+  }
   if (typeof data?.nextDueCents === 'number') return data.nextDueCents
   return legacyNextDueCents(data?.installments ?? [], data?.paidTotalCents || 0, trackRemainingCents.value)
 })
