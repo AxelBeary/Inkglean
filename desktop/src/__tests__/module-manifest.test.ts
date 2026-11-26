@@ -1,7 +1,7 @@
 // 档②波17 测试：manifest 解析与校验（规范 v0.3 §四加载强制点的口径哨兵）。
 import { describe, it, expect } from 'vitest'
 import {
-  parseManifest, semverCompare,
+  parseManifest, semverCompare, confirmSource,
   VIOLATION_LIMIT, VIOLATION_WINDOW_MS, MODULE_STORAGE_QUOTA_BYTES,
   HEARTBEAT_INTERVAL_MS, HEARTBEAT_MISS_LIMIT, LOAD_TIMEOUT_MS,
   HOST_VERSION, SUPPORTED_SPECS
@@ -43,13 +43,16 @@ describe('semverCompare', () => {
 })
 
 describe('parseManifest（加载强制点）', () => {
-  it('合法包过校验；tearable 壳压 false；source 壳判第一方为 official（P0-3）', () => {
+  it('合法包过校验；tearable 壳压 false；来源只作声明，放行须二次确认（P0-3）', () => {
     const r = parseManifest(VALID)
     expect(r.ok).toBe(true)
     expect(r.manifest?.id).toBe('mood-weather')
     expect(r.manifest?.ui.tearable).toBe(false) // 模块自报 true 被壳压掉
-    // P0-3 修复：mood-weather 在 FIRST_PARTY_IDS 中 → source 为 official
+    // P0-3：解析结果只是「声明来源」（自称第一方），放行要看 confirmSource
     expect(r.manifest?.source).toBe('official')
+    expect(confirmSource('mood-weather', true)).toBe('external') // 从模块包装入＝冒充，拒
+    expect(confirmSource('mood-weather', false)).toBe('official') // 有非自报证据才认
+    expect(confirmSource('evil-mod', false)).toBe('external')
   })
 
   it('未知视图剔除并记原因，已知视图保留', () => {

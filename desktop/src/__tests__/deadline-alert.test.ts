@@ -26,13 +26,22 @@ describe('buildDeadlineAlerts（组句规则）', () => {
     expect(alert).toBeNull()
   })
 
-  it('超 3 条收「还有 N 笔」', () => {
+  it('超 3 条收「还有 N 笔」，newIds 只含具名展示的 3 条', () => {
     const alert = buildDeadlineAlerts([
+      item('a', '一', 0), item('b', '二', 0), item('c', '三', 0), item('d', '四', 0)
+    ], new Set())
+    expect(alert!.text).toContain('，还有 1 笔')
+    expect(alert!.newIds).toEqual(['a', 'b', 'c']) // 第 4 条起不标记，留着下次通知具名
+  })
+
+  it('5 条紧急单 → newIds 长度 3，剩余两条下轮具名（不被永久折叠）', () => {
+    const items = [
       item('a', '一', 0), item('b', '二', 0), item('c', '三', 0),
       item('d', '四', 0), item('e', '五', 0)
-    ], new Set())
-    expect(alert!.text).toContain('，还有 2 笔')
-    expect(alert!.newIds).toHaveLength(5) // 去重标记覆盖全部紧急项，不只展示的 3 条
+    ]
+    const first = buildDeadlineAlerts(items, new Set())!
+    expect(first.newIds).toHaveLength(3)
+    expect(buildDeadlineAlerts(items, new Set(first.newIds))!.text).toBe('四今天截稿；五今天截稿')
   })
 
   it('无紧急项返 null（不发通知）', () => {

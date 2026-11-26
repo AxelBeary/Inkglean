@@ -26,8 +26,15 @@ export const KNOWN_VIEWS: Record<string, 'cloud' | 'local'> = {
 // ─── P0-3 根本缓解：受限视图门禁（从数据源头断外泄） ───
 /** 受限视图：仅第一方/签名模块可获取；第三方模块请求时拒发并记违规 */
 export const RESTRICTED_VIEWS: ReadonlySet<string> = new Set(['ledger'])
-/** 第一方模块 ID（壳内嵌/官方签发）——可获取受限视图；未来改签名验证机制 */
+/** 第一方模块 ID（壳内嵌/官方签发）＝官方保留 id，导入包不得占用（installModulePack 拦）。
+ *  边界：只阻断「导入 zip 冒充」，不对抗已取得本机文件写权限者直接往 modules 目录写；终局是签名链（已登记）。 */
 export const FIRST_PARTY_IDS: ReadonlySet<string> = new Set(['mood-weather'])
+
+/** 确认来源（P0-3 放行口径）：id 命中保留集合只是「声明」，还须一条非自报证据——该模块不是从模块包装入的。
+ *  registry/store 扫描时按「目录带装包账 pack.json」传入；包安装的模块永远不是 official。 */
+export function confirmSource(id: string, installedFromPack: boolean): 'official' | 'external' {
+  return installedFromPack || !FIRST_PARTY_IDS.has(id) ? 'external' : 'official'
+}
 
 // ─── DSK-01：未接线视图标记（壳侧尚无数据源，模块请求时返回明确 unavailable） ───
 /** 已在 KNOWN_VIEWS 声明但壳侧尚未接线数据源的视图 */
@@ -169,7 +176,7 @@ export function parseManifest(raw: string): ParseResult {
         }))
     : []
 
-  // P0-3 来源判定：第一方 ID 集合内的模块标 official，其余一律 external（模块自报忽略）
+  // P0-3 来源判定：此处只产出「声明来源」（依据包内自报 id，自报≠授权），放行受限视图前须经 confirmSource 二次确认
   const source: 'official' | 'external' = FIRST_PARTY_IDS.has(id) ? 'official' : 'external'
 
   const manifest: ModuleManifest = {

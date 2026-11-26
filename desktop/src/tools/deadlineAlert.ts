@@ -32,7 +32,8 @@ export function buildDeadlineAlerts(
     return `${i.who}明天截稿`
   })
   const more = urgent.length > 3 ? `，还有 ${urgent.length - 3} 笔` : ''
-  return { text: parts.join('；') + more, newIds: urgent.map(i => i.id) }
+  // 只标记真正具名展示的条目：多出来的那几笔记成已提醒就再也不会出现在通知里
+  return { text: parts.join('；') + more, newIds: shown.map(i => i.id) }
 }
 
 const ALERT_KEY = 'shihui-deadline-alerted-v1'
