@@ -55,7 +55,8 @@ import {
   toCredentialRequestOptions,
   arrayBufferToBase64Url,
   isWebAuthnCancellation,
-  isWebAuthnUnsupported
+  isWebAuthnUnsupported,
+  isWebAuthnSecurityError
 } from '../../utils/webauthn'
 
 const props = defineProps<{ modelValue: boolean }>()
@@ -205,6 +206,10 @@ async function verifyPasskey() {
     }
     if (isWebAuthnUnsupported(err)) {
       error.value = t('common.passkeyNotSupported')
+      return
+    }
+    if (isWebAuthnSecurityError(err)) {
+      error.value = t('common.passkeyDomainRejected')
       return
     }
     error.value = t('common.passkeyFailed')

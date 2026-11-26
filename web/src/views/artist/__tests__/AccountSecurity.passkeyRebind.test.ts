@@ -37,7 +37,10 @@ vi.mock('../../../utils/webauthn.js', () => ({
   toCredentialCreationOptions: vi.fn(),
   toCredentialRequestOptions: vi.fn(),
   publicKeyCredentialToJSON: vi.fn(() => ({ id: 'cred-1' })),
-  isBackendError: vi.fn(() => false)
+  isBackendError: vi.fn(() => false),
+  // 2026-11-27 报障修复：注册/重绑前置 rp.id 归因接入本组件，mock 需同口径导出。
+  // 此处返回 null（通过）——本用例只覆盖 F0289/F0290 的 init 复用，不涉域名归因（另有专测）
+  checkRpId: vi.fn(() => null)
 }))
 
 vi.mock('../../../composables/usePasskeyCreate.js', () => ({

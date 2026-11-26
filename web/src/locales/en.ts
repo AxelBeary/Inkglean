@@ -276,6 +276,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     passkeyNotSupported: 'Passkey is not supported on this browser (HTTPS or localhost required).',
     passkeyCancelled: 'Passkey verification cancelled.',
     passkeyFailed: 'Passkey verification failed. Please try again or use another method.',
+    // 2026-11-27 fix: SecurityError (invalid rp.id, or rp.id not matching the current domain) gets its own message
+    passkeyDomainRejected: 'Passkey is misconfigured for this domain (security check failed). Please contact the administrator, or sign in with a one-time code.',
     // REQ-028 interim: the QQ queue-reminder channel is not wired up yet; one shared copy for both order pages
     notifyDevTag: 'In development',
     notifyDevHint: "This option isn't usable yet: the platform's QQ notification channel is still in development, so nothing would be sent even if it were checked — it is greyed out and unchecked by default. Your queue position and order progress are always visible on the site, so your commission is unaffected.",
@@ -462,6 +464,9 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     passkeyDeleteConfirm: 'Delete this Passkey credential? This device will no longer be able to log in with Passkey.',
     passkeyEmpty: 'No devices registered yet. Use the button on the right to register.',
     passkeyNotSupported: 'Passkey is not supported on this browser (HTTPS or localhost required).',
+    // 2026-11-27 fix: pre-flight attribution for registration/re-bind (server rp.id does not match the current origin)
+    passkeyDomainIpHost: 'You are visiting via an IP address, which browsers do not accept for Passkey registration. Please use the domain name instead.',
+    passkeyDomainMisconfigured: 'Passkey is misconfigured for this domain (server rp.id: {rpId}, current: {host}), so the browser will reject registration and login. Please contact the administrator, or sign in with a one-time code.',
     // 818-H: security rows (description left, action right)
     totpRowDesc: 'Login requires a 6-digit code from your authenticator once bound; bound devices can be re-bound anytime.',
     // 824: extra hint for the unbound state (guidance after a reset/re-bind; neutral wording)

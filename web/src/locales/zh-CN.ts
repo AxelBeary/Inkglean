@@ -276,6 +276,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     passkeyNotSupported: '当前浏览器不支持 Passkey（需 HTTPS 或 localhost）',
     passkeyCancelled: '已取消 Passkey 验证',
     passkeyFailed: 'Passkey 验证失败，请重试或换用其他方式',
+    // 2026-11-27 报障修复：SecurityError（rp.id 非法/与访问域名不符）独立归因，不再并进「浏览器不支持」
+    passkeyDomainRejected: '当前域名的 Passkey 配置有误（安全校验未通过），请联系管理员；可先用动态口令登录',
     // REQ-028 过渡期：QQ 排队提醒未接通，客户下单页与画师录单页共用同一份说明（单键防两页文案漂移）
     notifyDevTag: '开发中',
     notifyDevHint: '这一项现在还用不了：平台的 QQ 通知通道还在开发中，就算勾上也不会发出任何提醒，所以先灰着、默认不勾。排队位次和订单进度在站内页面随时可看，不影响约稿。',
@@ -462,6 +464,9 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     passkeyDeleteConfirm: '确定删除此 Passkey 凭据？删除后该设备无法使用 Passkey 登录。',
     passkeyEmpty: '还没有注册设备，点击右侧按钮注册',
     passkeyNotSupported: '当前浏览器不支持 Passkey（需 HTTPS 或 localhost）',
+    // 2026-11-27 报障修复：注册/重绑前置归因（服务器下发的 rp.id 与当前访问域名对不上时可执行提示）
+    passkeyDomainIpHost: '当前是用 IP 地址访问的，浏览器不接受这种地址注册 Passkey；请改用域名访问后再注册',
+    passkeyDomainMisconfigured: 'Passkey 域名配置有误（服务端 rp.id：{rpId}，当前访问：{host}），浏览器会拒绝注册与登录；请联系管理员修正，或改用动态口令登录',
     // 818-H：安全项行结构（说明在左、操作在右）
     totpRowDesc: '绑定后登录需输入验证器上的 6 位动态口令；已绑定可随时自助重绑。',
     // 824: 未绑定状态辅助说明（重置/重绑后的后续指引，措辞中性不吓人）

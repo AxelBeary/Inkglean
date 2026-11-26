@@ -121,6 +121,9 @@ import {
   publicKeyCredentialToJSON,
   isWebAuthnCancellation,
   isWebAuthnUnsupported,
+  isWebAuthnSecurityError,
+  checkRpId,
+  rpIdProblemKey,
   isBackendError
 } from '../../utils/webauthn'
 import {
@@ -233,6 +236,13 @@ async function passkeyLogin() {
   try {
     const { webauthnApi } = await import('../../api/index')
     const options = await webauthnApi.loginOptions(qq)
+    // 2026-11-27 报障修复：rpId 与当前域名对不上时浏览器只会抛 SecurityError，
+    // 前置归因给出可执行提示，避免走进「Passkey 验证失败」这种无从下手的兜底文案
+    const rpProblem = checkRpId(options.rpId, location.hostname)
+    if (rpProblem) {
+      noticeError.value = t(rpIdProblemKey(rpProblem), { rpId: options.rpId, host: location.hostname })
+      return
+    }
     // 812-B5: 后端下发 Base64URL 字符串 → 浏览器要求的 ArrayBuffer（challenge/allowCredentials[].id）
     const credential = await navigator.credentials.get({ publicKey: toCredentialRequestOptions(options) })
     if (!credential) throw new Error('cancelled')
@@ -250,6 +260,10 @@ async function passkeyLogin() {
     }
     if (isWebAuthnUnsupported(err)) {
       noticeError.value = t('common.passkeyNotSupported')
+      return
+    }
+    if (isWebAuthnSecurityError(err)) {
+      noticeError.value = t('common.passkeyDomainRejected')
       return
     }
     // 824: Passkey 入口返回 TOTP_BIND_REQUIRED（绑定失效/未完成）——就地展示同一文案；
