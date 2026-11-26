@@ -144,4 +144,28 @@ describe('迁移 v24: quota_pool_paid_total（F0077 回填限定与原值校验�
     expect(paid).toBe(0)
     mem.close()
   })
+
+  it('TC-F77-04 (PR114 MINOR-10): 非零但欠回填的存量行重放时补齐，流水维护过的超额行不受影响', () => {
+    const mem = buildOldShapeDb({ ordersPaidCol: true })
+    const insOrder = mem.prepare('INSERT INTO orders (order_no, paid_total_cents) VALUES (?, ?)')
+    // o1: 欠回填——首跑只算了已付 1000，后来第二期转 paid，重放应从 1000 补到 3000
+    const o1 = Number(insOrder.run('O-1', 1000).lastInsertRowid)
+    // o2: 流水维护过的超额值 6000（分期和 3000）——不得被放宽后的 ① 判据冲回
+    const o2 = Number(insOrder.run('O-2', 6000).lastInsertRowid)
+    const insInst = mem.prepare('INSERT INTO order_payment_installments (order_id, amount_cents, status) VALUES (?, ?, ?)')
+    insInst.run(o1, 1000, 'paid')
+    insInst.run(o1, 2000, 'paid')
+    insInst.run(o2, 1000, 'paid')
+    insInst.run(o2, 2000, 'paid')
+
+    expect(() => migration.up(mem)).not.toThrow()
+    const paid = (id: number) => (mem.prepare('SELECT paid_total_cents AS p FROM orders WHERE id = ?').get(id) as { p: number }).p
+    expect(paid(o1)).toBe(3000)
+    expect(paid(o2)).toBe(6000)
+    // 幂等重跑不漂移
+    expect(() => migration.up(mem)).not.toThrow()
+    expect(paid(o1)).toBe(3000)
+    expect(paid(o2)).toBe(6000)
+    mem.close()
+  })
 })

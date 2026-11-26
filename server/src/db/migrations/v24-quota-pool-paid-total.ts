@@ -34,7 +34,9 @@ export const migration: Migration = {
         // F0077（B2 high）+ SVR-01：旧实现裸 UPDATE 无条件覆盖全部订单已收金额——修复重放
         // （版本表丢失）会把 v24 之后由 addPayment 流水维护的 paid_total_cents（order-pricing.ts
         // 原子自增）冲回旧分期和。WHERE 三重条件：
-        // ① COALESCE(paid_total_cents,0)=0 只覆盖从未写过的基线值（ALTER 新增列的存量行）；
+        // ① PR114 MINOR-10：从「=0」放宽为「< 已付分期和」——原来「非零但欠回填」的存量行
+        //    （首跑后又有分期转 paid、修复重放）被一律排除导致少算；改为只补偏小的值。
+        //    仍不覆盖「已收金额 > 分期和」的行（流水维护过的超额金额受保护），F0077 防护不回退。
         // ② EXISTS 只锁定确有已付分期的目标行（不再扫全体订单）；
         // ③ NOT EXISTS(order_payments) 哨兵排除已被流水接管过的订单——这是归零订单的关键：
         //    全额退款冲正后 paid_total_cents 归零（命中 ①），但 order_payments 已有收/退款行，
@@ -45,7 +47,11 @@ export const migration: Migration = {
             FROM order_payment_installments
             WHERE order_id = orders.id AND status = 'paid'
           )
-          WHERE COALESCE(paid_total_cents, 0) = 0
+          WHERE COALESCE(paid_total_cents, 0) < (
+            SELECT COALESCE(SUM(amount_cents), 0)
+            FROM order_payment_installments
+            WHERE order_id = orders.id AND status = 'paid'
+          )
             AND EXISTS (
               SELECT 1 FROM order_payment_installments
               WHERE order_id = orders.id AND status = 'paid'
