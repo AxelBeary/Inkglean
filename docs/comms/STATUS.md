@@ -2,19 +2,30 @@
 
 ## 2026-11-27 会话交接（发版与安全公告未完成，**接手先读这条**）
 
-- **当前基线（实测）**：master `1e45bc11`；迁移 v84；open issue 0 / open PR 0；版本 root 1.1.0 / desktop 0.1.0
+- **当前基线（实测）**：master `3e604935`；迁移 v84；open issue 0 / open PR 0；版本 root 1.1.0 / desktop 0.1.0
+- **公网实际跑的版本＝`94f40bfd`**（用户 11-27 确认，很新）：GitHub Release 页仍挂 v1.1.0(10-28)，落后 165 提交——**以部署实测为准，Release 页是旧账**
 - 🔴 **发版卡在凭据**：`gh secret list` 与 `gh variable list` **均为空**，`desktop-release.yml` 硬性要求 4 项
   - secret `TAURI_SIGNING_PRIVATE_KEY` / `_PASSWORD`；var `DESKTOP_UPDATE_PUBKEY` / `DESKTOP_UPDATE_BASE`
   - 照做清单 `AGENTS/拍板材料-20261123/B8-照做清单.md`；**U33 流水线从未跑过，首跑需现场调**
-  - 用户已定版本：root **1.2.0** / desktop & tauri **0.2.0**（尚未落到文件）
-- 🔴 **安全公告未转公开，三个未决问题**（用户 11-27 指示可转开放，但核对后不能直接发）
-  - ① **公网版本存疑**：release 最新仍是 `v1.1.0`(10-28，落后 master 165 提交)，缺 v83/v84/sentry-privacy；需用户确认实际部署版本
-  - ② 现有 advisory `summary` 写「未修复」且 `patched_versions` 为空——直接发布会是错误公告
-  - ③ credits 挂 `Mistwhisker`，按 10-26 拍板「署名需报告者本人同意」，需本人确认
-  - **GHSA-6pf3 的 8 节已全部在 master 落地**（证据表见交接档 §四），修是修好了，只差公告口径
-- **建议顺序**：配凭据 → 改版本号+changelog+门禁 → 打 tag 首跑 U33 → 真机终验 → 1.2.0 发出后再改 advisory（summary/patched_versions=1.2.0/credits）→ 转公开
-- ⚠️ **工作区有他人未提交改动**（10 改 + 1 新增，全在 `web/` Passkey 域，02:39–02:52）：不得提交/不得 stash/不得回滚
+  - **用户 11-27 定：凭据明早配**（当天不做）；版本 root **1.2.0** / desktop & tauri **0.2.0**（尚未落到文件）
+- 🟢 **GHSA-6pf3 署名口径已定（用户 11-27）**：**不挂 Mistwhisker**（已私下确认）。credits 一栏按此收尾
+  - 仍未决：advisory 的 `summary` 现写「未修复」且 `patched_versions` 为空，直接发布会是错误公告
+  - 转公开前须把 summary / patched_versions 改成 1.2.0 实况；8 节修复本身已全在 master（证据见交接档 §四）
+- **建议顺序**：配凭据 → 改版本号 + changelog + 门禁 → 打 tag 首跑 U33 → 真机终验 → 1.2.0 发出后改 advisory → 转公开
+- **工作区状态**：11-27 04:0x 复核 `git status` 无遗留改动；Passkey 修复已入库 `3e604935`（见下条）
 - **完整交接**：`AGENTS/pr-audit-20261126/HANDOFF.md`（自包含；本机 gitignore，清理后可能不存在）
+
+## 2026-11-27 Passkey 归因修复入库 + 文档整理批
+
+- **代码**：`3e604935` fix(web) Passkey 注册失败归因——SecurityError 不再误报「浏览器不支持」
+  - 根因：`isWebAuthnUnsupported` 把 SecurityError（rp.id 与域名不符/非法）与真·能力缺失 NotSupportedError 归为一类
+  - 改动 11 文件 +285/−19；新增 `checkRpId` / `isIpHostname` / `isRpIdSuffixOfHost` / `rpIdProblemKey` 单源归因
+  - 一号复核（本机实跑）：web lint 0 错、vitest 198 文件 / 1407 例全绿、check:i18n 中英键集一致；无新增依赖、无越界改动
+- **文档（本批，纯文档）**：STATUS 由 46,051 B / 318 行切至下条看板口径，原文一字不改
+  - 搬出：看板旧文 L83–L107、正文 5 个 📌 块 L219–L283 → `docs/comms/archive-20261127/`
+  - 外置：RuoYi 吸纳评估 L109–L121 → `docs/comms/研究-RuoYi吸纳评估-20261127.md`（原文原样 + 标题头）
+  - 零丢失校验：搬出/外置三段逐字节 `includes` 比对全部命中；原文 319 行非空行在新 STATUS + 4 份归档中零缺失（脚本 `AGENTS/temp/verify3.cjs`）
+- **看板卡（DSH taskboard）现状**：青芽季遇 3 张（R2 停手 / 重设计新卡 / dp 分档待派）+ antigravn 1 张（体验打磨转 in_review）
 
 ## 2026-11-27 #97/#98 收口批（v49 测试补齐 + E2E 回归接门禁）
 
@@ -44,66 +55,26 @@
 - **遗留**：CodeQL `Analyze (rust)` 在最后一次推送时仍在跑（其余 9 项已 success）
 - 🔴 **发布前必读**：F0156 弱密钥判定会让低熵密钥的既有部署**升级即拒启**，发布说明必须写明
 
-## 2026-11-26 上游 PR #114 审计批（打回作者，未合入）
+## 看板（2026-11-27 整理后：master `3e604935`）
 
-- **对象**：上游 PR #114「2026-11-24 全量收口」，基线 `0b3c5db2` → head `002c7396`；173 文件 / +9835 −1107
-- **结论**：不宜按现状合并；已以 PR 评论打回作者（`#issuecomment-7187077610`），评论正文即逐条意见
-- **做法**：六路子代理分域审计（资金/迁移/鉴权/前端/桌面E2E/管理后台）+ 一号独立实测复现；全程只读，主工作区零改动
-- **门禁自报属实**：四端用例数逐项实跑对上（server 195/2236、web 197/1387、desktop 52/695、shared 9/60）
-  - 另核：file-size 631 文件豁免 0 / status-line 39 行过 / server+web typecheck 0 / e2e ERROR=0 WARN=2
-  - 口径：本次只判「自报是否属实」，不称门禁全绿（accept.ps1 十九道未跑，PR 未合入）
-- **BLOCKER 1 条**：F0108 反向归属校验 + 前端未接线 → 后台「画师专属特别日」文案新增/启停/删除三个动作全失效
-  - 实测：UI 路径 400；画师专属端点 200（能力在，接线错）；列表接口不区分归属，故「看得到、点不动」
-- **MAJOR 6 条**（前三条为本 PR 新引入）：
-  - **F0081 声称已根治、实测未根治**：v36 守卫拿 `art_styles` 当代理判据，F5 只建画风不建增项模板
-  - 后果：被 F5 补过画风的画师旧增项仍永久丢失且零告警（Control 搬 2 条 / Probe 搬 0 条）
-  - v36 重放不幂等：删画风后重放同名模板翻倍（资金侧重复计增项）
-  - F0314 nextDueCents 回归：缓冲订单「下期应付」¥0.00，与同屏「剩余 ¥200」矛盾（master 原本正确）
-  - 小票行金额与合计口径分裂 1 分差；F0179 令牌进 header 但 Sentry 不清 header；回收站 binPath 后端做了 UI 无入口
-- **已核实无问题**（返工时须保留）：`yuanToCents` 跨端 parity 2 万+ 组 0 不一致 / F0192 事务与归属 / F0200 路径穿越防护 / F0104 事务 / 迁移链与 schema 零差异 / test-tamper 抽查无改软断言
-- **留痕**：`docs/comms/evidence/证据-PR114上游审计批-20261126.md`（结论摘要）；详单与探针在 `AGENTS/pr-audit-20261126/`（仅本机）
-- **后续**：等作者按意见返工；合并前重审 B-1、「M-1 守卫判据」、M-3 三处（含测试同步）
-
-## 2026-11-26 上游 PR #115 复审批（通过，建议合并）
-
-- **对象**：PR #115「#114 审计意见补丁」，base `002c7396`（= #114 head）→ HEAD `c9df51d3`；44 文件 / +1162 −177
-- **结论**：**通过**；原 BLOCKER 1 + MAJOR 6 **全部实质解决**，已回执 PR 评论 `#issuecomment-7195825394`
-- **复跑口径**：用首轮审计那套**原始探针原样复跑**（不改探针不改断言），不采信自报
-  - M-1 v36 守卫 Probe 从搬 0 条 → 2 条（Control/Probe 一致）；M-2 重放从翻倍 → 仍 1 条
-  - M-3 nextDueCents 从误导 `0` → `null`（前端回退）；M-5 Sentry 7 种凭证清零、method/url 保留
-  - B-1 另做**组件级真挂载**验证（对方仅服务端模拟形态）：新增/启停/删除逐行按 `row.artist_id` 分流正确
-- **门禁实跑**：server 198/2259、web 197/1390、desktop 52/695、shared 9/66；typecheck 三端 0
-  - 另核：check:e2e ERROR=0 WARN=2 与基线一致 / file-size 635 文件豁免 0 / 用例只增不减
-- **两处正面确认**：修 v36 未改坏 F5（`migrate.ts` 不在 diff，两守卫各判各表取并集）；M-3 语义分档清楚
-- **遗留不阻断**：M-6 无组件级 payload 断言（已如实声明）/ order-client 注释滞后 / MINOR-8 F0156 需发布说明
-- 🔴 **合并顺序（硬）**：#115 base 是 #114 分支而非 master，须**先合 #114 再合 #115**，之后关 #107–#113
-- **留痕**：`docs/comms/evidence/证据-PR115复审批-20261126.md`；详单 `AGENTS/pr-audit-20261126/`（仅本机）
-
-
-## 看板（2026-11-24 最终收口态：origin/master=0b3c5db2；fork 集成 0ff41a5d 含 7 PR + 全部修复批；fork 内全绿、待统一推上游）
-
-- **HEAD**：`origin/master` = `0b3c5db2`（上游未前移）；fork 集成 `0ff41a5d` 含 7 PR + 8 施工/修复批 + 8 条 TASK2 闭合，待用户确认后统一推上游
-  - 本机无 pwsh/chromium/cargo/playwright：只报「CI + 本机等价门禁」，不得称十九道全绿；CI 四 job 为权威，十九道由 Windows 环境实跑
-- **本机等价门禁（t22 重签）**：server 194/2223 / web 197/1387 / desktop 52/693 / shared 9/60；18 道全过，台账 `AGENTS/gate-20261124-followup/GATE.md`
-- **PR 状态**：#107–#113 上游仍 OPEN；fork 内已集成、两红闭合，推上游顺序 #109 先于 #112（理由见下一步第 1 条）
-  - 两红已闭合：web 拆分 useOrderForm.ts 827→674 行；#112 为集成顺序 artifact，按 #109→#112 后 12/12；TASK2-01 资金高危另闭合
-- **基线**：`accept-baseline.json` server 2105 / web 1308 / desktop 678 / shared 47 / e2e 15；迁移 v82；cargo 39 另计
-- **发版**：v1.1.0（2026-10-28 稳交付·好管理版）；安装包 5.79MB/920 文件；说明见 `docs/changelog.md` 顶部
-- **拍板落地（2026-11-23）**：F0192 孤儿行跳过+告警 / F0200 边界照方案 / F0134 押后 B4 / ab263dd1 A+C / B8 手册已修 / 账号口径按实测——全文见「已拍板规则」末条
-- **警报/issue**：B1/B3/B4/B8 已落地 fork 集成；#96/#97/#98 仍公开待推，B2/B4/B6/B7 私密 GHSA；Code scanning 0 / Dependabot 0
-- **合并权口径**：`master-merge-gate` bypass 只有 AxelBeary（always），可自合/直推；Mistwhisker 仅 write、实测不可自合
-- **范围不变项**：拟物收敛只限排期块 ScheduleScroll；GHSA-6pf3 维持私密不公开；公网冻结现状不变；管理员判定只认库值
-- 🔴 **上线前置硬警告仍有效**：公网部署前必须先确认 `platform_config.admin_qq` 非空
+- **基线**：master `3e604935`；迁移 v84；本机等价门禁读数 server 2264 / web 1390 / desktop 695 / shared 66 / e2e 15（`scripts/accept-baseline.json`）
+- **发版**：公网实跑 `94f40bfd`；目标 v1.2.0 / desktop 0.2.0（未落文件）；凭据明早配；U33 首跑待现场调
+- **PR/警报**：#107–#113 上游仍 OPEN（推上游顺序 #109 先于 #112）；#96/#97/#98 公开待推；B2/B4/B6/B7 私密 GHSA
+- **合并权口径**：`master-merge-gate` bypass 只有 AxelBeary（always）；Mistwhisker 仅 write、不可自合
+- 🔴 **上线前置硬警告**：公网部署前必须先确认 `platform_config.admin_qq` 非空
+- **在途卡（DSH taskboard，不在本仓）**：青芽季遇 `t-mwxzkrkv-cc3d9y` 手机主菜单承托重设计（todo，本批新立）
+  - 同项目 `t-mwqr8tt8-k06nik` R2 已停手（视觉未过 3.808:1，不续第三轮）；`t-mwqrfz64-voz83q` dp 分档被重设计卡挡
+  - antigravn `t-mwtj3u5x-lmzvxq` 体验打磨已转 in_review（制作人已试玩；铁颚 12 处侧线纯文字场景待定）
+  - 本仓 backlog：主页（根域名）体验优化 `t-mwxzlyb8-cnnoyy`、管理员面板事件流水幕布 `t-mwxzm4m3-d8hz7f`
 
 **下一步（按优先级）**
 
-1. **推上游（待用户确认）**：fork 集成 `0ff41a5d` 已含 7 PR + 8 施工/修复批 + 8 条 TASK2 闭合；顺序 #109 先于 #112，全部准备好后统一推上游
-   - 口径：代理只 push fork、不 push origin、不提上游 PR；自包含交接档 `AGENTS/handoff-20261124/FOLLOWUP-DELIVERY.md`
-   - F0283 顺序订正：server 实现与 web 消费均在 #109；#112 仅新增 ?limit 回归测试，故须 #109 先合，反序必红 3 例
-2. **施工批覆盖**：B1 6 条 + B3 11 条 + B4 12 条（含 F0134 信封）+ B8 方案 A+C 与 U33；施工图 `AGENTS/handoff-20261124/PLAN-REMAINING.md`
-3. **两轮审计与扫描（摘要）**：第一轮 51 条（真缺陷 23）+ 第二轮 8 条（high 1 资金）全闭合；性能/体验 low 20+ 条带 F 注释落地；详情见 `AGENTS/debug-swarm-20261124-followup/`
-4. **B8 用户配置（你的操作）**：密钥对 + Secrets/Variables + 真机终验——照做清单 `AGENTS/拍板材料-20261123/B8-照做清单.md`
-5. **待用户终验/拍板**：发布包真机、悬浮窗、桌面 768 分屏、U33 流水线；F0180 剔除与否、方案 C 运营 SOP、TASK2-05 低危不可达观察
+1. **明早配发版凭据**（用户 11-27 定）：4 项 secret/var → 版本号 1.2.0/0.2.0 + changelog → 门禁 → 打 tag 首跑 U33
+2. **两张 backlog 卡待拍**：主页优化、管理员面板事件流水幕布
+   - 幕布缺的不是前端是**事件来源**：访问类事件未入库、登录只有 `last_login_at/ip` 覆盖写、隐私口径（IP 脱敏 / 访客是否记录 / 保留期）须先拍
+3. **推上游（待用户确认）**：fork 集成含 7 PR + 施工/修复批；顺序 #109 先于 #112
+4. **施工批覆盖**：B1 6 条 + B3 11 条 + B4 12 条 + B8 方案 A+C 与 U33；施工图 `AGENTS/handoff-20261124/PLAN-REMAINING.md`
+5. **R-1/R-2/R-3**（RuoYi 评估产出，全文已外置）：未立项；R-1 是「防新代码漏挂」的防腐，不是防越权
 
 **常驻纪律（事故换来的，不得退色）**
 
@@ -199,73 +170,7 @@
   - 口径固化：`audit-batch-f-ddl-consistency.test.ts` 加 CHECK 断言——新装/迁移链两路径均带三 CHECK、存量旧形无 CHECK 属预期；不新增迁移版本号。
 - R3-②/③ v83 索引守卫与留言排序（2026-11-24，③DB 席 review 修复批）：v83 幂等守卫改列+索引双判据（半态崩溃补建索引，保持 noTransaction 与备份顺序）；getAdminMessages 的 LIMIT 查询排序补 id DESC 作 tiebreaker（created_at 秒精度同秒并列稳定）。
 
-
 **起手必读**：开工第一件事＝读顶部看板 → 正文最新一块（📌）→ 拍板查「已拍板规则」→ `AGENTS.md`（事实源链与门禁口径）；碰桌面端再读 `desktop/docs/STATUS.md` 顶部，改桌面 UI 必跑 `huiyue-layout-audit` 自检循环（宿主级技能，VL 不可用时 measure.mjs + 人工清单）。
-
->  📌 **2026-11-23 审计风暴七 PR 合入 + 拍板落地 + 归档批（用户：全部按建议执行 / 上游已将 PR 合并）**
->
-> - **两轮审计风暴**：116 子代理 / 631 文件实读 / 322 原始发现；四端修复（桌面 44 + 后端 56 + 前端 122 + B8 验签 + 文档债 10 + 根因收编 4）；两轮复核抓 5 个真实缺陷全部返工闭合——总交接 `AGENTS/debug-swarm-20261122/HANDOFF.md`。
-> - **七 PR 合入**：#99–#105 全数合入（2026-11-23 16:11 用户网页执行，按冲突面排序 #100→#103→#104→#105→#101→#99→#102；`master-merge-gate` 规则集 Restrict updates 无 bypass，代理账号无法自合，实测坐实）。
->   - 合并前 lead 补评审 #104/#105（LGTM；#104 一条 low 尾巴＝updater.ts 注释对 endpoints 的表述待 #100 合入后完全准确，已自然解决）；#103（@vue/test-utils 2.6 等 7 包）按序最后合。
-> - **合并后门禁**：CI 四 job + E2E + CodeQL 全绿 @ `3ce3ad9a`；十九道全量由用户在 Windows 环境实跑全绿 @ `7118b53c`（356s）；留痕 `AGENTS/门禁-20261123/GATE.md`。
->   - 本机 Android 等价门禁 13 道全绿互证（server 2105 / web 1308 / desktop 678 / shared 47，与十九道读数完全一致）。
-> - **拍板落地 7 项**：材料 `AGENTS/拍板材料-20261123/DECISIONS.md`；B8 用户操作照做清单 `AGENTS/拍板材料-20261123/B8-照做清单.md`；B8 手册口径修订（DESKTOP_UPDATE_PUBKEY 构建期注入 + 废弃手工替换）已 commit。
-> - **归档批（本批）**：旧看板 / 旧下一步 / 起手必读旧段 / 正文 10-26wave3·10-21·10-19×2 共 7 片整搬 `archive-20261123/`（原文一字不改，非空行集合零丢失校验）；看板重写 12 行内、正文回 5 块；账号口径按实测订正；fork 14 条残留分支全删。
-> - **下一步首项**＝跨端 5 项落地批（见「下一步」第 1 条）。
-
->  📌 **2026-11-17 夜 debug 遗留清账（用户：继续去清吧）**
->
-> - **A2**：过程稿 caption 含 HTML 标签/实体时后端改返 400 `PREVIEW_CAPTION_INVALID`（原为剥标签存 null 还提示成功）；纯文本零误伤（「价格<100」放行），中英文案齐备。
-> - **A3**：客户查单页消费续签响应的 `skipped[]`，把失效过程稿从列表摘掉（不再留 403 裂图）；参考图不动。
-> - **B4**：`SizeDisplayStatus` 联合类型（available/showcase/closed）落到 `StyleSize` / `PublicStyleSize`，与后端 CHECK/enum 同口径。
-> - **OFM #3**：桌面端新增「同模块两次组包，除 generatedAt 外逐字节一致」用例（确定性构建单元级证据）。
-> - **验证**：**十九道全绿 @ `3b54d714`（357s）**：server 2050 / web 1233 / desktop 672 / shared 44 / E2E 14。
->   - cargo 39 另计；留痕 `AGENTS/artifacts/清理批-20261117/` + `AGENTS/workspace/temp/accept-master-20261118-012229.md`。
-> - **事故与纠偏（记）**：改 i18n 时整读整写把两个 2800+ 行 locale 截断到 ~1017 行（read 默认 2000 行），已用 `git show HEAD:` 逐字节恢复并复核 blob 哈希；教训：>2000 行文件禁整读整写，web 的类型门禁在 lint 不在 build。
-> - **文档位**：正文已 8 块（超 5），归档搬迁仍待单独一批。
->
->  📌 **2026-11-17 模块包批（用户：ofm 吸纳对方的插件模式，吸纳至我们桌面端的小功能里）**
->
-> - **落点**：桌面端「模块（插件）」机制补一层分发最小切片——`.zip` 恰好三件（manifest.json / panel.js / pack.json），装前四道判（条目白名单 / 三道上限 / 摘要 / manifest 校验），任一不符拒装并给原因。
-> - **摘要口径**：manifest 走语义摘要（稳定化 JSON：递归键排序 + 去空白 + 丢 undefined），两件文件走字节摘要 + 字节大小；格式化/换行/键序不影响同一性，size 按字节（OFM 把 chars 写成 bytes 那处没照抄）。
-> - **静态体检**：剥字符串/注释后查 14 个禁用 API；命中只告警不拦装（真闸仍是沙箱帧）。已知边界：正则字面量不剥，可能误报。
-> - **来源四态（壳判定）**：官方 / 导入包 / 导入后已改 / 本地文件；装包账存 localStorage（只记摘要、时间、命中数，不存文件）。
-> - **明确不做**：签名链 / 密钥 / 吊销 / 商店 / 模块联网 / vm 沙箱——模块规范 §八「首发不采资源签名」不翻案，§十一 记本批口径。
-> - **验证**：desktop lint 0 错 / vitest **671**（+36）/ build 绿；巨型文件、STATUS 单行、changelog 体积三道防阀绿；`accept.ps1` 十九道未跑（AI 不许跑 .ps1）。留痕 `AGENTS/artifacts/模块包-20261117/`。
-> - **文档位**：本文件正文已 7 块（超 5），归档搬迁按「单独一批」纪律未做，留待下批。
-> - **收口补测（22:57 复核）**：cargo test **39** 全过（lib 28 + ACL 8 + release 3；本批零 Rust 改动，按桌面端门禁补跑）；布局 measure 与基线（74f26fcf^）**同集同数**，本批零新增离栅值。
-> - **补测未做**：截图 / VL 未跑——该页真实态只在 Tauri 壳内（模块扫描走原生桥，浏览器 dev 只有兜底态），已在报告如实记录。
->
->  📌 **2026-10-28 #22 桌面端剩余五项收口（用户：那个留着的我们现在来一起处理掉）**
->
-> - **2-残余a 原子写**：`desktop_save_file` 与导出落盘改「同目录临时文件 → 写满 → fsync → rename」。
->   - 被占（悬浮窗仍持库句柄）或写半途失败：原文件零改动、临时件即清；Rust 测试用 SQLite 同款 share 模式（读+写、不含 DELETE）实证 rename 被拒且旧库保留。
-> - **2-残余b 逐窗回执**：新增 `desktop_floating_window_labels`（window-controls 组，仅主窗）。
->   - 导入广播带 requestId，逐窗等 ack（3s 上限）；未回执且仍存活者按人话列名，`runImport` 中止且不关连接/不清边车/不覆写。
->   - `db.ts` 改静态 import、`main.ts` 入口引入，保证每个 webview 启动即挂监听。
-> - **3 退出清悬浮窗**：Quit 分支先 destroy 全部 `floating-*` 再放行主窗关闭，消除「主窗没了、悬浮窗还在、唤不回」。
-> - **6 跨窗同步**：prefs 监听 `storage` 采纳他窗写入；`desktop-float-closed` 上移 App 常驻。
->   - 离开首页期间贴回/直关，回页不再按旧 torn 重撕，也不会用旧快照覆盖新字号/主题。
-> - **7 发布包**：`assetProtocol.enable=true` + `protocol-asset` + CSP `frame-src 'self' data:`，`release_config.rs` 三条静态回归。
->   - `npx tauri build --no-bundle` 产出 release exe（1m40s）；发布包真人启动点击仍归用户终验。
-> - **验证**：desktop vitest 629（+13）/ cargo test 39（lib 28 + ACL 8 + release 3）/ tauri info 无 mismatch。
-> - 十九道全绿 @ `5e00ec87`（685s）；基线 desktop 616→629，迁移仍 v80。留痕 `AGENTS/artifacts/issue22-desktop-20261028/`。
-
->  📌 **2026-10-27 七路 PR 批量合入 + 文档整规批（用户授权：可合的就审合；自己区域的整规派子代理做掉）**
->
-> - **拓扑**：#61→#64→#65→#66→#67 是同一条提交链（后者含前者提交），#62/#63 各独立。四路只读评审席分层审（R1=61+64 / R2=65 / R3=66+67 / R4=62+63），主代理逐条复核 must-fix 后合并。
-> - **合并**：7 个 PR 全数 `--admin` 合并（仓库规则集「无归因提交需额外批准」，先 APPROVED 仍 BLOCKED）。merge 提交 c223534d / 16f8e7d1 / 1a8076d0 / 7c3ba370 / f216ff9c / 44e84ae5 / 88b48eaf。
-> - **跟进修复（`d6582d66`）**：check-i18n 执行入口按 VITEST 判定，路径形态不符不再静默 exit 0；预览横幅高度改 ResizeObserver 实测；Folio 移动菜单 top 跟随横幅；重绑冷却解析失败按冷却中处理 + TC-COOL-UTC-04；QQ 输入 maxlength 15→20。
-> - **测试基建（`f58309d8`）**：web/desktop vitest fork 上限 8。本机 28 核默认起 ~27 个 fork，Windows 下偶发单 worker 启动即退，连续 3 次门禁假红（日志全留痕）；cap 后 4 次串行全绿。
-> - **issue 余项（`17494d20`）**：#21 位次隐藏 + 关跟踪终态守卫；#54 菜单关闭态 inert + 起价排除展示态；#56 画册 leave 0.1s / 挂牌绳角解析计算 / 浮层滚动锁 / 问候卡两行 clamp（blur 视觉未动）；#57 菜单挂进 nav / Atelier 断点 860 / 统计卡容器查询。新增 12 例。
-> - **拍板落地（本批文档提交前一笔代码）**：下载失败改「3 次冷却可重试 + 累计 9 次彻底锁死」（迁移 v80）；递补与撤销取消不得越 `batch_limit`（新码 `BATCH_FULL_ACTION`，旧「允许超 N」作废）；桌面端只支持 Windows；KaiTi 回退度量对齐（ascent 92.8% / descent 25.6%）。新增 3 例。
-> - **文档整规（`1605ef4d` + `f403a0c3`）**：changelog 最旧 12 段（2026-09-25~10-13，102 行 / 23703 B）搬新卷；STATUS 正文最旧两条（10-13 / 10-12）搬 `archive-20261027/`。
->   - 独立对账：changelog 重建与原文件逐字节相等、162 种非空行零缺失；STATUS 245 种非空行零缺失；两道防阀绿。
-> - **验证**：十九道全绿 @ `ef0fb5b0`（489s）；server 1993（174 文件）/ web 1167（171）/ desktop 616 / shared 44 / E2E 14；迁移 v80。
-> - **issue 处置**：#50/#53/#52/#23/#54/#21/#57/#56 已关；仅 #22 保持 open（22-8 平台范围已落，余导入原子写/关窗残留/悬浮窗同步/发布包 CSP）。
-> - **留痕**：`AGENTS/artifacts/pr-batch-20261027/`（评审席报告 + 台账）、`AGENTS/artifacts/docs-整规-20261027/`（整规席日志 + 独立对账）。
->
-
 > 📦 **看板旧文-至2026-11-23 已归档 → `docs/comms/archive-20261123/STATUS-看板旧文-至2026-11-23.md`（2026-11-23 归档批搬出，原文原样搬迁）。**
 > 📦 **下一步旧文-至2026-11-22 已归档 → `docs/comms/archive-20261123/STATUS-下一步旧文-至2026-11-22.md`（2026-11-23 归档批搬出，原文原样搬迁）。**
 > 📦 **起手必读旧文-至2026-11-17 已归档 → `docs/comms/archive-20261123/STATUS-起手必读旧文-至2026-11-17.md`（2026-11-23 归档批搬出，原文原样搬迁）。**
@@ -275,29 +180,24 @@
 > 📦 **溢文-2026-10-19-可做批收口 已归档 → `docs/comms/archive-20261123/STATUS-溢文-2026-10-19-可做批收口.md`（2026-11-23 归档批搬出，原文原样搬迁）。**
 > 📦 **2026-10-13 PR 与警报治理批（含当日续单）已归档 → `docs/comms/archive-20261027/STATUS-溢文-2026-10-13-PR与警报治理批.md`（2026-10-27 溢文归档批搬出，原文原样搬迁）。**
 
-
 > 📦 **2026-10-12 依赖警报根治批已归档 → `docs/comms/archive-20261027/STATUS-溢文-2026-10-12-依赖警报根治批.md`（2026-10-27 溢文归档批搬出，原文原样搬迁）。**
 
 > 📦 **9/29 记忆库维护批（D12/D10 待拍板锚）已归档 → `docs/comms/archive-20261021/STATUS-溢文-2026-09-29-记忆库维护批.md`（2026-10-21 原文原样搬迁）。**
 
-
 > 📦 **[9/27 changelog 滚动分册批] 已归档 → `docs/comms/archive-20261019/STATUS-溢文-2026-09-27-changelog滚动分册批.md`（2026-10-19 溢文归档批搬出，原文原样搬迁）。**
-
 
 > 📦 **[9/27 文档专项审计归档批（U18）] 已归档 → `docs/comms/archive-20261019/STATUS-溢文-2026-09-27-文档专项审计归档批.md`（2026-10-19 拆归档批搬出，原文原样搬迁）。**
 
-
 > 📦 **[9/27 黄红灯] 已归档 → `docs/comms/archive-20261019/STATUS-溢文-2026-09-27-黄红灯.md`（2026-10-19 溢文归档批搬出，原文原样搬迁）。**
-
 
 > 📦 **[9/25 今天吃什么] 已归档 → `docs/comms/archive-20261019/STATUS-溢文-2026-09-25-今天吃什么.md`（2026-10-19 溢文归档批搬出，原文原样搬迁）。**
 
-
 > 📦 **[9/17 审计缺陷波1+波2] 已归档 → `docs/comms/archive-20261019/STATUS-溢文-2026-09-17-审计缺陷波1+波2.md`（2026-10-19 溢文归档批搬出，原文原样搬迁）。**
-
-
 
 > 📦 **2026-09-13 及更早的历史条目已拆分归档至 docs/comms/archive-20260927/STATUS-archive-20260927.md（2026-09-27 U18 归档批拆分，原文原样搬迁）。**
 
 > 📦 **2026-08-23 及更早的历史条目已拆分归档至 `docs/comms/archive-20260824/STATUS-archive-20260824.md`（824 收整批拆分，原文原样搬迁）。**
 
+> 📦 **看板旧文-至2026-11-24 已归档 → `docs/comms/archive-20261127/STATUS-看板旧文-至2026-11-24.md`（2026-11-27 整理批搬出，原文原样搬迁）。
+> 📦 **正文块-2026-10-27至2026-11-23 已归档 → `docs/comms/archive-20261127/STATUS-正文块-2026-10-27至2026-11-23.md`（2026-11-27 整理批搬出，原文原样搬迁）。
+> 📄 **RuoYi 吸纳评估已外置 → `docs/comms/研究-RuoYi吸纳评估-20261127.md`**（2026-11-27 整理批搬出，原文原样搬迁）。
