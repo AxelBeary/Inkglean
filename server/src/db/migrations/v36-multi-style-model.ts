@@ -84,8 +84,10 @@ export const migration: Migration = {
       const atColsV36 = (database.prepare('PRAGMA table_info(addon_templates)').all() as ColumnInfo[]).map(c => c.name)
       if (!atColsV36.includes('pricing_mode')) return
       // F0081（B2 high）：旧全局守卫 `if (existingStyles > 0) return` 按「任一画师已有画风」跳过全体，
-      // 部分迁移/重放（版本表丢失修复）时其余画师的旧档位与旧增项被整体放弃（生产库 carol 实例，
-      // migrate.ts F5 曾以逐画师守卫补齐过档位）；本迁移改为同一范式：已有画风的画师逐个跳过。
+      // 部分迁移/重放时其余画师的旧档位与旧增项被整体放弃（生产库 carol 实例，migrate.ts F5
+      // 曾以逐画师守卫补齐过档位）。PR114 M-1 修正：不能再拿 art_styles 当「已迁移」代理键——
+      // F5 只补画风/尺寸、从不建 addon_templates，按画风判跳过会让这类画师的旧增项永久静默丢失。
+      // 改为画风/增项两个独立守卫各判各的目标表（详见下方循环）。
       // 前置守卫：v43 已按用户拍板 DROP price_addons、v50 已 DROP price_tiers（冻结依据见两迁移注释），
       // 任一旧表缺失即无可搬数据，直接返回——防修复重放时裸 SELECT 撞「no such table」崩溃
       const legacyTableExists = (table: string) => !!database.prepare(
@@ -93,62 +95,85 @@ export const migration: Migration = {
       ).get(table)
       if (!legacyTableExists('price_tiers') || !legacyTableExists('price_addons')) return
 
-      // F0081: 逐画师 NOT EXISTS 幂等（migrateF5OldModelArtists 同款范式，migrate.ts）
+      // PR114 M-1：两个独立守卫各判各的目标表，取并集进入循环，循环内再各自判定：
+      //   - 画风守卫判 art_styles（F5 migrateF5OldModelArtists 只建画风+尺寸、从不建 addon_templates；
+      //     该画师 art_styles 非空但 addon_templates 仍空，旧代理键会整块跳过 → 旧增项静默永久丢失）
+      //   - 增项守卫判目标表 addon_templates（F5 补过画风的画师在此守卫下继续搬运旧增项）
+      // F5 自身的 art_styles 守卫（migrate.ts:109）保持不变——若 F5 也改判 addon_templates 会漏建画风。
       const artists = database.prepare(
-        'SELECT id FROM artists WHERE NOT EXISTS (SELECT 1 FROM art_styles WHERE art_styles.artist_id = artists.id)'
+        `SELECT id FROM artists
+         WHERE NOT EXISTS (SELECT 1 FROM art_styles WHERE art_styles.artist_id = artists.id)
+            OR NOT EXISTS (SELECT 1 FROM addon_templates WHERE addon_templates.artist_id = artists.id)`
       ).all() as IdRow[]
+      const selectStyle = database.prepare(
+        'SELECT id FROM art_styles WHERE artist_id = ? ORDER BY id ASC LIMIT 1'
+      )
+      const selectTemplate = database.prepare(
+        'SELECT id FROM addon_templates WHERE artist_id = ? ORDER BY sort_order ASC'
+      )
       const insertStyle = database.prepare(
         'INSERT INTO art_styles (artist_id, name, sort_order, is_active) VALUES (?, ?, 0, 1)'
       )
       const insertSize = database.prepare(
         'INSERT INTO style_sizes (art_style_id, name, base_price, sort_order) VALUES (?, ?, ?, ?)'
       )
+      // PR114 M-2：按 (artist_id, name) 查重后再插——重放（删 art_styles 模拟版本表丢失）
+      // 时同名模板不得翻倍（增项按行计价，重复行=重复计增项，资金侧）。
+      // 不依赖 UNIQUE 约束：老库表可能无该约束，用 INSERT...SELECT...WHERE NOT EXISTS 通用兜底。
       const insertTemplate = database.prepare(
-        'INSERT INTO addon_templates (artist_id, name, control_type, pricing_mode, default_price, unit_label, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        `INSERT INTO addon_templates (artist_id, name, control_type, pricing_mode, default_price, unit_label, sort_order)
+         SELECT ?, ?, ?, ?, ?, ?, ?
+         WHERE NOT EXISTS (
+           SELECT 1 FROM addon_templates WHERE artist_id = ? AND name = ?
+         )`
       )
       const insertStyleAddon = database.prepare(
         'INSERT OR IGNORE INTO style_addons (art_style_id, addon_template_id, is_enabled, price_override) VALUES (?, ?, 1, NULL)'
       )
 
       for (const artist of artists) {
-        // 1. 创建默认画风
-        const styleResult = insertStyle.run(artist.id, '默认')
-        const styleId = Number(styleResult.lastInsertRowid)
+        // 1. 默认画风：仅在确无画风时建（F5 补过画风的画师沿用其画风，不重建）
+        const existingStyle = selectStyle.get(artist.id) as IdRow | undefined
+        const styleId = existingStyle
+          ? existingStyle.id
+          : Number(insertStyle.run(artist.id, '默认').lastInsertRowid)
 
-        // 2. price_tiers → style_sizes
-        const tiers = database.prepare(
-          'SELECT * FROM price_tiers WHERE artist_id = ? ORDER BY sort_order ASC'
-        ).all(artist.id) as LegacyPriceTierRow[]
-        for (const tier of tiers) {
-          insertSize.run(styleId, tier.name, tier.price, tier.sort_order ?? 0)
+        // 2. price_tiers → style_sizes：仅在本次新建画风时搬运（F5 已搬过的尺寸不重复塞）
+        if (!existingStyle) {
+          const tiers = database.prepare(
+            'SELECT * FROM price_tiers WHERE artist_id = ? ORDER BY sort_order ASC'
+          ).all(artist.id) as LegacyPriceTierRow[]
+          for (const tier of tiers) {
+            insertSize.run(styleId, tier.name, tier.price, tier.sort_order ?? 0)
+          }
         }
 
-        // 3. price_addons → addon_templates
-        // 映射：toggle→switch, quantity→quantity, inquiry→radio
-        // pricing_mode：fixed→fixed, percent→fixed（v1 不支持百分比增项）
-        const addons = database.prepare(
-          'SELECT * FROM price_addons WHERE artist_id = ? ORDER BY sort_order ASC'
-        ).all(artist.id) as LegacyPriceAddonRow[]
-        const controlIdMap = { toggle: 'switch', quantity: 'quantity', inquiry: 'radio' }
-        for (const addon of addons) {
-          const controlType = controlIdMap[addon.select_mode] || 'switch'
-          const pricingMode = 'fixed' // percent 也转为 fixed（v1 不支持百分比增项）
-          insertTemplate.run(
-            artist.id,
-            addon.name,
-            controlType,
-            pricingMode,
-            addon.price_value,
-            controlType === 'quantity' ? '个' : null,
-            addon.sort_order ?? 0
-          )
+        // 3. price_addons → addon_templates：仅在目标表无该画师行时搬运
+        // 映射：toggle→switch, quantity→quantity, inquiry→radio；percent→fixed（v1 不支持百分比增项）
+        if (!selectTemplate.get(artist.id)) {
+          const addons = database.prepare(
+            'SELECT * FROM price_addons WHERE artist_id = ? ORDER BY sort_order ASC'
+          ).all(artist.id) as LegacyPriceAddonRow[]
+          const controlIdMap = { toggle: 'switch', quantity: 'quantity', inquiry: 'radio' }
+          for (const addon of addons) {
+            const controlType = controlIdMap[addon.select_mode] || 'switch'
+            const pricingMode = 'fixed' // percent 也转为 fixed（v1 不支持百分比增项）
+            insertTemplate.run(
+              artist.id,
+              addon.name,
+              controlType,
+              pricingMode,
+              addon.price_value,
+              controlType === 'quantity' ? '个' : null,
+              addon.sort_order ?? 0,
+              artist.id,
+              addon.name
+            )
+          }
         }
 
-        // 4. addon_tiers 关联 → style_addons（默认画风关联所有增项模板）
-        const templates = database.prepare(
-          'SELECT id FROM addon_templates WHERE artist_id = ? ORDER BY sort_order ASC'
-        ).all(artist.id) as IdRow[]
-        for (const tpl of templates) {
+        // 4. 默认画风关联所有增项模板（INSERT OR IGNORE 保证幂等）
+        for (const tpl of selectTemplate.all(artist.id) as IdRow[]) {
           insertStyleAddon.run(styleId, tpl.id)
         }
       }
