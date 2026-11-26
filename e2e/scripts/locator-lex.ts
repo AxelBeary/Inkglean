@@ -123,7 +123,10 @@ export function analyzeLine(line: string, lineNo: number): LocatorIssue[] {
   if (rm) {
     const pre = line.slice(0, rm.index).trim()
     const isBareRole = /(?:^|[^.\w$])[\w$]*(?:[\w$]+\.)?[Pp]age\s*$/.test(pre)
-    const nameMatch = rm[2].match(/\bname\s*:\s*([^,}]+)/)
+    // PR114 MINOR-6: 原 `([^,}]+)` 在逗号处截断字符串字面量，
+    // `{ name: '保存, 继续' }` 被截成 `'保存`（未闭合引号）→ isDynamicArg 判动态 → 假红。
+    // 改为引号感知：整段带引号字面量（含转义）优先，逗号只在引号外才作参数分隔。
+    const nameMatch = rm[2].match(/\bname\s*:\s*((['"`])(?:\\.|(?!\2).)*\2|[^,}]+)/)
     if (isBareRole && nameMatch && isDynamicArg(nameMatch[1])) {
       push('error', '动态 name 的 getByRole 未 scope（strict-mode 风险）')
     }

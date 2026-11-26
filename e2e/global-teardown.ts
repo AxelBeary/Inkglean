@@ -1,3 +1,4 @@
+import { execFileSync } from 'child_process'
 import { existsSync, readdirSync, readFileSync, rmSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
@@ -32,19 +33,53 @@ async function waitForProcessExit(pid: number, timeoutMs: number, intervalMs = 1
   return !isProcessAlive(pid)
 }
 
+/** 读取进程命令行；null = 平台/权限不支持，必须按「无法核身」处理 */
+export type CmdLineReader = (pid: number) => string | null
+
 /**
- * F0055: 校验 PID 对应进程确实是本套件的测试服务器（tsx 跑 server/src/index.ts），
- * 防 PID 复用后误杀无关进程——旧实现仅凭存活检查就敢 SIGKILL。
- * Linux 读 /proc/<pid>/cmdline 匹配特征；无 /proc 的平台（Windows）无法核身，
- * 退化为旧的「仅存活检查」行为（E2E 门禁只在 Linux CI/本机跑，风险面已覆盖）。
+ * PR114 MINOR-7：Windows 无 /proc，但 scripts/accept.ps1:146-148 会在本地 Windows 跑 E2E。
+ * 旧实现 `if (!existsSync('/proc')) return true` 使 PID 复用防护空转，可能 SIGKILL 无关进程。
+ * Windows 改走 PowerShell `Get-CimInstance Win32_Process` 查 CommandLine（pid 已校验为正整数，
+ * 无注入面）；查不到/命令失败一律返回 null，由 looksLikeE2eServer 保守拒绝。
  */
-function looksLikeE2eServer(pid: number): boolean {
-  if (!existsSync('/proc')) return true
+function windowsCmdLine(pid: number): string | null {
+  const command = `(Get-CimInstance Win32_Process -Filter "ProcessId=${pid}").CommandLine`
+  for (const shell of ['powershell.exe', 'pwsh']) {
+    try {
+      const out = execFileSync(shell, ['-NoProfile', '-NonInteractive', '-Command', command], {
+        encoding: 'utf8', timeout: 5_000, stdio: ['ignore', 'pipe', 'ignore']
+      })
+      return out.trim() || null
+    } catch {
+      // 换下一个 shell 再试；都失败则视为无法核身
+    }
+  }
+  return null
+}
+
+/** 按平台读取进程命令行：Linux /proc → Windows CIM → 其它平台返回 null（保守） */
+function readProcessCmdLine(pid: number): string | null {
+  if (existsSync('/proc')) {
+    try {
+      return readFileSync(`/proc/${pid}/cmdline`, 'utf8').replace(/\0/g, ' ')
+    } catch {
+      return null
+    }
+  }
+  if (process.platform === 'win32') return windowsCmdLine(pid)
+  return null
+}
+
+/**
+ * F0055 / PR114 MINOR-7: 校验 PID 对应进程确实是本套件的测试服务器（tsx 跑 server/src/index.ts），
+ * 防 PID 复用后误杀无关进程。第二参数可注入，供无 /proc 场景的定向回归钉住「不凭存活放行」。
+ */
+export function looksLikeE2eServer(pid: number, readCmdLine: CmdLineReader = readProcessCmdLine): boolean {
   try {
-    const cmdline = readFileSync(`/proc/${pid}/cmdline`, 'utf8').replace(/\0/g, ' ')
-    return cmdline.includes('tsx') && cmdline.includes('src/index.ts')
+    const cmdline = readCmdLine(pid)
+    // 无法核身 / 命令行不匹配 → 一律 false；绝不退回「仅凭存活就 return true」
+    return cmdline != null && cmdline.includes('tsx') && cmdline.includes('src/index.ts')
   } catch {
-    // 进程已消失或 cmdline 不可读：无法确认身份，不当作本套件进程
     return false
   }
 }
