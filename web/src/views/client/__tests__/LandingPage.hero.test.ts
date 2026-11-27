@@ -27,6 +27,8 @@ vi.mock('element-plus', async (importOriginal) => {
 })
 
 import LandingPage from '../LandingPage.vue'
+// 源码级断言用 ?raw（同 ComplianceFooterLinks.hit.test.ts 口径）：渲染面被桩替换后测不出
+import landingSource from '../LandingPage.vue?raw'
 
 function realI18n(locale: 'zh-CN' | 'en' = 'zh-CN') {
   return createI18n({ legacy: false, locale, fallbackLocale: 'zh-CN', messages: { en, 'zh-CN': zhCN } })
@@ -109,5 +111,14 @@ describe('首屏与目录层级（方向 A）', () => {
     await flushPromises()
     expect(wrapper.find('.hero-cta').text()).toBe(en.landing.browseArtists)
     expect(wrapper.find('h2.directory-title').text()).toBe(en.landing.directoryTitle)
+  })
+})
+describe('主题/语言控件收敛到客户端统一浮窗（Q3 兜底 (b)）', () => {
+  it('根域名使用 ClientFloatingActions，页头不再内联 ThemePicker', () => {
+    // 旧实现把这个控件绝对定位钉在页头右上（移动端无收起态），是唯一没用浮窗的客户端页；
+    // 与画师主页/下单/查单/404 四页不同构。改用浮窗后源码里不该再有 ThemePicker 引用。
+    expect(landingSource).toContain('ClientFloatingActions')
+    expect(landingSource).not.toContain('import ThemePicker')
+    expect(landingSource).not.toContain('<ThemePicker')
   })
 })

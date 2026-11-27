@@ -1,10 +1,7 @@
 <template>
   <div class="landing">
-    <header class="landing-header">
-      <div class="header-prefs">
-        <ThemePicker />
-      </div>
-    </header>
+    <!-- Q3 兜底 (b)：主题/语言控件收敛到全客户端统一浮窗（此前是唯一内联在页头的客户端页） -->
+    <ClientFloatingActions />
 
     <main class="landing-main">
       <LandingHero @browse="scrollToDirectory" />
@@ -68,7 +65,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { artistPublicApi } from '../../api/index'
 import type { ArtistListItem } from '../../api/types'
-import ThemePicker from '../../components/ThemePicker.vue'
+import ClientFloatingActions from '../../components/client/ClientFloatingActions.vue'
 import LandingHero from '../../components/client/LandingHero.vue'
 import LandingArtistCard from '../../components/client/LandingArtistCard.vue'
 import LandingArtistSkeleton from '../../components/client/LandingArtistSkeleton.vue'
@@ -160,12 +157,6 @@ onMounted(load)
 html.dark .landing {
   --text-secondary: #a3a6ad;
 }
-.landing-header {
-  text-align: center;
-  padding: 0 16px;
-  position: relative;
-}
-.header-prefs { position: absolute; top: 16px; right: 24px; }
 .landing-main {
   flex: 1;
   max-width: 1000px;
