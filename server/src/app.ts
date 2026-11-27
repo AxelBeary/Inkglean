@@ -184,6 +184,22 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
   const REFERENCE_UPLOAD_TTL_DAYS = envPositiveInt(process.env.REFERENCE_UPLOAD_TTL_DAYS, 3)
   // A1（v82）：过程稿未挂单台账行 TTL，与参考图同档（默认 3 天 = 孤儿回收窗口）。
   const PREVIEW_UPLOAD_TTL_DAYS = envPositiveInt(process.env.PREVIEW_UPLOAD_TTL_DAYS, 3)
+  // v86（事件流水幕布步 1，D4=B 分级保留拍板）：activity_events 分三档 TTL——
+  //   管理动作 365 天（处置类证据，最短不能短于纠纷追诉窗口；admin_actions 本体仍永久保留）、
+  //   认证事件 180 天（与 events 埋点同窗，口径统一好解释）、
+  //   其余（交易/上传）90 天（展示够用）。
+  // 三个 env 各自可覆盖（沿 envPositiveInt 范式，缺失/非法回默认），互不牵连。
+  const ACTIVITY_ADMIN_TTL_DAYS = envPositiveInt(process.env.ACTIVITY_ADMIN_TTL_DAYS, 365)
+  const ACTIVITY_AUTH_TTL_DAYS = envPositiveInt(process.env.ACTIVITY_AUTH_TTL_DAYS, 180)
+  const ACTIVITY_OTHER_TTL_DAYS = envPositiveInt(process.env.ACTIVITY_OTHER_TTL_DAYS, 90)
+  /**
+   * activity_events 的分档动作归类（写入侧 ACTIONS 常量的镜像）。
+   * 认证线三动作走 180 天档；其余全部（管理动作 + 交易上传）走长档——
+   * 管理动作里 admin_actions.action 是 12 类自由名（admin: 前缀不参与实际写入，写入的是原名），
+   * 故这里用「排除法」：非认证动作且非交易上传动作 → 归管理动作 365 天档。
+   */
+  const ACTIVITY_AUTH_ACTIONS = ['login_success', 'login_fail', 'stepup_fail']
+  const ACTIVITY_TRADE_ACTIONS = ['order_create', 'reference_upload', 'report_submit', 'guestbook_post']
   // M-1 拆分动机：这几张表的清理不依赖文件系统，此前挂在 gcUploads 内、排在两处文件类
   // 早退（!existsSync(UPLOAD_ROOT) / 画师表为空）之后——首轮启动时甚至早于上传目录创建，
   // 导致开箱前永不清理。拆为独立函数后不受文件早退连坐，各表 try/catch 互不连坐。
@@ -234,6 +250,34 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
       }
     } catch (err) {
       app.log.warn(`过程稿 TTL 清理失败: ${(err as Error).message}`)
+    }
+    try {
+      // v86（D4=B 分级保留）：activity_events 三档 TTL。at 是 INTEGER 毫秒（服务端单点写入，
+      // 无 datetime 文本格式假设），故直接用 JS 算边界毫秒与整数比较，不混用 datetime('now')。
+      // 三档各自一条 DELETE：分档按 action 归类，与写入侧 ACTIONS 常量镜像（见上方 ACTIVITY_*_ACTIONS）。
+      // 注意顺序：先跑认证档（180）再跑其余档（90）再跑管理档（365）无依赖关系，任意顺序等价。
+      const nowMs = Date.now()
+      const dayMs = 86_400_000
+      const authCut = nowMs - ACTIVITY_AUTH_TTL_DAYS * dayMs
+      const tradeCut = nowMs - ACTIVITY_OTHER_TTL_DAYS * dayMs
+      const adminCut = nowMs - ACTIVITY_ADMIN_TTL_DAYS * dayMs
+      const delAuth = db.prepare(
+        `DELETE FROM activity_events WHERE at < ? AND action IN (${ACTIVITY_AUTH_ACTIONS.map(() => '?').join(', ')})`
+      ).run(authCut, ...ACTIVITY_AUTH_ACTIONS).changes
+      const delTrade = db.prepare(
+        `DELETE FROM activity_events WHERE at < ? AND action IN (${ACTIVITY_TRADE_ACTIONS.map(() => '?').join(', ')})`
+      ).run(tradeCut, ...ACTIVITY_TRADE_ACTIONS).changes
+      const delAdmin = db.prepare(
+        `DELETE FROM activity_events WHERE at < ? AND action NOT IN (${[...ACTIVITY_AUTH_ACTIONS, ...ACTIVITY_TRADE_ACTIONS].map(() => '?').join(', ')})`
+      ).run(adminCut, ...ACTIVITY_AUTH_ACTIONS, ...ACTIVITY_TRADE_ACTIONS).changes
+      const activityDeleted = delAuth + delTrade + delAdmin
+      if (activityDeleted > 0) {
+        app.log.info(
+          `事件流水 TTL 清理: activity_events 删除 ${activityDeleted} 条（认证 ${delAuth}/${ACTIVITY_AUTH_TTL_DAYS} 天, 交易上传 ${delTrade}/${ACTIVITY_OTHER_TTL_DAYS} 天, 管理动作 ${delAdmin}/${ACTIVITY_ADMIN_TTL_DAYS} 天）`
+        )
+      }
+    } catch (err) {
+      app.log.warn(`事件流水 TTL 清理失败: ${(err as Error).message}`)
     }
   }
 
@@ -690,6 +734,7 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
   await app.register(import('./features/guestbook/guestbook.routes.js'))
   await app.register(import('./features/tracking/tracking.routes.js'))
   await app.register(import('./features/compliance/compliance.routes.js'))  // REQ-042: 合规与内容安全
+  await app.register(import('./features/activity/activity.routes.js'))  // v86: 事件流水幕布查询面
 
   // ─── 健康检查 ───
   app.get('/api/health', async (_request, reply) => {
