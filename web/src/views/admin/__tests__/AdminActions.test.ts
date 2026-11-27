@@ -9,14 +9,22 @@ import AdminActions from '../AdminActions.vue'
 
 const hoisted = vi.hoisted(() => ({
   getAdminActions: vi.fn(),
+  adminActionsExportUrl: vi.fn(() => '/api/admin/admin-actions/export'),
   msgError: vi.fn(),
-  msgSuccess: vi.fn()
+  msgSuccess: vi.fn(),
+  logout: vi.fn()
 }))
 
 vi.mock('../../../api/index.js', () => ({
   complianceApi: {
-    getAdminActions: hoisted.getAdminActions
+    getAdminActions: hoisted.getAdminActions,
+    adminActionsExportUrl: hoisted.adminActionsExportUrl
   }
+}))
+
+// R-2：导出 401 分支会调 store.logout() 跳登录
+vi.mock('../../../stores/artist.js', () => ({
+  useArtistStore: () => ({ logout: hoisted.logout })
 }))
 
 vi.mock('vue-i18n', () => ({
@@ -53,7 +61,14 @@ const EP_STUBS = {
     template: '<div class="select-stub"><slot /></div>'
   },
   'el-option': { props: ['value', 'label'], template: '<div :data-option="value">{{ label }}</div>' },
-  'el-empty': { name: 'ElEmpty', props: ['description'], template: '<div class="empty-stub">{{ description }}</div>' }
+  'el-empty': { name: 'ElEmpty', props: ['description'], template: '<div class="empty-stub">{{ description }}</div>' },
+  // R-2：导出按钮——stub 成真 <button>，好让测试能按文本找到并 click（element-plus 在此被整包 mock）
+  'el-button': {
+    name: 'ElButton',
+    props: ['loading', 'disabled', 'type', 'plain', 'title'],
+    emits: ['click'],
+    template: '<button :disabled="disabled" :title="title" @click="$emit(\'click\')"><slot /></button>'
+  }
 }
 
 const mountedWrappers: ReturnType<typeof mount>[] = []
@@ -126,5 +141,103 @@ describe('AdminActions 处置留痕页（v75 W1）', () => {
     // rows 置空 → 命中空态分支（与有数据时显总量而非空态互斥）
     expect(wrapper.find('.empty-stub').text()).toBe('compliance.admin.adminActionsEmpty')
     expect(wrapper.find('.actions-total').exists()).toBe(false)
+  })
+})
+
+// ─── R-2：留痕 CSV 导出按钮 ───
+
+/** 最小 fetch 响应替身（只覆盖 doExport 读的字段） */
+function mockOkResponse(disposition = 'attachment; filename="admin-actions-20261128.csv"') {
+  return {
+    ok: true,
+    status: 200,
+    headers: { get: (k: string) => (k.toLowerCase() === 'content-disposition' ? disposition : null) },
+    blob: () => Promise.resolve(new Blob(['id,action\r\n'], { type: 'text/csv' })),
+    json: () => Promise.resolve({})
+  }
+}
+
+describe('AdminActions 留痕导出按钮（R-2）', () => {
+  const fetchMock = vi.fn()
+
+  beforeEach(() => {
+    hoisted.adminActionsExportUrl.mockClear()
+    hoisted.msgSuccess.mockReset()
+    hoisted.msgError.mockReset()
+    hoisted.logout.mockReset()
+    fetchMock.mockReset()
+    // happy-dom 未实现 createObjectURL/revokeObjectURL，直接注入（同 download.test.ts 手法）
+    Object.defineProperty(URL, 'createObjectURL', { value: vi.fn(() => 'blob:mock-csv'), configurable: true })
+    Object.defineProperty(URL, 'revokeObjectURL', { value: vi.fn(), configurable: true })
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    delete (URL as unknown as { createObjectURL?: unknown }).createObjectURL
+    delete (URL as unknown as { revokeObjectURL?: unknown }).revokeObjectURL
+  })
+
+  it('点击导出 → 按当前筛选条件拼 URL 并下载', async () => {
+    fetchMock.mockResolvedValue(mockOkResponse())
+    const wrapper = await mountPage()
+
+    // 先设筛选，再导出：导出的必须是「页面上筛的这一段」
+    const [action] = wrapper.findAllComponents({ name: 'AuditSelectStub' })
+    action?.vm.$emit('update:modelValue', 'artist_ban')
+    action?.vm.$emit('change')
+    await flushPromises()
+
+    const btn = wrapper.findAll('button').find(b => b.text().includes('compliance.admin.adminActionsExport'))
+    expect(btn, '导出按钮必须渲染出来').toBeTruthy()
+    await btn!.trigger('click')
+    await flushPromises()
+
+    expect(hoisted.adminActionsExportUrl).toHaveBeenCalledWith({ action: 'artist_ban' })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('/api/admin/admin-actions/export')
+    // 凭证走 cookie：必须带 credentials，否则 401
+    expect(init.credentials).toBe('include')
+    expect(hoisted.msgSuccess).toHaveBeenCalledWith('compliance.admin.adminActionsExported')
+  })
+
+  it('无筛选时导出全量（URL helper 收到空对象）', async () => {
+    fetchMock.mockResolvedValue(mockOkResponse())
+    const wrapper = await mountPage()
+    const btn = wrapper.findAll('button').find(b => b.text().includes('compliance.admin.adminActionsExport'))
+    await btn!.trigger('click')
+    await flushPromises()
+    expect(hoisted.adminActionsExportUrl).toHaveBeenCalledWith({})
+  })
+
+  it('导出失败 → 错误提示非静默', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 500,
+      headers: { get: () => null },
+      json: () => Promise.reject(new Error('not json'))
+    })
+    const wrapper = await mountPage()
+    const btn = wrapper.findAll('button').find(b => b.text().includes('compliance.admin.adminActionsExport'))
+    await btn!.trigger('click')
+    await flushPromises()
+    expect(hoisted.msgError).toHaveBeenCalledWith('HTTP 500')
+    // 失败不报成功
+    expect(hoisted.msgSuccess).not.toHaveBeenCalled()
+  })
+
+  it('导出 401 → 清会话并跳登录（与请求核口径一致）', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 401,
+      headers: { get: () => null },
+      json: () => Promise.resolve({})
+    })
+    const wrapper = await mountPage()
+    const btn = wrapper.findAll('button').find(b => b.text().includes('compliance.admin.adminActionsExport'))
+    await btn!.trigger('click')
+    await flushPromises()
+    expect(hoisted.logout).toHaveBeenCalled()
   })
 })

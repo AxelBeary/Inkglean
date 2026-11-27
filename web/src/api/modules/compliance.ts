@@ -36,5 +36,19 @@ export const complianceApi = {
     postJson(`/admin/content/artwork/${id}/restore`, { reason: reason ?? null }),
   /** v75 管理动作留痕查看（?limit&action&targetType&targetId；行内含 admin_ip） */
   getAdminActions: (params?: { limit?: number; action?: string; targetType?: string; targetId?: number }): Promise<AdminActionsResult> =>
-    getJson('/admin/admin-actions', { params: params ?? {} })
+    getJson('/admin/admin-actions', { params: params ?? {} }),
+  /**
+   * R-2 留痕 CSV 导出 URL（含查询串）。
+   *
+   * 只出 URL 不代发请求：导出走 blob 下载链路（同 ToolsExport / HealthCheck 口径），
+   * 要读 Content-Disposition 的文件名、要单独设超时，塞进 JSON 请求核反而不适配。
+   * 参数名与列表口逐字一致，筛什么就导什么。
+   */
+  adminActionsExportUrl: (params?: { action?: string; targetType?: string; targetId?: number; adminId?: number; from?: string; to?: string }): string => {
+    const qs = Object.entries(params ?? {})
+      .filter(([, v]) => v !== undefined && v !== null && v !== '')
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+      .join('&')
+    return `/api/admin/admin-actions/export${qs ? `?${qs}` : ''}`
+  }
 }

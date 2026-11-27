@@ -2594,6 +2594,13 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
       totalCount: '共 {n} 条留痕',
       adminActionsEmpty: '暂无处置留痕记录',
       adminActionsLoadFailed: '处置留痕加载失败',
+      // R-2：留痕 CSV 导出（导出动作本身会写一条 admin_actions_export 留痕）
+      adminActionsExport: '导出 CSV',
+      adminActionsExporting: '导出中…',
+      adminActionsExported: '导出完成，已记入留痕',
+      adminActionsExportFailed: '导出失败',
+      adminActionsExportTimeout: '导出超时，请缩小时间范围后重试',
+      adminActionsExportHint: '按当前筛选条件导出全部留痕（不受列表条数限制）',
       action: {
         report_resolve: '处理举报',
         content_remove: '下架内容',
@@ -2606,14 +2613,18 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
         artist_remove: '移除画师',
         delivery_link_reissue: '补发交付链接',
         // B7-F0111：更换管理员留痕动作词条（artist_profile_update 依赖未知动作回退原始值，维持原状不补）
-        admin_transfer: '更换管理员'
+        admin_transfer: '更换管理员',
+        // R-2：导出动作自身的留痕词条
+        admin_actions_export: '导出留痕'
       },
       targetType: {
         report: '举报',
         artwork: '作品',
         message: '留言',
         artist: '画师',
-        deliverable: '交付文件'
+        deliverable: '交付文件',
+        // R-2：导出动作留痕的对象类型
+        admin_action: '留痕账本'
       }
     }  },
 
