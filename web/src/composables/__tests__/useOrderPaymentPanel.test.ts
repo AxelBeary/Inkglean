@@ -115,3 +115,44 @@ describe('节点快捷收款校验（审计 🔴-3）', () => {
     expect(panel.nodePayForm.value.amountYuan).toBe(10)
   })
 })
+
+// MN-2: 单笔收款上限（服务端 MAX_MONEY_CENTS = 100 万元）——前端前置明示，不撞服务端 400
+describe('单笔收款上限（MN-2）', () => {
+  beforeEach(() => {
+    h.addPayment.mockClear()
+    h.loadPayments.mockClear()
+    h.warn.mockClear()
+    h.success.mockClear()
+    h.error.mockClear()
+  })
+
+  it('TC-PP-01: 订单级收款超上限 → 拦截并明示，不发请求', async () => {
+    const panel = setup()
+    panel.payForm.value.amountYuan = 1000000.01
+    await panel.submitPayment()
+
+    expect(h.warn).toHaveBeenCalledTimes(1)
+    expect(h.warn).toHaveBeenCalledWith('orderDetail.payAmountTooLarge')
+    expect(h.addPayment).not.toHaveBeenCalled()
+  })
+
+  it('TC-PP-02: 恰好 100 万元放行（上限含等号）', async () => {
+    const panel = setup()
+    panel.payForm.value.amountYuan = 1000000
+    await panel.submitPayment()
+
+    expect(h.warn).not.toHaveBeenCalled()
+    const [, payload] = (h.addPayment as unknown as Mock).mock.calls[0]
+    expect(payload.amountCents).toBe(100000000)
+  })
+
+  it('TC-PP-03: 节点收款同样受单笔上限约束', async () => {
+    const panel = setup()
+    panel.openNodePayDialog({ id: 7, name: '线稿', remainingCents: 10000 } as unknown as OrderInstallment)
+    panel.nodePayForm.value.amountYuan = 1000000.01
+    await panel.submitNodePayment()
+
+    expect(h.warn).toHaveBeenCalledTimes(1)
+    expect(h.addPayment).not.toHaveBeenCalled()
+  })
+})

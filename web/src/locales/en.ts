@@ -1464,6 +1464,8 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
     // Payment amount frontend validation (mirrors backend addPayment rules; negative = refund/revocation)
     payAmountInvalid: 'Payment amount must be greater than 0',
     payAmountZero: 'Amount cannot be zero', payRefundNoteRequired: 'Please enter a reason when refunding or revoking a payment.', payRefundExceed: 'Refund cannot exceed the amount already paid ¥{amount}',
+    // MN-2: single-payment cap (server MAX_MONEY_CENTS = ¥1,000,000; split larger amounts)
+    payAmountTooLarge: 'A single payment is capped at ¥1,000,000 — split larger amounts into several payments',
     // v0.31 F4: node payments
     payNodePaid: 'Paid', payNodeDue: 'Due', payNodeRemain: 'Remaining',
     // issue #54-2: whole line + param, ASCII parens, leading space

@@ -1,7 +1,7 @@
 // 模块注册表（档②波17 二件）：扫描结果 → 校验 → 目录名匹配 → 去重 → 注册条目（纯逻辑可测）。
 // 规范依据：v0.3 §四加载行（校验与去重）+ §二审计 M2（目录名必须与 id 一致、同 id 后到者拒载）。
 // 违规记账（拍板二）：10 次/24 小时滚动窗口达阈单独停用；手动启用清零（防死状态）。
-import { parseManifest } from './manifest'
+import { confirmSource, parseManifest } from './manifest'
 import { VIOLATION_LIMIT, VIOLATION_WINDOW_MS, KNOWN_VIEWS } from './manifest'
 import type { ModuleManifest, ModuleState } from './types'
 
@@ -10,6 +10,8 @@ export interface ScannedModule {
   dirName: string
   manifestText: string | null
   readError?: string
+  /** 该目录是否来自「导入模块包」（装包账命中）。导入包永远不能是 official（P0-3） */
+  installedFromPack?: boolean
 }
 
 /** 注册条目：初始只有 ok/invalid 两态（disabled 为画师偏好、grey 为运行期态，后续件施加） */
@@ -61,7 +63,9 @@ export function buildRegistry(scanned: ScannedModule[]): ModuleEntry[] {
       continue
     }
     seenIds.add(m.id)
-    out.push({ dirName: s.dirName, manifest: m, state: 'ok', reasons: r.reasons })
+    // P0-3 放行口径：来源要过 confirmSource（声明 + 非导入包），不能只看包内自报 id
+    const manifest: ModuleManifest = { ...m, source: confirmSource(m.id, s.installedFromPack === true) }
+    out.push({ dirName: s.dirName, manifest, state: 'ok', reasons: r.reasons })
   }
   return out
 }

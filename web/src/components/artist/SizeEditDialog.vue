@@ -64,7 +64,7 @@ import type { PropType } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { UploadRequestOptions } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { artistApi, uploadApi } from '../../api/index'
+import { artistApi, uploadApi, type ApiError } from '../../api/index'
 
 /** 编辑中的尺寸行（父级列表行结构的最小子集） */
 interface SizeEditTarget {
@@ -127,14 +127,19 @@ function unstagePath(path: string) {
 
 /**
  * F0200: 清理一批 staged 路径（fire-and-forget，不阻塞关窗/表单操作）。
- * 失败可见（复用既有通用键 common.networkError——locales 文件不在本批允许改动清单内），
- * 成功无需提示（孤儿回收本来就是无感清理；服务端幂等，ENOENT 按成功对账）。
+ * 成功无需提示（孤儿回收本来是无感清理；服务端幂等——不存在/并发已删的路径单列 missing，
+ * 不再混进 deleted 对账，见 2026-11-27 交叉审计 XVB-3）。
+ * 失败可见，但 SEC-1 的 409 `UPLOAD_IN_USE` 例外：那是「路径仍被作品集/画风/头像/尺寸示例引用」
+ * 的整单 fail-closed 拒绝，后台清理无法也不该替用户解除引用——静默跳过，好过误报成网络故障。
  */
 function cleanupStaged(paths: string[]) {
   if (!paths.length) return
   for (let i = 0; i < paths.length; i += CLEANUP_BATCH) {
     void uploadApi.cleanup(paths.slice(i, i + CLEANUP_BATCH))
-      .catch(() => { ElMessage.warning(t('common.networkError')) })
+      .catch((err: unknown) => {
+        if ((err as ApiError)?.code === 'UPLOAD_IN_USE') return
+        ElMessage.warning(t('common.networkError'))
+      })
   }
 }
 

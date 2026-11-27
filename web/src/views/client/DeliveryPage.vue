@@ -116,6 +116,9 @@ async function downloadFile(d: OrderDeliveryResult['deliverables'][number]) {
     } else if (apiErr?.code === 'ORDER_CONFLICT' && apiErr.status === 409) {
       // 管理员在页面打开后补发：download-start 用此冲突码表示取件链接待使用。
       d.downloadPending = true
+    } else if (apiErr?.code === 'DOWNLOAD_TIMEOUT') {
+      // W4：传输超时与「失败」区分开（文案已存在），与 useTrackDownloads 同口径
+      ElMessage.warning(t('delivery.downloadTimeout'))
     } else if (apiErr?.code === 'DOWNLOAD_COOLDOWN') {
       // issue #81 A 路：423 冷却（冷却 ≠ 锁定）——只提示剩余秒数，**不得**把 downloadLocked 置 true；
       // 秒数取自服务端 AppError.detail.retryAfterMs（order-gallery.service.ts:487），向上取整，缺失按 0 兜底
@@ -153,7 +156,11 @@ async function retryConfirm(d: OrderDeliveryResult['deliverables'][number]) {
   }
 }
 
+// W3：验证请求序号——回车/表单提交连发时，晚到的旧响应不得覆盖新结果（对齐 TrackOrder searchSeq）
+let verifySeq = 0
+
 async function verify() {
+  if (verifying.value) return
   // 支持直达（?token=）与粘贴完整链接两种入口
   let no = orderNo
   let tok = token.value
@@ -172,19 +179,23 @@ async function verify() {
   }
   if (!tok) return ElMessage.warning(t('track.enterLink'))
 
+  const mySeq = ++verifySeq
   verifying.value = true
   verifyError.value = false
   try {
-    delivery.value = await orderApi.delivery(no, tok)
+    const data = await orderApi.delivery(no, tok)
+    if (mySeq !== verifySeq) return // 晚到旧响应：丢弃，不覆盖新查询结果
+    delivery.value = data
     pendingConfirm.value = null
     // 一次性下载的 start/confirm 都要带同一枚令牌；此前只写进局部变量，token.value 恒为空串
     token.value = tok
     verified.value = true
   } catch (err) {
+    if (mySeq !== verifySeq) return
     ElMessage.error((err as Error).message)
     verifyError.value = true
   } finally {
-    verifying.value = false
+    if (mySeq === verifySeq) verifying.value = false
   }
 }
 

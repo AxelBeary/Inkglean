@@ -3,8 +3,9 @@ import { describe, it, expect } from 'vitest'
 import { canAccessView, buildViewData } from '../modules/viewData'
 import type { ViewSources } from '../modules/viewData'
 import { composeState } from '../modules/store'
-import { VIOLATION_LIMIT, RESTRICTED_VIEWS, FIRST_PARTY_IDS, UNWIRED_VIEWS, KNOWN_VIEWS } from '../modules/manifest'
+import { VIOLATION_LIMIT, RESTRICTED_VIEWS, FIRST_PARTY_IDS, UNWIRED_VIEWS, KNOWN_VIEWS, confirmSource } from '../modules/manifest'
 import { parseManifest } from '../modules/manifest'
+import { installModulePack } from '../modules/packIo'
 import type { ModuleEntry } from '../modules/registry'
 import type { LocalOrder } from '../stores/localLedger'
 
@@ -69,7 +70,7 @@ describe('P0-3 canAccessView（ledger 门禁）', () => {
     expect(FIRST_PARTY_IDS.has('mood-weather')).toBe(true)
   })
 
-  it('parseManifest 对第一方 ID 模块标记 source=official', () => {
+  it('parseManifest 对保留 id 只产出「声明来源」，official 须经 confirmSource 确认（P0-3）', () => {
     const json = JSON.stringify({
       spec: '1.0', api: 'panel@1', minHost: '0.1.0',
       id: 'mood-weather', name: '稿情气象台', version: '0.1.0', entry: 'panel.js',
@@ -77,7 +78,9 @@ describe('P0-3 canAccessView（ledger 门禁）', () => {
     })
     const r = parseManifest(json)
     expect(r.ok).toBe(true)
-    expect(r.manifest?.source).toBe('official')
+    expect(r.manifest?.source).toBe('official') // 只是「声明」，不构成放行
+    expect(confirmSource('mood-weather', true)).toBe('external') // 从模块包装入＝冒充官方，拒
+    expect(confirmSource('mood-weather', false)).toBe('official') // 声明 + 非包装入证据才放行
   })
 
   it('parseManifest 对第三方模块标记 source=external', () => {
@@ -99,6 +102,16 @@ describe('P0-3 canAccessView（ledger 门禁）', () => {
     // 即便绕过门禁，数据仍含敏感字段（证明门禁是最后防线）
     const data = buildViewData('ledger', sampleSources) as Array<Record<string, unknown>>
     expect(data[0].client_name).toBe('张三')
+  })
+})
+
+// ─── D1 装包闸：官方保留 id 不可从模块包冒充 ───
+
+describe('D1 installModulePack 拒装官方保留 id', () => {
+  it('装入 id=mood-weather 的包被拒（闸在碰桥层之前，纯浏览器环境即可验）', async () => {
+    await expect(installModulePack('mood-weather', {
+      manifestText: '{}', entryCode: '', packText: '{}'
+    })).rejects.toThrow(/官方保留模块 id/)
   })
 })
 

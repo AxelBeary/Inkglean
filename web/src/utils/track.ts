@@ -60,16 +60,23 @@ export async function getAnonToken(): Promise<string | null> {
   return token === TOKEN_NETWORK_FAIL ? null : token
 }
 
+/** 在途换新（W2：并发上传共享同一次签发，各自换新会得到不同 anon_id） */
+let freshTokenInFlight: Promise<string | null> | null = null
+
 /**
  * 强制换新匿名凭证（清缓存后重新签发一次）。
  * G-7 上传链路专用：本地缓存的凭证可能已过期/被服务端回收（GC/库重建），
  * 上传遇 INVALID_ANON_TOKEN 时由调用方用本函数换新并重试；网络/服务端失败返回 null。
  */
-export async function getFreshAnonToken(): Promise<string | null> {
-  anonToken = null
-  safeRemoveItem(ANON_TOKEN_KEY)
-  const token = await ensureAnonToken(true)
-  return token === TOKEN_NETWORK_FAIL ? null : token
+export function getFreshAnonToken(): Promise<string | null> {
+  if (!freshTokenInFlight) {
+    anonToken = null
+    safeRemoveItem(ANON_TOKEN_KEY)
+    freshTokenInFlight = ensureAnonToken(true)
+      .then(token => (token === TOKEN_NETWORK_FAIL ? null : token))
+      .finally(() => { freshTokenInFlight = null })
+  }
+  return freshTokenInFlight
 }
 
 export function trackEvent(name: string, payload: Record<string, unknown> = {}): TrackEventRecord {

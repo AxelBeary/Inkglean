@@ -2,10 +2,13 @@
 // 覆盖：列表渲染（名称/日期/范围/文案数）、当日文案加载、删除确认链路
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { ElMessage } from 'element-plus'
 import SpecialDayManage from '../SpecialDayManage.vue'
 
 interface SpecialDayVm {
   days: Array<{ is_enabled: number }>
+  greetings: Array<{ id: number; artist_id: number | null; text: string; is_enabled: number }>
+  toggleGreetingEnabled(row: { id: number; artist_id: number | null }, val: unknown): Promise<unknown>
 }
 
 const h = vi.hoisted(() => ({
@@ -17,7 +20,10 @@ const h = vi.hoisted(() => ({
   deleteSpecialDay: vi.fn(),
   createGreeting: vi.fn(),
   updateGreeting: vi.fn(),
-  deleteGreeting: vi.fn()
+  deleteGreeting: vi.fn(),
+  createArtistGreeting: vi.fn(),
+  updateArtistGreeting: vi.fn(),
+  deleteArtistGreeting: vi.fn()
 }))
 
 vi.mock('../../../api/index.js', () => ({
@@ -30,7 +36,10 @@ vi.mock('../../../api/index.js', () => ({
     deleteSpecialDay: h.deleteSpecialDay,
     createGreeting: h.createGreeting,
     updateGreeting: h.updateGreeting,
-    deleteGreeting: h.deleteGreeting
+    deleteGreeting: h.deleteGreeting,
+    createArtistGreeting: h.createArtistGreeting,
+    updateArtistGreeting: h.updateArtistGreeting,
+    deleteArtistGreeting: h.deleteArtistGreeting
   }
 }))
 
@@ -213,5 +222,101 @@ describe('SpecialDayManage 特别日区块（E5）', () => {
     await addBtn.trigger('click')
     await flushPromises()
     expect(h.createGreeting).toHaveBeenCalledTimes(2)
+  })
+})
+
+// ═══ B-1 / F0108（交叉审计 CONTRACT-3）：问候归属分流必须按「特别日 / 行的 artist_id」走画师端点 ═══
+// 全局端点（/api/admin/greetings）会拒绝挂画师专属特别日的文案（400），且列表 GET 不区分归属，
+// 同一特别日下历史可能同时存在全局行（artist_id=null）与画师行。四条用例把三个分流点各钉一次 + 混存一次，
+// 判据都是「画师方法被调 且 全局方法未被调」——把 .vue 三处改回全局端点，这四条必红。
+describe('B-1 问候归属分流（画师专属特别日 / 画师行）', () => {
+  it('画师专属特别日新增文案 → createArtistGreeting(artistId, data)，全局端点零调用', async () => {
+    h.createArtistGreeting.mockResolvedValue({
+      id: 31, text: '画师日文案', time_slot: 'any', is_enabled: 1, special_day_id: 2, artist_id: 7
+    })
+    const wrapper = await mountComponent()
+
+    // days[1] = 画师专属日（artist_id: 7）——只有它能把 create 送进画师分支
+    const editBtns = wrapper.findAll('button').filter(b => b.text() === 'admin.specialDayEditGreetings')
+    expect(editBtns).toHaveLength(2)
+    await editBtns[1].trigger('click')
+    await flushPromises()
+
+    await wrapper.get('.sd-greeting-input').setValue('画师日文案')
+    const addBtn = wrapper.findAll('button').find(b => b.text().includes('common.add'))!
+    await addBtn.trigger('click')
+    await flushPromises()
+
+    expect(h.createArtistGreeting).toHaveBeenCalledWith(7, {
+      text: '画师日文案', timeSlot: 'any', specialDayId: 2
+    })
+    expect(h.createGreeting).not.toHaveBeenCalled()
+    expect(vi.mocked(ElMessage.error)).not.toHaveBeenCalled() // 未落到 catch（错误分支）
+  })
+
+  it('画师行启停 → updateArtistGreeting(artistId, rowId, {isEnabled})，全局端点零调用', async () => {
+    h.getSpecialDayGreetings.mockResolvedValue([
+      { id: 20, text: '画师行', time_slot: 'any', is_enabled: 1, special_day_id: 2, artist_id: 7 }
+    ])
+    h.updateArtistGreeting.mockResolvedValue({ id: 20, is_enabled: 0 })
+    const wrapper = await mountComponent()
+
+    const editBtns = wrapper.findAll('button').filter(b => b.text() === 'admin.specialDayEditGreetings')
+    await editBtns[1].trigger('click')
+    await flushPromises()
+
+    const vm = wrapper.vm as unknown as SpecialDayVm
+    expect(vm.greetings).toHaveLength(1)
+    await vm.toggleGreetingEnabled(vm.greetings[0], 0)
+    await flushPromises()
+
+    expect(h.updateArtistGreeting).toHaveBeenCalledWith(7, 20, { isEnabled: false })
+    expect(h.updateGreeting).not.toHaveBeenCalled()
+  })
+
+  it('画师行删除 → deleteArtistGreeting(artistId, rowId)，全局端点零调用', async () => {
+    h.getSpecialDayGreetings.mockResolvedValue([
+      { id: 20, text: '画师行', time_slot: 'any', is_enabled: 1, special_day_id: 2, artist_id: 7 }
+    ])
+    h.deleteArtistGreeting.mockResolvedValue({ success: true })
+    const wrapper = await mountComponent()
+
+    const editBtns = wrapper.findAll('button').filter(b => b.text() === 'admin.specialDayEditGreetings')
+    await editBtns[1].trigger('click')
+    await flushPromises()
+
+    // 行内唯一按钮 = 删除 ✕（启停是 el-switch）
+    const row = wrapper.findAll('.sd-greeting-row')[0]
+    await row.findAll('button')[0].trigger('click')
+    await flushPromises()
+
+    expect(h.deleteArtistGreeting).toHaveBeenCalledWith(7, 20)
+    expect(h.deleteGreeting).not.toHaveBeenCalled()
+  })
+
+  it('同一特别日混存全局行与画师行 → 按行归属各走各的端点（不可按特别日一刀切）', async () => {
+    h.getSpecialDayGreetings.mockResolvedValue([
+      { id: 10, text: '全局行', time_slot: 'any', is_enabled: 1, special_day_id: 2, artist_id: null },
+      { id: 20, text: '画师行', time_slot: 'any', is_enabled: 1, special_day_id: 2, artist_id: 7 }
+    ])
+    h.updateGreeting.mockResolvedValue({ id: 10 })
+    h.updateArtistGreeting.mockResolvedValue({ id: 20 })
+    const wrapper = await mountComponent()
+
+    const editBtns = wrapper.findAll('button').filter(b => b.text() === 'admin.specialDayEditGreetings')
+    await editBtns[1].trigger('click')
+    await flushPromises()
+
+    const vm = wrapper.vm as unknown as SpecialDayVm
+    expect(vm.greetings).toHaveLength(2)
+    await vm.toggleGreetingEnabled(vm.greetings[1], 0) // 画师行
+    await flushPromises()
+    await vm.toggleGreetingEnabled(vm.greetings[0], 0) // 全局行
+    await flushPromises()
+
+    expect(h.updateArtistGreeting).toHaveBeenCalledWith(7, 20, { isEnabled: false })
+    expect(h.updateGreeting).toHaveBeenCalledWith(10, { isEnabled: false })
+    expect(h.updateArtistGreeting).toHaveBeenCalledTimes(1)
+    expect(h.updateGreeting).toHaveBeenCalledTimes(1)
   })
 })

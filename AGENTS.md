@@ -31,7 +31,7 @@ STATUS 是每次开工的固定阅读成本（曾实测：单行最长 3900 字�
 | 后端改动 | `cd server && npm run typecheck && npm run lint && npm test` |
 | 前端改动 | `cd web && npm run lint && npm run test:web && npm run check:i18n && npm run build` |
 | 涉及端到端流程 | 仓库根目录 `npm run test:e2e` |
-| 桌面端改动 | `cd desktop && npm run lint && npm run test && npm run build` + `cd desktop/src-tauri && cargo test`（已进 CI `desktop` job；含 U46 真 IPC/ACL 回归）；**动 `@tauri-apps/*` JS 或 `src-tauri/` 时另跑 `npx tauri info`**（在 `desktop/` 下）——官方要求 JS↔Rust 成对（核心同 minor、插件精确同号），该比对只在 tauri CLI 触发，CI 四 job 与 accept.ps1 十九道都查不到（10-13 靠 Dependabot 单边跳版换来的） |
+| 桌面端改动 | `cd desktop && npm run lint && npm run test && npm run build` + `cd desktop/src-tauri && cargo test`（已进 CI `desktop` job；含 U46 真 IPC/ACL 回归）；**动 `@tauri-apps/*` JS 或 `src-tauri/` 时另跑 `npx tauri info`**（在 `desktop/` 下）——官方要求 JS↔Rust 成对（核心同 minor、插件精确同号），该比对只在 tauri CLI 触发，CI 六 job 与 accept.ps1 十九道都查不到（10-13 靠 Dependabot 单边跳版换来的） |
 | 桌面端 UI/布局改动 | 四端门禁之上，另跑 `huiyue-layout-audit` 自检循环（宿主级技能，住 `%USERPROFILE%\.agents\skills\huiyue-layout-audit\`，不在仓库属正常；VL 评审通道不可用时只能 measure.mjs + 人工逐项清单） |
 | 共享层改动（`shared/`） | `cd shared && npm run lint && npm run test && npm run typecheck`，并回 `web`、`desktop` 各跑一次 build |
 
@@ -39,7 +39,7 @@ STATUS 是每次开工的固定阅读成本（曾实测：单行最长 3900 字�
 
 **收口留痕（2026-09-29 拍板）**：凡任务内写明校验条款的（含子代理任务书、施工图、待办条目里的验收/自检命令），收口时必须把校验命令的**完整输出**留存进台账或报告文件（落 `AGENTS/` 批次目录，或复用 `scripts/accept.ps1` 既有门禁日志），不得只在对话里交接结论；对话摘要须引用留痕文件路径。本约定是轻量纪律不新增门禁，校验输出留痕不改变既有门禁口径。
 
-「门禁全绿」专指 `pwsh scripts/accept.ps1` 十九道全过（server 3 + web 4 + desktop 3 + shared 3 + E2E 2 + 测试同改标红 1 + 巨型文件防阀 1 + STATUS 单行长度防阀 1 + changelog 活档体积防阀 1；带 `-SkipE2E` 时为十七道）；仅跑 CI 四 job 时须写「CI 四 job 全绿」，**不得简称「门禁全绿」**。
+「门禁全绿」专指 `pwsh scripts/accept.ps1` 十九道全过（server 3 + web 4 + desktop 3 + shared 3 + E2E 2 + 测试同改标红 1 + 巨型文件防阀 1 + STATUS 单行长度防阀 1 + changelog 活档体积防阀 1；带 `-SkipE2E` 时为十七道）；仅跑 CI 六 job（file-size/server/web/shared/docker/desktop）时须写「CI 六 job 全绿」，**不得简称「门禁全绿」**。
 
 ## 注意事项
 

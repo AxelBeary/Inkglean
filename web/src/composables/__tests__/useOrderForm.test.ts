@@ -1136,6 +1136,40 @@ describe('#65 提交时二次校验接单状态', () => {
   })
 })
 
+// ─── #50-1 守卫复检（CONTRACT-4） ───
+// #65 在 submit() 里插了一次真实网络往返（现拉公开画像）；它排在 priceBlocking 预检之后，
+// 期间客户仍可改尺寸/增项 → 报价转脏。缺复检时就会「按旧预览价确认、以新选择下单」。
+describe('#50-1 提交前报价守卫复检（CONTRACT-4）', () => {
+  it('预检 await 期间报价转脏 → 复检拦截：不发 create、复位 submitting、提示报价未就绪', async () => {
+    const { of } = await createForm()
+    of.selectStyle(11)
+    of.selectSize(111)
+    await settlePrice() // 报价就位，priceBlocking=false，预检入口能过
+    of.form.clientQq = '12345678'
+    of.form.agreed = true
+
+    // 把提交预检的现拉画像挂起，模拟公网 RTT 窗口（mockImplementationOnce 只吃这一枪）
+    let resolveProfile: (p: unknown) => void = () => {}
+    getProfileMock.mockImplementationOnce(() => new Promise(resolve => { resolveProfile = resolve }))
+
+    const pending = of.submit()
+    await flushPromises() // 走到 await fetchArtistPublicProfile，submit 停在预检
+    expect(of.submitting.value).toBe(true)
+    expect(orderApi.create).not.toHaveBeenCalled()
+
+    // 窗口内换尺寸 → scheduleStyleCalc 立即置 priceStale → priceBlocking 变真
+    of.selectSize(112)
+    expect(of.priceBlocking.value).toBe(true)
+
+    resolveProfile({ ...MOCK_PROFILE })
+    await pending
+
+    expect(orderApi.create).not.toHaveBeenCalled() // 复检命中，绝不按旧预览价下单
+    expect(ElMessage.warning).toHaveBeenCalledWith('orderForm.priceNotReady')
+    expect(of.submitting.value).toBe(false) // 提交锁已复位，客户可等报价就绪后重试
+  })
+})
+
 // ─── 参考图上传 ───
 // issue #50-3：点选与粘贴必须共用 useOrderForm.refFileList 一个数组（EP 走 v-model:file-list）。
 // 这里的 landRefItem 模拟 EP 的 onStart（选文件即把条目落进同一数组），随后调 http-request，

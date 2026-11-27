@@ -76,6 +76,27 @@ jobs:
       # 源头防屎门禁：硬编码中文增量拦截（存量已进 baseline）
       - run: npm run check:i18n
 
+  # 交叉 debug 批 CFG-2：shared 自身门禁此前只在本地 accept.ps1 跑（shared-lint/test/typecheck），
+  # CI 里 shared 仅被 web/desktop job 借去装依赖——只改 shared 时 CI 全绿而本地门禁红。
+  # node 版本、缓存与 steps 口径对齐其它 job；不引入新依赖或 secrets。
+  shared:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: shared
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: shared/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run typecheck
+
   # P2-E：Dockerfile 门禁——Dockerfile 层问题（路径/权限/依赖）在合入前暴露
   docker:
     runs-on: ubuntu-latest

@@ -4,6 +4,7 @@ import { db, cleanDb, seedArtist, type ArtistRow } from './setup.js'
 import { createSession } from '../src/features/auth/auth.service.js'
 import { buildApp } from '../src/app.js'
 import * as styleService from '../src/features/pricing/style.service.js'
+import { getPublicStyles } from '../src/features/pricing/style.public.service.js'
 
 // ============================================
 // F0192: 增项「一次保存」事务端点（PUT /api/artist/art-styles/:id/addon-settings）
@@ -175,6 +176,54 @@ describe('F0192 saveAddonSettings（service 层）', () => {
     const after = styleService.getStyleAddons(style.id)
     expect(after.find(r => r.id === rowC.id)!.is_enabled).toBe(1)
     expect(after.find(r => r.id === orphanId)!.is_enabled).toBe(0)
+  })
+
+  // CONTRACT-1 闭环（交叉审计）：TC-F1-05 只钉住「以**正常行**为目标启用 → 孤儿兄弟被停用」这一侧；
+  // 反方向——**把孤儿行自己当 styleAddonId 目标开启**——此前无任何用例。拖拽路径改走 saveAddonSettings
+  // 之后，这才是真正要保证的语义：行 id 通道能改孤儿行的画风级状态，且公开配置随之可见（此前只能靠
+  // setStyleAddons，但孤儿行没有模板 id 可上送 → 永远启用不了）。
+  it('TC-F1-05b: 以孤儿行为目标开启 → 该行 is_enabled=1、同类在用行停用、公开配置按快照可见', () => {
+    // 1) 建模板 → 挂到画风 → 置停用 → 删模板（deleteAddonTemplate 先写快照再解绑，行保留为 detached）
+    const tpl = styleService.createAddonTemplate(artist.id, { name: '旧加急', category: 'rush', price_mode: 'percent', default_price: 25 })
+    styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: tpl.id, is_enabled: false }])
+    const boundId = styleService.getStyleAddons(style.id).find(r => r.addon_template_id === tpl.id)!.id
+    styleService.deleteAddonTemplate(artist.id, tpl.id)
+    const orphan = styleService.getStyleAddons(style.id).find(r => r.id === boundId)!
+    expect(orphan.addon_template_id).toBeNull()
+    expect(orphan.is_enabled).toBe(0) // 触发形态：删除前该行是停用态（同画风同类第 2 条起天然如此）
+    expect(Boolean(orphan.detached)).toBe(true) // SQLite 直出 0/1，转 boolean 再断言
+
+    // 2) 造一个同类在用行（系统预置 rush 由 createArtStyle 自动绑定；显式启用，不依赖默认值）
+    const sysRush = styleService.getStyleAddons(style.id).find(r => r.template_category === 'rush' && r.addon_template_id != null)!
+    styleService.setStyleAddons(artist.id, style.id, [{ addon_template_id: sysRush.addon_template_id!, is_enabled: true }])
+    expect(styleService.getStyleAddons(style.id).find(r => r.id === sysRush.id)!.is_enabled).toBe(1)
+
+    // 3) 以孤儿行的**行 id** 为身份键开启：size1 放开、size2 保持隐藏
+    const result = styleService.saveAddonSettings(artist.id, style.id, {
+      styleAddonId: orphan.id,
+      styleEnabled: true,
+      sizeOverrides: [
+        { sizeId: size1.id, priceOverride: null, isHidden: false },
+        { sizeId: size2.id, priceOverride: null, isHidden: true }
+      ]
+    })
+
+    const afterOrphan = result.addons.find(r => r.id === orphan.id)!
+    expect(afterOrphan.is_enabled).toBe(1)
+    expect(afterOrphan.addon_template_id).toBeNull()
+    // 同类互斥：在用的 rush 行被停用；usage 类不受影响（互斥只在本类内）
+    expect(result.addons.find(r => r.id === sysRush.id)!.is_enabled).toBe(0)
+    for (const r of result.addons.filter(r => r.template_category === 'usage')) expect(r.is_enabled).toBe(1)
+
+    // 4) 公开配置：样式级要 is_enabled=1 才下发，再按尺寸 is_hidden 过滤；孤儿行按快照列下发
+    const publicStyle = getPublicStyles(artist.id).find(s => s.id === style.id)!
+    const pubSize1 = publicStyle.sizes.find(s => s.id === size1.id)!
+    const pubSize2 = publicStyle.sizes.find(s => s.id === size2.id)!
+    const pubOrphan = pubSize1.addons.find(a => a.id === orphan.id)
+    expect(pubOrphan).toBeTruthy()
+    expect(pubOrphan!.name).toBe('旧加急') // 快照独立增项：模板已删仍按快照下发
+    expect(pubOrphan!.category).toBe('rush')
+    expect(pubSize2.addons.some(a => a.id === orphan.id)).toBe(false) // 该尺寸 is_hidden=1 → 不下发
   })
 
   it('TC-F1-06: 系统预置模板行 scope=all 带模板价 → 跳过模板级写入+告警，不 404、不回滚用户自有修改（XEND-01/R1-F13）', () => {

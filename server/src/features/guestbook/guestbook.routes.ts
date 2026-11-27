@@ -3,6 +3,7 @@ import { registerAdminStepUpHooks } from '../../shared/middleware/step-up.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { findSensitiveWords } from '../../shared/sensitive-words.js'
 import * as guestbookService from './guestbook.service.js'
+import * as complianceService from '../compliance/compliance.service.js'
 import * as artistService from '../artist/artist.service.js'
 import { isArtistHomeInvisible } from '../artist/artist-visibility.service.js'
 import type { FastifyInstance } from 'fastify'
@@ -200,10 +201,13 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
     return guestbookService.getAdminMessages(filters)
   })
 
-  /** DELETE /api/admin/messages/:id — 管理员强制删除（软删除） */
+  /** DELETE /api/admin/messages/:id — 管理员强制删除（软删除）；走 removeContent，删除与 admin_actions 留痕同事务 */
   fastify.delete('/api/admin/messages/:id', { preHandler: requireAdmin }, async (request, reply) => {
-    const msg = guestbookService.adminDeleteMessage(strictId((request.params as { id: string }).id))
-    if (!msg) return reply.code(404).send({ error: '留言不存在' })
+    // 本端点无 reason 入参（前端契约不变）：留痕用固定缺省文案，避免特权处置查不到账
+    const result = complianceService.removeContent(
+      'message', strictId((request.params as { id: string }).id), request.artist.id, '管理员删除留言', request.ip
+    )
+    if (!result.success) return reply.code(404).send({ error: '留言不存在' })
     return { success: true }
   })
 }

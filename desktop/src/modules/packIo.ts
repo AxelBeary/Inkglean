@@ -9,6 +9,7 @@ import {
   PACK_ENTRY_NAME, PACK_MANIFEST_NAME, PACK_META_NAME,
   buildPack, isSafeModuleDirName, utf8Encode
 } from './pack'
+import { FIRST_PARTY_IDS } from './manifest'
 import { buildPackZip, readPackZip } from './packZip'
 
 /** 读包体积上限：合法包是「两份小文本 + 一份清单」，8MB 已是宽松天花板 */
@@ -70,6 +71,10 @@ export async function installModulePack(
   files: { manifestText: string; entryCode: string; packText: string }
 ): Promise<void> {
   if (!isSafeModuleDirName(dirName)) throw new Error('模块 id 不合法：' + dirName)
+  // P0-3：官方保留 id 不可从包装入——否则包内自报 id 就能冒充第一方，拿到受限视图（ledger）数据
+  if (FIRST_PARTY_IDS.has(dirName)) {
+    throw new Error(`「${dirName}」是官方保留模块 id，不能从模块包装入（官方示例请用「装示例模块」）`)
+  }
   const existing = await listModuleDirs()
   if (existing.includes(dirName)) {
     throw new Error('同名模块已存在（不覆盖；请先到「我的文档\\拾绘\\modules」删掉旧文件夹）')

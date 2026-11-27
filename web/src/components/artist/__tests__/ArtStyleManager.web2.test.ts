@@ -14,7 +14,9 @@ interface StyleSize {
 
 interface StyleAddon {
   id: string
-  addon_template_id: string
+  // 与生产类型一致（style-manage/types.ts ManagerSa）：孤儿行是 null，不允许再用字符串假 id
+  addon_template_id: number | null
+  price_override?: number | null
   template_name: string
   template_category: string
   template_control_type: string
@@ -65,6 +67,7 @@ const h = vi.hoisted(() => ({
   getAllSizeOverrides: vi.fn(),
   setStyleAddons: vi.fn(),
   setSizeOverrides: vi.fn(),
+  saveAddonSettings: vi.fn(),
   updateArtStyle: vi.fn(),
   msgSuccess: vi.fn(),
   msgError: vi.fn(),
@@ -86,6 +89,7 @@ vi.mock('../../../api/index.js', () => ({
     getAllSizeOverrides: h.getAllSizeOverrides,
     setStyleAddons: h.setStyleAddons,
     setSizeOverrides: h.setSizeOverrides,
+    saveAddonSettings: h.saveAddonSettings,
     updateArtStyle: h.updateArtStyle,
     updateProfile: vi.fn(),
     updateStyleSize: vi.fn(),
@@ -97,9 +101,37 @@ vi.mock('../../../api/index.js', () => ({
 
 import ArtStyleManager from '../ArtStyleManager.vue'
 
+/** 模板 id：生产类型 number|null，夹具按行 id 数字后缀造稳定值（'a1'→1001） */
+function tplIdOf(saId: string): number {
+  return 1000 + Number(saId.replace(/\D+/g, '') || 0)
+}
+
+/** F0192 保存响应夹具：显式给出「服务端处理后的本画风增项行」。
+ *  这样用例断言的是「前端是否采纳服务端真相」，而不是前端自算的互斥结果。 */
+function savedAggregate(styleId: string, rows: Array<Partial<StyleAddon> & { id: string }>) {
+  return {
+    addons: rows.map(r => ({
+      id: r.id,
+      art_style_id: styleId,
+      addon_template_id: r.addon_template_id ?? null,
+      is_enabled: typeof r.is_enabled === 'number' ? r.is_enabled : 1,
+      price_override: r.price_override ?? null,
+      template_name: r.template_name ?? '增项-' + r.id,
+      template_control_type: r.template_control_type ?? 'switch',
+      template_price_mode: r.template_price_mode ?? 'fixed',
+      template_default_price: r.template_default_price ?? 100,
+      template_unit_label: null,
+      template_category: r.template_category ?? 'add',
+      template_max_quantity: null,
+      detached: (r.addon_template_id ?? null) === null
+    })),
+    sizeOverrides: []
+  }
+}
+
 function buildAddon(partial: Partial<StyleAddon> & { id: string }): StyleAddon {
   return {
-    addon_template_id: 'tpl-' + partial.id,
+    addon_template_id: tplIdOf(partial.id),
     template_name: '增项-' + partial.id,
     template_category: 'add',
     template_control_type: 'switch',
@@ -201,13 +233,15 @@ describe('ArtStyleManager WEB-05：多画风关闭 + 停用默认画风后本卡
   })
 })
 
-describe('ArtStyleManager WEB-06：onDropToSize 判定/清载荷/画风级启用', () => {
+describe('ArtStyleManager WEB-06：onDropToSize 判定/清载荷/启用（F0192 单源）', () => {
   beforeEach(() => {
     h.profile = { multi_style_enabled: true }
     h.sizeOverrides = []
     h.styles = []
     h.setStyleAddons.mockReset()
     h.setSizeOverrides.mockReset()
+    h.saveAddonSettings.mockReset()
+    h.getArtStyles.mockClear()
     h.setStyleAddons.mockResolvedValue({})
     h.setSizeOverrides.mockResolvedValue({})
     h.getAllSizeOverrides.mockClear()
@@ -216,13 +250,16 @@ describe('ArtStyleManager WEB-06：onDropToSize 判定/清载荷/画风级启用
     h.msgInfo.mockClear()
   })
 
-  it('WEB-06 ①③：画风级停用 + 尺寸级未隐藏（add 类）→ 走启用路径，不误提示"已启用"', async () => {
+  it('WEB-06 ①③：画风级停用 + 尺寸级未隐藏（add 类）→ 走 F0192 单提交，不再分两步写', async () => {
     h.styles = [{
       id: 's1', name: 'Q版', is_active: 1, sort_order: 0,
       sizes: [{ id: 'z1', name: '头像', sort_order: 0, base_price: 100 }],
       addons: [buildAddon({ id: 'a1', template_category: 'add', is_enabled: 0 })]
     }]
     h.sizeOverrides = [] // 尺寸级无 override → 未隐藏
+    h.saveAddonSettings.mockResolvedValue(savedAggregate('s1', [
+      { id: 'a1', addon_template_id: tplIdOf('a1'), template_category: 'add', is_enabled: 1 }
+    ]))
 
     const wrapper = await mountManager()
     const vm = wrapper.vm as unknown as ArtStyleManagerVm
@@ -232,17 +269,20 @@ describe('ArtStyleManager WEB-06：onDropToSize 判定/清载荷/画风级启用
     await vm.onDropToSize(style, size, {})
     await flushPromises()
 
-    // 关键：不应命中"已启用"误提示（原 bug 场景，只判 !is_hidden）
+    // 关键：不应命中「已启用」误提示（原 bug 场景，只判 !is_hidden）
     expect(h.msgInfo).not.toHaveBeenCalled()
-    // 走启用路径：画风级 setStyleAddons 启用自身（add 类无互斥）
-    expect(h.setStyleAddons).toHaveBeenCalledWith('s1', [{ addon_template_id: 'tpl-a1', is_enabled: true }])
-    // 尺寸级 setSizeOverrides 也调
-    expect(h.setSizeOverrides).toHaveBeenCalledWith('s1', 'z1', [
-      { style_addon_id: 'a1', price_override: null, is_hidden: false }
-    ])
+    // 一次事务提交：画风级启用 + 本尺寸取消隐藏；前端不再拼互斥载荷、也不再分两步写
+    expect(h.saveAddonSettings).toHaveBeenCalledTimes(1)
+    expect(h.saveAddonSettings).toHaveBeenCalledWith('s1', {
+      styleAddonId: 'a1',
+      styleEnabled: true,
+      sizeOverrides: [{ sizeId: 'z1', priceOverride: null, isHidden: false }]
+    })
+    expect(h.setStyleAddons).not.toHaveBeenCalled()
+    expect(h.setSizeOverrides).not.toHaveBeenCalled()
     expect(h.msgSuccess).toHaveBeenCalled()
-    // 本地状态：sa.is_enabled = true，尺寸级 override 未隐藏
-    expect(style.addons[0].is_enabled).toBe(true)
+    // 本地态采纳服务端聚合（而不是自算 is_enabled=true）+ 尺寸 override 取消隐藏
+    expect(style.addons.find(a => a.id === 'a1')!.is_enabled).toBe(1)
     expect(size._overrides?.a1.is_hidden).toBe(false)
     // WEB-06 ②：清 dragPayload
     expect(vm.dragPayload).toBe(null)
@@ -266,6 +306,7 @@ describe('ArtStyleManager WEB-06：onDropToSize 判定/清载荷/画风级启用
     await flushPromises()
 
     expect(h.msgInfo).toHaveBeenCalled()
+    expect(h.saveAddonSettings).not.toHaveBeenCalled()
     expect(h.setSizeOverrides).not.toHaveBeenCalled()
     expect(h.setStyleAddons).not.toHaveBeenCalled()
     // WEB-06 ②：早退也清 dragPayload
@@ -306,18 +347,19 @@ describe('ArtStyleManager WEB-06：onDropToSize 判定/清载荷/画风级启用
     expect(vm.poolDragOver).toBe(false)
 
     // 全程无任何后端写入
+    expect(h.saveAddonSettings).not.toHaveBeenCalled()
     expect(h.setStyleAddons).not.toHaveBeenCalled()
     expect(h.setSizeOverrides).not.toHaveBeenCalled()
   })
 
-  it('WEB-06 ③：add 类启用自身后 setSizeOverrides 失败 → 反向恢复停用（不留孤儿启用）', async () => {
+  it('F0192 失败：单事务无部分写入 → 零老端点调用、错误可读、重载拉回服务端真相', async () => {
     h.styles = [{
       id: 's1', name: 'Q版', is_active: 1, sort_order: 0,
       sizes: [{ id: 'z1', name: '头像', sort_order: 0, base_price: 100 }],
       addons: [buildAddon({ id: 'a1', template_category: 'add', is_enabled: 0 })]
     }]
     h.sizeOverrides = []
-    h.setSizeOverrides.mockRejectedValue(new Error('override boom'))
+    h.saveAddonSettings.mockRejectedValue(new Error('save boom'))
 
     const wrapper = await mountManager()
     const vm = wrapper.vm as unknown as ArtStyleManagerVm
@@ -327,24 +369,31 @@ describe('ArtStyleManager WEB-06：onDropToSize 判定/清载荷/画风级启用
     await vm.onDropToSize(style, size, {})
     await flushPromises()
 
-    // 第 1 次调用：启用自身
-    expect(h.setStyleAddons).toHaveBeenNthCalledWith(1, 's1', [{ addon_template_id: 'tpl-a1', is_enabled: true }])
-    // 第 2 次调用：反向恢复（停用自身），避免留下孤儿启用
-    expect(h.setStyleAddons).toHaveBeenNthCalledWith(2, 's1', [{ addon_template_id: 'tpl-a1', is_enabled: false }])
-    expect(h.msgError).toHaveBeenCalledWith('override boom')
+    expect(h.saveAddonSettings).toHaveBeenCalledTimes(1)
+    // 全成全败：不存在「互斥已生效、尺寸覆盖失败」的半成品，故不再需要反向补偿写入（原 a1-14 两步写的补偿已废）
+    expect(h.setStyleAddons).not.toHaveBeenCalled()
+    expect(h.setSizeOverrides).not.toHaveBeenCalled()
+    expect(h.msgError).toHaveBeenCalledWith('save boom')
     expect(h.msgSuccess).not.toHaveBeenCalled()
+    // 失败后重载兜底（挂载 1 次 + 失败 1 次）
+    expect(h.getArtStyles).toHaveBeenCalledTimes(2)
   })
 
-  it('WEB-06 ①：usage 类画风级启用 + 尺寸级已隐藏 → 走启用路径（mutex 分支不受影响）', async () => {
+  it('usage 类：目标已启用但本尺寸隐藏 → 单提交并保留尺寸覆盖价，同类停用由服务端推导', async () => {
     h.styles = [{
       id: 's1', name: 'Q版', is_active: 1, sort_order: 0,
       sizes: [{ id: 'z1', name: '头像', sort_order: 0, base_price: 100 }],
       addons: [
-        buildAddon({ id: 'a1', addon_template_id: 't1', template_category: 'usage', is_enabled: 1 }),
-        buildAddon({ id: 'a2', addon_template_id: 't2', template_category: 'usage', is_enabled: 1 })
+        buildAddon({ id: 'a1', addon_template_id: 1001, template_category: 'usage', is_enabled: 1 }),
+        buildAddon({ id: 'a2', addon_template_id: 1002, template_category: 'usage', is_enabled: 1 })
       ]
     }]
-    h.sizeOverrides = [{ id: 'ov1', style_size_id: 'z1', style_addon_id: 'a1', price_override: null, is_hidden: 1, style_id: 's1' }]
+    // a1 在 z1 上隐藏 + 已有尺寸覆盖价 20：拖入只取消隐藏，价格必须原样保留
+    h.sizeOverrides = [{ id: 'ov1', style_size_id: 'z1', style_addon_id: 'a1', price_override: 20, is_hidden: 1, style_id: 's1' }]
+    h.saveAddonSettings.mockResolvedValue(savedAggregate('s1', [
+      { id: 'a1', addon_template_id: 1001, template_category: 'usage', is_enabled: 1, price_override: 20 },
+      { id: 'a2', addon_template_id: 1002, template_category: 'usage', is_enabled: 0 }
+    ]))
 
     const wrapper = await mountManager()
     const vm = wrapper.vm as unknown as ArtStyleManagerVm
@@ -354,14 +403,94 @@ describe('ArtStyleManager WEB-06：onDropToSize 判定/清载荷/画风级启用
     await vm.onDropToSize(style, size, {})
     await flushPromises()
 
-    // mutex 分支：a1 启用 + a2 停用
-    expect(h.setStyleAddons).toHaveBeenNthCalledWith(1, 's1', [
-      { addon_template_id: 't1', is_enabled: true },
-      { addon_template_id: 't2', is_enabled: false }
-    ])
-    expect(h.setSizeOverrides).toHaveBeenCalled()
+    expect(h.saveAddonSettings).toHaveBeenCalledWith('s1', {
+      styleAddonId: 'a1',
+      styleEnabled: true,
+      sizeOverrides: [{ sizeId: 'z1', priceOverride: 20, isHidden: false }]
+    })
+    // 普通（非孤儿）行：终态与旧两步写一致（目标启用 + 同类停用），只是互斥改由服务端推导后回传
+    expect(h.setStyleAddons).not.toHaveBeenCalled()
+    expect(style.addons.find(a => a.id === 'a2')!.is_enabled).toBe(0)
     expect(h.msgSuccess).toHaveBeenCalled()
     expect(h.msgInfo).not.toHaveBeenCalled()
+  })
+
+  // CONTRACT-1（交叉审计）：孤儿行（模板已删的快照增项，addon_template_id=null）没有模板 id，
+  // 老 setStyleAddons 载荷既无法启用它自己，也没法把「同类的启用态孤儿兄弟」停掉。
+  it('CONTRACT-1：孤儿目标行拖入尺寸 → 只调 saveAddonSettings（按行 id），不拼 setStyleAddons 载荷', async () => {
+    h.styles = [{
+      id: 's1', name: 'Q版', is_active: 1, sort_order: 0,
+      sizes: [{ id: 'z1', name: '头像', sort_order: 0, base_price: 100 }],
+      addons: [
+        buildAddon({ id: 'a2', addon_template_id: 1002, template_category: 'rush', is_enabled: 1 }),
+        buildAddon({ id: 'a9', addon_template_id: null, template_name: '旧加急', template_category: 'rush', is_enabled: 0 })
+      ]
+    }]
+    h.sizeOverrides = []
+    h.saveAddonSettings.mockResolvedValue(savedAggregate('s1', [
+      { id: 'a2', addon_template_id: 1002, template_category: 'rush', is_enabled: 0 },
+      { id: 'a9', addon_template_id: null, template_name: '旧加急', template_category: 'rush', is_enabled: 1 }
+    ]))
+
+    const wrapper = await mountManager()
+    const vm = wrapper.vm as unknown as ArtStyleManagerVm
+    const style = vm.styles[0]
+    const size = style.sizes[0]
+    vm.dragPayload = { styleId: 's1', saId: 'a9', fromSizeId: null }
+    await vm.onDropToSize(style, size, {})
+    await flushPromises()
+
+    // 身份键是行 id（孤儿行唯一可用的键）；载荷里不出现任何模板 id
+    expect(h.saveAddonSettings).toHaveBeenCalledTimes(1)
+    expect(h.saveAddonSettings).toHaveBeenCalledWith('s1', {
+      styleAddonId: 'a9',
+      styleEnabled: true,
+      sizeOverrides: [{ sizeId: 'z1', priceOverride: null, isHidden: false }]
+    })
+    expect(h.setStyleAddons).not.toHaveBeenCalled()
+    expect(h.setSizeOverrides).not.toHaveBeenCalled()
+    // 服务端互斥结果被采纳：孤儿行启用、同类在用行停用（旧实现是「停兄弟 + 孤儿仍停用」）
+    expect(style.addons.find(a => a.id === 'a9')!.is_enabled).toBe(1)
+    expect(style.addons.find(a => a.id === 'a2')!.is_enabled).toBe(0)
+    expect(size._overrides?.a9.is_hidden).toBe(false)
+    expect(h.msgSuccess).toHaveBeenCalled()
+  })
+
+  // XVB-2（交叉审计）：启用同类真实项时，**启用态的孤儿同类行**也必须被停用——
+  // 这是服务端已钉死的不变量（style-addon-settings.test.ts TC-F1-05），旧前端拼装会因孤儿行无模板 id 整条跳过。
+  it('XVB-2：启用同类真实项时，启用态孤儿兄弟由服务端停用（前端不再漏算互斥）', async () => {
+    h.styles = [{
+      id: 's1', name: 'Q版', is_active: 1, sort_order: 0,
+      sizes: [{ id: 'z1', name: '头像', sort_order: 0, base_price: 100 }],
+      addons: [
+        buildAddon({ id: 'a1', addon_template_id: 1001, template_category: 'usage', is_enabled: 0 }),
+        buildAddon({ id: 'a8', addon_template_id: null, template_name: '旧用途', template_category: 'usage', is_enabled: 1 })
+      ]
+    }]
+    h.sizeOverrides = []
+    h.saveAddonSettings.mockResolvedValue(savedAggregate('s1', [
+      { id: 'a1', addon_template_id: 1001, template_category: 'usage', is_enabled: 1 },
+      { id: 'a8', addon_template_id: null, template_name: '旧用途', template_category: 'usage', is_enabled: 0 }
+    ]))
+
+    const wrapper = await mountManager()
+    const vm = wrapper.vm as unknown as ArtStyleManagerVm
+    const style = vm.styles[0]
+    const size = style.sizes[0]
+    vm.dragPayload = { styleId: 's1', saId: 'a1', fromSizeId: null }
+    await vm.onDropToSize(style, size, {})
+    await flushPromises()
+
+    // 前端只报「目标行 + 启用」，不再自己拼「停用兄弟」的载荷（它拼不出来：孤儿行没有模板 id）
+    expect(h.saveAddonSettings).toHaveBeenCalledWith('s1', {
+      styleAddonId: 'a1',
+      styleEnabled: true,
+      sizeOverrides: [{ sizeId: 'z1', priceOverride: null, isHidden: false }]
+    })
+    expect(h.setStyleAddons).not.toHaveBeenCalled()
+    // 采纳服务端结果：孤儿同类行已被停用，同类单选约束不破
+    expect(style.addons.find(a => a.id === 'a8')!.is_enabled).toBe(0)
+    expect(style.addons.find(a => a.id === 'a1')!.is_enabled).toBe(1)
   })
 })
 

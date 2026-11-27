@@ -5,6 +5,7 @@ import type Database from 'better-sqlite3'
 import { REPO_ROOT } from './connection.js'
 import { schema, schemaIndexes } from './schema.js'
 import { MIGRATIONS } from './migrations/index.js'
+import { backfillLegacyAddons } from './legacy-addon-backfill.js'
 import type { IdRow } from './migrations/types.js'
 
 /**
@@ -18,6 +19,9 @@ import type { IdRow } from './migrations/types.js'
  * SRV-07 修复：备份成功后执行保留策略——只保留最近 BAK_KEEP_COUNT 个 .bak.vN 文件，
  * 多余的按版本号升序（最旧的先删）清理，防止全新装/跨版本升级一次性产出 23 份
  * 整库备份撑爆磁盘。
+ * XVA-1 修复：保留策略**强制保留本次刚产出的快照**——版本回退/恢复旧库后再升级时，
+ * 当次迁移号可能小于目录里的历史备份（如升级到 v84 后恢复到 v40 再升），按版本号排序
+ * 会把刚写的 .bak.vN 当「最旧」删掉，等于没有可回滚快照就跑破坏性迁移。
  */
 const BAK_KEEP_COUNT = 3
 
@@ -47,17 +51,20 @@ export function backupDbBeforeMigration(version: number, database: Database.Data
     throw new Error(`迁移 v${version}: 迁移前备份失败，已中止以防无法回滚（${err instanceof Error ? err.message : String(err)}）`)
   }
 
-  // SRV-07: 备份保留策略——只留最近 BAK_KEEP_COUNT 个 .bak.vN（按版本号降序保留）
-  pruneOldMigrationBackups(dbPath)
+  // SRV-07: 备份保留策略——只留最近 BAK_KEEP_COUNT 个 .bak.vN（按版本号降序保留，本次快照必留）
+  pruneOldMigrationBackups(dbPath, version)
 }
 
 /**
  * SRV-07: 清理多余的迁移备份文件（.bak.vN）
- * 保留策略：只保留最近 BAK_KEEP_COUNT 个版本号的备份（含刚写入的当前版本）。
- * 按版本号降序排列后，超出保留数的最旧文件删除。
+ * 保留策略：本次刚写出的 `dbPath.bak.v<currentVersion>` 无条件保留，其余按版本号降序补足
+ * 到 BAK_KEEP_COUNT 份（即「当前快照 + 最新 N-1 份」）。
+ * 为什么不能只按版本号排：XVA-1——升级到 v84 后再从备份恢复到 v40 升级，v84/v83/v80 等
+ * 历史备份都在，纯版本号排序会把刚产出的 .bak.v43 当最旧删掉，破坏「没有可回滚快照就不许
+ * 跑破坏性迁移」的承诺（815 审计 fail-fast 语义）。
  * 容错：清理失败不阻断迁移（只 warn），回滚脚本依赖的最近 N 份始终存在。
  */
-function pruneOldMigrationBackups(dbPath: string): void {
+function pruneOldMigrationBackups(dbPath: string, currentVersion: number): void {
   try {
     const dir = resolve(dbPath, '..')
     const baseName = dbPath.split(/[\\/]/).pop() || 'commission.db'
@@ -71,12 +78,13 @@ function pruneOldMigrationBackups(dbPath: string): void {
 
     if (bakFiles.length <= BAK_KEEP_COUNT) return
 
-    // 删除超出保留数的旧备份
-    const toDelete = bakFiles.slice(BAK_KEEP_COUNT)
-    for (const bak of toDelete) {
+    // 本次快照先摘出来（它可能版本号最小），其余取版本号最大的 BAK_KEEP_COUNT-1 份
+    const keepName = `${baseName}.bak.v${currentVersion}`
+    const others = bakFiles.filter(f => f.name !== keepName)
+    for (const bak of others.slice(BAK_KEEP_COUNT - 1)) {
       try {
         unlinkSync(resolve(dir, bak.name))
-        console.log(`🗑️ 迁移备份清理: 删除旧备份 ${bak.name}（保留最近 ${BAK_KEEP_COUNT} 份）`)
+        console.log(`🗑️ 迁移备份清理: 删除旧备份 ${bak.name}（保留本次快照 + 最近 ${BAK_KEEP_COUNT - 1} 份）`)
       } catch {
         // 单个文件删除失败不阻断（可能被其他进程持有句柄）
       }
@@ -181,6 +189,16 @@ export function initDatabase(database: Database.Database) {
   }
 
   try {
+    // ─── DB-1 历史修复：必须在迁移链之前 ───
+    // M-1 的受害库（F5 补过画风、v36 旧全局守卫没搬旧增项）v36/v37 早已记录，迁移链按 version
+    // 跳过、永不重放——改 v36 本体够不到它们（见 findings/db.md DB-1）。`price_addons` 存在即
+    // version<43 的可回收窗口：此处一次性搬进 addon_templates，随后 v43 才 DROP 旧表；
+    // ≥43 的库本函数立即返回（旧表已删，数据只能人工重录）。幂等，重复启动不产生重复模板。
+    const repairedAddons = backfillLegacyAddons(database)
+    if (repairedAddons.templates > 0) {
+      console.log(`📦 历史修复 DB-1: 为 ${repairedAddons.artists} 个画师搬运旧增项 ${repairedAddons.templates} 条（price_addons 仍在，version<43 窗口）`)
+    }
+
     // ─── 版本化迁移（锁内读取 applied，保证一致性快照）───
     let applied = new Set(
       (database.prepare('SELECT version FROM schema_migrations').all() as SchemaMigrationRow[]).map(r => r.version)

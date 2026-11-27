@@ -36,6 +36,10 @@ export function legacyNextDueCents(insts: OrderInstallment[], paidTotalCents: nu
  * M-3：无分期节点是 buffer 订单的正常长期态（下单不建节点、递补才补），此时字段无权威值：
  * 新后端下发 null，旧后端可能仍下发 0——两种情况都必须回退订单级待收，避免同屏
  * 「下期应付 ¥0.00 / 剩余 ¥200」自相矛盾。
+ * MONEY-1（关单后加价）：字段是**节点级**口径，节点全付清时恒为 0；但关单后加价走
+ * extra_charge_after_close（R10，节点金额不动），订单级待收仍 > 0。此时采信 0 会与同屏
+ * 「待付」自相矛盾（0.00 / 50.00 并存）——故「字段 0 且订单级待收 > 0」按订单级待收报，
+ * 其余情形（含全付清且无追加时 fallback 也为 0）仍原样采信字段/回退。
  */
 export function useNextDueCents<T extends NextDueSource | null | undefined>(
   order: Ref<T>,
@@ -46,7 +50,11 @@ export function useNextDueCents<T extends NextDueSource | null | undefined>(
     if (Array.isArray(data?.installments) && data.installments.length === 0) {
       return legacyNextDueCents([], data?.paidTotalCents || 0, fallbackCents.value)
     }
-    if (typeof data?.nextDueCents === 'number') return data.nextDueCents
+    if (typeof data?.nextDueCents === 'number') {
+      // ⚠ 不能退回 legacyNextDueCents：它按节点算，全付清同样返回 0，救不了这一格
+      if (data.nextDueCents === 0 && fallbackCents.value > 0) return fallbackCents.value
+      return data.nextDueCents
+    }
     return legacyNextDueCents(data?.installments ?? [], data?.paidTotalCents || 0, fallbackCents.value)
   })
   return { trackNextDueCents }

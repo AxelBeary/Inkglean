@@ -62,7 +62,8 @@ export interface ModuleManifest {
   name: string
   description: string
   version: string
-  /** source 壳判定（规范 §3.1）：模块自报一律忽略，壳按官方/外部/未知标 */
+  /** source 壳判定（规范 §3.1）：模块自报一律忽略。parseManifest 只产「声明来源」，
+   *  扫描层再经 confirmSource 二次确认（导入包装入的一律 external）后才是最终值 */
   source: 'official' | 'external'
   entry: string
   ui: ModuleUiDecl

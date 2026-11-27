@@ -318,9 +318,11 @@ docker compose up -d
 **形态 A：宿主机 Caddy（外部反代机器，web 绑 127.0.0.1:3000 回环、容器 Caddy 已 `profiles: disabled`，见 §13.1）** → 上游写回环地址：
 
 ```
-reverse_proxy 127.0.0.1:3000 {
+@cf header CF-Connecting-IP *
+reverse_proxy @cf 127.0.0.1:3000 {
     header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
 }
+reverse_proxy 127.0.0.1:3000
 ```
 
 判据：`docker-compose.override.yml` 里 web 开了 `127.0.0.1:3000:3000` 回环映射、caddy 服务被 `profiles: disabled`——即宿主机 Caddy 形态，上游是 `127.0.0.1:3000`。
@@ -328,14 +330,16 @@ reverse_proxy 127.0.0.1:3000 {
 **形态 B：仓库内容器版 Caddy（docker-compose 全家桶，Caddy 与 web 同在 compose 网络）** → 上游写 compose 服务名：
 
 ```
-reverse_proxy web:3000 {
+@cf header CF-Connecting-IP *
+reverse_proxy @cf web:3000 {
     header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
 }
+reverse_proxy web:3000
 ```
 
-判据：仓库根 `Caddyfile:21` 实为 `reverse_proxy web:3000`（容器网络内用服务名 `web` 解析，不是回环）；用容器 Caddy 的机器照此，**不要**写成 `127.0.0.1:3000`（容器内的 127.0.0.1 不是 web 服务）。
+判据：仓库根 `Caddyfile` 的容器形态分支上游写 `web:3000`（容器网络内用服务名 `web` 解析，不是回环）；用容器 Caddy 的机器照此，**不要**写成 `127.0.0.1:3000`（容器内的 127.0.0.1 不是 web 服务）。
 
-原理：CF-Connecting-IP 是 Cloudflare 写入的用户真实 IP；后端 trustProxy 默认只信内网代理（172.16/10.0/192.168 三段），会自动采纳这个唯一值作为 request.ip。不经 CF 直连时该头为空被删，后端回退用连接地址。**改完需重载反代**（形态 A 宿主机 `caddy validate && systemctl reload caddy`；形态 B 容器 `docker compose restart caddy`）。
+原理：CF-Connecting-IP 是 Cloudflare 写入的用户真实 IP；后端 trustProxy 默认只信内网代理（172.16/10.0/192.168 三段），会自动采纳这个唯一值作为 request.ip。**必须用 matcher 分支**：只有 CF 头存在时才覆盖 XFF；不经 CF 直连走无 matcher 的兜底分支，保留 Caddy 自动写入的真实客户端 XFF。若无条件 `header_up` 覆盖，空占位符会删掉该头，后端只能回退 socket peer（Caddy 容器 IP），所有用户合并成一个限流桶、登录 IP 全记成容器 IP。**改完需重载反代**（形态 A 宿主机 `caddy validate && systemctl reload caddy`；形态 B 容器 `docker compose restart caddy`）。
 
 ### 12.2 Authenticated Origin Pulls（推荐加固，防绕 CF 伪造）
 

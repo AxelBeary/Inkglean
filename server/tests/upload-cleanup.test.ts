@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { existsSync, mkdirSync, writeFileSync, rmSync } from 'fs'
 import { join, resolve } from 'path'
-import { cleanDb, seedArtist, type ArtistRow } from './setup.js'
+import { cleanDb, seedArtist, db, type ArtistRow } from './setup.js'
 import { createSession } from '../src/features/auth/auth.service.js'
 import { buildApp } from '../src/app.js'
 import { resetRateLimitBuckets } from '../src/shared/middleware/rate-limit.js'
@@ -100,13 +100,14 @@ describe('POST /api/upload/cleanup（F0200 孤儿图清理）', () => {
     expect(existsSync(join(UPLOAD_ROOT, p2))).toBe(false)
   })
 
-  it('TC-CLN-03: 幂等——已不存在的路径按成功返回（重复清理不报错）', async () => {
+  it('TC-CLN-03: 幂等——已不存在的路径 200，但单列 missing 不再混进 deleted（XVB-3）', async () => {
     const p = ensureImageFile(artist.id, 'idem.png')
     expect((await cleanup([p])).statusCode).toBe(200)
-    // 第二次清同一路径：文件已删（ENOENT），仍 200 且计入 deleted
+    // 第二次清同一路径：文件已删（ENOENT），仍 200，但必须能区分「真删了」与「本就不存在」
     const res = await cleanup([p])
     expect(res.statusCode).toBe(200)
-    expect(res.json().deleted).toEqual([p])
+    expect(res.json().deleted).toEqual([])
+    expect(res.json().missing).toEqual([p])
   })
 
   it('TC-CLN-04: 跨画师路径 → 400 ILLEGAL_CLEANUP_PATH，对方文件不受影响', async () => {
@@ -196,5 +197,100 @@ describe('POST /api/upload/cleanup（F0200 孤儿图清理）', () => {
       if (i < 30) expect(lastStatus).toBe(200) // 路径不存在按幂等成功
     }
     expect(lastStatus).toBe(429)
+  })
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // SEC-1（★4 张表，不是 3 张）：images/{artistId}/ 下同时住着作品集/交付公开副本
+  // （artworks.image_path）、画风封面（art_styles.cover_image）、头像（artists.avatar）、
+  // 尺寸示例图（style_sizes.image）。引用命中必须整单 409 且磁盘不变。
+  // ───────────────────────────────────────────────────────────────────────────
+
+  /** 在 DB 里给四个引用列各造一条指向「已落盘文件」的引用，返回 { 列名 → 相对路径 } */
+  function seedAllReferences(): Record<string, string> {
+    const refs = {
+      artwork: ensureImageFile(artist.id, 'ref-artwork.png'),
+      styleCover: ensureImageFile(artist.id, 'ref-cover.png'),
+      avatar: ensureImageFile(artist.id, 'ref-avatar.png'),
+      sizeImage: ensureImageFile(artist.id, 'ref-size.png')
+    }
+    db.prepare('INSERT INTO artworks (artist_id, image_path, title, is_cover) VALUES (?, ?, ?, 0)')
+      .run(artist.id, refs.artwork, '作品集/交付公开副本')
+    const styleId = Number(db.prepare('INSERT INTO art_styles (artist_id, name, cover_image) VALUES (?, ?, ?)')
+      .run(artist.id, 'cleanup-style', refs.styleCover).lastInsertRowid)
+    db.prepare('UPDATE artists SET avatar = ? WHERE id = ?').run(refs.avatar, artist.id)
+    db.prepare('INSERT INTO style_sizes (art_style_id, name, base_price, image) VALUES (?, ?, ?, ?)')
+      .run(styleId, 'cleanup-size', 100, refs.sizeImage)
+    return refs
+  }
+
+  it('TC-CLN-11: 4 张表的引用各一例 → 整单 409 UPLOAD_IN_USE，四文件全在、detail 只回相对路径', async () => {
+    const refs = seedAllReferences()
+    const paths = Object.values(refs)
+
+    const res = await cleanup(paths)
+    expect(res.statusCode).toBe(409)
+    const json = res.json()
+    expect(json.code).toBe('UPLOAD_IN_USE')
+    // 一条 UNION 把这四列全查到（漏掉 style_sizes 这第 4 张表时这里会少一条）
+    expect(json.detail.referenced).toEqual([...paths].sort())
+    // 拒绝即磁盘未变：四条都还在
+    for (const p of paths) expect(existsSync(join(UPLOAD_ROOT, p))).toBe(true)
+    // 口径对齐 UPLOAD_CLEANUP_FAILED：不回服务端绝对路径
+    expect(JSON.stringify(json)).not.toContain(UPLOAD_ROOT)
+  })
+
+  it('TC-CLN-12: 引用与孤儿混批 → 整单 409（fail-closed：孤儿也不删，不做部分执行）', async () => {
+    const refs = seedAllReferences()
+    const orphan = ensureImageFile(artist.id, 'orphan-with-ref.png')
+
+    const res = await cleanup([orphan, refs.artwork])
+    expect(res.statusCode).toBe(409)
+    expect(res.json().detail.referenced).toEqual([refs.artwork])
+    expect(existsSync(join(UPLOAD_ROOT, orphan))).toBe(true)
+  })
+
+  it('TC-CLN-13: 解除引用后同一路径可正常清理（409 不是永久封印）', async () => {
+    const refs = seedAllReferences()
+    expect((await cleanup([refs.artwork])).statusCode).toBe(409)
+
+    db.prepare('DELETE FROM artworks WHERE image_path = ?').run(refs.artwork)
+    const res = await cleanup([refs.artwork])
+    expect(res.statusCode).toBe(200)
+    expect(res.json().deleted).toEqual([refs.artwork])
+    expect(existsSync(join(UPLOAD_ROOT, refs.artwork))).toBe(false)
+  })
+
+  // MEDIUM-1：引用守卫必须按**规范化相对路径**查库。评审实测反例——`images/{id}//ref.png`
+  // 过得了前缀与 `..` 校验、resolve 到同一文件，但与 DB 里的规范写法字面不等，
+  // 旧实现 `IN (原串)` 查不到引用 → 200 并真删在用作品图。
+  it('TC-CLN-14: 非规范写法（双斜杠 / ./）指向在用文件 → 仍 409 UPLOAD_IN_USE 且文件在', async () => {
+    const ref = ensureImageFile(artist.id, 'variant-ref.png')
+    db.prepare('INSERT INTO artworks (artist_id, image_path, title, is_cover) VALUES (?, ?, ?, 0)')
+      .run(artist.id, ref, '变体路径守卫')
+
+    for (const variant of [`images/${artist.id}//variant-ref.png`, `images/${artist.id}/./variant-ref.png`]) {
+      const res = await cleanup([variant])
+      expect(res.statusCode).toBe(409)
+      expect(res.json().code).toBe('UPLOAD_IN_USE')
+      // 查库键是规范路径 → detail 回的是 DB 里的规范写法，而不是请求原串
+      expect(res.json().detail.referenced).toEqual([ref])
+      expect(existsSync(join(UPLOAD_ROOT, ref))).toBe(true)
+    }
+
+    // 同一批里「规范 + 变体」同时出现：规范化去重后仍只是一条引用，同样整单 409
+    const both = await cleanup([ref, `images/${artist.id}//variant-ref.png`])
+    expect(both.statusCode).toBe(409)
+    expect(both.json().detail.referenced).toEqual([ref])
+    expect(existsSync(join(UPLOAD_ROOT, ref))).toBe(true)
+  })
+
+  it('TC-CLN-15: 未引用文件的变体写法仍可清理（规范化不误伤主路径）', async () => {
+    ensureImageFile(artist.id, 'variant-orphan.png')
+    const variant = `images/${artist.id}//variant-orphan.png`
+
+    const res = await cleanup([variant])
+    expect(res.statusCode).toBe(200)
+    expect(res.json().deleted).toEqual([variant])
+    expect(existsSync(join(UPLOAD_ROOT, `images/${artist.id}/variant-orphan.png`))).toBe(false)
   })
 })

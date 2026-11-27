@@ -145,14 +145,16 @@ export const useModulesStore = defineStore('desktop-modules', () => {
     try {
       const dirs = await listModuleDirs()
       const manifestTexts: Record<string, string> = {}
+      // 装包账用于来源判定（P0-3）：导入包装入的模块不得被判 official
       const scannedMods = await Promise.all(
         dirs.map(async dirName => {
+          const installedFromPack = packRecords[dirName] != null
           try {
             const text = await readModuleManifest(dirName)
             manifestTexts[dirName] = text
-            return { dirName, manifestText: text }
+            return { dirName, manifestText: text, installedFromPack }
           } catch (e) {
-            return { dirName, manifestText: null, readError: e instanceof Error ? e.message : String(e) }
+            return { dirName, manifestText: null, installedFromPack, readError: e instanceof Error ? e.message : String(e) }
           }
         })
       )

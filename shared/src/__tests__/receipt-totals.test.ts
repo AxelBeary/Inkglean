@@ -1,7 +1,7 @@
 // 小票计算口径纯函数测试（oimimo 吸纳批五）——shared-824 自 web 侧 receipt.test.ts 搬迁
 // 断言口径不变：赠品计 0 / 折扣钳制 / 定金尾款 / 折与百分号文案
 import { describe, it, expect } from 'vitest'
-import { computeReceiptTotals, discountLabel, validItems } from '../receipt/totals'
+import { clampQty, computeReceiptTotals, discountLabel, validItems, MAX_ITEM_QTY } from '../receipt/totals'
 import type { ReceiptItemLike } from '../receipt/totals'
 import { yuanToCents } from '../utils/money'
 
@@ -68,6 +68,20 @@ describe('receipt 计算口径（shared 事实源）', () => {
     expect(t.discountCents).toBe(10000)
     expect(discountLabel('amount', 999, 'zh-CN', t.discountCents)).toBe('-100.00')
     expect(discountLabel('amount', 50, 'zh-CN', 5000)).toBe('-50.00')
+  })
+
+  // X1：输入框可键入 150，而载入草稿原先钳到 99 → 刷新前后金额跳变。上限收敛到 MAX_ITEM_QTY 后两处同值
+  it('数量上限 99：超限按 99 计，与草稿回灌口径一致', () => {
+    expect(computeReceiptTotals([item('a', 150, 100)], 'none', 0, null).subtotalCents).toBe(990000)
+    expect(clampQty(150)).toBe(MAX_ITEM_QTY)
+    expect(clampQty(99)).toBe(99)
+  })
+
+  // X2：清空折扣输入框时 v-model.number 得到 '' → 兜底必须按原价，否则整单静默变 ¥0
+  it('percent 非有限值（含清空）兜底按原价，不得把整单打成 0 元', () => {
+    const t = computeReceiptTotals([item('a', 1, 100)], 'percent', Number.NaN, null)
+    expect(t.totalCents).toBe(10000)
+    expect(t.discountCents).toBe(0)
   })
 })
 

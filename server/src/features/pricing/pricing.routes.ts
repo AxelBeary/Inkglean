@@ -83,13 +83,19 @@ export default async function pricingRoutes(fastify: FastifyInstance) {
         properties: {
           code: { type: 'string', minLength: 2, maxLength: 20 },
           discountType: { type: 'string', enum: ['percent', 'fixed'], default: 'percent' },
-          // XEND-12: 金额字段统一 moneyPrecision（与 style.routes.ts 各金额字段同口径），
-          // 拒 fixed=1.005 之类超分精度值，防报价/实扣因换算口径分裂差 1 分
-          discountValue: { type: 'number', minimum: 0.01, maximum: 100, moneyPrecision: true },
+          // moneyPrecision 与 style.routes.ts 各金额字段同口径（XEND-12）：拒 fixed=1.005 之类超分精度值。
+          // 上限不写死在此处——fixed 档上限 99999 由下方 allOf 按 discountType 分档（MN-1）
+          discountValue: { type: 'number', minimum: 0.01, moneyPrecision: true },
           maxUses: { type: ['integer', 'null'], minimum: 1, maximum: 99999 },
           expiresAt: { type: ['string', 'null'], maxLength: 50, pattern: EXPIRES_AT_PATTERN }
         },
-        additionalProperties: false
+        additionalProperties: false,
+        // MN-1: 上限随折扣类型分档（percent ≤100、fixed ≤99999 元），if/then 只补 maximum，不复制整段 properties
+        allOf: [{
+          if: { properties: { discountType: { const: 'fixed' } }, required: ['discountType'] },
+          then: { properties: { discountValue: { type: 'number', maximum: 99999 } } },
+          else: { properties: { discountValue: { type: 'number', maximum: 100 } } }
+        }]
       }
     }
   }, async (request: FastifyRequest) => {
@@ -103,8 +109,10 @@ export default async function pricingRoutes(fastify: FastifyInstance) {
       body: {
         type: 'object',
         properties: {
-          // XEND-12: 同创建口，更新口 discountValue 也补 moneyPrecision，避免 PUT 写入超分精度值
-          discountValue: { type: 'number', minimum: 0.01, maximum: 100, moneyPrecision: true },
+          // MN-1: PUT 体不含 discountType（类型创建后不可改），上限统一取 fixed 档 99999；
+          // percent >100 仍由 discount.service.updateDiscountCode 按行内类型拒绝
+          // XEND-12: moneyPrecision 与创建口同口径，避免 PUT 写入超分精度值
+          discountValue: { type: 'number', minimum: 0.01, maximum: 99999, moneyPrecision: true },
           maxUses: { type: ['integer', 'null'], minimum: 1, maximum: 99999 },
           expiresAt: { type: ['string', 'null'], maxLength: 50, pattern: EXPIRES_AT_PATTERN },
           enabled: { type: 'boolean' }

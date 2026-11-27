@@ -62,7 +62,12 @@ export const uploadApi = {
   }
 }
 
-/** F0200: cleanup 响应形状（已删路径对账清单；服务端幂等——不存在的路径也计入 deleted） */
+/**
+ * F0200: cleanup 响应形状（对账清单；服务端幂等）
+ * 语义（2026-11-27 交叉审计 XVB-3）：`deleted` 只含**真删成功**的路径；
+ * 重复清理/并发已删的路径（ENOENT）单列 `missing`，不再伪装成已删。
+ */
 export interface UploadCleanupResult {
   deleted: string[]
+  missing: string[]
 }

@@ -9,6 +9,14 @@ import { E2E_BASE_URL } from '../../playwright.config.js'
 // 保证任何失败路径都能在用例超时前抛出带真实错误码的失败而非 Playwright 裸超时。
 test.setTimeout(120_000)
 
+// XVB-1：本 spec 是 refreshArtistTokenCache 的唯一 **playwright spec** 调用点（另有
+// e2e/scripts/token-refresh.regression.ts 直调，但它不跑在 worker 里、不受 retries 影响），
+// 而它的失败登录预算（4）是**单次调用**计的；playwright.config.ts:15 的 retries:1 会让同一 run
+// 内再跑一遍，两次各 4 次失败 ⇒ 第 5 次失败触发服务端 (IP+QQ) 15 分钟锁——重试注定失败，还会连累
+// 本 run 后续任何需要新登录的用例。故本文件单独 retries:0，把「预算 < 服务端阈值 5」的
+// 前提重新变成成立命题（其余 spec 不碰 TOTP 重登，保留全局 retries:1）。
+test.describe.configure({ retries: 0 })
+
 // e8: Passkey 虚拟验证器（CDP WebAuthn，仅 chromium；internal=平台验证器画像，对齐 Windows Hello）
 // TC-PK-01 注册 + TC-PK-02 登出后免密登录合为一个用例：
 // 虚拟验证器凭据绑定在 browser context 内，拆成两个用例需用 CDP addCredential 手工播种私钥

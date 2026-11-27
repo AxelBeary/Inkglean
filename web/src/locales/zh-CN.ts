@@ -1462,6 +1462,8 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
     // 收款金额前端范围校验（后端 addPayment 规则一致；负数=退款/撤销路径）
     payAmountInvalid: '收款金额须大于 0',
     payAmountZero: '金额不能为 0', payRefundNoteRequired: '退款或撤销时请填写原因', payRefundExceed: '退款金额不能超出已收金额 ¥{amount}',
+    // MN-2: 单笔收款上限（服务端 MAX_MONEY_CENTS = 100 万元，超出需分多笔）
+    payAmountTooLarge: '单笔收款上限 100 万元，超出请分多笔记录',
     // v0.31 F4: 节点收款
     payNodePaid: '已收', payNodeDue: '应收', payNodeRemain: '差额',
     // issue #54-2：差额行整句带参（英文态半角括号）
