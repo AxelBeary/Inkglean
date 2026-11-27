@@ -215,6 +215,43 @@ describe('DB-1 历史修复：price_addons → addon_templates（走真 initData
     mem.close()
   })
 
+  it('TC-DB1-05 (M-2): 部分迁移画师——已有 A=77 元，旧表有 A=10、B=20 → A 不重复且原值不动，B 新搬 20', () => {
+    // 变异防线：删掉 legacy-addon-backfill.ts:76 的内层 `WHERE NOT EXISTS`，本条**必须变红**（A 变两行）。
+    // 为什么 TC-DB1-01 的对照画师兜不住：那个画师的旧增项名「全部」已有模板 → 在外层 :58-65 的粗筛
+    // （「还有至少一个旧增项名没进新表」）就被整块排除，永远走不到内层逐名判据。
+    // 只有「部分迁移」形态（A 已迁、B 未迁）能真正触发内层：外层因 B 命中，A 靠内层跳过。
+    // 增项按行计价 → 重复行 = 重复计增项（v36 注释里写明的资金侧风险）。
+    const mem = buildUpgradeStateDb({ appliedUpTo: 37 })
+    const gina = seedLegacyArtist(mem, {
+      qq: '90006',
+      name: 'gina',
+      addons: [['加人', 10, 'quantity'], ['加背景', 20, 'toggle']]
+    })
+    // 部分迁移：画师模板表里已有「加人」，但值是人工维护过的 77（与旧表 10 不同）
+    mem.prepare(
+      "INSERT INTO addon_templates (artist_id, name, control_type, pricing_mode, default_price, sort_order) VALUES (?, '加人', 'quantity', 'fixed', 77, 0)"
+    ).run(gina.artistId)
+    expect((mem.prepare('SELECT COUNT(*) AS c FROM addon_templates WHERE artist_id = ?').get(gina.artistId) as { c: number }).c).toBe(1)
+
+    initDatabase(mem)
+
+    const rows = templateRows(mem, gina.artistId)
+    // 1) 恰好两行：A（原值 77 不被覆盖）+ B（新搬 20）；不许出现第二行 A
+    expect(rows).toHaveLength(2)
+    expect(rows.filter(r => r.name === '加人')).toHaveLength(1)
+    expect(rows.filter(r => r.name === '加背景')).toHaveLength(1)
+    // 2) A 保持人工维护值 77（不被旧表的 10 覆盖）
+    expect(rows.find(r => r.name === '加人')?.default_price).toBe(77)
+    // 3) B 按旧表搬到 20
+    expect(rows.find(r => r.name === '加背景')?.default_price).toBe(20)
+    // 4) 两条都补链到该画风（v85），且是 2 条不是 3 条（重复模板会带出重复关联）
+    const links = mem.prepare(`
+      SELECT COUNT(*) AS c FROM style_addons sa JOIN art_styles st ON st.id = sa.art_style_id WHERE st.artist_id = ?
+    `).get(gina.artistId) as { c: number }
+    expect(links.c).toBe(2)
+    mem.close()
+  })
+
   it('TC-DB1-04 (HIGH-1 返工): 真实 pre-v36 老库直接升级——启动修复搬旧增项，F5 建画风，v85 补链', () => {
     const mem = buildPreV36Db()
     // 前置：真实 v35 库没有 v36 的五张表（旧用例手工造旧形状 addon_templates 是假绿）

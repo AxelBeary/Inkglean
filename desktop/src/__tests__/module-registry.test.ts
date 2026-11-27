@@ -14,8 +14,8 @@ function manifest(id: string): string {
   })
 }
 
-function scan(dirName: string, id = dirName): ScannedModule {
-  return { dirName, manifestText: manifest(id) }
+function scan(dirName: string, id = dirName, installedFromPack?: boolean): ScannedModule {
+  return { dirName, manifestText: manifest(id), ...(installedFromPack === undefined ? {} : { installedFromPack }) }
 }
 
 describe('buildRegistry（加载强制点）', () => {
@@ -54,6 +54,32 @@ describe('buildRegistry（加载强制点）', () => {
   it('多模块混合：合法/非法各自分立，互不牵连', () => {
     const r = buildRegistry([scan('good'), { dirName: 'bad', manifestText: '{' }, scan('good2')])
     expect(r.map(x => x.state)).toEqual(['ok', 'invalid', 'ok'])
+  })
+
+  // ─── P0-3 扫描层二次确认（GHSA-vjr7-75pw-72mr 第 2 条）───
+  // 变异防线：把 registry.ts 的 `confirmSource(m.id, s.installedFromPack === true)` 改回缺陷实现
+  // `source: m.source`（= 只信包内自报 id、摘掉装包账二次确认），下面两条**必须变红**。
+  // 背景：confirmSource（manifest.ts:35）与装包闸 installModulePack（packIo.ts:75）都各自有单测，
+  // 缺的正是「store 扫描时把装包账接进注册表」这一段——store.ts:151 不单测，只能从这里兜。
+
+  it('M-1: 从模块包装入的保留 id（mood-weather）→ 扫描层强制 source=external', () => {
+    const r = buildRegistry([scan('mood-weather', 'mood-weather', true)])
+    expect(r[0].state).toBe('ok')
+    // manifest 自报 official 不算数：带装包账即永远不是 official（导入 zip 冒充第一方的主攻击路径）
+    expect(r[0].manifest?.source).toBe('external')
+  })
+
+  it('M-1: 非装包来源的保留 id（官方内嵌/示例模块）→ source=official', () => {
+    const r = buildRegistry([scan('mood-weather', 'mood-weather', false)])
+    expect(r[0].state).toBe('ok')
+    expect(r[0].manifest?.source).toBe('official')
+  })
+
+  it('M-1: 缺省 installedFromPack（旧扫描调用）按「非装包」处理，保留 id 仍是 official', () => {
+    // store.ts 的 installedFromPack 可能为 undefined（装包账未记录，如 Rust 直接落盘的官方示例）；
+    // === true 的严格比较决定它必须落 official，不能被 undefined 误判成 external
+    const r = buildRegistry([scan('mood-weather')])
+    expect(r[0].manifest?.source).toBe('official')
   })
 })
 
