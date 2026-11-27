@@ -6,7 +6,10 @@ import Database from 'better-sqlite3'
 import { migration } from '../src/db/migrations/v24-quota-pool-paid-total.js'
 
 // GIT-2: v24 存量换算裸 UPDATE 在重放（版本表丢失）时会冲回流水维护的 paid_total_cents；
-// 改三重 WHERE（基线原值 0 + EXISTS 已付分期 + NOT EXISTS 流水），流水表提前于换算建立
+// 改三重 WHERE（`paid_total_cents < 已付分期和` + EXISTS 已付分期 + NOT EXISTS 流水），流水表提前于换算建立。
+// 注：合并到 master 时取的是 master 版条件（上句第二项即 master 的 MINOR-10 放宽分支），
+// 「非零但欠回填」的形态由 tests/migration-v24.test.ts 的 TC-F77-04 钉住；本文件四例覆盖
+// 0 基线 / 非零保留 / 退款哨兵 / 无已付分期，不能单独区分两种语义。
 function buildOldShapeDb(): Database.Database {
   const mem = new Database(':memory:')
   mem.exec(`
