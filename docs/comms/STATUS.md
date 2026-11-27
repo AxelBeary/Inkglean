@@ -1,22 +1,26 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 2026-11-28 会话交接（PR #116 复核打回 + 六路施工在途，**接手先读这条**）
+## 2026-11-28 六路施工全部合入（**接手先读这条**）
 
-- **基线（实测 11-28 05:2x）**：master `9b74468e`（**已推 origin**，CI/E2E 绿）；迁移 v84（PR #116 占 v85、幕布批占 v86）
-- **本地 4 提交已推**：`3e604935` Passkey 归因 + 三条文档；origin/master 不再是 `94f40bfd`
-- 🔴 **PR #116 复核结论：不可合（BLOCKER ×1）**，已在 PR 评论打回，修复分支在途
-  - BLOCKER B-1：`ManualOrderRight.vue:358` 派生幂等键 82 字符含冒号 → 服务端 ≤64 且 `[A-Za-z0-9-]` 校验必 400
-  - 实测：36 字符 UUID 原样 200 / 82 字符含冒号 400；该行为 PR 新引入（master 不传 header）
-  - 附带 M-1/M-2 两处**变异存活**（改回缺陷代码 48/10 用例 0 红）＝无回归防线
-  - PR 自述订正：冲突取舍实为 11/5/0（PR 写 13/2/1）；CI 实为 **6 job**（PR 写五）；STATUS 被 PR 改了 1 行待回退
+- **基线（实测 11-28 07:0x）**：master `529362de`（**已推 origin**）；迁移 **v86**；四端实跑 server 213/2395、web 203/1472、shared 9/68、desktop 52/700
+- **本批 6 路全部合入 master**：PR #116（已修 BLOCKER 并合并 `d3611bb8`）/ 发版版本号 / R-2 导出与留存 / 事件流水幕布 / 迁移测试路径级补齐 / 主页 Landing
+  - PR #116 的 B-1 已修：派生幂等键改 `sha256Hex(...).slice(0,48)`，并补走真服务端的 6 条用例（服务端测试直接 import 前端同一份实现）
+  - M-1/M-2 两条变异**从存活转为被杀**（改回缺陷代码即红）
+- 🔴 **合并中发现并修掉的两个真问题**
+  - `app.ts` 827 行撞 800 硬线（R-2 与 v86 各加一段 TTL）→ 抽出 `db/gc-database-ttl.ts`，退回 746 行；**未调高限额**
+  - TC-F81-06 的链接断言时机错：PR #116 启动期 backfill 抢在 v36 前搬模板，v36 不再建 `style_addons`，缺口由 v85 补链
+    - 实测全链终态正确（两画师各 1 条链接、price_addons 已 DROP、schema=v86）；断言改为跑完整链
+    - 变异检查：注释掉 v85 的 up() 该用例变红，还原后绿
 - 🟡 **open issue = 2**：#117（M-1 存量库不可达）、#118（质量类修复需路径级回归）；两条均已回帖订正
   - #117 订正：洞是 v50 `de574dc0` 开的；可救窗口只有 **v36..v42**；≥v43 不可恢复但可翻 pre-v43 备份
   - #118 订正：文字已备好（4 行 ≤128 字），**建议暂不加自动化防线**，先落纪律
-- 🔴 **发版凭据仍空**（`gh secret list`/`gh variable list` 全空）：4 项，照做清单已重建 `AGENTS/release-prep-20261128/RELEASE-CHECKLIST.md`
-  - **U33 流水线从未跑过**；NSIS 在本机从未成功过一次；首跑三坑见该清单（私钥尾部换行 / dispatch 空跑 422 / NSIS 工具链）
+- 🔴 **发版凭据仍空**（`gh secret list`/`gh variable list` 全空）：4 项，照做清单 `AGENTS/release-prep-20261128/RELEASE-CHECKLIST.md`
+  - **U33 流水线从未跑过**；NSIS 在本机从未成功过一次；首跑三坑见该清单
+  - 版本号已落文件：root/web/server **1.2.0**、desktop/tauri **0.2.0**（`HOST_VERSION` 是模块 ABI，**保持 0.1.0 未动**）
 - 🟢 **GHSA-6pf3 署名口径不变**：不挂 Mistwhisker。summary 与 patched_versions 仍待 1.2.0 发出后改
-- **在途施工（6 路子代理，worktree `AGENTS/wt/`）**：pr116-fixer / landing-impl / eventfeed-impl / release-bump / mig-tests / r2-export
-- **工作区状态**：11-28 05:2x `git status` 干净；全部改动在各 worktree 分支上，未合并
+- **changelog 已滚动分册**：8 个 oldest 段搬 `docs/changelog-archive/changelog-20261019-20261025-20261128.md`（10313 B，哈希零丢失 PASS）
+- **待制作人定**：主页首屏新写的客户向文案（`LandingHero.vue` 定位句 + 三条价值点）需过目
+- **工作区状态**：11-28 07:0x `git status` 干净；6 个 worktree 分支已合入，可清
 
 ## 2026-11-27 Passkey 归因修复入库 + 文档整理批
 
@@ -58,16 +62,15 @@
 - **遗留**：CodeQL `Analyze (rust)` 在最后一次推送时仍在跑（其余 9 项已 success）
 - 🔴 **发布前必读**：F0156 弱密钥判定会让低熵密钥的既有部署**升级即拒启**，发布说明必须写明
 
-## 看板（2026-11-28 复核：master `9b74468e`，已推 origin）
+## 看板（2026-11-28 六路合入后：master `529362de`，已推 origin）
 
-- **基线**：master `9b74468e`；迁移 v84（PR #116 占 v85，幕布批占 v86，硬断言会拦乱序）；门禁读数 server 2264 / web 1390 / desktop 695 / shared 66 / e2e 15
-- **open PR = 1**：#116（fork `Mistwhisker:fix/deep-cross-fixes-20261127`，tip `db86fcf6`）—— CI 7 项全绿但复核**判不可合**，已回帖打回
-  - BLOCKER：派生幂等键 82 字符含冒号必 400；另有 2 处变异存活＝无回归；修复分支 `feat/…` 在途
+- **基线**：master `529362de`；迁移 **v86**（链尾升序唯一性断言会拦乱序）；实跑 server 213/2395、web 203/1472、shared 9/68、desktop 52/700
+- **open PR = 0**：#116 已修完并合并（`d3611bb8`）；BLOCKER B-1 已修，M-1/M-2 变异从存活转为被杀
 - **open issue = 2**：#117（M-1 存量库不可达）、#118（质量类修复需路径级回归）；两条已回帖订正
-- **已收口**：#96/#97/#98 全 CLOSED；#107–#113 全 MERGED。「推上游 #109 先于 #112」作废；**主仓不是 fork**
-- **私密 advisory = 2，均 `triage`**：`GHSA-vjr7-75pw-72mr`（4 条，修复在 #116）/ `GHSA-6pf3-g4xq-854w`（summary 与 patched_versions 待改）
-- **发版**：4 项凭据**仍全空**；版本文件仍 root 1.1.0 / desktop 0.1.0；U33 从未跑过；照做清单已重建于 `AGENTS/release-prep-20261128/`
-- **Release 页旧账**：latest 仍 v1.1.0（tag `eb351f9a`），落后 origin/master **166** 提交；公网实跑版本待用户再确认
+- **已收口**：#96/#97/#98 全 CLOSED；#107–#113 全 MERGED。**主仓不是 fork**，「推上游」叙事作废
+- **私密 advisory = 2，均 `triage`**：`GHSA-vjr7-75pw-72mr`（4 条已随 #116 修完，待改公告）/ `GHSA-6pf3-g4xq-854w`（待改 summary 与 patched_versions）
+- **发版**：4 项凭据**仍全空**；版本号已落文件 root/web/server 1.2.0、desktop/tauri 0.2.0；U33 从未跑过
+- **Release 页旧账**：latest 仍 v1.1.0（tag `eb351f9a`）；公网实跑版本待用户再确认（影响 advisory 能否转公开）
 - **合并权口径**：`master-merge-gate` bypass 只有 AxelBeary（always）；Mistwhisker 仅 write、不可自合
 - 🔴 **上线前置硬警告**：公网部署前必须先确认 `platform_config.admin_qq` 非空
 - **在途卡（DSH taskboard，不在本仓）**：青芽季遇 `t-mwxzkrkv-cc3d9y` 手机主菜单承托重设计（todo，本批新立）
@@ -77,14 +80,14 @@
 
 **下一步（按优先级）**
 
-1. 🔴 **PR #116 修完再合**：BLOCKER B-1 修法＝派生键改 sha256 hex；同批补 M-1/M-2 两条回归、回退 STATUS 那 1 行、订正「6 job」
-   - 修完我再看一轮，然后由一号以 AxelBeary 身份 `gh pr merge --admin` 合入（bypass 只在 AxelBeary）
-2. 🔴 **发版凭据 4 项**（唯一卡点，需制作人手工配）：`TAURI_SIGNING_PRIVATE_KEY` / `_PASSWORD` / `DESKTOP_UPDATE_PUBKEY` / `DESKTOP_UPDATE_BASE`
-   - 照做清单见 `AGENTS/release-prep-20261128/RELEASE-CHECKLIST.md`（原 `AGENTS/拍板材料-20261123/B8-照做清单.md` 已随目录丢失）
-3. **在途施工 6 路**（worktree `AGENTS/wt/`）：PR116 修复 / 主页 Landing / 流水幕布 / 发版版本号 / 迁移测试补齐 / R-2 导出
-4. **丢失材料处置**：`AGENTS/拍板材料-20261123/`、`AGENTS/handoff-20261124/` 整目录已不存在；B 批代码已进 master（`3c0e0069`/`9ecc0c31`/`a8a56f33`），丢的是施工图文档
-   - 处置口径：只重建 U33 照做清单（已办），DECISIONS 结论已在「已拍板规则」章，不逐字复原
-5. **RuoYi 评估遗留**：R-1（归属守卫统一层，防腐不是防越权）未立项；R-2 已在途；R-3 并入幕布批
+1. 🔴 **发版凭据 4 项**（唯一卡点，需制作人手工配）：`TAURI_SIGNING_PRIVATE_KEY` / `_PASSWORD` / `DESKTOP_UPDATE_PUBKEY` / `DESKTOP_UPDATE_BASE`
+   - 照做清单 `AGENTS/release-prep-20261128/RELEASE-CHECKLIST.md`；版本号已落文件，配好即可打 tag 首跑 U33
+2. 🔴 **公网实际版本需制作人确认**：影响 GHSA-vjr7 / GHSA-6pf3 能否转公开（公告要写 patched_versions）
+3. **主页首屏新文案待制作人过目**：`LandingHero.vue` 的定位句 + 三条价值点是本批新写的客户向文案（此前不存在）
+4. **R-1 归属守卫统一层**：`AGENTS/` 的 RuoYi 评估结论明确是「防新代码漏挂」的**防腐**，不是安全修复；未立项
+5. **F0179 / F0314 二阶段**：都等线上数据稳定才动（query.token 回退、legacyNextDueCents 回退仍在）；F0179 移除时要同步改 e10 e2e
+6. **`login_codes` 退役表**：全仓零运行时使用，可随 R-3 一并 drop；属迁移决策，待拍板
+7. **AGENTS/ 仍占 2.4 GB**：N9 待制作人定四类去留
 
 **常驻纪律（事故换来的，不得退色）**
 
