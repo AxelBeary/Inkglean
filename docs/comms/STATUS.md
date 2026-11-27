@@ -150,7 +150,7 @@
   - 不扩大：verdict=red、报告陈旧(>24h)、SHA 不可解析（离线/历史改写）仍阻断；降级分支已显式守 `$staleH -le 24` 防短路陈旧门；改路径清单须先在本节拍板；$ACCEPT_EXEMPT 仍空表不动。
   - 既有绕过留痕不变：-Force / -SkipAccept 仍记 WARN（本批顺手补上 -SkipAccept 实际未写的 WARN 行），阻断仍走 Stop-Fail 写告警文件。
   - 验证：沙盒 git 仓八景（纯文档领先→WARN 放行；含代码/离线 SHA/红报告/25h 陈旧→阻断；-Force/-SkipAccept/dirty 景行为不变），取证件 `AGENTS/temp/docdowngrade-20260929/results.md`。详见 changelog 同批条。
-- 审计风暴拍板落地（2026-11-23，用户「全部按建议执行」，材料 `AGENTS/拍板材料-20261123/DECISIONS.md`）：
+- 审计风暴拍板落地（2026-11-23，用户「全部按建议执行」，材料 `AGENTS/拍板材料-20261123/DECISIONS.md` 已丢失，结论以本章为准）：
   - F0192 孤儿行口径＝服务端跳过模板级写入并告警，不 422 整批拒（孤儿行是存量脏数据，拒绝会卡死画师保存）；
   - F0200 清理端点边界＝requireAuth + 仅 `images/{artistId}/` 前缀 + 拒 `..` + maxItems 10 + 限流 30/10min + 幂等 + 不递归，前端只传本弹窗 staged 未提交路径；
   - F0134 令牌幂等缓存＝押后 B4 支付批做架构级重设（TC-D2-02 重放一致契约与明文令牌缓存冲突，小改必返工，F0137 已回退至同口径）；
