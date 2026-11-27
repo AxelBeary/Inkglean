@@ -1,6 +1,6 @@
 import { requireAuth } from '../../shared/middleware/auth.js'
 import { mkdirSync, existsSync, unlinkSync, statSync, openSync, readSync, closeSync } from 'fs'
-import { join, extname, basename, resolve, sep } from 'path'
+import { join, extname, basename, resolve, relative, sep } from 'path'
 import { pipeline } from 'stream/promises'
 import { createWriteStream } from 'fs'
 import { nanoid } from 'nanoid'
@@ -45,6 +45,31 @@ const DELIVER_BLOCKED_MIME = ['image/svg+xml', 'text/html', 'application/xhtml+x
 const CLEANUP_MAX_ITEMS = 10
 // F0200：单条路径长度上限（images/{artistId}/{nanoid12}{ext} 实际 < 60 字符，200 已宽裕）
 const CLEANUP_PATH_MAX_LEN = 200
+
+/**
+ * SEC-1：查这批路径里「仍被业务引用」的（images/ 前缀下的四列全部落点）。
+ *
+ * 为什么是这四列：`images/{artistId}/` 不只住孤儿图——作品集与交付公开副本落
+ * `artworks.image_path`（`order-gallery.service.ts` 发布时把 deliverables/ 复制成
+ * `images/{artistId}/{nanoid}{ext}` 再建 artworks 行），画风封面落 `art_styles.cover_image`，
+ * 头像落 `artists.avatar`，尺寸示例图落 `style_sizes.image`（style.service.ts 写入前
+ * 同款校验 `images/{artistId}/` 前缀）。删掉它们 = 客户端主页/查单页裂图且不可恢复。
+ * 可排除的三列（已逐个查写入方）：price_tiers.example_image 零写入方；
+ * orders.focus_image_path 指向 references/；order_notes.image_path 指向 notes/。
+ *
+ * 为什么一条 UNION + 参数按表重复绑定：单次 `IN (...)` 批量判定，避免「四张表四次
+ * 往返」还漏表；表名/列名全是本文件常量字面量，值一律 `?` 占位（无拼接注入面）。
+ */
+function findReferencedImagePaths(paths: string[]): string[] {
+  const marks = paths.map(() => '?').join(', ')
+  const rows = db.prepare(`
+    SELECT image_path AS path FROM artworks    WHERE image_path IN (${marks})
+    UNION SELECT cover_image FROM art_styles   WHERE cover_image IN (${marks})
+    UNION SELECT avatar      FROM artists      WHERE avatar      IN (${marks})
+    UNION SELECT image       FROM style_sizes  WHERE image       IN (${marks})
+  `).all(...paths, ...paths, ...paths, ...paths) as Array<{ path: string }>
+  return rows.map(r => r.path).sort()
+}
 
 // ─── GHSA-6pf3-g4xq-854w（Wave1·高）参考图囤积守卫 ───
 // 单文件 10MB × 10 次/10 分/IP 的次数限流拦不住囤积：未绑定订单的登记行此前全仓零 DELETE，
@@ -624,7 +649,16 @@ export default async function uploadRoutes(fastify: FastifyInstance, opts: { upl
    * ② 只允许 images/${request.artist.id}/ 前缀——与 /api/upload/image 的落盘目录严格对应，
    *    跨画师路径直接拒，其他目录（references/deliverables/notes/previews）不在清理范围；
    * ③ resolve 后必须仍在 uploads 根内（P0-B 同 saveUpload）。
+   * ④ SEC-1：删前一次 `IN (...)` 批量查「是否仍被作品集/画风/头像/尺寸示例引用」
+   *    （见 findReferencedImagePaths 的列表与排除项），命中即**整单 409 UPLOAD_IN_USE**——
+   *    破坏性操作 fail-closed，与路径校验同哲学；detail 只回相对路径（沿用 UPLOAD_CLEANUP_FAILED
+   *    「不回服务端绝对路径」的既有口径）。同批未被引用的文件也不删，磁盘状态在 409 时不变。
+   *    查库键是 `relative(root, absPath)` 规范化后的相对路径（POSIX 分隔符），不是请求原串——
+   *    `images/1//x.png` 与 `images/1/./x.png` resolve 到同一文件但字面不等，用原串查会漏判引用
+   *    （MEDIUM-1）；规范化键同时用于去重。
    * 幂等：文件不存在按成功返回（前端重复清理/并发误判不再报错）；只 unlink 精确路径，不递归。
+   *    XVB-3：ENOENT 单列 `missing`、不再混进 `deleted`——混在一起时调用方无法区分
+   *    「真删了」与「本就不存在」。
    * 限流 30 次/10min per-artist（正常一次取消只调一次）。
    */
   fastify.post('/api/upload/cleanup', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
@@ -644,7 +678,7 @@ export default async function uploadRoutes(fastify: FastifyInstance, opts: { upl
     const root = resolve(UPLOAD_DIR)
     // 两段式：先全量校验、后执行。逐条边验边删会在撞上坏路径前已删掉同批合法文件，
     // 破坏性操作必须 fail-closed 整单拒绝，不做部分执行（CROSSEND-PLAN §3「拒 .. / 跨画师」语义）。
-    const valid: Array<{ raw: string; absPath: string }> = []
+    const valid: Array<{ raw: string; rel: string; absPath: string }> = []
     const seen = new Set<string>()
     for (const raw of filePaths) {
       // F1（尾巴批 cleanup 复核）：非字符串条目改整单 400——与「坏路径 fail-closed 整单拒」同一哲学，
@@ -652,8 +686,6 @@ export default async function uploadRoutes(fastify: FastifyInstance, opts: { upl
       if (typeof raw !== 'string') {
         return reply.code(400).send({ code: 'INVALID_FILE_PATHS', error: 'filePaths 数组内含非字符串条目' })
       }
-      if (seen.has(raw)) continue
-      seen.add(raw)
       if (raw.length > CLEANUP_PATH_MAX_LEN) {
         return reply.code(400).send({ code: 'INVALID_FILE_PATHS', error: `路径超长（>${CLEANUP_PATH_MAX_LEN} 字符）` })
       }
@@ -669,32 +701,53 @@ export default async function uploadRoutes(fastify: FastifyInstance, opts: { upl
       if (!absPath.startsWith(root + sep)) {
         return reply.code(400).send({ code: 'ILLEGAL_CLEANUP_PATH', error: '路径不合法：仅允许清理你本人上传的未引用图片' })
       }
-      valid.push({ raw, absPath })
+      // MEDIUM-1：查库键必须是**规范化相对路径**。`images/1//x.png` / `images/1/./x.png` 同样
+      // 过得了前缀与 `..` 校验、resolve 到同一文件，但与 DB 里的规范写法（`images/1/x.png`）
+      // 字面不等——用请求原串去 `IN (...)` 查会漏判引用，把在用作品图真删掉（评审实测：双斜杠
+      // 路径 200）。统一转 POSIX 分隔符，既作查库键也作去重键（同一文件的多种写法只处理一次，
+      // 否则第二次 unlink 必 ENOENT，把噪声混进 missing）。
+      const rel = relative(root, absPath).split(sep).join('/')
+      if (seen.has(rel)) continue
+      seen.add(rel)
+      valid.push({ raw, rel, absPath })
     }
+    // SEC-1：删前一次性判引用。放在「路径全量校验通过之后、任何 unlink 之前」——
+    // 命中时整单拒绝，同批里未被引用的文件也保持原样（调用方看到 409 即磁盘未变）。
+    const referenced = findReferencedImagePaths(valid.map(v => v.rel))
+    if (referenced.length > 0) {
+      request.log.warn(`F0200 cleanup 拒绝：${referenced.length} 条仍被作品集/画风/头像/尺寸示例引用`)
+      return reply.code(409).send({
+        code: 'UPLOAD_IN_USE',
+        error: '这些图片仍被作品集/画风/头像/尺寸示例引用，删除会造成裂图；请先解除引用',
+        detail: { referenced }
+      })
+    }
+
     const deleted: string[] = []
+    const missing: string[] = []
     const failed: Array<{ filePath: string; error: string }> = []
     for (const { raw, absPath } of valid) {
       try {
         unlinkSync(absPath)
         deleted.push(raw)
       } catch (err) {
-        // 幂等：已不存在（重复清理/并发）按成功计；其余 IO 故障进结构化失败清单
+        // XVB-3：ENOENT（重复清理/并发）单列 missing——幂等仍是 200，但不再伪装成已删
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-          deleted.push(raw)
+          missing.push(raw)
         } else {
           failed.push({ filePath: raw, error: (err as NodeJS.ErrnoException).code || 'UNKNOWN' })
         }
       }
     }
     if (failed.length > 0) {
-      // 部分删除已生效不可回滚：结构化返回已删/失败清单（只带 errno，不带服务端绝对路径）
-      request.log.warn(`F0200 cleanup 部分失败: deleted=${deleted.length} failed=${failed.length}`)
+      // 部分删除已生效不可回滚：结构化返回已删/缺失/失败清单（只带相对路径与 errno，不带服务端绝对路径）
+      request.log.warn(`F0200 cleanup 部分失败: deleted=${deleted.length} missing=${missing.length} failed=${failed.length}`)
       return reply.code(500).send({
         code: 'UPLOAD_CLEANUP_FAILED',
         error: '部分图片清理失败，可稍后重试',
-        detail: { deleted, failed }
+        detail: { deleted, missing, failed }
       })
     }
-    return { deleted }
+    return { deleted, missing }
   })
 }

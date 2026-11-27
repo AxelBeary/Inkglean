@@ -40,14 +40,21 @@ describe('XEND-12 fixed 折扣元转分跨端一致', () => {
   })
 
   it('TC-FC-02: server 金额事实源与 shared 事实源逐点一致（含边界值）', () => {
+    // MONEY-2：值表必须覆盖**溢出分支的负向**（-Number.MAX_VALUE→ -Infinity vs 镜像曾给
+    // +Infinity）、科学计数法字符串（'1.005e2'）、首尾空白（' 1.5 '）与三位小数正负边界
+    // （0.145 / -0.005）——旧表 7 个关键边界缺 6 个，兜底分支漂移测不出来。
     const values: Array<number | string | null | undefined> = [
-      1.005, 8.215, 2.675, 0.01, 1, 80, -12.5, 0,
-      '1.005', '8.21', '1e5', 1e21, 1e-7,
+      1.005, 8.215, 2.675, 0.145, -0.005, 0.01, 1, 80, -12.5, 0,
+      '1.005', '8.21', '1e5', '1.005e2', ' 1.5 ',
+      1e21, 1e23, -1e307, Number.MAX_VALUE, -Number.MAX_VALUE, 1e-7,
       Infinity, -Infinity, NaN, 'abc', null, undefined, ''
     ]
     for (const v of values) {
       expect(Object.is(serverYuanToCents(v), frontendYuanToCents(v))).toBe(true)
     }
+    // 溢出兜底的符号必须保留（不是只靠「两边都 NaN」混过去）：负向溢出给 -Infinity
+    expect(serverYuanToCents(-Number.MAX_VALUE)).toBe(-Infinity)
+    expect(serverYuanToCents(Number.MAX_VALUE)).toBe(Infinity)
   })
 
   it('TC-FC-03: SRV-17 percent 仍向下取整（本次修复不得改变其口径）', () => {
