@@ -16,6 +16,7 @@ interface StyleAddon {
   id: string
   // 与生产类型一致（style-manage/types.ts ManagerSa）：孤儿行是 null，不允许再用字符串假 id
   addon_template_id: number | null
+  price_override?: number | null
   template_name: string
   template_category: string
   template_control_type: string
