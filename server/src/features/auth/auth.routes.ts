@@ -7,6 +7,9 @@ import { rateLimit } from '../../shared/middleware/rate-limit.js'
 import { AppError, E } from '../../shared/errors.js'
 import { publicArtistDTO } from '../../shared/dto.js'
 import { parseSqliteUtcDate } from '../../utils/date.js'
+// v86（事件流水幕布步 1）：认证事件落库（此前成功=覆盖写、失败=日志即丢，均不可查）
+import { recordEvent, ACTIONS } from '../activity/activity.service.js'
+import type { LoginMethod } from '../activity/activity.service.js'
 import { createBoundedTtlStore } from './webauthn.js'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import type { Artist } from '../../types/entities.js'
@@ -64,12 +67,63 @@ export function getTotpRebindStore(): typeof totpRebindStore {
  * GHSA-6pf3-854w P1：匿名登录失败的内部留痕（对外一律同码同文案，差异只进日志）。
  * - reason：五态归因（not_found/banned/locked/unbound/invalid_code/replay），运维/排障专用，绝不出响应体；
  * - lockTriggered 且命中管理员账号 → 单独落审计级日志（告警订阅面：管理员账号被人定向爆破）。
+ *
+ * v86（事件流水幕布步 1）：日志之外**并轨落库** activity_events（action='login_fail'）。
+ *   理由：容器 json-file 10MB×3 轮转（docker-compose.yml:19-21），几天即滚动丢失，
+ *   docker logs 只能排障、不能当审计证据。落库后 reason **只进 meta_json**，
+ *   响应体保持 GHSA 口径（五态同码同文案）不变——这是硬约束，测试钉死。
+ *   日志保留不动：库是事实源，日志是排障面，两者不互替。
  */
 function logLoginDeny(request: FastifyRequest, qqNumber: string, reason: string, lockTriggered?: boolean): void {
   request.log.warn({ event: 'auth_login_denied', reason, qqNumber, ip: request.ip }, 'TOTP 登录被拒（对外统一响应）')
+  recordEvent({
+    actorKind: 'anon',
+    actorId: null,
+    ip: request.ip,
+    action: ACTIONS.loginFail,
+    meta: { reason, qqNumber },
+    outcome: 'fail'
+  })
   if (lockTriggered && qqNumber === getAdminQq()) {
     request.log.error({ event: 'audit_admin_totp_bruteforce', qqNumber, ip: request.ip, maxAttempts: TOTP_MAX_ATTEMPTS }, 'AUDIT 管理员账号登录爆破触发锁定')
   }
+}
+
+/**
+ * v86：登录成功落一条流水（四种方式共用 action='login_success'，方式进 meta.method）。
+ *
+ * 为什么要这条：`recordLastLogin`(artist-lookup.service.ts:66) 是 **UPDATE 覆盖写**，
+ * 只留最后一次登录时间/IP —— 「谁在什么时候从哪个 IP 登录过」历史上查不到。本表按次追加。
+ * 与原覆盖写并存（last_login_at/_ip 仍供管理列表展示当前态，语义不变）。
+ * IP 记原值（D2=A，管理员与认证事件）；actor_kind='artist'（登录者一定是画师本人，
+ * 不是未登录访客 —— D3=B 只排除访客浏览，不排除已认证的登录事实）。
+ */
+function recordLoginSuccess(request: FastifyRequest, artistId: number, method: LoginMethod, qqNumber?: string): void {
+  recordEvent({
+    actorKind: 'artist',
+    actorId: artistId,
+    ip: request.ip,
+    action: ACTIONS.loginSuccess,
+    meta: qqNumber ? { method, qqNumber } : { method },
+    outcome: 'ok'
+  })
+}
+
+/**
+ * v86：二次验证（step-up）失败留痕。
+ * 与登录失败的区别：此处**已有登录态**（已过 requireAuth + 管理员身份校验），
+ * 故 actor_kind='admin'、actor_id 记当前管理员 —— 这是「管理员权限被谁在试探」的关键线索。
+ * reason 保留内部区分（step-up 是特权路径，不像匿名登录那样必须五态不可区分，见该端点注释）。
+ */
+function recordStepUpFail(request: FastifyRequest, method: 'totp' | 'passkey', reason: string): void {
+  recordEvent({
+    actorKind: 'admin',
+    actorId: request.artist.id,
+    ip: request.ip,
+    action: ACTIONS.stepupFail,
+    meta: { method, reason },
+    outcome: 'fail'
+  })
 }
 
 /** 限流守卫：不通过则抛 429 */
@@ -156,6 +210,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
       // requireAuth + 管理员身份校验），按内部 reason 保留锁定/重放的区分信息。
       const result = verifyTotpLogin(request.artist.qq_number, body.code, request.ip)
       if (!result.valid) {
+        // v86：二次验证失败的越权尝试是重点留存对象（此前零留痕，只有 401 响应与内存限流桶）
+        recordStepUpFail(request, 'totp', result.reason)
         if (result.reason === 'locked') {
           return reply.code(401).send({
             code: E.TOTP_LOCKED,
@@ -200,11 +256,14 @@ export default async function authRoutes(fastify: FastifyInstance) {
       if (err instanceof AppError && (
         err.code === E.WEBAUTHN_AUTHENTICATION_FAILED || err.code === E.WEBAUTHN_CHALLENGE_INVALID
       )) {
+        // v86：passkey 二次验证失败同样留痕（reason 记错误码，仅进 meta）
+        recordStepUpFail(request, 'passkey', err.code)
         return reply.code(401).send({ code: E.WEBAUTHN_AUTHENTICATION_FAILED, error: '身份验证失败，请重试' })
       }
       // 加固（旁路报告）：验证库抛出的非受控错误（如凭据形状异常）兼容为 401，避免裸 500 穿透
       if (!(err instanceof AppError)) {
         request.log.warn({ err }, 'step-up passkey 验证库异常，已兼容为 401')
+        recordStepUpFail(request, 'passkey', 'library_error')
         return reply.code(401).send({ code: E.WEBAUTHN_AUTHENTICATION_FAILED, error: '身份验证失败，请重试' })
       }
       throw err
@@ -247,6 +306,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
     // 登录留痕批（v72）：刷新上次登录时间+来源 IP（仅管理后台可见）
     recordLastLogin(result.artist.id, request.ip)
+    // v86：按次追加一条流水（上面那行是覆盖写，只留最后一次）
+    recordLoginSuccess(request, result.artist.id, 'totp', result.artist.qq_number)
 
     return signSession(result.artist, reply)
   })
@@ -299,6 +360,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
     const device = registerDesktopDevice(result.artist.id, deviceUuid, deviceName?.trim() || null, request.ip)
     // 登录留痕批（v72）复用：桌面登录同样刷新上次登录时间+来源 IP（仅管理后台可见）
     recordLastLogin(result.artist.id, request.ip)
+    // v86：桌面端登录按次追加流水（方式可区分：desktop）
+    recordLoginSuccess(request, result.artist.id, 'desktop', result.artist.qq_number)
 
     const token = createSession(result.artist.id, result.artist.token_version, { client: 'desktop', deviceId: device.id })
     return {
@@ -408,6 +471,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
       const { artist } = await verifyLogin(credential, reqHost(request), undefined, reqScheme(request))
       // 登录留痕批（v72）：刷新上次登录时间+来源 IP（仅管理后台可见）
       recordLastLogin(artist.id, request.ip)
+      // v86：passkey 登录按次追加流水（方式可区分：passkey）
+      recordLoginSuccess(request, artist.id, 'passkey', artist.qq_number)
       return signSession(artist, reply)
     } catch (err) {
       // 防枚举：统一认证失败响应
