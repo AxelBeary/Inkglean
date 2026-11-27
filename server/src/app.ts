@@ -13,20 +13,16 @@ import { resolve, join, relative, sep } from 'path'
 import { existsSync, readdirSync, statSync, renameSync, rmdirSync, createReadStream, ReadStream, mkdirSync, readFileSync, rmSync } from 'fs'
 import { initDatabase } from './db/init.js'
 import db from './db/connection.js'
+import { gcDatabaseTtl as gcDatabaseTtlModule } from './db/gc-database-ttl.js'
 import { verifyFileTokenDetailed, isPublicUploadPath, safeDecodeUploadPath } from './shared/file-sign.js'
 import { consumeAdminDeliverableDownload, consumeCustomerDeliverableDownload, isAdminDeliveryNonce, trackDeliverableTransfer } from './features/order/order-gallery.service.js'
-import { pruneIdempotencyKeys } from './shared/idempotency.js'
 import { isWeakSessionSecret } from './shared/secrets.js'
 import { ERROR_MESSAGES } from './shared/errors.js'
 import type { AppError } from './shared/errors.js'
 import { isSetupMode } from './features/setup/setup.service.js'  // REQ-038: 开箱设置守卫
 import { getAdminQq } from './shared/middleware/auth.js'  // P1 修复批：启动自检——管理员判定真值告警
-// R-2：管理审计留痕 TTL（保留期常量与清理函数同住 compliance.service，单一事实源）
-import { pruneAdminActions, ADMIN_ACTIONS_TTL_DAYS } from './features/compliance/compliance.service.js'
 import { buildOgMeta, injectOgMeta } from './features/og/og-meta.service.js'  // REQ-043 I1: OG 分享卡片
 import { requestLogUrl, sentryBeforeSend } from './shared/sentry-privacy.js'
-// v86（事件流水幕布步 1）：activity_events 分级 TTL 清理（抽件见该模块注释）
-import { gcActivityEvents } from './features/activity/activity.ttl.js'
 // M-5 拆分后保持既有测试/调用方 import 路径不变（sentry-privacy.test.ts 从 app.js 导入）
 export { sentryBeforeSend } from './shared/sentry-privacy.js'
 
@@ -199,85 +195,7 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
   // M-1 拆分动机：这几张表的清理不依赖文件系统，此前挂在 gcUploads 内、排在两处文件类
   // 早退（!existsSync(UPLOAD_ROOT) / 画师表为空）之后——首轮启动时甚至早于上传目录创建，
   // 导致开箱前永不清理。拆为独立函数后不受文件早退连坐，各表 try/catch 互不连坐。
-  const gcDatabaseTtl = () => {
-    try {
-      // created_at 与 tracking.service 写入/续期口径一致（SQLite datetime('now') 文本，UTC），
-      // 用 datetime('now', ?) 同款表达式比较，避免 JS ISO 字符串与库内格式混比。
-      const eventsDeleted = db.prepare("DELETE FROM events WHERE created_at < datetime('now', ?)").run(`-${EVENTS_TTL_DAYS} days`).changes
-      const anonDeleted = db.prepare("DELETE FROM anon_tokens WHERE created_at < datetime('now', ?)").run(`-${ANON_TOKENS_TTL_DAYS} days`).changes
-      if (eventsDeleted > 0 || anonDeleted > 0) {
-        app.log.info(`埋点 TTL 清理: events 删除 ${eventsDeleted} 条, anon_tokens 删除 ${anonDeleted} 条`)
-      }
-    } catch (err) {
-      app.log.warn(`埋点 TTL 清理失败: ${(err as Error).message}`)
-    }
-    try {
-      // 幂等键 TTL（审计批 D-2 接线）：幂等缓存只为防短时窗重复提交，24h 足够；超期行累积无意义。
-      const idemDeleted = pruneIdempotencyKeys(24)
-      if (idemDeleted > 0) {
-        app.log.info(`幂等键 TTL 清理: 删除 ${idemDeleted} 条`)
-      }
-    } catch (err) {
-      app.log.warn(`幂等键 TTL 清理失败: ${(err as Error).message}`)
-    }
-    try {
-      // GHSA-6pf3-g4xq-854w（Wave1·高）：未绑定参考图登记行 TTL。created_at 与埋点表同口径
-      //（SQLite datetime 文本，UTC），故用同款 datetime('now', ?) 比较，不引入 JS ISO 串混比。
-      // 只删未绑定行；已绑定行是订单归属凭据（F-10/v55），属业务数据不清。
-      const refDeleted = db.prepare(
-        "DELETE FROM reference_uploads WHERE order_id IS NULL AND created_at < datetime('now', ?)"
-      ).run(`-${REFERENCE_UPLOAD_TTL_DAYS} days`).changes
-      if (refDeleted > 0) {
-        app.log.info(`参考图 TTL 清理: reference_uploads 删除 ${refDeleted} 条未绑定登记（窗 ${REFERENCE_UPLOAD_TTL_DAYS} 天）`)
-      }
-    } catch (err) {
-      app.log.warn(`参考图 TTL 清理失败: ${(err as Error).message}`)
-    }
-    try {
-      // A1（v82）：未挂单过程稿台账行 TTL。绑定事实以 order_previews.file_path 为准，
-      // 已挂单行是业务凭据不清；删行后文件才失去 DB 引用，由孤儿回收按 72h 窗接手。
-      const previewDeleted = db.prepare(
-        `DELETE FROM preview_uploads
-         WHERE created_at < datetime('now', ?)
-           AND NOT EXISTS (SELECT 1 FROM order_previews p WHERE p.file_path = preview_uploads.file_path)`
-      ).run(`-${PREVIEW_UPLOAD_TTL_DAYS} days`).changes
-      if (previewDeleted > 0) {
-        app.log.info(`过程稿 TTL 清理: preview_uploads 删除 ${previewDeleted} 条未挂单台账（窗 ${PREVIEW_UPLOAD_TTL_DAYS} 天）`)
-      }
-    } catch (err) {
-      app.log.warn(`过程稿 TTL 清理失败: ${(err as Error).message}`)
-    }
-    try {
-
-      // R-2（2026-11-28）：管理审计留痕 TTL。此前 admin_actions 只增不删（全仓零 DELETE），
-      // 是全站唯一「永久增长且不可再生」的表——删掉的历史留痕没有第二个来源可还原。
-      // 保留期见 compliance.service.ADMIN_ACTIONS_TTL_DAYS（1095 天 / 3 年，写死不做 env：
-      // 这条 TTL 配错等于不可逆的数据丢失，取值权收归代码评审）。
-      // 与其它表分 try/catch：留痕清理失败不得连坐埋点/幂等/上传台账的清理。
-      const actionsDeleted = pruneAdminActions()
-      if (actionsDeleted > 0) {
-        app.log.info(`管理留痕 TTL 清理: admin_actions 删除 ${actionsDeleted} 条（窗 ${ADMIN_ACTIONS_TTL_DAYS} 天）`)
-      }
-    } catch (err) {
-      app.log.warn(`管理留痕 TTL 清理失败: ${(err as Error).message}`)
-    }
-    try {
-      // v86（D4=B 分级保留）：activity_events 三档 TTL。分档逻辑与「为何用排除法」
-      // 见 features/activity/activity.ttl.ts 的模块注释；本段只负责按 env 传参 + 日志。
-      const activity = gcActivityEvents({
-        admin: ACTIVITY_ADMIN_TTL_DAYS,
-        auth: ACTIVITY_AUTH_TTL_DAYS,
-        other: ACTIVITY_OTHER_TTL_DAYS
-      })
-      if (activity.deleted > 0) {
-        app.log.info(
-          `事件流水 TTL 清理: activity_events 删除 ${activity.deleted} 条（认证 ${activity.auth}/${ACTIVITY_AUTH_TTL_DAYS} 天, 交易上传 ${activity.trade}/${ACTIVITY_OTHER_TTL_DAYS} 天, 管理动作 ${activity.admin}/${ACTIVITY_ADMIN_TTL_DAYS} 天）`
-        )
-      }
-    } catch (err) {
-      app.log.warn(`事件流水 TTL 清理失败: ${(err as Error).message}`)
-    }
-  }
+  const gcDatabaseTtl = () => gcDatabaseTtlModule(app.log, { events: EVENTS_TTL_DAYS, anonTokens: ANON_TOKENS_TTL_DAYS, referenceUpload: REFERENCE_UPLOAD_TTL_DAYS, previewUpload: PREVIEW_UPLOAD_TTL_DAYS, activityAdmin: ACTIVITY_ADMIN_TTL_DAYS, activityAuth: ACTIVITY_AUTH_TTL_DAYS, activityOther: ACTIVITY_OTHER_TTL_DAYS })
 
   // ─── 孤儿文件回收（内联执行 + 启动时立即跑一次）───
   // 事故修复：删除→移入回收站（.recycle-bin/YYYY-MM-DD/），画师表空时跳过
