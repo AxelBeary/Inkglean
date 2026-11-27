@@ -1,9 +1,12 @@
 // CC-1 回归：手动录单「复合写」幂等——create 之后的后置写失败，重试不得再建一张订单
 // 覆盖：
 //   1. addExtraItem 失败 → emit submit-partial（带 failedSteps），不发 submit-success
-//   2. 重提只重放失败步骤：createManualOrder 仍只调 1 次；增项派生键 `${key}:extra:0` 与首轮一致（服务端可去重）
+//   2. 重提只重放失败步骤：createManualOrder 仍只调 1 次；增项派生键与首轮一致（服务端可去重）
 //   3. 全链成功 → emit submit-success + 换新 key（下一次是新意图）
 //   4. 上锁先于 await：同一时刻两次提交只发一次 create
+//   5. B-1 回归：增项派生键必须是**服务端合规**的（长度 ≤64 且 [A-Za-z0-9-]），且不同增项互不相同——
+//      PR #116 原先直接拼 `${idemKey}:extra:${uid}` = 82 字符 + 冒号，被 server readIdempotencyKey 判 400，
+//      自定义增项永远写不进、重试永远失败。这组断言防再写坏。
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { ElInputNumber } from 'element-plus'
@@ -160,8 +163,34 @@ describe('ManualOrderRight 复合写幂等回归（CC-1）', () => {
     expect(h.extraCalls).toHaveLength(2)
     expect(h.extraCalls[1].priceCents).toBe(5000)
     expect(h.extraCalls[1].key).toBe(h.extraCalls[0].key)
+    // B-1：派生键必须合规（长度 ≤64、纯 [A-Za-z0-9-]），否则真服务端必 400
+    for (const call of h.extraCalls) {
+      expect(call.key.length).toBeLessThanOrEqual(64)
+      expect(call.key).toMatch(/^[A-Za-z0-9-]+$/)
+      expect(call.key).not.toContain(':')
+    }
     expect(wrapper.emitted('submit-success')).toHaveLength(1)
     expect((wrapper.emitted('submit-success')![0][0] as { postCreateFailed: string | null }).postCreateFailed).toBeNull()
+
+    wrapper.unmount()
+  })
+
+  it('B-1 回归：多条自定义增项的派生键各自合规且互不相同（不因共用 idemKey 被服务端合并）', async () => {
+    const wrapper = mountComp()
+    await flushPromises()
+    await selectSizeAndWaitCalc(wrapper)
+    await addCustomAddon(wrapper, '加急费', 50)
+    await addCustomAddon(wrapper, '背景费', 80)
+
+    await submitOnce(wrapper)
+    expect(h.extraCalls).toHaveLength(2)
+    // ① 两条都合规（≤64 + 服务端字符集）
+    for (const call of h.extraCalls) {
+      expect(call.key.length).toBeLessThanOrEqual(64)
+      expect(call.key).toMatch(/^[A-Za-z0-9-]+$/)
+    }
+    // ② 必须按 uid 区分：若退化成同一个键，第二次会被服务端当成重放而**静默丢弃**（只加一项）
+    expect(h.extraCalls[0].key).not.toBe(h.extraCalls[1].key)
 
     wrapper.unmount()
   })

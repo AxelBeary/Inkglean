@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <!-- ═══ 右栏：价格信息（v0.42 拆分：自 ManualOrder.vue 拆分搬移，零行为变化；v127⑥ 改名） ═══ -->
   <section class="mo-col">
     <h3 class="mo-section">{{ $t('manualOrder.rightTitle') }}</h3>
@@ -230,6 +230,7 @@ import { useManualOrderPricing } from '../../../composables/useManualOrderPricin
 import { formatCents, formatYuanValue, yuanToCents } from '../../../utils/money'
 import { safeGetItem, safeSetItem } from '../../../utils/storage'
 import { generateId } from '../../../utils/id'
+import { deriveIdempotencyKey } from '../../../utils/hash'
 import { shouldRotateIdempotencyKey } from '../../../utils/idempotency'
 // F-09 巨型文件拆分批·丁：价格明细 / 自定义增项 / 移动端价格条三块哑子组件（纯搬移零行为变化）
 import MoPricePreview from './detail/MoPricePreview.vue'
@@ -349,13 +350,15 @@ async function runPostCreate(order: OrderDetail, idemKey: string, only?: PostCre
   // R5 (REQ-029): 自定义增项补写——createOrder 无自定义条目字段，创建后逐条调 extra-items 接口。
   // 带派生幂等键（该端点已消费同一 header）：请求成功但响应丢失时重试不会重复加项。
   // 键取增项自身的 uid（不用下标：删掉前面一项会让下标复用，旧键回放导致新项没写入却判成功）。
+  // B-1：派生键必须走 deriveIdempotencyKey（sha256 hex 截断），**不能**直接拼 `${idemKey}:extra:${uid}`——
+  // 那样拼出的是 82 字符且含冒号，撞服务端 readIdempotencyKey 的 ≤64 + [A-Za-z0-9-] → 端点恒 400。
   if (shouldRun('extraItem') && customAddons.value.length > 0) {
     for (const item of customAddons.value) {
       try {
         await artistApi.addExtraItem(
           order.id,
           { name: item.name, priceCents: Math.round((Number(item.priceYuan) || 0) * 100) },
-          { headers: { 'idempotency-key': `${idemKey}:extra:${item.uid}` } }
+          { headers: { 'idempotency-key': deriveIdempotencyKey(idemKey, 'extra', item.uid) } }
         )
       } catch (e) {
         mark('extraItem', t('manualOrder.postCreateFailed.extraItem', { name: item.name, message: (e as Error).message }))
