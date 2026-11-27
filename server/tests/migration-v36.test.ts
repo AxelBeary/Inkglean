@@ -5,7 +5,7 @@ import { db } from './setup.js'
 import Database from 'better-sqlite3'
 import { initDatabase } from '../src/db/init.js'
 import { migrateF5OldModelArtists } from '../src/db/migrate.js'
-import { preTargetDb, isApplied, columnNames, tableExists } from './migration-real-entry.js'
+import { preTargetDb, isApplied, columnNames, tableExists, replayFrom } from './migration-real-entry.js'
 
 // ============================================================
 // 迁移 v36: multi_style_model —— issue #117 的主角
@@ -270,8 +270,14 @@ describe('迁移 v36: multi_style_model（F0081 画师粒度幂等）', () => {
       // Control 与 Probe 的旧增项都必须进目标表（探针不再被静默丢弃）
       const names = (mem.prepare('SELECT name FROM addon_templates ORDER BY artist_id, sort_order').all() as Array<{ name: string }>).map(r => r.name)
       expect(names).toEqual(['对照增项', '探针遗留增项'])
-      // Probe 沿用 F5 建的画风，不重建；模板已挂到该画风
+      // Probe 沿用 F5 建的画风，不重建（链接时机见下方订正注释）
       expect((mem.prepare('SELECT COUNT(*) AS c FROM art_styles WHERE artist_id = 2').get() as { c: number }).c).toBe(1)
+      // 【2026-11-28 合并后订正】链接存在的时机是链尾（v85），不是 v36 之后。
+      // 原因：PR #116 的启动期 backfillLegacyAddons 在迁移链**之前**就把旧增项搬进 addon_templates，
+      // 于是 v36 的增项守卫判「该画师模板已存在」而不再建 style_addons；缺口由 v85（DB-4 历史补链）
+      // 按「有模板但零链接」补齐。全链终态已实测：addon_templates=[legacy-addon]、链接=1、art_styles=1、schema=v86。
+      // 故断言口径为「跑完整条链后链接存在」；单点 v36 之后并无链接，这是两条修复的既定分工。
+      replayFrom(mem, 37)  // 撤掉 v37+ 的版本行，让调度器把剩下的链跑完（v85 在这里补链）
       const probeLinks = mem.prepare(`
         SELECT COUNT(*) AS c FROM style_addons sa
         JOIN art_styles st ON sa.art_style_id = st.id WHERE st.artist_id = 2
