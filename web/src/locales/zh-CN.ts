@@ -854,6 +854,26 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
   },
   landing: {
     title: '拾绘 Inkglean', subtitle: '找到你喜欢的画师，开始约稿',
+    // A 批（2026-11-28）：首屏价值说明。客户向定位句为本批新写文案，待制作人过目；
+    // 画师向话术不在此处，见 landing.artistBannerText（REQ-044 A 项第一层定稿，逐字引用）
+    heroLead: '挑一位合眼缘的画师，看价目、下单、查进度，都不用离开这里。',
+    valuePriceTitle: '价目写在明处',
+    valuePriceDesc: '每个画风、每个尺寸多少钱，画师主页上直接列出来，下单前就能算清。',
+    valueTrackTitle: '进度随时可查',
+    valueTrackDesc: '下单后拿到专属查单链接，画到哪一步了随时回来看，不用催。',
+    valueFlowTitle: '流程留成记录',
+    valueFlowDesc: '需求、修改、交付都在同一条流水里，不必再翻聊天记录找回上下文。',
+    browseArtists: '看看有哪些画师',
+    directoryTitle: '画师目录',
+    artistCount: '共 {total} 位画师 · {open} 位可约稿',
+    loadingArtists: '正在加载画师列表',
+    errorDesc: '页面没能拿到画师列表，通常是网络或服务端临时故障，稍后再试一次即可。',
+    emptyDesc: '还没有画师完成上架设置。等第一位画师开通主页，这里就能看到他的画风与价目。',
+    // Q1 兜底 (c)：目录下方的画师向横幅。artistBannerText 逐字引用 REQ-044 A 项第一层定稿话术，
+    // REQ-044:37 已拍板「不得自行改动此句」——改字/改标点都要重新拍板
+    artistBannerTitle: '你是画师？',
+    artistBannerText: '把 QQ 接单、Excel 记账、备忘录排期，换成一个网站——客户自助下单查单，你只管画。',
+    artistBannerCta: '画师登录',
     noBio: '这位画师还没有写简介',
     noArtists: '还没有画师入驻', loadFailed: '加载画师列表失败',
   },
