@@ -6,6 +6,20 @@
 > - 滚动分册：活档体积门 `scripts/check-changelog-size.mjs`（≤40KB / ≤450 行，单段 ≤4KB，accept 第 19 道）；撞线即搬 oldest 段入 `docs/changelog-archive/` 新卷（整段零改动 + 逐行哈希校验，禁调高阈值续命）。
 > - v0.x 时代（v0.1~v0.46+）全量台账在 `docs/changelog-archive/changelog-v0-20260927.md`，只读历史。
 
+## PR #116 同步 + 交叉审计复核修复（2026-11-27）
+
+- **PR #116 同步 master**：分支原基于 `0b3c5db2`，已 merge `origin/master`（`94f40bfd`，含 #114/#115）→ `5ffb6b6d`；16 个冲突逐项取舍（13 取 master 已等价修好的实现、2 两侧合并、1 保留 PR116 独有改动），PR116 用例 0 删（218→237 全绿）。
+- **M-1 不可达补修（DB-1，high）**：v36 守卫改写对**已记录 v36 的库**永不重放（F5 只在 v37 跑）→ 改在 `initDatabase` 迁移链**之前**做一次性历史搬运：只要 `price_addons` 仍在（v43 之前的所有库，含 **pre-v36 老库**）就按 `(artist_id,name)` 逐名补搬，不依赖 `art_styles`；v36 保持冻结。≥v43 库旧增项已随 v43 DROP，**不可恢复**，登记待人工重录（核对 SQL 见 issue）。
+- **迁移 v85（DB-4）**：为「有增项模板但整库零 `style_addons`」的画师把模板挂回首个画风（`INSERT OR IGNORE` 幂等）；判据不覆盖「用户主动清空」，不拿迁移盖人的选择。
+- **备份保留（XVA-1）**：prune 强制保留本次快照，修掉「恢复到旧版本再升级」时刚产出的迁移前快照被自己删掉、破坏性迁移失去回滚快照的问题。
+- **上传清理引用保护（SEC-1）**：cleanup 删前一次 `IN (...)` 查 4 张引用表（作品集/画风封面/头像/尺寸示例图），命中整单 409 `UPLOAD_IN_USE`；`ENOENT` 单列 `missing`，前端类型与提示口径同步（409 静默、不误报网络故障）。
+- **Sentry 白名单化（SEC-3）**：顶层 / request / 栈帧 / 面包屑四段白名单重建 + 自由文本按凭据形状 scrub；补第 7 面 `localVariablesIntegration` 的 `frame.vars` 局部变量快照。
+- **金额镜像（MONEY-2）**：server 镜像溢出兜底改与 shared 逐字同式，parity 值表补 6 个边界（含负向溢出 = `-Infinity`）。
+- **B-1 回归 + 孤儿增项单源（SEC-2 / CONTRACT-1 / XVB-2）**：B-1 补 4 条组件分流用例（判据：改回缺陷代码必红）；孤儿行启用/互斥改走 F0192 单事务端点（按行 id、服务端推导互斥含孤儿），删掉整套前端反向补偿。
+- **下期应付与报价守卫（MONEY-1 / CONTRACT-4）**：`nextDueCents === 0 && 订单级待收 > 0` 时取订单级待收；`submit()` 在两次 `await` 之后复检 `priceBlocking`。
+- **E2E 预算（XVB-1）**：e8 单独 `retries: 0`，避免重试把失败登录预算重算、撞服务端第 5 次锁放大失败。
+- **验证**：定向回归 53 文件 / 473 用例全绿；全量串行读数与四道防阀见 `AGENTS/xdebug-20261127/fix/GATE*.md`；本机无 pwsh/浏览器/cargo，未跑 accept.ps1 十九道、Playwright E2E、cargo test。
+
 ## PR #114 审计修复：Sentry 脱敏 / 画师侧增项守卫 / 弱密钥口径（2026-11-26）
 
 - **Sentry 令牌脱敏（M-5）**：`beforeSend` 改白名单只保留 `url`/`method`，清除 `request.headers`/`cookies`/`data`/`query_string` 与 breadcrumb 内 header 字段；F0179 后走 `x-order-token` header 的订单令牌不再随 5xx 上报第三方 DSN。核对 @sentry/node 10.78.0：`sendDefaultPii:false` 只过滤 span 属性，**不过滤** `event.request.headers`，必须自行清理。
