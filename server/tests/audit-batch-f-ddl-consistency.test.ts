@@ -25,11 +25,6 @@ import { initDatabase, schema, schemaIndexes, MIGRATIONS } from '../src/db/init.
  *   种子无法表达，由 v50 重建后新库基线供给（见 init.js v49 内 F-6 注释）。
  */
 
-/** schema_migrations 行 */
-interface MigrationVersionRow {
-  version: number
-}
-
 /** sqlite_master 表名行 */
 interface TableNameRow {
   name: string
@@ -228,26 +223,20 @@ CREATE TABLE IF NOT EXISTS login_codes (
 );
 `
 
-/** 与 initDatabase 相同的迁移执行语义（noTransaction 事务外，其余包事务） */
+/**
+ * B 库（老库升级路径）：v1 基线 + 真实迁移调度器。
+ *
+ * 【issue #117 判据】这里原本是一份手工复刻的调度循环（自己 if noTransaction 分支、
+ * 自己 INSERT 版本行、自己 exec(schemaIndexes)）——与 migrate.ts 的真实语义是**两份实现**，
+ * 一旦 migrate.ts 改了（事务纪律、版本行写法、索引时机），此处不会跟着变，B 库就
+ * 悄悄测的是另一套语义。现在直接交给 initDatabase：B 库的 schema_migrations 预置为
+ * 「只有 v1 之前」的空表，真实调度器会自己从 v1 一路跑到链尾。
+ *
+ * 注意：initDatabase 的第一步是 exec(schema)（IF NOT EXISTS），对 v1 基线库而言
+ * 它补齐缺失表、不动已有表——这正是真实老库升级的第一步，故这里不额外 exec(schema)。
+ */
 function applyMigrationChain(database: Database.Database): void {
-  const applied = new Set(
-    (database.prepare('SELECT version FROM schema_migrations').all() as MigrationVersionRow[]).map(r => r.version)
-  )
-  for (const migration of MIGRATIONS) {
-    if (applied.has(migration.version)) continue
-    if (migration.noTransaction) {
-      migration.up(database)
-      database.prepare('INSERT INTO schema_migrations (version, name) VALUES (?, ?)')
-        .run(migration.version, migration.name)
-    } else {
-      database.transaction(() => {
-        migration.up(database)
-        database.prepare('INSERT INTO schema_migrations (version, name) VALUES (?, ?)')
-          .run(migration.version, migration.name)
-      })()
-    }
-  }
-  database.exec(schemaIndexes)
+  initDatabase(database)
 }
 
 /** 表 → 列清单（PRAGMA table_info，按列名排序） */
@@ -307,8 +296,6 @@ describe('审计批 F-6: DDL 双事实源一致性（完整 schema vs v1 起步 
     const dbB = new Database(':memory:')
     dbB.pragma('foreign_keys = ON')
     dbB.exec(V1_BASELINE_SQL)
-    dbB.exec('CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at DATETIME DEFAULT CURRENT_TIMESTAMP)')
-    dbB.exec('CREATE TABLE IF NOT EXISTS platform_config (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
     expect(() => applyMigrationChain(dbB)).not.toThrow()
 
     const snapshotA = snapshotSchema(dbA)
@@ -341,8 +328,6 @@ describe('审计批 F-6: DDL 双事实源一致性（完整 schema vs v1 起步 
     const dbB = new Database(':memory:')
     dbB.pragma('foreign_keys = ON')
     dbB.exec(V1_BASELINE_SQL)
-    dbB.exec('CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at DATETIME DEFAULT CURRENT_TIMESTAMP)')
-    dbB.exec('CREATE TABLE IF NOT EXISTS platform_config (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
     expect(() => applyMigrationChain(dbB)).not.toThrow()
     const fkA = snapshotForeignKeys(dbA)
     const fkB = snapshotForeignKeys(dbB)
@@ -359,8 +344,6 @@ describe('审计批 F-6: DDL 双事实源一致性（完整 schema vs v1 起步 
       } else {
         database.pragma('foreign_keys = ON')
         database.exec(V1_BASELINE_SQL)
-        database.exec('CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at DATETIME DEFAULT CURRENT_TIMESTAMP)')
-        database.exec('CREATE TABLE IF NOT EXISTS platform_config (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
         applyMigrationChain(database)
       }
       for (const { table, index } of KEY_INDEXES) {
@@ -382,8 +365,6 @@ describe('审计批 F-6: DDL 双事实源一致性（完整 schema vs v1 起步 
       } else {
         database.pragma('foreign_keys = ON')
         database.exec(V1_BASELINE_SQL)
-        database.exec('CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at DATETIME DEFAULT CURRENT_TIMESTAMP)')
-        database.exec('CREATE TABLE IF NOT EXISTS platform_config (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
         applyMigrationChain(database)
       }
       const sql = tableCreateSql(database, 'discount_codes')
