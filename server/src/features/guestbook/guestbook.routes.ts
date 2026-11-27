@@ -6,6 +6,8 @@ import * as guestbookService from './guestbook.service.js'
 import * as complianceService from '../compliance/compliance.service.js'
 import * as artistService from '../artist/artist.service.js'
 import { isArtistHomeInvisible } from '../artist/artist-visibility.service.js'
+// v86（事件流水幕布步 1）：留言提交落流水（匿名但有后果的动作）
+import { recordEvent, ACTIONS } from '../activity/activity.service.js'
 import type { FastifyInstance } from 'fastify'
 import type { Artist } from '../../types/entities.js'
 
@@ -68,6 +70,18 @@ export default async function guestbookRoutes(fastify: FastifyInstance) {
       // v75 取证 IP：同一个值刚用于限流，直接复用（辱骂/侵权/威胁留言要能查到来源）
       request.ip
     )
+    // v86（事件流水幕布步 1）：留言提交进流水。actor_kind='anon'（留言无需登录，
+    // 属「匿名但有后果」的动作，不在 D3=B 排除的访客浏览范围）；IP 原值同 v75 正文列口径。
+    recordEvent({
+      actorKind: 'anon',
+      actorId: null,
+      ip: request.ip,
+      action: ACTIONS.guestbookPost,
+      targetType: 'artist',
+      targetId: artist.id,
+      meta: { messageId: msg?.id ?? null, language: body.language || 'zh-CN' },
+      outcome: 'ok'
+    })
     // REQ-042: 留言命中敏感词 → warning 提示（不硬拦，先发后审）
     const sensitiveWords = findSensitiveWords(body.content)
     return reply.code(201).send(

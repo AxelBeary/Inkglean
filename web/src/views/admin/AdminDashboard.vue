@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="admin-page">
     <!-- 页头：标题 + 说明 -->
     <div class="admin-page-head">
@@ -163,6 +163,14 @@
         </el-card>
       </div>
     </div>
+
+    <!-- v86 事件流水幕布：实时流水（认证 / 管理动作 / 交易上传），轮询 5 秒、可暂停可筛选。
+         通栏放在双栏之后：时间线五列需要宽度，也避免插进右栏把既有筛选控件的 DOM 顺序挤位。
+         抽成独立组件（components/admin/ActivityFeed.vue）——本页已 430 行，幕布带轮询 +
+         筛选 + 三态横幅，内联会直接撞 scripts/check-file-size.mjs 的 800 行硬线。 -->
+    <el-card shadow="never" class="admin-section-card afeed-card">
+      <ActivityFeed />
+    </el-card>
   </div>
 </template>
 
@@ -173,6 +181,8 @@ import type { GlobalStats, AdminArtistItem, AdminGuestbookMessage, AdminMessageF
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { formatDateTime } from '../../utils/datetime'
+// v86 事件流水幕布（步 2）：抽件到 components/admin，避免本页撞 800 行硬线
+import ActivityFeed from '../../components/admin/ActivityFeed.vue'
 import { ARTIST_STATUS_TYPE } from '../../constants/order'
 import type { EpTagType } from '../../constants/order'
 

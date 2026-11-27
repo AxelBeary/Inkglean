@@ -10,6 +10,8 @@ import { generateCustomerToken, getOrder, hashCustomerToken } from './order-read
 import { appendPriceEntry, checkOrderConservation } from './order-pricing.js'
 import { MAX_MONEY_CENTS } from './order-limits.js'
 import { sanitizeStoredText } from '../../shared/sanitize.js'
+// v86（事件流水幕布步 1）：下单进流水（事务内写，与订单同成同败）
+import { recordEvent, ACTIONS } from '../activity/activity.service.js'
 
 // ============================================
 // 订单服务 - 下单子域（从 order.service.ts 拆出）
@@ -94,6 +96,11 @@ export interface CreateOrderParams {
   styleAddons?: Array<{ styleAddonId: number; quantity?: number }>
   // F-10（P2-13 后端侧）: 已解析的匿名凭证 id（客户上传参考图的归属者；无参考图/画师手动录单为 null）
   anonId?: number | null
+  /**
+   * v86（事件流水幕布步 1）：下单来源 IP，仅供 activity_events 记录（orders 表无 ip 列，也不加）。
+   * 由路由层 request.ip 透传；测试直调等无 HTTP 上下文时可缺省（null 不写占位串）。
+   */
+  ip?: string | null
 }
 
 /**
@@ -104,7 +111,7 @@ export interface CreateOrderParams {
  * 返回对象附带 customerToken 明文（仅调用方可拿到一次）；订单号保持 CODE-xxx
  * 人类友好，安全由令牌承担（用户拍板）。
  */
-export function createOrder({ artistId, clientQq, clientName, description, priority, source, clientNotify, references, discountCode, styleSizeId, styleAddons, anonId }: CreateOrderParams): OrderDetail & { customerToken: string } {
+export function createOrder({ artistId, clientQq, clientName, description, priority, source, clientNotify, references, discountCode, styleSizeId, styleAddons, anonId, ip }: CreateOrderParams): OrderDetail & { customerToken: string } {
   return db.transaction(() => {
     const artist = db.prepare('SELECT * FROM artists WHERE id = ?').get(artistId) as Artist | undefined
     if (!artist) throw new AppError(E.ARTIST_NOT_FOUND)
@@ -206,6 +213,22 @@ export function createOrder({ artistId, clientQq, clientName, description, prior
     )
 
     const orderId = Number(result.lastInsertRowid)
+
+    // v86（事件流水幕布步 1）：下单成功进流水。
+    // 写在建单事务内 → 与订单同成同败（下单回滚时不留孤立的「下单成功」事件）。
+    // actor_kind：source==='self' 是客户自助（client）、'manual' 是画师代录（artist）；
+    // actor_id 自助单为 NULL（客户不是画师账号），代录单记操作画师。
+    // IP 原值（D2=A）；meta 只放排障字段（订单号/来源/分区），不含客户 QQ 与文案。
+    recordEvent({
+      actorKind: source === 'manual' ? 'artist' : 'client',
+      actorId: source === 'manual' ? artistId : null,
+      ip,
+      action: ACTIONS.orderCreate,
+      targetType: 'order',
+      targetId: orderId,
+      meta: { orderNo, source: source || 'self', queueZone },
+      outcome: 'ok'
+    })
 
     // v0.31 F3: 折扣码使用次数 +1（事务内，下单失败自动回滚）
     if (discountCodeId) incrementUsage(discountCodeId)

@@ -1,4 +1,6 @@
 import * as complianceService from './compliance.service.js'
+// v86（事件流水幕布步 1）：举报提交落流水（匿名但有后果的动作）
+import { recordEvent, ACTIONS } from '../activity/activity.service.js'
 import { requireAdmin, getAdminQq } from '../../shared/middleware/auth.js'
 import { registerAdminStepUpHooks } from '../../shared/middleware/step-up.js'
 import { rateLimit } from '../../shared/middleware/rate-limit.js'
@@ -185,6 +187,19 @@ export default async function complianceRoutes(fastify: FastifyInstance) {
       contact: body.contact ?? null,
       // v75 取证 IP：同一个值刚用于限流（限流用完即丢，落库后才谈得上事后追溯），直接复用
       reportIp: request.ip
+    })
+    // v86（事件流水幕布步 1）：举报提交进交易/上传线流水。
+    // actor_kind='anon'：举报匿名可提交，**这是「匿名但有后果」的动作**，不属于 D3=B 排除的
+    // 访客浏览范围；actor_id 记 anon_id（未登录留 NULL，不伪造主体）。
+    recordEvent({
+      actorKind: 'anon',
+      actorId: null,
+      ip: request.ip,
+      action: ACTIONS.reportSubmit,
+      targetType: 'report',
+      targetId: report?.id ?? null,
+      meta: { targetType: body.targetType, targetId: body.targetId ?? null },
+      outcome: 'ok'
     })
     return reply.code(201).send({ id: report?.id })
   })

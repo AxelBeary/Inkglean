@@ -66,6 +66,8 @@ export function cleanDb(): void {
     DELETE FROM guestbook_messages;
     DELETE FROM reports;
     DELETE FROM admin_actions;
+    -- v86（事件流水幕布）：无外键但跨用例会污染事件断言，显式清（本清单是手写枚举，漏表即串数据）
+    DELETE FROM activity_events;
     DELETE FROM artwork_size_tags;
     DELETE FROM size_addon_overrides;
     DELETE FROM style_addons;

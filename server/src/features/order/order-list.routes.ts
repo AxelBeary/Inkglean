@@ -166,7 +166,9 @@ export async function orderListRoutes(fastify: FastifyInstance) {
       references: references || [],
       discountCode: discountCode || null,
       styleSizeId: styleSizeId || null,
-      styleAddons: styleAddons || []
+      styleAddons: styleAddons || [],
+      // v86：手动录单同样记来源 IP（排障：谁在哪个网络环境代客户建单）
+      ip: request.ip
     }
     // 审计 #21 条目 3: 同一幂等键换录单内容 → 409，不静默回放首单（指纹即建单入参）
     const result = withIdempotency(`manual-order:${request.artist.id}`, idempotencyKey, () => {

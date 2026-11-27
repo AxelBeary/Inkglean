@@ -3,6 +3,8 @@ import * as artistService from '../artist/artist.service.js'
 import * as guestbookService from '../guestbook/guestbook.service.js'
 import { sanitizeStoredText } from '../../shared/sanitize.js'
 import { localDateRangeToUtc } from '../../utils/date.js'
+// v86（事件流水幕布步 1）：管理动作同事务双写流水——单点接线，一处覆盖全部 12 类动作
+import { recordEvent } from '../activity/activity.service.js'
 
 // ============================================
 // 合规与内容安全服务（REQ-042）
@@ -239,7 +241,18 @@ export function setArtistBanned(
   return true
 }
 
-/** 写处理留痕（created_at 由表 DEFAULT 提供；adminIp = 路由层 request.ip，v75 取证） */
+/**
+ * 写处理留痕（created_at 由表 DEFAULT 提供；adminIp = 路由层 request.ip，v75 取证）
+ *
+ * v86（事件流水幕布步 1）：**同事务双写** activity_events。
+ *   单点接线——全部 12 类管理动作（合规域 7 类 + 账号域 5 类）都经本函数，一处覆盖所有调用点，
+ *   不做散弹式逐个路由改造（散弹改造必然漏挂，d2 猎杀那轮就是先例）。
+ *   两表语义分工：admin_actions = 法定账本（永久、REQ-042 §七 验收 4）；
+ *   activity_events = 展示副本（分级 TTL 滚动，到期丢的只是副本）。
+ *   本函数不自开事务：调用点（removeContent / resolveReport / takedownArtistHome / ...
+ *   以及 admin-system.routes 的 admin_transfer 事务）都已在外层事务内，
+ *   两次 INSERT 因此共享同一回滚单元 —— 要么两表都有，要么都没有，绝不留半截账。
+ */
 export function writeAdminAction(
   adminId: number,
   action: string,
@@ -249,18 +262,26 @@ export function writeAdminAction(
   adminIp?: string | null
 ): void {
   const safeReason = sanitizeStoredText(reason)
+  const storedReason = safeReason.trim() ? safeReason.trim().slice(0, 500) : null
+  const storedIp = adminIp ? String(adminIp).slice(0, IP_COLUMN_MAX) : null
   db.prepare(`
     INSERT INTO admin_actions (admin_id, action, target_type, target_id, reason, admin_ip)
     VALUES (?, ?, ?, ?, ?, ?)
-  `).run(
-    adminId,
+  `).run(adminId, action, targetType, targetId, storedReason, storedIp)
+
+  // 双写流水（同事务）：action 原样沿用 admin_actions.action，便于两表按 action 对账；
+  // 管理员动作一律 actor_kind='admin'（IP 原值，D2=A）。
+  recordEvent({
+    actorKind: 'admin',
+    actorId: adminId,
+    ip: adminIp,
     action,
     targetType,
     targetId,
-    safeReason.trim() ? safeReason.trim().slice(0, 500) : null,
-    // 未传 IP → NULL（测试直调等无 HTTP 上下文的路径本就没有来源可记）
-    adminIp ? String(adminIp).slice(0, IP_COLUMN_MAX) : null
-  )
+    // reason 只进 meta（排障/追溯用），不额外出现在任何响应体
+    meta: storedReason ? { reason: storedReason } : null,
+    outcome: 'ok'
+  })
 }
 
 /**

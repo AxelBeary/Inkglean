@@ -9,6 +9,8 @@ import { signedUrl } from '../../shared/file-sign.js'
 import { AppError, E } from '../../shared/errors.js'
 import { getDiskHeadroom } from '../admin/health.service.js'
 import * as trackingService from '../tracking/tracking.service.js'
+// v86（事件流水幕布步 1）：参考图上传落流水
+import { recordEvent, ACTIONS } from '../activity/activity.service.js'
 import db from '../../db/connection.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 
@@ -439,6 +441,19 @@ export default async function uploadRoutes(fastify: FastifyInstance, opts: { upl
       // v77（GHSA-6pf3-g4xq-854w）：一并登记 request.ip 与落盘真实字节数，供配额 SUM 使用
       db.prepare('INSERT INTO reference_uploads (anon_id, file_path, ip, file_size) VALUES (?, ?, ?, ?)')
         .run(anonId, result.filePath, request.ip, result.size)
+      // v86（事件流水幕布步 1）：参考图上传进流水。actor_kind='anon'——上传者靠匿名令牌识别、
+      // 不是登录画师（D3=B 排除的是访客浏览，不排除匿名但有后果的上传动作）。
+      // 只记字节数，不记文件名（原文件名可能含客户信息）。
+      recordEvent({
+        actorKind: 'anon',
+        actorId: null,
+        ip: request.ip,
+        action: ACTIONS.referenceUpload,
+        targetType: null,
+        targetId: null,
+        meta: { bytes: result.size, anonId },
+        outcome: 'ok'
+      })
 
       return {
         filePath: result.filePath,

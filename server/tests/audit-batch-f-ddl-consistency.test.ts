@@ -77,6 +77,8 @@ const KEY_INDEXES: Array<{ table: string; index: string }> = [
   { table: 'greeting_templates', index: 'idx_greeting_artist' }, // v06
   { table: 'greeting_templates', index: 'idx_greeting_templates_special_day' }, // v64 + schemaIndexes（F0101 修补）
   { table: 'preview_uploads', index: 'idx_preview_uploads_artist' }, // v82 + schemaIndexes
+  { table: 'activity_events', index: 'idx_activity_events_at' }, // v86 + schemaIndexes
+  { table: 'activity_events', index: 'idx_activity_events_actor_at' }, // v86 + schemaIndexes
 ]
 
 /**
@@ -425,9 +427,10 @@ describe('审计批 F-6: DDL 双事实源一致性（完整 schema vs v1 起步 
       expect(sql, `存量旧形库不应被补上 ${check}`).not.toContain(check)
     }
     // 关键：裁定生效——未新增迁移号来重建存量 discount_codes 表。
-    // 迁移总数随 PR114 MINOR-2 的 v84（DROP 冗余 idx_invite_codes_code）从 83 增至 84，
-    // 交叉审计 DB-4 的 v85（style_addons 历史补链）增至 85。
-    expect(MIGRATIONS.length).toBe(85)
+    // 迁移总数：PR114 MINOR-2 的 v84（DROP 冗余 idx_invite_codes_code）→ 84；
+    // 交叉审计 DB-4 的 v85（style_addons 历史补链，PR #116）→ 85；
+    // 事件流水幕布步 1 的 v86（activity_events）→ 86。
+    expect(MIGRATIONS.length).toBe(86)
     database.close()
   })
 })

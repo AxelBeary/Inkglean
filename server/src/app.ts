@@ -25,6 +25,8 @@ import { getAdminQq } from './shared/middleware/auth.js'  // P1 修复批：启�
 import { pruneAdminActions, ADMIN_ACTIONS_TTL_DAYS } from './features/compliance/compliance.service.js'
 import { buildOgMeta, injectOgMeta } from './features/og/og-meta.service.js'  // REQ-043 I1: OG 分享卡片
 import { requestLogUrl, sentryBeforeSend } from './shared/sentry-privacy.js'
+// v86（事件流水幕布步 1）：activity_events 分级 TTL 清理（抽件见该模块注释）
+import { gcActivityEvents } from './features/activity/activity.ttl.js'
 // M-5 拆分后保持既有测试/调用方 import 路径不变（sentry-privacy.test.ts 从 app.js 导入）
 export { sentryBeforeSend } from './shared/sentry-privacy.js'
 
@@ -186,6 +188,14 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
   const REFERENCE_UPLOAD_TTL_DAYS = envPositiveInt(process.env.REFERENCE_UPLOAD_TTL_DAYS, 3)
   // A1（v82）：过程稿未挂单台账行 TTL，与参考图同档（默认 3 天 = 孤儿回收窗口）。
   const PREVIEW_UPLOAD_TTL_DAYS = envPositiveInt(process.env.PREVIEW_UPLOAD_TTL_DAYS, 3)
+  // v86（事件流水幕布步 1，D4=B 分级保留拍板）：activity_events 分三档 TTL——
+  //   管理动作 365 天（处置类证据，最短不能短于纠纷追诉窗口；admin_actions 本体仍永久保留）、
+  //   认证事件 180 天（与 events 埋点同窗，口径统一好解释）、
+  //   其余（交易/上传）90 天（展示够用）。
+  // 三个 env 各自可覆盖（沿 envPositiveInt 范式，缺失/非法回默认），互不牵连。
+  const ACTIVITY_ADMIN_TTL_DAYS = envPositiveInt(process.env.ACTIVITY_ADMIN_TTL_DAYS, 365)
+  const ACTIVITY_AUTH_TTL_DAYS = envPositiveInt(process.env.ACTIVITY_AUTH_TTL_DAYS, 180)
+  const ACTIVITY_OTHER_TTL_DAYS = envPositiveInt(process.env.ACTIVITY_OTHER_TTL_DAYS, 90)
   // M-1 拆分动机：这几张表的清理不依赖文件系统，此前挂在 gcUploads 内、排在两处文件类
   // 早退（!existsSync(UPLOAD_ROOT) / 画师表为空）之后——首轮启动时甚至早于上传目录创建，
   // 导致开箱前永不清理。拆为独立函数后不受文件早退连坐，各表 try/catch 互不连坐。
@@ -238,6 +248,7 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
       app.log.warn(`过程稿 TTL 清理失败: ${(err as Error).message}`)
     }
     try {
+
       // R-2（2026-11-28）：管理审计留痕 TTL。此前 admin_actions 只增不删（全仓零 DELETE），
       // 是全站唯一「永久增长且不可再生」的表——删掉的历史留痕没有第二个来源可还原。
       // 保留期见 compliance.service.ADMIN_ACTIONS_TTL_DAYS（1095 天 / 3 年，写死不做 env：
@@ -249,6 +260,22 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
       }
     } catch (err) {
       app.log.warn(`管理留痕 TTL 清理失败: ${(err as Error).message}`)
+    }
+    try {
+      // v86（D4=B 分级保留）：activity_events 三档 TTL。分档逻辑与「为何用排除法」
+      // 见 features/activity/activity.ttl.ts 的模块注释；本段只负责按 env 传参 + 日志。
+      const activity = gcActivityEvents({
+        admin: ACTIVITY_ADMIN_TTL_DAYS,
+        auth: ACTIVITY_AUTH_TTL_DAYS,
+        other: ACTIVITY_OTHER_TTL_DAYS
+      })
+      if (activity.deleted > 0) {
+        app.log.info(
+          `事件流水 TTL 清理: activity_events 删除 ${activity.deleted} 条（认证 ${activity.auth}/${ACTIVITY_AUTH_TTL_DAYS} 天, 交易上传 ${activity.trade}/${ACTIVITY_OTHER_TTL_DAYS} 天, 管理动作 ${activity.admin}/${ACTIVITY_ADMIN_TTL_DAYS} 天）`
+        )
+      }
+    } catch (err) {
+      app.log.warn(`事件流水 TTL 清理失败: ${(err as Error).message}`)
     }
   }
 
@@ -721,6 +748,7 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
   await app.register(import('./features/guestbook/guestbook.routes.js'))
   await app.register(import('./features/tracking/tracking.routes.js'))
   await app.register(import('./features/compliance/compliance.routes.js'))  // REQ-042: 合规与内容安全
+  await app.register(import('./features/activity/activity.routes.js'))  // v86: 事件流水幕布查询面
 
   // ─── 健康检查 ───
   app.get('/api/health', async (_request, reply) => {

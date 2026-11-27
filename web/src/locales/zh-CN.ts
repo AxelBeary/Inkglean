@@ -2242,6 +2242,53 @@ loadRetry: '再试一次', networkError: '网络错误，请稍后重试', globa
       listTruncated: '仅显示最近 {n} 条留言；更早的留言请增大显示上限，或用上方筛选缩小范围。',
       delete: '强制删除', deleteConfirm: '确定删除这条留言？删除后客户主页将不再显示。', deleted: '留言已删除'
     },
+    // v86 事件流水幕布（认证 / 管理动作 / 交易上传三条来源；轮询 5 秒）
+    activity: {
+      title: '事件流水',
+      desc: '登录、管理动作与交易上传的实时流水，每 5 秒刷新',
+      live: '实时更新中',
+      pausedHint: '已暂停——流水不再自动刷新，点「继续」恢复',
+      stale: '连接中断，数据可能过期（最后成功 {time}）',
+      loadFailed: '事件流水加载失败',
+      pause: '暂停',
+      resume: '继续',
+      filterActionAll: '全部事件',
+      filterActorAll: '全部主体',
+      colTime: '时间',
+      colActor: '主体',
+      colAction: '事件',
+      colTarget: '对象',
+      colIp: '来源 IP',
+      empty: '暂无事件流水',
+      loadMore: '加载更早',
+      noMore: '已到最早一条',
+      actor: { admin: '管理员', artist: '画师', client: '客户', anon: '匿名' },
+      target: {
+        artist: '画师', artwork: '作品', message: '留言', order: '订单',
+        report: '举报', deliverable: '交付', page: '页面'
+      },
+      action: {
+        login_success: '登录成功',
+        login_fail: '登录失败',
+        stepup_fail: '二次验证失败',
+        order_create: '新建订单',
+        reference_upload: '参考图上传',
+        report_submit: '提交举报',
+        guestbook_post: '提交留言',
+        report_resolve: '处理举报',
+        content_remove: '内容下架',
+        content_restore: '内容恢复',
+        artist_ban: '封禁画师',
+        artist_unban: '解封画师',
+        home_takedown: '主页下架',
+        home_restore: '主页恢复',
+        artist_status_set: '改画师状态',
+        artist_remove: '移除画师',
+        artist_profile_update: '改画师资料',
+        delivery_link_reissue: '补发交付链接',
+        admin_transfer: '更换管理员'
+      }
+    },
     // HC: 系统自检
     health: {
       title: '系统自检', start: '开始检查', checking: '检查中…',

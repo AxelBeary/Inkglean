@@ -164,7 +164,9 @@ export async function orderClientRoutes(fastify: FastifyInstance) {
         discountCode: discountCode || null,
         styleSizeId: styleSizeId || null,
         styleAddons: styleAddons || [],
-        anonId
+        anonId,
+        // v86：下单来源 IP 只进事件流水（orders 表无 ip 列，也不加）
+        ip: request.ip
       })
       return {
         statusCode: 200,

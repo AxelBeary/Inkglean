@@ -614,6 +614,26 @@ CREATE TABLE IF NOT EXISTS order_price_entries (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
+
+-- 管理员事件流水表（v86，「事件流水幕布」步 1 事实源）
+-- 定位：**展示用流水**，不是处置事实源——管理动作的法定账本仍是 admin_actions（REQ-042 §七 验收 4），
+-- 同一笔管理动作由写入侧同事务双写两表：admin_actions 保永久，本表按分级 TTL 滚动。
+-- 隐私口径（2026-11-28 拍板）：D1=B 只收有后果的动作（不采集访客浏览）/ D2=A 管理员与认证事件记 IP
+-- 原值（45 字符上限，与 admin_actions.admin_ip 同口径）/ D3=B 不记录未登录访客浏览。
+-- 无外键：审计流水必须比被审计对象活得久（admin_actions 同样无 FK）。
+-- at 为服务端写入的毫秒时间戳；meta_json ≤2KB（沿 tracking.service MAX_EVENT_PAYLOAD_BYTES）。
+CREATE TABLE IF NOT EXISTS activity_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  at INTEGER NOT NULL,
+  actor_kind TEXT NOT NULL CHECK(actor_kind IN ('admin', 'artist', 'client', 'anon')),
+  actor_id INTEGER,
+  ip TEXT,
+  action TEXT NOT NULL,
+  target_type TEXT,
+  target_id INTEGER,
+  meta_json TEXT NOT NULL DEFAULT '{}',
+  outcome TEXT NOT NULL DEFAULT 'ok' CHECK(outcome IN ('ok', 'fail'))
+);
 `
 
 /**
@@ -657,4 +677,9 @@ CREATE INDEX IF NOT EXISTS idx_reference_uploads_ip ON reference_uploads(ip);
 CREATE INDEX IF NOT EXISTS idx_preview_uploads_artist ON preview_uploads(artist_id);
 CREATE INDEX IF NOT EXISTS idx_preview_uploads_created ON preview_uploads(created_at);
 CREATE INDEX IF NOT EXISTS idx_order_previews_file ON order_previews(file_path);
+-- v86：事件流水幕布的三条查询索引——时间倒序翻页、按 action 筛、按 actor 筛（actor 维度必带 kind）。
+-- 索引只登记本段（F0101 归口口径）：initDatabase 每次启动在迁移之后 exec，老库升级与新装同径拿到。
+CREATE INDEX IF NOT EXISTS idx_activity_events_at ON activity_events(at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_events_action_at ON activity_events(action, at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_events_actor_at ON activity_events(actor_kind, actor_id, at DESC);
 `

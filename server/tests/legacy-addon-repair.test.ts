@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest'
 // 否则迁移模块循环求值会撞版本升序断言（范式同 migration-v36/v84.test.ts）
 import './setup.js'
 import Database from 'better-sqlite3'
-import { initDatabase, schema } from '../src/db/init.js'
+import { initDatabase, schema, MIGRATIONS } from '../src/db/init.js'
 import { backfillLegacyAddons } from '../src/db/legacy-addon-backfill.js'
 
 /**
@@ -289,11 +289,11 @@ describe('DB-1 历史修复：price_addons → addon_templates（走真 initData
     expect(links.every(l => l.isEnabled === 1)).toBe(true)
     // 4) 旧表已按拍板被 v43 DROP（升级完成后窗口关闭）
     expect(mem.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='price_addons'").get()).toBeUndefined()
-    // 5) 全链跑完到 v85；且目标表是**当前形状**（无 pricing_mode）——
+    // 5) 全链跑完到链尾（CURRENT 动态取 MIGRATIONS 末尾，v86 起不再写死）；且目标表是**当前形状**（无 pricing_mode）——
     //    证明 v36 的形状守卫必然 return，第 1 步的搬运只可能来自启动期修复，不会是 v36 干的
     const atCols = (mem.prepare('PRAGMA table_info(addon_templates)').all() as Array<{ name: string }>).map(c => c.name)
     expect(atCols).not.toContain('pricing_mode')
-    expect((mem.prepare('SELECT MAX(version) AS v FROM schema_migrations').get() as { v: number }).v).toBe(85)
+    expect((mem.prepare('SELECT MAX(version) AS v FROM schema_migrations').get() as { v: number }).v).toBe(MIGRATIONS[MIGRATIONS.length - 1].version)
     mem.close()
   })
 })
