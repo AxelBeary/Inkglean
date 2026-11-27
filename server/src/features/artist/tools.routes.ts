@@ -1,6 +1,8 @@
 import * as toolsService from './tools.service.js'
 import { requireAuth } from '../../shared/middleware/auth.js'
 import { AppError, E } from '../../shared/errors.js'
+// R-2 抽取：CSV 转义（含公式注入防护）已提到 shared/csv.ts，与留痕导出共用同一口径
+import { csvHeader, csvLine, CSV_BOM, CSV_CONTENT_TYPE, CSV_CRLF } from '../../shared/csv.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 
 // ============================================
@@ -10,29 +12,8 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 
 const DATE_PATTERN = '^\\d{4}-\\d{2}-\\d{2}$'
 
-/**
- * CSV 字段转义（P2-9）：
- * 1) 公式注入——值以 = + - @ 或 \t \r 开头时前置单引号，Excel 按纯文本显示；
- * 2) 含逗号/引号/换行时用双引号包裹，内部引号翻倍。
- * 3) 9-8：负退款（-<整数>）是合法数值——用双引号包裹而非前置单引号，
- *    Excel 打开 CSV 时仍按数字解析可求和，同时不进入公式执行路径。
- */
-const SAFE_NUMERIC_RE = /^-?\d+(?:\.\d+)?$/
-
-function csvEscape(value: string): string {
-  let out = value
-  if (/^[=+\-@\t\r]/.test(out)) {
-    // 纯数字（含负数）用双引号包住保留数值语义；非数字公式前缀仍前置单引号
-    if (SAFE_NUMERIC_RE.test(out)) {
-      return `"${out}"`
-    }
-    out = `'${out}`
-  }
-  if (/[",\n\r]/.test(out)) {
-    out = `"${out.replace(/"/g, '""')}"`
-  }
-  return out
-}
+/** 收入导出列序（表头与数据行同源，改列只改这一处） */
+const CSV_COLUMNS = ['date', 'client', 'amount_cents', 'type', 'order_id'] as const
 
 export default async function toolsRoutes(fastify: FastifyInstance) {
 
@@ -254,21 +235,15 @@ export default async function toolsRoutes(fastify: FastifyInstance) {
     const rows = toolsService.getExportRows(request.artist.id, q.from, q.to)
 
     const lines = [
-      'date,client,amount_cents,type,order_id',
-      ...rows.map(r => [
-        // P2-9: 所有出口字段统一走 csvEscape（date/金额/type 虽非用户可控，统一防未来加字段漏网）
-        csvEscape(r.date),
-        csvEscape(r.client),
-        csvEscape(String(r.amountCents)),
-        csvEscape(r.type),
-        csvEscape(r.orderId === null ? '' : String(r.orderId))
-      ].join(','))
+      csvHeader(CSV_COLUMNS),
+      // P2-9: 所有出口字段统一走 csvEscape（date/金额/type 虽非用户可控，统一防未来加字段漏网）
+      ...rows.map(r => csvLine([r.date, r.client, r.amountCents, r.type, r.orderId]))
     ]
 
     // UTF-8 with BOM：Excel 打开中文不乱码
-    const csv = '\uFEFF' + lines.join('\r\n') + '\r\n'
+    const csv = CSV_BOM + lines.join(CSV_CRLF) + CSV_CRLF
     const filename = `income-${q.from.replace(/-/g, '')}-${q.to.replace(/-/g, '')}.csv`
-    reply.header('Content-Type', 'text/csv; charset=utf-8')
+    reply.header('Content-Type', CSV_CONTENT_TYPE)
     reply.header('Content-Disposition', `attachment; filename="${filename}"`)
     return reply.send(csv)
   })
