@@ -87,6 +87,7 @@ import { migration as v81 } from './v81-order-previews.js'
 import { migration as v82 } from './v82-preview-uploads.js'
 import { migration as v83 } from './v83-invite-codes-bound-qq.js'
 import { migration as v84 } from './v84-drop-invite-codes-code-index.js'
+import { migration as v86 } from './v86-activity-events.js'
 
 export const MIGRATIONS: Migration[] = [
   v01, v02, v03, v04, v05, v06, v07, v08, v09, v10,
@@ -124,6 +125,7 @@ export const MIGRATIONS: Migration[] = [
   v82,
   v83,
   v84,
+  v86,
 ]
 
 // 升序唯一性断言（构建期简单校验）：version 必须严格递增，重复/乱序直接抛错
