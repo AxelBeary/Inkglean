@@ -26,7 +26,7 @@ import { useTimerStore } from '../../stores/timer'
 
 const emit = defineEmits<{ (_e: 'open-about'): void; (_e: 'open-more'): void }>()
 
-const VERSION = '0.1.0'
+const VERSION = '0.2.0'
 
 const router = useRouter()
 const auth = useAuthStore()

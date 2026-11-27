@@ -7,7 +7,7 @@ import { isDesktop } from '../bridge'
 import type { LocalFile } from '../stores/localFiles'
 import type { LocalOrder } from '../stores/localLedger'
 
-export const APP_VERSION = '0.1.0'
+export const APP_VERSION = '0.2.0'
 
 /** manifest 文件条目（路径/大小/所属委托） */
 export interface ManifestFile {
