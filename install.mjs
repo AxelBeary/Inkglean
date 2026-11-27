@@ -305,6 +305,7 @@ async function launchNativeSite(port) {
       console.log('  请重新启动，弹窗出现时勾选“专用网络”并点“允许访问”。')
     }
     console.log('  如果这个网站从没安装成功过，请先运行安装（双击 install.bat）。')
+    console.log('  若为 Linux 原生安装，请检查 .env 的 WEBAUTHN_RP_ID / WEBAUTHN_ORIGIN（生产环境缺这两项会拒绝启动）。')
     console.log(`  运行日志：${LOG_FILE}`)
     process.exit(1)
   }
@@ -532,6 +533,15 @@ async function main() {
   if (mode === 'native' && !Number.isInteger(port)) {
     fail(`端口 "${getArg('--port')}" 不是有效数字`)
     process.exit(1)
+  }
+
+  // Linux 原生安装默认 NODE_ENV=production，WebAuthn 这两项生产环境必填（缺失即拒启），按实际访问来源推导一次；
+  // ensureEnv 只补空位，用户自己配过的不会覆盖。仅 Linux 需要：Windows/macOS 原生走 development，保持按请求推导。
+  if (mode === 'native' && IS_LINUX) {
+    // RP ID 必须是裸域名（RFC/WebAuthn 不接受端口），--domain 带端口时剥掉
+    const rpHost = (domain || 'localhost').replace(/:\d+$/, '')
+    envUpdates.WEBAUTHN_RP_ID = rpHost
+    envUpdates.WEBAUTHN_ORIGIN = rpHost === 'localhost' ? `http://localhost:${port}` : `https://${rpHost}`
   }
 
   const added = ensureEnv(envUpdates)
