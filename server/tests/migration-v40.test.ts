@@ -1,8 +1,13 @@
 // 迁移 v40 测试：order_payment_installments 加锁价列（REQ-025 第二阶段 R4）
 // ALTER TABLE ADD COLUMN 事务内安全（对照 v38：仅重建父表才需事务外）
+//
+// 【真实入口改造 · issue #117 判据】TC-MIG-40e 原直调 `v40.up(db)` 验幂等，
+// 现改走 `replayVersion(db, 40)`：删掉版本行后由 initDatabase 调度器重跑该迁移。
+// 其余用例本就由 initDatabase 建库，保持不变。
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import Database from 'better-sqlite3'
 import { initDatabase, MIGRATIONS } from '../src/db/init.js'
+import { replayVersion } from './migration-real-entry.js'
 
 describe('迁移 v40: installments locked/locked_reason 列', () => {
   let db: Database.Database
@@ -56,10 +61,11 @@ describe('迁移 v40: installments locked/locked_reason 列', () => {
     expect(() => upd.run('bogus', orderId)).toThrow()
   })
 
-  it('TC-MIG-40e: 幂等守卫——重跑迁移不报错', () => {
-    const v40 = MIGRATIONS.find(m => m.version === 40)!
-    db.prepare('DELETE FROM schema_migrations WHERE version = 40').run()
-    expect(() => v40.up(db)).not.toThrow() // 列已存在 → 守卫跳过
-    db.prepare('INSERT INTO schema_migrations (version, name) VALUES (?, ?)').run(40, v40.name)
+  it('TC-MIG-40e: 幂等守卫——重跑迁移不报错（真实入口：调度器重放 v40）', () => {
+    // 列已存在 → 守卫跳过；版本行由调度器重新写回，证明它真的跑了这一条
+    expect(replayVersion(db, 40), 'v40 版本行应由调度器重放后写回').toBe(true)
+    const cols = (db.prepare('PRAGMA table_info(order_payment_installments)').all() as Array<{ name: string }>)
+      .filter(c => c.name === 'locked')
+    expect(cols).toHaveLength(1) // 不重复加列
   })
 })

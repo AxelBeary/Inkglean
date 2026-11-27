@@ -5,11 +5,10 @@ import type { StatsFs } from 'fs'
 import { statfs } from 'fs/promises'
 import { join, resolve } from 'path'
 import { db, cleanDb, seedArtist, seedOrder, type ArtistRow } from './setup.js'
-import Database from 'better-sqlite3'
 import { buildApp } from '../src/app.js'
 import { getDiskHeadroom, runHealthChecks } from '../src/features/admin/health.service.js'
-import { MIGRATIONS } from '../src/db/init.js'
-import { migration as v77 } from '../src/db/migrations/v77-reference-uploads-quota-columns.js'
+import { initDatabase, MIGRATIONS } from '../src/db/init.js'
+import { preTargetDb, isApplied, replayVersion, dropColumnIfExists, columnNames } from './migration-real-entry.js'
 
 // ============================================
 // GHSA-6pf3-g4xq-854w（第三方审计，Wave1 高危 + Wave3 低）：磁盘耗尽 + OG 注入
@@ -149,37 +148,41 @@ describe('GHSA-6pf3 闸④：迁移 v77 — reference_uploads.ip / .file_size', 
   })
 
   it('TC-W1-02: 幂等——重跑迁移不抛错且列不重复（PRAGMA 守卫生效，不靠 ALTER 报错兜底）', () => {
-    expect(() => v77.up(db)).not.toThrow()
-    expect(() => v77.up(db)).not.toThrow()
+    // issue #117 口径：不再直调 v77.up(db)，改由 initDatabase 调度器重放（版本行删掉 → 再跑）
+    expect(replayVersion(db, 77), '第一次重放应写回版本行').toBe(true)
+    expect(replayVersion(db, 77), '第二次重放同样幂等').toBe(true)
     const cols = db.prepare('PRAGMA table_info(reference_uploads)').all() as Array<{ name: string }>
     expect(cols.filter(c => c.name === 'ip')).toHaveLength(1)
     expect(cols.filter(c => c.name === 'file_size')).toHaveLength(1)
     expect(MIGRATIONS[MIGRATIONS.length - 1].version > 77).toBe(true) // 链尾随新迁移右移（PR #27/#28 重编号 v78/v79 后不再锁死 77）；v77 落库由上方 applied.version=77 锁定
   })
 
-  it('TC-W1-02b: 老库升级（v55 形态无两列）——加列后存量行不丢、新列为 NULL', () => {
-    const mem = new Database(':memory:')
-    mem.exec(`
-      CREATE TABLE reference_uploads (
-        id INTEGER PRIMARY KEY,
-        anon_id INTEGER NOT NULL,
-        file_path TEXT NOT NULL UNIQUE,
-        order_id INTEGER,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-      )
-    `)
-    mem.prepare('INSERT INTO reference_uploads (anon_id, file_path) VALUES (?, ?)').run(7, 'references/legacy.png')
-    expect(() => v77.up(mem)).not.toThrow()
-
-    const cols = mem.prepare('PRAGMA table_info(reference_uploads)').all() as Array<{ name: string }>
-    expect(cols.some(c => c.name === 'ip')).toBe(true)
-    expect(cols.some(c => c.name === 'file_size')).toBe(true)
-    const row = mem.prepare("SELECT * FROM reference_uploads WHERE file_path = 'references/legacy.png'").get() as
-      { anon_id: number; ip: string | null; file_size: number | null }
-    expect(row.anon_id).toBe(7)
-    expect(row.ip).toBeNull()
-    expect(row.file_size).toBeNull()
-    mem.close()
+  it('TC-W1-02b: 老库升级（v55 形态无两列）——加列后存量行不丢、新列为 NULL（真实入口）', () => {
+    // issue #117 口径：不再手搓裸表 + 直调 v77.up(mem)，改走 preTargetDb —— 以 schema 基线起库、
+    // 撤掉两列、塞存量行，由 initDatabase 调度器自己跑到 v77
+    const mem = preTargetDb(77, d => {
+      dropColumnIfExists(d, 'reference_uploads', 'ip')
+      dropColumnIfExists(d, 'reference_uploads', 'file_size')
+      if (columnNames(d, 'reference_uploads').some(c => c === 'ip' || c === 'file_size')) {
+        throw new Error('夹具未退回 v76 形态：reference_uploads 仍有 ip/file_size')
+      }
+      d.prepare('INSERT INTO reference_uploads (anon_id, file_path) VALUES (?, ?)').run(7, 'references/legacy.png')
+    })
+    try {
+      expect(isApplied(mem, 77), 'v77 版本行应由调度器写入').toBe(true)
+      const cols = mem.prepare('PRAGMA table_info(reference_uploads)').all() as Array<{ name: string }>
+      expect(cols.some(c => c.name === 'ip')).toBe(true)
+      expect(cols.some(c => c.name === 'file_size')).toBe(true)
+      const row = mem.prepare("SELECT * FROM reference_uploads WHERE file_path = 'references/legacy.png'").get() as
+        { anon_id: number; ip: string | null; file_size: number | null }
+      expect(row.anon_id).toBe(7)
+      expect(row.ip).toBeNull()
+      expect(row.file_size).toBeNull()
+      // 顺带：调度器重跑幂等
+      expect(() => initDatabase(mem)).not.toThrow()
+    } finally {
+      mem.close()
+    }
   })
 })
 

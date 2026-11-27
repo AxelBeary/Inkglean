@@ -16,6 +16,7 @@ import {
   getRevisionQuota
 } from '../src/features/order/order-gallery.service.js'
 import { MIGRATIONS } from '../src/db/init.js'
+import { replayVersion } from './migration-real-entry.js'
 import { mkdirSync, writeFileSync, existsSync } from 'fs'
 import { join, resolve } from 'path'
 
@@ -306,15 +307,17 @@ describe('v81 过程稿 + 免费修改次数', () => {
 
   // ─── 7. 迁移幂等 ───
 
-  it('TC-V81-10: 迁移 up() 连跑两次不报错（列/表已存在即跳过）', () => {
+  it('TC-V81-10: 迁移重跑两次不报错（列/表已存在即跳过；真实入口：调度器重放 v81）', () => {
     const v81 = MIGRATIONS.find(m => m.version === 81)!
     expect(v81).toBeDefined()
-    expect(() => {
-      v81.up(db)
-      v81.up(db)
-    }).not.toThrow()
+    // issue #117 口径：不再直调 v81.up(db)，改由 initDatabase 调度器重放（版本行删掉 → 再跑）
+    expect(replayVersion(db, 81), '调度器应重放 v81 并写回版本行').toBe(true)
+    expect(replayVersion(db, 81), '第二次重放同样幂等').toBe(true)
     const applied = db.prepare('SELECT version FROM schema_migrations WHERE version = 81').get()
     expect(applied).toEqual({ version: 81 })
+    // 列不重复（幂等守卫真的挡住了重复 ALTER）
+    const cols = (db.prepare('PRAGMA table_info(orders)').all() as Array<{ name: string }>).filter(c => c.name === 'preview_visible_to_client')
+    expect(cols).toHaveLength(1)
   })
 
   // ─── debug 批 A2：caption 含标签/实体不再静默清空（400 让画师自己改） ───
