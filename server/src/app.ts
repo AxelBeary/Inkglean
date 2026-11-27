@@ -21,6 +21,8 @@ import { ERROR_MESSAGES } from './shared/errors.js'
 import type { AppError } from './shared/errors.js'
 import { isSetupMode } from './features/setup/setup.service.js'  // REQ-038: 开箱设置守卫
 import { getAdminQq } from './shared/middleware/auth.js'  // P1 修复批：启动自检——管理员判定真值告警
+// R-2：管理审计留痕 TTL（保留期常量与清理函数同住 compliance.service，单一事实源）
+import { pruneAdminActions, ADMIN_ACTIONS_TTL_DAYS } from './features/compliance/compliance.service.js'
 import { buildOgMeta, injectOgMeta } from './features/og/og-meta.service.js'  // REQ-043 I1: OG 分享卡片
 import { requestLogUrl, sentryBeforeSend } from './shared/sentry-privacy.js'
 // M-5 拆分后保持既有测试/调用方 import 路径不变（sentry-privacy.test.ts 从 app.js 导入）
@@ -234,6 +236,19 @@ export async function buildApp(opts: { logger?: boolean | Writable | LoggerOptio
       }
     } catch (err) {
       app.log.warn(`过程稿 TTL 清理失败: ${(err as Error).message}`)
+    }
+    try {
+      // R-2（2026-11-28）：管理审计留痕 TTL。此前 admin_actions 只增不删（全仓零 DELETE），
+      // 是全站唯一「永久增长且不可再生」的表——删掉的历史留痕没有第二个来源可还原。
+      // 保留期见 compliance.service.ADMIN_ACTIONS_TTL_DAYS（1095 天 / 3 年，写死不做 env：
+      // 这条 TTL 配错等于不可逆的数据丢失，取值权收归代码评审）。
+      // 与其它表分 try/catch：留痕清理失败不得连坐埋点/幂等/上传台账的清理。
+      const actionsDeleted = pruneAdminActions()
+      if (actionsDeleted > 0) {
+        app.log.info(`管理留痕 TTL 清理: admin_actions 删除 ${actionsDeleted} 条（窗 ${ADMIN_ACTIONS_TTL_DAYS} 天）`)
+      }
+    } catch (err) {
+      app.log.warn(`管理留痕 TTL 清理失败: ${(err as Error).message}`)
     }
   }
 
