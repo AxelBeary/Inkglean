@@ -51,6 +51,12 @@ const cardLabel = computed(() => `${props.artist.name} · ${t(`common.status.${p
 .artist-card {
   text-align: center;
   cursor: pointer;
+  /* 同一行卡片等高：简介 2 行截断 + 网格 stretch 时，短简介卡会矮一截（768 实测行高差）。
+     这里让卡片自身撑满网格行高，内部用 flex 把状态/简介压到底部对齐。 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
   padding: 20px;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -105,6 +111,7 @@ html.dark .artist-card .artist-status .el-tag.el-tag--dark.el-tag--danger  { --e
 
 .artist-bio {
   margin-top: 12px;
+  width: 100%;
   font-size: 13px;
   line-height: 1.6;
   min-height: 40px;

@@ -61,7 +61,9 @@ const VALUES = [
 .hero-values {
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  /* 下限 260px：768 视口内容宽 736 → 两列（条宽 ~362px，每条 2~3 行）；
+     320 视口内容宽 288 → 单列。避免三列时每条被挤成 4~5 行、卡片瘦高 */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
   gap: 16px;
   margin: 32px 0 0;
   padding: 0;
@@ -97,6 +99,12 @@ const VALUES = [
   font-size: 13px;
   line-height: 1.6;
   color: var(--text-secondary);
+}
+/* 3 条价值点在 2 列区间会剩一条独占半行（右下角留白）。该区间把它撑满整行，
+   视觉上变成"两条并排 + 一条通栏"，比留个空洞干净。
+   2 列区间实测：内容宽 ≥ 568px 才排得下两列，≥ 844px 才排得下三列 → 用 568~843 卡这一档。 */
+@media (min-width: 568px) and (max-width: 843px) {
+  .hero-value:last-child { grid-column: 1 / -1; }
 }
 .hero-cta {
   margin-top: 32px;
