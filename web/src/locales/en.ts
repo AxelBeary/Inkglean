@@ -2245,6 +2245,53 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
       listTruncated: 'Only the latest {n} messages are shown; raise the show limit or narrow the filters above to find older ones.',
       delete: 'Force delete', deleteConfirm: 'Delete this message? It will no longer appear on the client page.', deleted: 'Message deleted'
     },
+    // v86 activity feed (auth / admin actions / trade & upload sources; polls every 5s)
+    activity: {
+      title: 'Activity feed',
+      desc: 'Live feed of logins, admin actions, and order/upload events, refreshed every 5 seconds',
+      live: 'Live',
+      pausedHint: 'Paused — the feed no longer auto-refreshes. Press Resume to continue.',
+      stale: 'Connection lost, data may be stale (last success {time})',
+      loadFailed: 'Failed to load the activity feed',
+      pause: 'Pause',
+      resume: 'Resume',
+      filterActionAll: 'All events',
+      filterActorAll: 'All actors',
+      colTime: 'Time',
+      colActor: 'Actor',
+      colAction: 'Event',
+      colTarget: 'Target',
+      colIp: 'Source IP',
+      empty: 'No activity yet',
+      loadMore: 'Load earlier',
+      noMore: 'Reached the earliest entry',
+      actor: { admin: 'Admin', artist: 'Artist', client: 'Client', anon: 'Anonymous' },
+      target: {
+        artist: 'Artist', artwork: 'Artwork', message: 'Message', order: 'Order',
+        report: 'Report', deliverable: 'Deliverable', page: 'Page'
+      },
+      action: {
+        login_success: 'Login succeeded',
+        login_fail: 'Login failed',
+        stepup_fail: 'Step-up failed',
+        order_create: 'Order created',
+        reference_upload: 'Reference uploaded',
+        report_submit: 'Report submitted',
+        guestbook_post: 'Message posted',
+        report_resolve: 'Report resolved',
+        content_remove: 'Content removed',
+        content_restore: 'Content restored',
+        artist_ban: 'Artist banned',
+        artist_unban: 'Artist unbanned',
+        home_takedown: 'Home taken down',
+        home_restore: 'Home restored',
+        artist_status_set: 'Artist status set',
+        artist_remove: 'Artist removed',
+        artist_profile_update: 'Artist profile updated',
+        delivery_link_reissue: 'Delivery link reissued',
+        admin_transfer: 'Admin transferred'
+      }
+    },
     // HC: system health check
     health: {
       title: 'System Health', start: 'Run checks', checking: 'Checking…',
