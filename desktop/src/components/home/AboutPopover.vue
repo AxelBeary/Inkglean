@@ -6,7 +6,7 @@ import { onMounted, onUnmounted, ref } from 'vue'
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ (_e: 'close'): void }>()
 
-const VERSION = '0.1.0'
+const VERSION = '0.2.0'
 const popRef = ref<HTMLElement | null>(null)
 
 function onDocClick(e: MouseEvent) {
