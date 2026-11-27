@@ -20,6 +20,7 @@ import { resetRateLimitBuckets } from '../src/shared/middleware/rate-limit.js'
 import * as complianceService from '../src/features/compliance/compliance.service.js'
 import * as activityService from '../src/features/activity/activity.service.js'
 import { generateInviteCodes } from '../src/features/invite/invite.service.js'
+import { gcActivityEvents, ACTIVITY_TTL_DEFAULTS, AUTH_TTL_ACTIONS, TRADE_TTL_ACTIONS } from '../src/features/activity/activity.ttl.js'
 
 // Hermes 安全过滤会把 "Bearer " 替换成 ***，用拼接绕过
 const AUTH_PREFIX = 'Bear' + 'er '
@@ -685,3 +686,110 @@ describe('v86 事件流水幕布：三条来源接线 + 查询面', () => {
     expect(countEvents()).toBe(0)
   })
 })
+
+// ═══════════════════════════════════════════
+// ⑦ 分级 TTL（D4=B 拍板：管理动作 365 / 认证 180 / 交易上传 90）
+// 抽件到 features/activity/activity.ttl.ts 后才能这样直接造数验证——这是抽件的第二个理由。
+// ═══════════════════════════════════════════
+
+describe('activity_events 分级 TTL（D4=B）', () => {
+  const DAY = 86_400_000
+  let now = 0
+
+  beforeEach(() => {
+    cleanDb()
+    now = Date.parse('2026-11-28T00:00:00.000Z')
+  })
+
+  function seedAt(action: string, ageDays: number, extra: Partial<Record<string, unknown>> = {}): number {
+    const r = db.prepare(
+      'INSERT INTO activity_events (at, actor_kind, actor_id, ip, action, target_type, target_id, outcome) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(
+      now - ageDays * DAY,
+      (extra.actor_kind as string) ?? 'admin',
+      (extra.actor_id as number | null) ?? 1,
+      '203.0.113.5',
+      action,
+      null,
+      null,
+      'ok'
+    )
+    return Number(r.lastInsertRowid)
+  }
+
+  function remaining(): string[] {
+    return (db.prepare('SELECT action FROM activity_events ORDER BY id').all() as Array<{ action: string }>)
+      .map(r => r.action)
+  }
+
+  it('TC-AE-TTL-01: 三档并存——各造「刚过期」与「刚未过期」两行，跑一次 GC 只删过期的那三条', () => {
+    // 管理动作档 365：366 天前的过期、364 天前的不清
+    seedAt('artist_ban', 366)
+    seedAt('artist_ban', 364)
+    // 认证档 180：181 天前过期、179 天前不清
+    seedAt('login_success', 181)
+    seedAt('login_success', 179)
+    // 交易档 90：91 天前过期、89 天前不清
+    seedAt('order_create', 91)
+    seedAt('order_create', 89)
+    expect(remaining()).toHaveLength(6)
+
+    const res = gcActivityEvents(ACTIVITY_TTL_DEFAULTS, now)
+    expect(res.deleted).toBe(3)
+    expect(res.admin).toBe(1)
+    expect(res.auth).toBe(1)
+    expect(res.trade).toBe(1)
+    // 未到期的三条原样保留（按 id 对应 age 364/179/89）
+    const left = db.prepare('SELECT id FROM activity_events ORDER BY id').all() as Array<{ id: number }>
+    expect(left).toHaveLength(3)
+  })
+
+  it('TC-AE-TTL-02: 同一动作在不同档位下互不误伤（三档各自独立跑，不串档）', () => {
+    // 认证动作 200 天前：超过 180 档 → 删；未超 365（若误归管理档就不会删）
+    seedAt('login_fail', 200)
+    // 交易动作 200 天前：未超 90 档？200 > 90 → 删
+    seedAt('guestbook_post', 200)
+    // 管理动作 200 天前：未超 365 → 保留
+    seedAt('content_remove', 200)
+
+    gcActivityEvents(ACTIVITY_TTL_DEFAULTS, now)
+    expect(remaining()).toEqual(['content_remove'])
+  })
+
+  it('TC-AE-TTL-03: 排除法兜底——未登记的白名单外动作默认走最长档（365），不被短档误删', () => {
+    // 未来新增的管理动作名未登记进任何一个 TTL 白名单：必须落在 admin 长档
+    seedAt('some_future_admin_action', 200)
+    seedAt('some_future_admin_action', 400)
+    gcActivityEvents(ACTIVITY_TTL_DEFAULTS, now)
+    // 200 天那条（未超 365）保留；400 天那条（超 365）删
+    expect(remaining()).toEqual(['some_future_admin_action'])
+    const leftAt = db.prepare('SELECT at FROM activity_events').get() as { at: number }
+    expect(leftAt.at).toBe(now - 200 * DAY)
+  })
+
+  it('TC-AE-TTL-04: 全量未到期时零删除（不误删新数据）', () => {
+    seedAt('artist_ban', 1)
+    seedAt('login_success', 1)
+    seedAt('order_create', 1)
+    const res = gcActivityEvents(ACTIVITY_TTL_DEFAULTS, now)
+    expect(res.deleted).toBe(0)
+    expect(remaining()).toHaveLength(3)
+  })
+
+  it('TC-AE-TTL-05: 天数可注入——传更短窗口即按短窗删除（env 覆盖语义）', () => {
+    seedAt('artist_ban', 31)
+    seedAt('login_success', 31)
+    seedAt('order_create', 31)
+    const res = gcActivityEvents({ admin: 30, auth: 30, other: 30 }, now)
+    expect(res.deleted).toBe(3)
+    expect(remaining()).toHaveLength(0)
+  })
+
+  it('TC-AE-TTL-06: 三档默认值就是拍板的 365/180/90（防后续误改）', () => {
+    expect(ACTIVITY_TTL_DEFAULTS).toEqual({ admin: 365, auth: 180, other: 90 })
+    // 白名单内容与写入侧 ACTIONS 一致（删漏一个动作会让它掉进 365 长档——保守方向，但仍是漂移）
+    expect([...AUTH_TTL_ACTIONS].sort()).toEqual(['login_fail', 'login_success', 'stepup_fail'])
+    expect([...TRADE_TTL_ACTIONS].sort()).toEqual(['guestbook_post', 'order_create', 'reference_upload', 'report_submit'])
+  })
+})
+
