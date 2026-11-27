@@ -494,6 +494,16 @@ export function useOrderForm(subdomain: string, formRef: Ref<OrderFormRefLike | 
       console.warn('[useOrderForm] 提交前接单状态预检失败，放行交服务端终判', err) // eslint-disable-line no-console -- #65：预检失败留痕，放行服务端终判
     }
 
+    // CONTRACT-4：上面的两个 await（validate + 接单状态预检，后者是真实网络往返）各让出
+    // 一次事件循环，期间画风/尺寸/增项选择器仍可交互（只有提交按钮被 submitting 禁用）——
+    // priceStale/styleCalcInFlight 可能刚刚变真。此处复检 #50-1 守卫，否则客户端会按旧预览价
+    // 确认、以新选择下单（#50 要拦的正是这一格）。命中即释放提交锁退出。
+    if (priceBlocking.value) {
+      ElMessage.warning(t('orderForm.priceNotReady'))
+      submitting.value = false
+      return
+    }
+
     if (!submitIdemKey) submitIdemKey = generateId()
     // G-7: 有参考图时必须携带与上传同源的 x-anon-token（无参考图下单不带 token 照常）
     let anonToken: string | null = null

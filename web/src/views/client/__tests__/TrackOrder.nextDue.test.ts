@@ -228,6 +228,27 @@ describe('TrackOrder 下期应付（F0314：nextDueCents 字段优先 + legacy �
     expect(nextDueText(wrapper)).toBe(`¥${formatCents(0)}`)
   })
 
+  // MONEY-1（关单后加价）：节点全付清 → 服务端节点级口径恒 0；但 R10 关单后加价只进
+  // extra_charge_after_close，节点金额一字不动，订单级待收 = final - paid > 0。
+  // 采信 0 会让同屏出现「下期应付 ¥0.00 / 待付 ¥50.00」，故 0 + fallback>0 时报订单级待收。
+  it('字段=0 + 有节点全付清但后续加价（final > paid）：不采信 0，显示订单级待收', async () => {
+    h.track.mockResolvedValue(buildTrack({
+      finalPriceCents: 55000,
+      paidTotalCents: 50000,
+      // 四节点与已付完全对应（关单后 addExtraItem 的实测形态：节点一字未动）
+      installments: [
+        inst(1, '定金', 3000, 3000),
+        inst(2, '线稿', 12000, 12000),
+        inst(3, '细化', 21000, 21000),
+        inst(4, '尾款', 14000, 14000)
+      ],
+      nextDueCents: 0
+    }))
+    const wrapper = mountPage()
+    await settle()
+    expect(nextDueText(wrapper)).toBe(`¥${formatCents(5000)}`)
+  })
+
   it('deliveryOnly 最小响应（无金额字段）：付款块整体不渲染，不抛错', async () => {
     h.track.mockResolvedValue({ orderNo: 'ALICE-001', deliveryOnly: true })
     const wrapper = mountPage()

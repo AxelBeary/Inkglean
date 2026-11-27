@@ -5,6 +5,7 @@
 //   3. 编辑模式上传后 PUT 失败回滚 → 关闭 → cleanup 带该路径
 //   4. 移除本次 staged 未提交的图 → 立即 cleanup（不等关窗）
 //   5. cleanup 请求失败 → 可见警告（不静默、不阻塞）
+//   6. cleanup 命中 409 UPLOAD_IN_USE（SEC-1 引用保护）→ 静默跳过，不误报成网络故障
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 
@@ -119,7 +120,7 @@ beforeEach(() => {
   h.updateSize.mockReset().mockResolvedValue({})
   h.createSize.mockReset().mockResolvedValue({})
   h.uploadImage.mockReset()
-  h.cleanup.mockReset().mockResolvedValue({ deleted: [] })
+  h.cleanup.mockReset().mockResolvedValue({ deleted: [], missing: [] })
   h.success.mockClear()
   h.error.mockClear()
   h.warning.mockClear()
@@ -231,6 +232,22 @@ describe('SizeEditDialog 孤儿图清理（F0200 staged 模型）', () => {
 
     // fire-and-forget 的 catch 弹通用网络错误提示（locales 不在本批清单内，复用 common.networkError）
     expect(h.warning).toHaveBeenCalledWith('common.networkError')
+    wrapper.unmount()
+  })
+
+  it('cleanup 命中 409 UPLOAD_IN_USE → 静默跳过（引用保护不是网络故障）', async () => {
+    // SEC-1：路径仍被作品集/画风/头像/尺寸示例引用时服务端整单 409（fail-closed）。
+    // 后台清理无法替用户解除引用，弹「网络错误」会误导用户重试一个注定失败的请求。
+    h.cleanup.mockRejectedValueOnce(Object.assign(new Error('image in use'), { status: 409, code: 'UPLOAD_IN_USE' }))
+    const wrapper = mountDialog(null)
+    await wrapper.setProps({ modelValue: true })
+    await flushPromises()
+
+    await driveUpload('images/3/in-use.png')
+    await cancelClose(wrapper)
+
+    expect(h.cleanup).toHaveBeenCalledTimes(1)
+    expect(h.warning).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
