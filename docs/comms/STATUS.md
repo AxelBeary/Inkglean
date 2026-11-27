@@ -1,19 +1,22 @@
 # 全局状态（一号维护，其他角色只读）
 
-## 2026-11-27 会话交接（发版与安全公告未完成，**接手先读这条**）
+## 2026-11-28 会话交接（PR #116 复核打回 + 六路施工在途，**接手先读这条**）
 
-- **当前基线（实测）**：master `3e604935`；迁移 v84；open issue 0 / open PR 0；版本 root 1.1.0 / desktop 0.1.0
-- **公网实际跑的版本＝`94f40bfd`**（用户 11-27 确认，很新）：GitHub Release 页仍挂 v1.1.0(10-28)，落后 165 提交——**以部署实测为准，Release 页是旧账**
-- 🔴 **发版卡在凭据**：`gh secret list` 与 `gh variable list` **均为空**，`desktop-release.yml` 硬性要求 4 项
-  - secret `TAURI_SIGNING_PRIVATE_KEY` / `_PASSWORD`；var `DESKTOP_UPDATE_PUBKEY` / `DESKTOP_UPDATE_BASE`
-  - 照做清单 `AGENTS/拍板材料-20261123/B8-照做清单.md`；**U33 流水线从未跑过，首跑需现场调**
-  - **用户 11-27 定：凭据明早配**（当天不做）；版本 root **1.2.0** / desktop & tauri **0.2.0**（尚未落到文件）
-- 🟢 **GHSA-6pf3 署名口径已定（用户 11-27）**：**不挂 Mistwhisker**（已私下确认）。credits 一栏按此收尾
-  - 仍未决：advisory 的 `summary` 现写「未修复」且 `patched_versions` 为空，直接发布会是错误公告
-  - 转公开前须把 summary / patched_versions 改成 1.2.0 实况；8 节修复本身已全在 master（证据见交接档 §四）
-- **建议顺序**：配凭据 → 改版本号 + changelog + 门禁 → 打 tag 首跑 U33 → 真机终验 → 1.2.0 发出后改 advisory → 转公开
-- **工作区状态**：11-27 04:0x 复核 `git status` 无遗留改动；Passkey 修复已入库 `3e604935`（见下条）
-- **完整交接**：`AGENTS/pr-audit-20261126/HANDOFF.md`（自包含；本机 gitignore，清理后可能不存在）
+- **基线（实测 11-28 05:2x）**：master `9b74468e`（**已推 origin**，CI/E2E 绿）；迁移 v84（PR #116 占 v85、幕布批占 v86）
+- **本地 4 提交已推**：`3e604935` Passkey 归因 + 三条文档；origin/master 不再是 `94f40bfd`
+- 🔴 **PR #116 复核结论：不可合（BLOCKER ×1）**，已在 PR 评论打回，修复分支在途
+  - BLOCKER B-1：`ManualOrderRight.vue:358` 派生幂等键 82 字符含冒号 → 服务端 ≤64 且 `[A-Za-z0-9-]` 校验必 400
+  - 实测：36 字符 UUID 原样 200 / 82 字符含冒号 400；该行为 PR 新引入（master 不传 header）
+  - 附带 M-1/M-2 两处**变异存活**（改回缺陷代码 48/10 用例 0 红）＝无回归防线
+  - PR 自述订正：冲突取舍实为 11/5/0（PR 写 13/2/1）；CI 实为 **6 job**（PR 写五）；STATUS 被 PR 改了 1 行待回退
+- 🟡 **open issue = 2**：#117（M-1 存量库不可达）、#118（质量类修复需路径级回归）；两条均已回帖订正
+  - #117 订正：洞是 v50 `de574dc0` 开的；可救窗口只有 **v36..v42**；≥v43 不可恢复但可翻 pre-v43 备份
+  - #118 订正：文字已备好（4 行 ≤128 字），**建议暂不加自动化防线**，先落纪律
+- 🔴 **发版凭据仍空**（`gh secret list`/`gh variable list` 全空）：4 项，照做清单已重建 `AGENTS/release-prep-20261128/RELEASE-CHECKLIST.md`
+  - **U33 流水线从未跑过**；NSIS 在本机从未成功过一次；首跑三坑见该清单（私钥尾部换行 / dispatch 空跑 422 / NSIS 工具链）
+- 🟢 **GHSA-6pf3 署名口径不变**：不挂 Mistwhisker。summary 与 patched_versions 仍待 1.2.0 发出后改
+- **在途施工（6 路子代理，worktree `AGENTS/wt/`）**：pr116-fixer / landing-impl / eventfeed-impl / release-bump / mig-tests / r2-export
+- **工作区状态**：11-28 05:2x `git status` 干净；全部改动在各 worktree 分支上，未合并
 
 ## 2026-11-27 Passkey 归因修复入库 + 文档整理批
 
@@ -55,11 +58,16 @@
 - **遗留**：CodeQL `Analyze (rust)` 在最后一次推送时仍在跑（其余 9 项已 success）
 - 🔴 **发布前必读**：F0156 弱密钥判定会让低熵密钥的既有部署**升级即拒启**，发布说明必须写明
 
-## 看板（2026-11-27 整理后：master `3e604935`）
+## 看板（2026-11-28 复核：master `9b74468e`，已推 origin）
 
-- **基线**：master `3e604935`；迁移 v84；本机等价门禁读数 server 2264 / web 1390 / desktop 695 / shared 66 / e2e 15（`scripts/accept-baseline.json`）
-- **发版**：公网实跑 `94f40bfd`；目标 v1.2.0 / desktop 0.2.0（未落文件）；凭据明早配；U33 首跑待现场调
-- **PR/警报**：#107–#113 上游仍 OPEN（推上游顺序 #109 先于 #112）；#96/#97/#98 公开待推；B2/B4/B6/B7 私密 GHSA
+- **基线**：master `9b74468e`；迁移 v84（PR #116 占 v85，幕布批占 v86，硬断言会拦乱序）；门禁读数 server 2264 / web 1390 / desktop 695 / shared 66 / e2e 15
+- **open PR = 1**：#116（fork `Mistwhisker:fix/deep-cross-fixes-20261127`，tip `db86fcf6`）—— CI 7 项全绿但复核**判不可合**，已回帖打回
+  - BLOCKER：派生幂等键 82 字符含冒号必 400；另有 2 处变异存活＝无回归；修复分支 `feat/…` 在途
+- **open issue = 2**：#117（M-1 存量库不可达）、#118（质量类修复需路径级回归）；两条已回帖订正
+- **已收口**：#96/#97/#98 全 CLOSED；#107–#113 全 MERGED。「推上游 #109 先于 #112」作废；**主仓不是 fork**
+- **私密 advisory = 2，均 `triage`**：`GHSA-vjr7-75pw-72mr`（4 条，修复在 #116）/ `GHSA-6pf3-g4xq-854w`（summary 与 patched_versions 待改）
+- **发版**：4 项凭据**仍全空**；版本文件仍 root 1.1.0 / desktop 0.1.0；U33 从未跑过；照做清单已重建于 `AGENTS/release-prep-20261128/`
+- **Release 页旧账**：latest 仍 v1.1.0（tag `eb351f9a`），落后 origin/master **166** 提交；公网实跑版本待用户再确认
 - **合并权口径**：`master-merge-gate` bypass 只有 AxelBeary（always）；Mistwhisker 仅 write、不可自合
 - 🔴 **上线前置硬警告**：公网部署前必须先确认 `platform_config.admin_qq` 非空
 - **在途卡（DSH taskboard，不在本仓）**：青芽季遇 `t-mwxzkrkv-cc3d9y` 手机主菜单承托重设计（todo，本批新立）
@@ -69,12 +77,14 @@
 
 **下一步（按优先级）**
 
-1. **明早配发版凭据**（用户 11-27 定）：4 项 secret/var → 版本号 1.2.0/0.2.0 + changelog → 门禁 → 打 tag 首跑 U33
-2. **两张新卡待定范围**：主页优化、管理员面板流水幕布（字段、隐私口径、展示事件都在等你一句话）
-   - 幕布缺的不是前端是**事件来源**：访问类事件未入库、登录只有 `last_login_at/ip` 覆盖写、隐私口径（IP 脱敏 / 访客是否记录 / 保留期）须先拍
-3. **推上游（待用户确认）**：fork 集成含 7 PR + 施工/修复批；顺序 #109 先于 #112
-4. **施工批覆盖**：B1 6 条 + B3 11 条 + B4 12 条 + B8 方案 A+C 与 U33；施工图 `AGENTS/handoff-20261124/PLAN-REMAINING.md`
-5. **R-1/R-2/R-3**（RuoYi 评估产出，全文已外置）：未立项；R-1 是「防新代码漏挂」的防腐，不是防越权
+1. 🔴 **PR #116 修完再合**：BLOCKER B-1 修法＝派生键改 sha256 hex；同批补 M-1/M-2 两条回归、回退 STATUS 那 1 行、订正「6 job」
+   - 修完我再看一轮，然后由一号以 AxelBeary 身份 `gh pr merge --admin` 合入（bypass 只在 AxelBeary）
+2. 🔴 **发版凭据 4 项**（唯一卡点，需制作人手工配）：`TAURI_SIGNING_PRIVATE_KEY` / `_PASSWORD` / `DESKTOP_UPDATE_PUBKEY` / `DESKTOP_UPDATE_BASE`
+   - 照做清单见 `AGENTS/release-prep-20261128/RELEASE-CHECKLIST.md`（原 `AGENTS/拍板材料-20261123/B8-照做清单.md` 已随目录丢失）
+3. **在途施工 6 路**（worktree `AGENTS/wt/`）：PR116 修复 / 主页 Landing / 流水幕布 / 发版版本号 / 迁移测试补齐 / R-2 导出
+4. **丢失材料处置**：`AGENTS/拍板材料-20261123/`、`AGENTS/handoff-20261124/` 整目录已不存在；B 批代码已进 master（`3c0e0069`/`9ecc0c31`/`a8a56f33`），丢的是施工图文档
+   - 处置口径：只重建 U33 照做清单（已办），DECISIONS 结论已在「已拍板规则」章，不逐字复原
+5. **RuoYi 评估遗留**：R-1（归属守卫统一层，防腐不是防越权）未立项；R-2 已在途；R-3 并入幕布批
 
 **常驻纪律（事故换来的，不得退色）**
 
