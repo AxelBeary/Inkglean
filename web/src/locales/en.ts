@@ -2598,6 +2598,13 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
       totalCount: '{n} trail records in total',
       adminActionsEmpty: 'No action trail records',
       adminActionsLoadFailed: 'Failed to load action trail',
+      // R-2: trail CSV export (the export itself writes an admin_actions_export trail entry)
+      adminActionsExport: 'Export CSV',
+      adminActionsExporting: 'Exporting…',
+      adminActionsExported: 'Export complete — recorded in the trail',
+      adminActionsExportFailed: 'Export failed',
+      adminActionsExportTimeout: 'Export timed out — narrow the date range and retry',
+      adminActionsExportHint: 'Exports every record matching the current filters (not limited by the list page size)',
       action: {
         report_resolve: 'Resolve report',
         content_remove: 'Remove content',
@@ -2610,14 +2617,18 @@ loadRetry: 'Try again', networkError: 'Network error, please try again later', g
         artist_remove: 'Remove artist',
         delivery_link_reissue: 'Reissue delivery link',
         // B7-F0111: admin transfer audit action label
-        admin_transfer: 'Transfer admin'
+        admin_transfer: 'Transfer admin',
+        // R-2: label for the export action's own trail entry
+        admin_actions_export: 'Export trail'
       },
       targetType: {
         report: 'Report',
         artwork: 'Artwork',
         message: 'Message',
         artist: 'Artist',
-        deliverable: 'Delivery file'
+        deliverable: 'Delivery file',
+        // R-2: target type of the export action's own trail entry
+        admin_action: 'Action trail'
       }
     }
   },
