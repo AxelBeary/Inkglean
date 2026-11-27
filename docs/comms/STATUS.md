@@ -86,7 +86,9 @@
 3. **主页首屏新文案待制作人过目**：`LandingHero.vue` 的定位句 + 三条价值点是本批新写的客户向文案（此前不存在）
 4. **R-1 归属守卫统一层**：`AGENTS/` 的 RuoYi 评估结论明确是「防新代码漏挂」的**防腐**，不是安全修复；未立项
 5. **F0179 / F0314 二阶段**：都等线上数据稳定才动（query.token 回退、legacyNextDueCents 回退仍在）；F0179 移除时要同步改 e10 e2e
-6. **`login_codes` 退役表**：全仓零运行时使用，可随 R-3 一并 drop；属迁移决策，待拍板
+6. **`login_codes` 退役表：查清后结论是「不能删」**（11-28 实测订正，推翻此前「可随 R-3 drop」）
+   - v13 迁移会 `PRAGMA table_info(login_codes)` + `SELECT FROM login_codes`；基线 schema 若不建此表，全新库跑链到 v13 直接崩 `no such table: login_codes`
+   - 现状：v41 已 DROP，全链终态不存在（实测 `PROBE_LOGIN_CODES_EXISTS=false`）；`schema.ts:404` 那 8 行仅维持迁移链完整，注释已写明，**保持原样不动**
 7. **AGENTS/ 仍占 2.4 GB**：N9 待制作人定四类去留
 
 **常驻纪律（事故换来的，不得退色）**
