@@ -247,7 +247,9 @@ import {
   toCredentialCreationOptions,
   toCredentialRequestOptions,
   publicKeyCredentialToJSON,
-  isBackendError
+  isBackendError,
+  checkRpId,
+  rpIdProblemKey
 } from '../../utils/webauthn'
 import { usePasskeyCreate, PASSKEY_FLOW_HANDLED } from '../../composables/usePasskeyCreate'
 import { REBIND_COOLDOWN_DEFAULT_MS } from '../../constants/account'
@@ -283,9 +285,25 @@ async function loadCredentials() {
   finally { loading.value = false }
 }
 
+/**
+ * rp.id 前置归因（2026-11-27 报障修复，Edge Dev 无法注册 Passkey）：
+ * rp.id 与当前访问域名不符、或服务器把域名配成 IP 时，浏览器只会抛一句 SecurityError
+ * 「This is an invalid domain.」，旧实现把它归成「浏览器不支持（需 HTTPS 或 localhost）」，
+ * 把排查方向指错了——而本页按钮能渲染就说明 HTTPS 与 PublicKeyCredential 都正常。
+ * 注册（create）与重绑（get）两处共用本判定，防两条路径的文案与口径各自漂移。
+ * @returns 有问题时已提示并返回 true（调用方 return PASSKEY_FLOW_HANDLED）
+ */
+function rejectIfRpIdProblem(rpId: string | undefined): boolean {
+  const problem = checkRpId(rpId, location.hostname)
+  if (!problem) return false
+  ElMessage.error(t(rpIdProblemKey(problem), { rpId, host: location.hostname }))
+  return true
+}
+
 async function registerPasskey() {
   await passkeyCreateFlow(async () => {
     const options = await webauthnApi.registerOptions()
+    if (rejectIfRpIdProblem(options.rp.id)) return PASSKEY_FLOW_HANDLED
     const credential = await navigator.credentials.create({ publicKey: toCredentialCreationOptions(options) })
     if (!credential) return null
     const pubCred = credential as PublicKeyCredential
@@ -460,6 +478,8 @@ async function verifyWithPasskey() {
       return PASSKEY_FLOW_HANDLED
     }
     const options = await webauthnApi.loginOptions(qq)
+    // 认证选项的 rpId 可选，缺省时浏览器回落当前域名（checkRpId 内部已按此放行）
+    if (rejectIfRpIdProblem(options.rpId)) return PASSKEY_FLOW_HANDLED
     const credential = await navigator.credentials.get({ publicKey: toCredentialRequestOptions(options) })
     if (!credential) return null
     rebindPasskeyCredential.value = publicKeyCredentialToJSON(credential as PublicKeyCredential)

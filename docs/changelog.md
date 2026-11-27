@@ -20,6 +20,17 @@
 - **E2E 预算（XVB-1）**：e8 单独 `retries: 0`，避免重试把失败登录预算重算、撞服务端第 5 次锁放大失败。
 - **验证**：定向回归 53 文件 / 473 用例全绿；全量串行读数与四道防阀见 `AGENTS/xdebug-20261127/fix/GATE*.md`；本机无 pwsh/浏览器/cargo，未跑 accept.ps1 十九道、Playwright E2E、cargo test。
 
+## Passkey 注册失败归因修复（2026-11-27）
+
+- **报障**：Edge Dev 在「账号与安全 → Passkey 登录设备」无法注册，页面顶部提示「当前浏览器不支持 Passkey（需 HTTPS 或 localhost）」。
+- **根因**：前端 `isWebAuthnUnsupported` 把浏览器的 `SecurityError` 与真·能力缺失 `NotSupportedError` 算作同一类。当服务端下发的 rp.id 与当前访问域名不一致、或访问源是裸 IP 时，浏览器抛 `SecurityError`，于是被渲染成「浏览器不支持」——而该按钮能渲染本身即证明 HTTPS 与 `PublicKeyCredential` 都正常，提示把排查方向指错了。
+- **实测基线（本机三端一致：Edge Dev 160.0.4416.0 / Edge 158.0.4370.33 / Chromium 159）**：https + 域名源且 rp.id 匹配 → 注册成功；rp.id 为无关域名 → `SecurityError`；https + `127.0.0.1` 源，rp.id 缺省或等于 IP 串 → `SecurityError「This is an invalid domain.」`（浏览器不接受 IP 形式的 rp.id）；缺省 rp.id 在域名源上回落到当前域名，可成功。
+- **修复**：`utils/webauthn.ts` 拆分错误归类——`isWebAuthnUnsupported` 只认 `NotSupportedError`，新增 `isWebAuthnSecurityError`；新增 `checkRpId`/`isIpHostname`/`isRpIdSuffixOfHost` 仪式前置归因，配 `rpIdProblemKey` 单源映射（IP 访问 vs 配置有误两类，前者访客可自解、后者需管理员改配置）。
+- **接线**：`AccountSecurity` 注册与重绑共用 `rejectIfRpIdProblem`（防两条路径口径漂移）、`Login`（Passkey 登录）、`StepUpDialog`（后台二次验证）；新增 i18n 键 `common.passkeyDomainRejected`、`account.passkeyDomainIpHost`、`account.passkeyDomainMisconfigured`（中英成对）。
+- **测试**：分类谓词一律用真实实现（部分 mock），并做过变异验证——把 `isWebAuthnUnsupported` 改回旧口径，对应用例确实转红，非假绿。
+- **验证**：web lint（typecheck 0 错）+ 198 文件 / 1407 用例全绿 + check:i18n（中英键集一致）+ build 绿；E2E `e8-passkey` 1 passed。修复前后在**真实应用链路**（本机起 server + Edge Dev + CDP 虚拟验证器）实测：修复前 IP 源复现出与截图一字不差的「不支持」提示；修复后 IP 源与 rp.id 不符各给出专属可执行文案，且正常域名源仍能真实注册成功（凭据落库）。
+- **未做**：未改服务端 rp.id/origin 取值逻辑（生产仍按 `WEBAUTHN_RP_ID`/`WEBAUTHN_ORIGIN` 钉死，缺省 fail-fast 不变）；线上站点本机无法解析（`shihui.lustbufwerewolfspeedtest.cfd` 在阿里 DNS / DNSPod / Google DoH 三方均 NXDOMAIN），故未对线上实测，真实成因需按部署侧 `WEBAUTHN_RP_ID` 与访问域名是否一致核对。
+
 ## PR #114 审计修复：Sentry 脱敏 / 画师侧增项守卫 / 弱密钥口径（2026-11-26）
 
 - **Sentry 令牌脱敏（M-5）**：`beforeSend` 改白名单只保留 `url`/`method`，清除 `request.headers`/`cookies`/`data`/`query_string` 与 breadcrumb 内 header 字段；F0179 后走 `x-order-token` header 的订单令牌不再随 5xx 上报第三方 DSN。核对 @sentry/node 10.78.0：`sendDefaultPii:false` 只过滤 span 属性，**不过滤** `event.request.headers`，必须自行清理。

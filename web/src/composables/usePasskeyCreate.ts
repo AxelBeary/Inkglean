@@ -15,7 +15,7 @@
  */
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { isWebAuthnCancellation, isWebAuthnUnsupported } from '../utils/webauthn'
+import { isWebAuthnCancellation, isWebAuthnUnsupported, isWebAuthnSecurityError } from '../utils/webauthn'
 
 /** 仪式内已自行处理（含特定提示），flow 不再追加默认提示 */
 export const PASSKEY_FLOW_HANDLED = Symbol('passkey-flow-handled')
@@ -56,6 +56,12 @@ export function usePasskeyCreate() {
       }
       if (isWebAuthnUnsupported(err)) {
         ElMessage.warning(t('common.passkeyNotSupported'))
+        return null
+      }
+      // 2026-11-27 报障修复：SecurityError = 浏览器安全域拒绝（rp.id 非法/与访问域名不符），
+      // 与「浏览器不支持」是两码事——旧实现归到不支持，把用户的排查方向指错了
+      if (isWebAuthnSecurityError(err)) {
+        ElMessage.error(t('common.passkeyDomainRejected'))
         return null
       }
       ElMessage.error(t('common.passkeyFailed'))

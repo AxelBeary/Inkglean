@@ -137,10 +137,81 @@ export function isWebAuthnCancellation(err: unknown): boolean {
   return name === 'NotAllowedError' || name === 'AbortError'
 }
 
-/** 浏览器侧 WebAuthn 不支持类错误 */
+/**
+ * 浏览器侧 WebAuthn 真·能力缺失（NotSupportedError）。
+ *
+ * 2026-11-27 报障修复（Edge Dev 无法注册 Passkey）：旧实现把 SecurityError 一并算作
+ * 「浏览器不支持」，于是 rp.id 与访问域名不一致 / rp.id 非法时，用户看到的是
+ * 「当前浏览器不支持 Passkey（需 HTTPS 或 localhost）」——而该页面本就运行在 HTTPS 下
+ * 且 PublicKeyCredential 可用（否则注册按钮根本不会渲染）。提示指错了排查方向。
+ * SecurityError 归因独立走 isWebAuthnSecurityError / checkRpId。
+ */
 export function isWebAuthnUnsupported(err: unknown): boolean {
-  const name = err instanceof Error ? err.name : ''
-  return name === 'NotSupportedError' || name === 'SecurityError'
+  return err instanceof Error && err.name === 'NotSupportedError'
+}
+
+/** 浏览器侧 WebAuthn 安全域拒绝（SecurityError：rp.id 非法或与当前域名不匹配等） */
+export function isWebAuthnSecurityError(err: unknown): boolean {
+  return err instanceof Error && err.name === 'SecurityError'
+}
+
+/** rp.id 与访问域名的问题类型（null = 无问题） */
+export type WebAuthnRpIdProblem = 'ip-host' | 'rp-id-empty' | 'rp-id-invalid' | 'rp-id-mismatch' | null
+
+const IPV4_RE = /^\d{1,3}(\.\d{1,3}){3}$/
+
+/**
+ * 访问域名是否为「不能用 Passkey 的裸 IP」。
+ * 实测（Edge Dev 160 / Edge 158 / Chromium 159 三端一致）：https + 127.0.0.1 源上
+ * rp.id=127.0.0.1 与缺省 rp.id 均抛 SecurityError「This is an invalid domain.」——
+ * 浏览器不接受 IP 形式的 rp.id，裸 IP 源上 Passkey 不可能成功，必须换域名访问。
+ */
+export function isIpHostname(hostname: string): boolean {
+  const host = (hostname || '').trim().toLowerCase()
+  return IPV4_RE.test(host) || host.startsWith('[') || host.includes(':')
+}
+
+/**
+ * rp.id 必须是当前域名的父域或同名域（WebAuthn 规范的 registrable domain suffix 关系）。
+ * 例：rp.id=example.com 对 host=a.example.com 成立；对 host=a.example.net 不成立。
+ */
+export function isRpIdSuffixOfHost(rpId: string, hostname: string): boolean {
+  const rp = (rpId || '').trim().toLowerCase().replace(/\.$/, '')
+  const host = (hostname || '').trim().toLowerCase().replace(/\.$/, '')
+  if (!rp || !host) return false
+  return host === rp || host.endsWith(`.${rp}`)
+}
+
+/**
+ * 仪式前置校验：在调用 navigator.credentials 之前先判 rp.id 与当前访问域名，
+ * 把「浏览器只会给一句 SecurityError」变成可执行的归因。
+ * 返回 null 表示通过；否则返回具体问题类型。
+ */
+export function checkRpId(rpId: string | undefined, hostname: string): WebAuthnRpIdProblem {
+  // IP 源优先判：浏览器不接受 IP 形式的 rp.id，缺省回落当前主机同样立即失败，与 rp.id 有无无关
+  if (isIpHostname(hostname)) return 'ip-host'
+  // 未下发 rp.id/rpId 时浏览器回落「当前域名」，此时无需再校验（认证侧 rpId 本就可选）
+  if (rpId === undefined) return null
+  const rp = (rpId || '').trim().toLowerCase().replace(/\.$/, '')
+  if (!rp) return 'rp-id-empty'
+  // rp.id 被配成 IP（常见成因：反向代理没传对 Host，服务端按 request.host 推导出 127.0.0.1）
+  if (isIpHostname(rp)) return 'rp-id-invalid'
+  // 只接受裸域名：带协议/端口/路径或 IP 的写法浏览器一律判 invalid domain。
+  // 单标签域名（localhost）合法——实测 rp.id=localhost 在 https://localhost 源上可注册成功
+  if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/.test(rp)) return 'rp-id-invalid'
+  if (!isRpIdSuffixOfHost(rp, hostname)) return 'rp-id-mismatch'
+  return null
+}
+
+/**
+ * 归因 → i18n 键（单源映射，避免各调用点各写一份三元）。
+ * 只分两类是因为「谁来处理」不同，而非技术细节不同：
+ * - ip-host：访客自己换域名访问即可解决
+ * - 其余三项：服务端 rp.id 配置有误，需管理员改配置（空值/非法/IP 形/与域名不符，对用户而言都是同一件事）
+ * 与 http.ts 的 `errors.${code}` 同口径：键的拼装收敛在就近的一层，调用点只负责展示。
+ */
+export function rpIdProblemKey(problem: Exclude<WebAuthnRpIdProblem, null>): string {
+  return problem === 'ip-host' ? 'account.passkeyDomainIpHost' : 'account.passkeyDomainMisconfigured'
 }
 
 /** 后端 ApiError 类型守卫（带 code，message 已经 i18n 拦截器翻译） */
