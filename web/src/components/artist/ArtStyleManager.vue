@@ -364,18 +364,19 @@ async function setSizeStatus(style: ManagerStyleRow, size: ManagerSizeRow, value
   }
 }
 
-/** 02H 单选约束（用户原话「用途、加急分别只能选一个」）：启用目标 usage/rush 时，同画风其他同类项 is_enabled=false
- * 返回 setStyleAddons items（含目标项 is_enabled=true + 其他同类 false）；增项类(add)不互斥 */
-function mutexAddonItems(style: ManagerStyleRow, targetSa: { id: number; addon_template_id: number | null; template_category?: string | null; is_enabled?: number | boolean }) {
+/** 02H 单选约束（用户原话「用途、加急分别只能选一个」）：新建/导入把 usage/rush 挂进画风时，
+ *  顺带把同画风其他同类项 is_enabled=false。返回 setStyleAddons items（目标 enabled + 其他同类 false）；add 类不互斥。
+ *  ⚠ 适用范围仅限「目标模板 id 已知」的新建/导入路径：setStyleAddons 载荷只认模板 id。
+ *  孤儿行（addon_template_id=null）的启用与互斥一律走 F0192 saveAddonSettings（按行 id、服务端推导），
+ *  见 onDropToSize 注释；此处收窄为 number 就是为了从类型上堵死「把 null 当模板 id 回传」的老坑（F0190/F0191）。 */
+function mutexAddonItems(style: ManagerStyleRow, targetSa: { id: number; addon_template_id: number; template_category?: string | null; is_enabled?: number | boolean }) {
   const cat = addonCategory(targetSa)
   if (cat === 'add') return null
-  // F0190/F0191：孤儿行（模板已删、addon_template_id=null）不能把 null 当模板 id 回传。
-  // 只停用同类里有真实模板 id 的行；孤儿目标行由尺寸级 setSizeOverrides（行 id sa.id）启用。
+  // 孤儿兄弟行无模板 id 可上送，不在此载荷里（它们的互斥同样由服务端 saveAddonSettings 负责）
   const items = style.addons
     .filter(sa => sa.id !== targetSa.id && sa.addon_template_id != null && addonCategory(sa) === cat && !!sa.is_enabled)
     .map(sa => ({ addon_template_id: sa.addon_template_id as number, is_enabled: false }))
   if (!items.length) return null
-  if (targetSa.addon_template_id == null) return items
   return [{ addon_template_id: targetSa.addon_template_id, is_enabled: true }, ...items]
 }
 
@@ -488,8 +489,14 @@ function onPoolDragLeave() { poolDragOver.value = false }
  *    避免画风级已停用时命中「已启用」误提示但实际未启用（清单根因①③）。
  * ②所有早退分支主动清 dragPayload/poolDragOver——摘要 chip 补了 dragend 上报（StyleCard 侧），
  *    但早退若不主动清仍会污染后续排序拖拽（清单根因②）。
- * ③画风级已停用 + 尺寸级未 hidden 时走启用路径：
- *    add 类（非互斥）单独 setStyleAddons 启用自身；usage/rush 类由 mutex 载荷带上自身启用。
+ *
+ * CONTRACT-1/XVB-2（交叉审计）：画风级启用 + 同类互斥收敛到 F0192 单端点的**服务端单源**。
+ * 旧实现由前端拼 setStyleAddons 载荷，有两个结构性缺口：
+ * - 孤儿行（addon_template_id=null，模板已删的快照行）没有模板 id 可上送 —— 既无法启用自己，
+ *   也漏停「同类的启用态孤儿行」，与仓库自己钉死的服务端不变量相反（style-addon-settings.test.ts TC-F1-05）；
+ * - 互斥停用（setStyleAddons）与尺寸覆盖（setSizeOverrides）是两次独立写，第二步失败得靠反向补偿尽量还原。
+ * saveAddonSettings 是单事务全成全败，互斥由 disableMutexSiblingAddons 按**行 id**推导（类别读库内快照，含孤儿行），
+ * 上述两个缺口一起消失。松手即变更，故无条件提交——不要照搬 AddonSettingsDialog 的「零 diff 短路」。
  */
 async function onDropToSize(style: ManagerStyleRow, size: ManagerSizeRow, _e: DragEvent) {
   const payload = dragPayload.value
@@ -505,58 +512,20 @@ async function onDropToSize(style: ManagerStyleRow, size: ManagerSizeRow, _e: Dr
     clearDrag()
     return
   }
-  let mutexRestore: Array<{ addon_template_id: number; is_enabled: boolean }> | null = null
-  // WEB-06 ③：add 类无互斥 → 记录自身启用的反向恢复载荷，尺寸级失败时回滚画风级
-  let selfEnableRestore: { addon_template_id: number } | null = null
-  // F0196: 目标项原本的画风级启用态——回滚时仅当原为停用才把它停回去（原本已启用则不动，保持单选原状）
-  const targetWasEnabled = !!sa.is_enabled
   try {
-    // 单选约束：用途/加急类拖入尺寸启用 → 同画风其他同类画风级停用（顾客每单各选一个，后端兜底互斥）
-    const mutex = mutexAddonItems(style, sa)
-    if (mutex) {
-      await artistApi.setStyleAddons(style.id, mutex)
-      // 围剿 a1-14: 记录反向恢复载荷——若后续尺寸覆盖写失败，把这些刚停用的同类项重新启用
-      mutexRestore = mutex
-        .filter(m => m.addon_template_id !== sa.addon_template_id)
-        .map(m => ({ addon_template_id: m.addon_template_id, is_enabled: true }))
-      // F0196: 只恢复同类项而不处理原本停用的目标项，会让它与恢复的同类项同时启用，破坏用途/加急单选约束
-      // F0190/F0191：孤儿目标行 addon_template_id=null 不进回滚载荷（本就未改其画风级状态）
-      if (!targetWasEnabled && sa.addon_template_id != null && mutex.some(m => m.addon_template_id === sa.addon_template_id && m.is_enabled)) {
-        mutexRestore.push({ addon_template_id: sa.addon_template_id, is_enabled: false })
-      }
-      for (const m of mutex) {
-        const other = style.addons.find(x => x.addon_template_id === m.addon_template_id)
-        if (other) other.is_enabled = !!m.is_enabled
-      }
-    } else if (!sa.is_enabled && sa.addon_template_id != null) {
-      // WEB-06 ③：add 类画风级已停用 → 先启用自身（画风级），再走下方尺寸级覆盖
-      // F0190/F0191：孤儿行 addon_template_id=null 不能走 setStyleAddons（其载荷只认模板 id），
-      // 跳过画风级写入，直接由下方 setSizeOverrides（行 id sa.id）完成该尺寸的启用。
-      const items = [{ addon_template_id: sa.addon_template_id, is_enabled: true }]
-      await artistApi.setStyleAddons(style.id, items)
-      selfEnableRestore = { addon_template_id: sa.addon_template_id }
-      sa.is_enabled = true
-    }
-    await artistApi.setSizeOverrides(style.id, size.id, [{ style_addon_id: sa.id, price_override: ov[sa.id]?.price_override ?? null, is_hidden: false }])
+    // 画风级启用 + 本尺寸取消隐藏，一次事务提交（服务端顺带停用同类其他行，含孤儿行）
+    const res = await artistApi.saveAddonSettings(style.id, {
+      styleAddonId: sa.id,
+      styleEnabled: true,
+      sizeOverrides: [{ sizeId: size.id, priceOverride: ov[sa.id]?.price_override ?? null, isHidden: false }]
+    })
+    // 聚合结果即服务端真相：整体替换本画风增项行（含被服务端停用的同类兄弟），本地不再自算互斥
+    style.addons = res.addons
     if (!size._overrides) size._overrides = {}
     size._overrides[sa.id] = { price_override: ov[sa.id]?.price_override ?? null, is_hidden: false }
     ElMessage.success(t('styleManage.addonEnabled', { size: size.name, name: sa.template_name }))
   } catch (err) {
-    // 围剿 a1-14: mutex 已生效而后一步 setSizeOverrides 失败 → 反向恢复互斥项，再重载保证本地与后端一致
-    if (mutexRestore?.length) {
-      try {
-        await artistApi.setStyleAddons(style.id, mutexRestore)
-      } catch {
-        // 反向恢复失败：交给重载兜底，仍提示原始错误
-      }
-    } else if (selfEnableRestore) {
-      // WEB-06 ③：画风级刚被本函数启用而尺寸级失败 → 恢复停用，避免留下孤儿启用
-      try {
-        await artistApi.setStyleAddons(style.id, [{ addon_template_id: selfEnableRestore.addon_template_id, is_enabled: false }])
-      } catch {
-        // 反向恢复失败：交给重载兜底
-      }
-    }
+    // 单事务无部分写入，无需反向补偿；重载只为把可能已陈旧的本地快照拉回服务端真相
     await load()
     ElMessage.error((err as Error).message)
   } finally {
