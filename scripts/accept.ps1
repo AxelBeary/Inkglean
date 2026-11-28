@@ -170,6 +170,11 @@ $gates += @{ id = 'file-size'; label = '巨型文件防阀（check-file-size）'
 $statusLineBase = if ($branch -eq 'master') { $diffBase } else { 'master' }
 $gates += @{ id = 'status-line'; label = "STATUS 单行长度防阀（check-status-line，基线 $statusLineBase）"; dir = ''; cmd = 'node'; npmArgs = @('scripts/check-status-line.mjs', '--base', $statusLineBase) }
 
+# 路由归属守卫静态检查（R-1「防腐栏」，2026-11-28 制作人拍板方案 ①）：扫 server/src/features/**/*.routes.ts，
+# 找「含路径参数的写路由（POST/PUT/PATCH/DELETE）没挂归属守卫」。纯静态文本扫描、零依赖。
+# 头注释写明两条局限（C 类读后比较查不出；handler 里 artist_id 语义不同时会放过）——这是防腐栏，不是安全证明。
+$gates += @{ id = 'route-guards'; label = '路由归属守卫防阀（check-route-guards）'; dir = ''; cmd = 'node'; npmArgs = @('scripts/check-route-guards.mjs', '.') }
+
 # changelog 活档体积防阀（2026-09-27 A+B+D 拍板批）：≤40KB/≤450 行 + 新增/改动 H2 段 ≤4KB（存量段 HEAD 基线豁免）。
 # 撞线处置唯一：按 STATUS 惯例滚动分册搬 docs/changelog-archive/ 新卷（逐行哈希零丢失）；禁调高阈值续命（同 F-44 口径）。
 $gates += @{ id = 'changelog-size'; label = 'changelog 活档体积防阀（check-changelog-size）'; dir = ''; cmd = 'node'; npmArgs = @('scripts/check-changelog-size.mjs') }

@@ -27,6 +27,21 @@ jobs:
       - name: Giant file check（check-file-size）
         run: node scripts/check-file-size.mjs .
 
+  # 路由归属守卫静态检查（R-1「防腐栏」，2026-11-28 制作人拍板方案 ①）进 CI：
+  # 与 accept.ps1 的 route-guards 闸同一脚本。扫 server/src/features/**/*.routes.ts，
+  # 找「含路径参数的写路由没挂归属守卫」，见脚本头注释两条局限（这是防腐栏不是安全证明）。
+  # 独立 job、纯静态文本扫描、零依赖，不需 npm ci。
+  route-guards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Route guard check（check-route-guards）
+        run: node scripts/check-route-guards.mjs .
+
   server:
     runs-on: ubuntu-latest
     timeout-minutes: 15
