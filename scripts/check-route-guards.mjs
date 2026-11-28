@@ -39,8 +39,18 @@
 //       b) 归属证据（任一）：
 //            - options 里出现 requireOwn*（具名守卫，EVAL 的 A 类）
 //            - handler 文本里出现 artist_id（EVAL 的 B 类内联 SQL 过滤）
-//            - handler 文本里出现 request.artist.id（EVAL 的 C 类常见形态）
+//            - 或 handler 把 request.artist.id 传给的那个 service 函数体内**真有**归属强制
+//              （artist_id = ? / artist_id 比较 / ON CONFLICT(artist_id, …)，B/C 类落在 service 层）
 //       a / b 缺任一项 → 报红。
+//
+//   ★ request.artist.id 本身不是归属证据（2026-11-28 一号变异测试后收窄，重要）：
+//     它是「当前登录画师是谁」，证明「我知道你是谁」，**不能证明「这条数据是你的」**。
+//     而且它恰恰是「守卫已挂、正在用守卫结果」的形态——漏挂守卫时它照样在（代码是抄的）。
+//     一号实测：PUT /api/artist/orders/:id/status 摘掉 requireOwnOrder 后，handler 末行
+//     `…, request.artist.id)` 仍在，旧判据据此放行 → 真漏挂被漏报（脚本报绿）。
+//     现行口径：request.artist.id **不直接入证据**，只当「去哪找证据」的线索——
+//     顺着它下沉到被调用的 service，看那个函数体里有没有真的归属强制。
+//     查得到才算过；查不到（例如 updateOrderStatus 只按 id 取单、不做画师过滤）照样报红。
 //   判据 ②（管理端）：路径以 /api/admin/ 开头 → 必须出现 requireAdmin。
 //       管理端另有 step-up 二次认证兜底，但守卫漏挂仍报红。
 //   判据 ③（公开端）：路径以 /api/public/ 开头 → 约定为公开端点，不要求归属守卫，
@@ -51,8 +61,18 @@
 //       x-order-token / readClientToken / guardRateLimit 之外的 clientToken 语义。
 //       这一条是本轮基线跑出来的第二类（见下）：它们不是漏挂守卫，而是**另一种归属模型**，
 //       静态栏若不认，就会一直红着逼人去加 allowlist——那才是真正的防线腐蚀。
-//       同理 /api/auth/ 前缀（凭据自助改名/删除）要求同前缀证据：requireAuth + 把 id 与
-//       request.artist.id 一并交给 service（见判据 ①b 的「第二参数是请求方身份」）。
+//       同理 /api/auth/ 前缀（凭据自助改名/删除）走判据 ①b：requireAuth + service 层
+//       `WHERE id = ? AND artist_id = ?`（updateCredentialName / deleteCredential 实为后者）。
+//
+//   ★ 判据收窄后的第二轮分类（2026-11-28，一号变异测试指出 request.artist.id 是伪证据）：
+//     去掉「request.artist.id 可直接算证据」后基线冒出 13 项红，逐条人工核对：
+//     **真漏挂 0 项，13 项全部是 service 层归属校验**——handler 把 request.artist.id 交给
+//     service，service 内以 `WHERE id = ? AND artist_id = ?` 或读后比较限定范围：
+//       devices(revokeDesktopDevice) / workflow(updateStage,deleteStage) / tools(upsert,delete,
+//       standalone-incomes) / webauthn(updateCredentialName,deleteCredential) /
+//       guestbook(approve,reject,reply) / discount(update,delete)
+//     处置是**把判据下沉到 service**（不是加白名单、也不是补守卫——现有代码本来就是对的）。
+//     下沉后基线回到 0；同时一号那条变异（摘 requireOwnOrder）**必须报红**，实测报红。
 //
 //   ★ 基线分类记录（2026-11-28 首跑，EVAL 要求「先分类再决定」）：
 //     首跑 5 项红。逐条人工核对后：真漏挂 0 项，判据误报 5 项，全部按下面「改判据」处置，
@@ -72,7 +92,7 @@
 //   靠 ALLOWLIST 续命的老路 check-file-size.mjs 已经吃过亏（见该文件 2026-09-12 批注），本栏不重蹈。
 
 import { readFileSync, readdirSync, statSync } from 'fs'
-import { join, relative } from 'path'
+import { dirname, join, relative } from 'path'
 
 const ROOT = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2] : '.'
 const LIST = process.argv.includes('--list')
@@ -89,12 +109,19 @@ const UNPARSABLE_FORMS = [
 const AUTH_RE = /\b(requireAuth|requireAdmin|requireOwn[A-Za-z]*)\b/
 const OWN_NAMED_RE = /\brequireOwn[A-Za-z]*\b/
 const ADMIN_RE = /\brequireAdmin\b/
+// 判据 ①b 的「归属证据」——只有两种真证据（2026-11-28 一号变异测试后收窄）：
+//   · requireOwn* 具名守卫：把「id 与请求方绑定」的逻辑封装好了（A 类）
+//   · handler 内联 artist_id：SQL 层 AND artist_id = ? 在查询时就限制了范围（B 类）
+//
+// ★ 已移除 request.artist.id（曾经算证据）——它是**伪证据**，一号给的实证：
+//   order-action.routes.ts 的 PUT /api/artist/orders/:id/status 摘掉 requireOwnOrder 后，
+//   handler 里仍有 `…, request.artist.id)`（拼响应/传参用），旧判据据此放行 → 真漏挂被漏报。
+//   它的语义是「当前登录画师是谁」，证明「我知道你是谁」，
+//   **不能证明「这条数据是你的」**；而且它恰恰是「守卫已挂、正在用守卫结果」的形态——
+//   漏挂守卫时它照样在（代码是抄的，这行本来就有）。
+//   现在它既不让缺守卫的路由变绿，也不额外报红（不进 OWN_EVIDENCE）。
 const OWN_EVIDENCE = [
-  { re: /\bartist_id\b/, label: 'artist_id' },
-  { re: /request\s*\.\s*artist\s*\.\s*id\b/, label: 'request.artist.id' },
-  // 判据 ①b 补充：把请求方身份作为参数交给 service（例如 updateCredentialName(id, request.artist.id, …)），
-  // service 内以 artist_id 过滤。这是 B 类写法在画师端 handler 里的常见落点。
-  { re: /,\s*request\s*\.\s*artist\s*\.\s*id\b/, label: 'request.artist.id 传入调用' }
+  { re: /\bartist_id\b/, label: 'artist_id' }
 ]
 // 判据 ③b：客户令牌归属模型（/api/orders/*）——没有画师登录态，归属由高熵订单令牌建立。
 // 令牌来源（readClientToken 统一入口 / header / query / body 解构）与令牌校验（按令牌查单或
@@ -271,6 +298,167 @@ function expandLocalHelpers (src, handlerText, depth) {
   return extra
 }
 
+/** 收集本文件的 import 映射：本地名 → 模块相对路径（只认相对路径导入） */
+function parseImports (src) {
+  const map = new Map()
+  const re = /import\s+([\s\S]*?)\s+from\s+['"](\.[^'"]+)['"]/g
+  let m
+  while ((m = re.exec(src)) !== null) {
+    const clause = m[1]
+    const spec = m[2]
+    const ns = /\*\s+as\s+([A-Za-z_$][\w$]*)/.exec(clause)
+    if (ns) map.set(ns[1], spec)
+    const named = /\{([\s\S]*)\}/.exec(clause)
+    if (named) {
+      for (const part of named[1].split(',')) {
+        const t = part.trim()
+        if (!t) continue
+        const as = /^([A-Za-z_$][\w$]*)\s+as\s+([A-Za-z_$][\w$]*)$/.exec(t)
+        if (as) map.set(as[2], spec)
+        else map.set(t, spec)
+      }
+    }
+  }
+  return map
+}
+
+/**
+ * 归属强制证据（service 体内才算）。这是 B 类写法落在 service 层时的形态：
+ *   artist_id = ?            SQL 过滤
+ *   artist_id !== / === …    读后比较
+ * 只看函数体，不看注释（注释里的 artist_id 不算）。
+ */
+const ENFORCE_PATTERNS = [
+  { re: /\bartist_id\s*=\s*\?/, label: 'artist_id = ?（SQL 过滤）' },
+  { re: /\bartist_id\s*!==?/, label: 'artist_id 比较（读后校验）' },
+  { re: /\bartist_id\s*===?/, label: 'artist_id 比较（读后校验）' },
+  // upsert 形态：写的就是本人的行，归属由 (artist_id, …) 唯一键冲突域约束
+  // （tools.service.ts upsertClientProfile 的 ON CONFLICT(artist_id, client_qq)）
+  { re: /ON\s+CONFLICT\s*\(\s*artist_id\b/i, label: 'ON CONFLICT(artist_id, …)（upsert 归属键）' }
+]
+
+/**
+ * 取 export function/const 的定义体（用于看 service 函数内部）。
+ * 难点：签名可能带对象字面量返回类型，如
+ *   export function deleteDiscountCode(artistId: number, codeId: number): { deleted: boolean } {
+ * 直接 indexOf('{') 会停返回类型的那个花括号上，把函数体截成 '{ deleted: boolean }'，
+ * 于是函数体里真正的 artist_id = ? 看不见 → 误判成漏挂（实测踩过）。
+ * 判法：从形参右括号往后找花括号，**前一个非空白字符是 ':' 的按返回类型跳过**，下一个才是函数体。
+ */
+function extractFunctionBody (src, name) {
+  const patterns = [
+    new RegExp('export\\s+(?:async\\s+)?function\\s+' + name + '\\s*\\('),
+    new RegExp('export\\s+const\\s+' + name + '\\s*=\\s*(?:async\\s*)?\\(?[^=]*\\)?\\s*=>\\s*\\{'),
+    new RegExp('(?:^|\\n)\\s*(?:async\\s+)?function\\s+' + name + '\\s*\\(')
+  ]
+  for (const re of patterns) {
+    const m = re.exec(src)
+    if (!m) continue
+    const openParen = src.indexOf('(', m.index + m[0].length - 1)
+    if (openParen === -1) continue
+    const parsed = splitArgs(src, openParen)
+    let i = parsed ? parsed.end + 1 : openParen + 1
+    let body = null
+    while (i < src.length) {
+      const ch = src[i]
+      if (ch === '{') {
+        // 前一个非空白字符是 ':' → 这是返回类型的对象字面量，整体跳过
+        let k = i - 1
+        while (k >= 0 && /\s/.test(src[k])) k -= 1
+        if (src[k] === ':') {
+          const skipped = sliceBalanced(src, i)
+          if (!skipped) break
+          i += skipped.length
+          continue
+        }
+        body = sliceBalanced(src, i)
+        break
+      }
+      if (ch === ';' || ch === '\n') {
+        // 箭头函数简写体或声明结束，交给下一个 pattern
+        break
+      }
+      i += 1
+    }
+    if (body) return body
+  }
+  return null
+}
+
+/**
+ * 沿 handler 里的 <ns>.<fn>( request.artist.id … ) 调用下沉到被导入的 service 文件，
+ * 看该函数体内有没有真归属强制（ENFORCE_PATTERNS）。命中返回描述串，否则 null。
+ *
+ * 为什么要这一步：画师端大量写路由的归属校验不在 handler 里，而是把 request.artist.id
+ * 交给 service、由 service 用 `WHERE id = ? AND artist_id = ?` 或读后比较来限定范围
+ * （EVAL 的 B 类 / C 类落在 service 层）。只看 handler 文本会把这批全判成漏挂。
+ *
+ * 关键约束（一号 2026-11-28 变异测试的教训）：**只有在 handler 确实把 request.artist.id
+ * 传下去时才下沉**。handler 里出现 request.artist.id 但只是拿去拼响应、写日志、调用
+ * 不做归属过滤的函数（如 updateOrderStatus）时，下沉也查不到强制 —— 照样报红。
+ * 也就是说 request.artist.id 本身仍然不是证据，它只是「去找证据的线索」。
+ */
+function collectServiceEnforcement (src, baseDir, handlerText) {
+  if (!/request\s*\.\s*artist\s*\.\s*id/.test(handlerText)) return null
+  const imports = parseImports(src)
+  // 动态 import 的具名解构也算（auth.routes.ts:505 就是 `const { updateCredentialName } = await import('./webauthn.js')`）
+  // 动态 import 有两种形态，都要从**整个文件**扫（变量常在 handler 外声明）：
+  //   const { a, b } = await import('./x.js')
+  //   const ns = await import('./x.js')
+  const dynNamed = /const\s*\{([^}]+)\}\s*=\s*await\s+import\(\s*['"](\.[^'"]+)['"]\s*\)/g
+  let dm
+  while ((dm = dynNamed.exec(src)) !== null) {
+    for (const part of dm[1].split(',')) {
+      const t = part.trim()
+      if (!t) continue
+      const as = /^([A-Za-z_$][\w$]*)\s+as\s+([A-Za-z_$][\w$]*)$/.exec(t)
+      imports.set(as ? as[2] : t, dm[2])
+    }
+  }
+  const dynNs = /const\s+([A-Za-z_$][\w$]*)\s*=\s*await\s+import\(\s*['"](\.[^'"]+)['"]\s*\)/g
+  let dn
+  while ((dn = dynNs.exec(src)) !== null) imports.set(dn[1], dn[2])
+  const hits = []
+  // 两种调用形态都要认：
+  //   ns.fn(…)                    —— 命名空间导入 / 直接导入 service 模块
+  //   fn(…)                       —— 具名导入或动态 import 解构后的裸调用
+  const callRe = /\b([A-Za-z_$][\w$]*)(?:\s*\.\s*([A-Za-z_$][\w$]*))?\s*\(/g
+  const seen = new Set()
+  let m
+  while ((m = callRe.exec(handlerText)) !== null) {
+    const ns = m[1]
+    const fn = m[2] || m[1]
+    const spec = m[2] ? imports.get(ns) : imports.get(ns)
+    if (!spec) continue
+    const key = spec + '::' + fn
+    if (seen.has(key)) continue
+    seen.add(key)
+    const target = resolveImportPath(baseDir, spec)
+    if (!target) continue
+    let targetSrc
+    try { targetSrc = stripComments(readFileSync(target, 'utf8')) } catch { continue }
+    const body = extractFunctionBody(targetSrc, fn)
+    if (!body) continue
+    const enforce = ENFORCE_PATTERNS.filter((e) => e.re.test(body)).map((e) => e.label)
+    if (enforce.length) hits.push(fn + ' → ' + enforce[0])
+  }
+  return hits.length ? hits : null
+}
+
+/** 解析相对导入到磁盘路径（TS 源码里写 .js，实际是 .ts） */
+function resolveImportPath (baseDir, spec) {
+  const candidates = []
+  const abs = join(baseDir, spec)
+  candidates.push(abs)
+  if (spec.endsWith('.js')) candidates.push(abs.slice(0, -3) + '.ts')
+  candidates.push(abs + '.ts')
+  candidates.push(join(abs, 'index.ts'))
+  for (const c of candidates) {
+    try { if (statSync(c).isFile()) return c } catch { /* 继续试下一个 */ }
+  }
+  return null
+}
+
 function walk (dir, out) {
   const acc = out || []
   let entries
@@ -351,6 +539,7 @@ function analyzeFile (file) {
       optionsText,
       handlerText,
       handlerHelpers: expandLocalHelpers(src, handlerText, 2),
+      serviceEnforce: collectServiceEnforcement(src, dirname(file), handlerText),
       handlerUnresolved
     })
   }
@@ -361,7 +550,9 @@ function evaluate (route) {
   const scope = route.optionsText + '\n' + route.handlerText
   const hasAuth = AUTH_RE.test(scope)
   const hasNamedOwn = OWN_NAMED_RE.test(scope)
-  const evidence = OWN_EVIDENCE.filter((e) => e.re.test(scope)).map((e) => e.label)
+  const inlineEvidence = OWN_EVIDENCE.filter((e) => e.re.test(scope)).map((e) => e.label)
+  const serviceEvidence = route.serviceEnforce || []
+  const evidence = inlineEvidence.concat(serviceEvidence)
   // 判据 ③b 允许沿同文件小函数看一层令牌链，其余判据只看 handler 本体
   const tokenScope = scope + '\n' + (route.handlerHelpers || '')
   const tokenSources = CLIENT_TOKEN_SOURCES.filter((e) => e.re.test(tokenScope)).map((e) => e.label)
@@ -390,7 +581,9 @@ function evaluate (route) {
   }
   const missing = []
   if (!hasAuth && !hasNamedOwn) missing.push('认证/守卫（requireAuth|requireAdmin|requireOwn*）')
-  if (!hasNamedOwn && evidence.length === 0) missing.push('归属证据（requireOwn*|artist_id|request.artist.id）')
+  if (!hasNamedOwn && evidence.length === 0) {
+    missing.push('归属证据（requireOwn*｜handler 内 artist_id｜service 层 artist_id 过滤）')
+  }
   if (missing.length) return { status: 'violation', missing: missing.join(' + ') }
   return { status: 'pass', note: hasNamedOwn ? 'requireOwn*' : evidence.join('/') }
 }
