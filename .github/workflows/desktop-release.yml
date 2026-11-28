@@ -153,3 +153,48 @@ jobs:
             desktop/src-tauri/target/release/bundle/nsis/*.nsis.zip
             desktop/src-tauri/target/release/bundle/nsis/*.nsis.zip.sig
             desktop/src-tauri/target/release/bundle/nsis/latest.json
+
+      # ─── 同步固定更新源 Release（2026-11-28 拍板：桌面 0.2.0 更新通道改挂 GitHub Releases）───
+      # 为什么要这一步：updater 的 endpoint 一旦发出去就写在用户机器上了，换域名 = 老用户全失联。
+      # 做法：正式版本 Release（desktop-v0.2.0 等）照常发；同时把「更新所需三件」同步到固定的
+      # desktop-latest Release，客户端 endpoint 永远指向它，以后换服务器/换域名都不影响老用户。
+      #
+      # 为什么不用 releases/latest/download：本仓同时发网页版 Release，latest 可能指向网页版而不是
+      # 桌面版（--latest=false 能压住，但一旦有人手工改标记就漂）。固定标签不存在这个问题。
+      #
+      # 上传顺序：先 zip+sig，最后 latest.json —— 反过来的话客户端会先读到新清单、安装包却还没上传。
+      # 前置：仓库须未开启 Immutable Releases（已核 2026-11-28 为未开启）。若将来开启，--clobber 会失败，
+      #       届时改用 GitHub Pages 托管更新源，不要靠手工删 Release 绕过。
+      - name: 同步固定更新源（desktop-latest）
+        if: github.event_name == 'push'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # if: 已把 dispatch 挡在外面（此时上游是 draft、客户端不可见，不该推滚动源），此处不再重复判断
+          $bundle = 'src-tauri/target/release/bundle/nsis'
+          $zip = Get-ChildItem $bundle -Filter *.nsis.zip | Select-Object -First 1
+          if (-not $zip) { throw "未找到 .nsis.zip，无法同步更新源" }
+          $sig = "$($zip.FullName).sig"
+          if (-not (Test-Path $sig)) { throw "未找到签名文件 $sig（签名私钥缺失？）" }
+          $manifest = Join-Path $bundle 'latest.json'
+          if (-not (Test-Path $manifest)) { throw "未找到 latest.json，清单步骤未生成" }
+
+          # 滚动 Release 不存在则创建。--latest=false 是硬要求：它绝不能抢走网页版的 latest 标记
+          gh release view desktop-latest --repo ${{ github.repository }} *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create desktop-latest --repo ${{ github.repository }} `
+              --target ${{ github.sha }} `
+              --title '拾绘桌面版更新源' `
+              --notes '本 Release 由 desktop-release 流水线自动维护，是桌面端 updater 的固定端点。请勿手工修改其资产——覆盖后老客户端将无法验签更新。正式版本说明请看对应的 desktop-v* Release。' `
+              --latest=false
+            if ($LASTEXITCODE -ne 0) { throw 'desktop-latest 创建失败' }
+          }
+
+          # 先包与签名，后清单（顺序即防线）
+          gh release upload desktop-latest --repo ${{ github.repository }} --clobber $zip.FullName $sig
+          if ($LASTEXITCODE -ne 0) { throw '更新包/签名上传失败' }
+          gh release upload desktop-latest --repo ${{ github.repository }} --clobber $manifest
+          if ($LASTEXITCODE -ne 0) { throw 'latest.json 上传失败' }
+
+          Write-Host "更新源已同步：$($zip.Name) + .sig + latest.json -> desktop-latest"
